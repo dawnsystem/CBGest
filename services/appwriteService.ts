@@ -1,318 +1,564 @@
+import { Client, Account, Databases, Storage, Query, ID, Models } from 'appwrite';
+import { AppwriteConfig, Invoice, AccountingEntry, BankTransaction, AppSettings, AppUser } from '../types';
 
-import { Client, Storage, Databases, Account, Functions, ID, Query } from 'appwrite';
-import { AppSettings, Invoice, AccountingEntry, BankTransaction } from '../types';
+// Singleton Client
+let clientInstance: Client | null = null;
+let accountInstance: Account | null = null;
+let databasesInstance: Databases | null = null;
+let storageInstance: Storage | null = null;
 
-// --- CONSTANTS ---
-const COL_SETTINGS = 'settings';
-const COL_INVOICES = 'invoices';
-const COL_ENTRIES = 'entries';
-const COL_TRANSACTIONS = 'transactions';
+let currentConfig: AppwriteConfig | null = null;
 
-// --- SINGLETONS ---
-let client: Client | null = null;
-let account: Account | null = null;
-let storage: Storage | null = null;
-let databases: Databases | null = null;
-let functions: Functions | null = null;
-
-let projectId: string = '';
-let bucketId: string = '';
-let databaseId: string = '';
-let currentEndpoint: string = '';
-
-// --- INITIALIZATION ---
-export const initAppwrite = (projId: string, bktId: string, dbId: string, endpoint: string = 'https://cloud.appwrite.io/v1') => {
-  // Validate Endpoint
-  let validEndpoint = endpoint;
-  if (!validEndpoint || !validEndpoint.startsWith('http')) {
-      validEndpoint = 'https://cloud.appwrite.io/v1';
-  }
-  try {
-    new URL(validEndpoint);
-  } catch (e) {
-    validEndpoint = 'https://cloud.appwrite.io/v1';
+/**
+ * Initialize Appwrite client with configuration
+ */
+export const initializeAppwrite = (config: AppwriteConfig) => {
+  if (!config.endpoint || !config.projectId) {
+    throw new Error('Appwrite endpoint and projectId are required');
   }
 
-  projectId = projId;
-  bucketId = bktId;
-  databaseId = dbId;
-  currentEndpoint = validEndpoint;
-  
-  // SINGLETON PATTERN:
-  // If client exists, MUTATE it instead of creating new one.
-  // This preserves the session cookies/localStorage handled by the SDK.
-  if (client) {
-      client.setEndpoint(validEndpoint).setProject(projectId);
-  } else {
-      client = new Client()
-        .setEndpoint(validEndpoint)
-        .setProject(projectId);
-      
-      // Initialize services only once
-      account = new Account(client);
-      storage = new Storage(client);
-      databases = new Databases(client);
-      functions = new Functions(client);
+  clientInstance = new Client()
+    .setEndpoint(config.endpoint)
+    .setProject(config.projectId);
+
+  accountInstance = new Account(clientInstance);
+  databasesInstance = new Databases(clientInstance);
+  storageInstance = new Storage(clientInstance);
+
+  currentConfig = config;
+
+  console.log('✅ Appwrite initialized:', config.endpoint);
+};
+
+/**
+ * Get current Appwrite client instances
+ */
+const getInstances = () => {
+  if (!clientInstance || !accountInstance || !databasesInstance || !storageInstance || !currentConfig) {
+    throw new Error('Appwrite not initialized. Call initializeAppwrite() first.');
   }
+  return {
+    client: clientInstance,
+    account: accountInstance,
+    databases: databasesInstance,
+    storage: storageInstance,
+    config: currentConfig
+  };
 };
 
-export const getClient = () => client;
+// ============================================================================
+// AUTH SERVICES
+// ============================================================================
 
-// Ping for setup verification
-export const ping = async () => {
-    if (!account) throw new Error("Appwrite not initialized");
+export const authService = {
+  /**
+   * Register new user with email/password
+   */
+  async register(email: string, password: string, name: string): Promise<AppUser> {
+    const { account } = getInstances();
+
     try {
-        await account.get();
-        return true;
-    } catch (e: any) {
-        // 401 is "Unauthorized" but means connection works (server replied)
-        if (e.code === 401) return true;
-        if (e.message === "Failed to fetch") throw new Error("CORS_ERROR");
-        console.error("Ping failed details:", e);
-        throw e;
+      const user = await account.create(ID.unique(), email, password, name);
+
+      // Auto-login after registration
+      await account.createEmailPasswordSession(email, password);
+
+      return user as AppUser;
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      throw new Error(error.message || 'Error al registrar usuario');
     }
-};
+  },
 
-// ==========================================
-// 1. AUTHENTICATION (Auth)
-// ==========================================
+  /**
+   * Login with email/password
+   */
+  async login(email: string, password: string): Promise<AppUser> {
+    const { account } = getInstances();
 
-export const login = async (email: string, pass: string) => {
-    if (!account) throw new Error("Appwrite not initialized");
-    
-    // STRATEGY: Check First
-    // 1. Check if session exists
     try {
-        const existingUser = await account.get();
-        return existingUser; // Session valid, return immediately
-    } catch (e: any) {
-        if (e.code === 429) throw new Error("RATELIMIT");
-        // 401 means no session, proceed.
+      await account.createEmailPasswordSession(email, password);
+      const user = await account.get();
+      return user as AppUser;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw new Error(error.message || 'Credenciales incorrectas');
     }
+  },
 
-    // 2. Try to create session directly. 
-    // If "Session Active" error occurs, it means we have a zombie session state 
-    // or a race condition. We handle that in catch block.
+  /**
+   * Logout current session
+   */
+  async logout(): Promise<void> {
+    const { account } = getInstances();
+
     try {
-        return await account.createEmailPasswordSession(email, pass);
-    } catch (e: any) {
-        if (e.code === 429) throw new Error("RATELIMIT");
-        
-        // Fallback for "Session Active" (409 or specific type)
-        if (e.code === 409 || e.type === 'general_session_already_exists') {
-            // Try one last time to get the user, maybe the session IS valid now
-            try {
-                return await account.get();
-            } catch (inner: any) { 
-                if (inner.code === 429) throw new Error("RATELIMIT");
-                // If we still can't get user, try nuclear option: delete session and retry create
-                try {
-                     await account.deleteSession('current');
-                     return await account.createEmailPasswordSession(email, pass);
-                } catch (nuclear: any) {
-                     if (nuclear.code === 429) throw new Error("RATELIMIT");
-                     throw e; // Give up
-                }
-            }
-        }
-        throw e;
+      await account.deleteSession('current');
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      throw new Error(error.message || 'Error al cerrar sesión');
     }
-};
+  },
 
-export const register = async (email: string, pass: string, name: string) => {
-    if (!account) throw new Error("Appwrite not initialized");
-    
+  /**
+   * Get current logged in user
+   */
+  async getCurrentUser(): Promise<AppUser | null> {
+    const { account } = getInstances();
+
     try {
-        await account.create(ID.unique(), email, pass, name);
-        return await login(email, pass);
-    } catch (e: any) {
-        if (e.code === 429) throw new Error("RATELIMIT");
-        throw e;
+      const user = await account.get();
+      return user as AppUser;
+    } catch (error) {
+      // Not logged in
+      return null;
     }
-};
+  },
 
-export const logout = async () => {
-    if (!account) return;
+  /**
+   * Update user name
+   */
+  async updateName(name: string): Promise<AppUser> {
+    const { account } = getInstances();
+
     try {
-        await account.deleteSession('current');
-    } catch (e) { console.error("Logout error:", e); }
-};
+      const user = await account.updateName(name);
+      return user as AppUser;
+    } catch (error: any) {
+      console.error('Update name error:', error);
+      throw new Error(error.message || 'Error al actualizar nombre');
+    }
+  },
 
-export const getCurrentUser = async () => {
-    if (!account) return null;
+  /**
+   * Send password recovery email
+   */
+  async recoverPassword(email: string, resetUrl: string): Promise<void> {
+    const { account } = getInstances();
+
     try {
-        return await account.get();
-    } catch (e) { return null; }
-};
-
-
-// ==========================================
-// 2. DATABASES (DB)
-// ==========================================
-
-export const testConnection = async (): Promise<boolean> => {
-  if (!databases || !databaseId) return false;
-  try {
-    await databases.listDocuments(databaseId, COL_SETTINGS, [Query.limit(1)]);
-    return true;
-  } catch (error) {
-    console.error("Appwrite connection failed:", error);
-    return false;
+      await account.createRecovery(email, resetUrl);
+    } catch (error: any) {
+      console.error('Password recovery error:', error);
+      throw new Error(error.message || 'Error al enviar email de recuperación');
+    }
   }
 };
 
-const pack = (obj: any) => ({ data: JSON.stringify(obj) });
-const unpack = (doc: any) => {
+// ============================================================================
+// DATABASE SERVICES
+// ============================================================================
+
+export const databaseService = {
+  /**
+   * Create Invoice document
+   */
+  async createInvoice(invoice: Invoice): Promise<Invoice> {
+    const { databases, config } = getInstances();
+
     try {
-        const obj = JSON.parse(doc.data);
-        return { ...obj, appwriteId: doc.$id };
-    } catch (e) {
-        return null;
+      // Remove File object from invoice before saving (not JSON serializable)
+      const { file, ...invoiceData } = invoice;
+
+      const doc = await databases.createDocument(
+        config.databaseId,
+        config.invoicesCollectionId,
+        invoice.id || ID.unique(),
+        invoiceData
+      );
+
+      return { ...doc, file } as Invoice;
+    } catch (error: any) {
+      console.error('Create invoice error:', error);
+      throw new Error(error.message || 'Error al crear factura');
     }
-};
+  },
 
-// --- Settings ---
-export const syncSettings = async (currentSettings: AppSettings): Promise<AppSettings | null> => {
-    if (!databases || !databaseId) return null;
+  /**
+   * Get all invoices
+   */
+  async getInvoices(): Promise<Invoice[]> {
+    const { databases, config } = getInstances();
+
     try {
-        const list = await databases.listDocuments(databaseId, COL_SETTINGS, [Query.limit(1)]);
-        if (list.documents.length > 0) {
-            const remote = unpack(list.documents[0]);
-            if (!remote) return null;
-            
-            // SANITIZE: Ensure arrays exist
-            return { 
-                ...remote, 
-                partners: Array.isArray(remote.partners) ? remote.partners : [],
-                dataConfig: currentSettings.dataConfig 
-            };
-        } else {
-            // Init remote settings
-            const cleanSettings = { ...currentSettings };
-            delete cleanSettings.dataConfig;
-            const doc = await databases.createDocument(databaseId, COL_SETTINGS, ID.unique(), pack(cleanSettings));
-            return { ...currentSettings, appwriteId: doc.$id };
-        }
-    } catch (e) {
-        console.error("Sync Settings error", e);
-        return null;
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.invoicesCollectionId,
+        [Query.orderDesc('date'), Query.limit(1000)]
+      );
+
+      return response.documents as Invoice[];
+    } catch (error: any) {
+      console.error('Get invoices error:', error);
+      throw new Error(error.message || 'Error al obtener facturas');
     }
-};
+  },
 
-export const updateSettings = async (settings: AppSettings) => {
-    if (!databases || !databaseId || !settings.appwriteId) return;
-    const cleanSettings = { ...settings };
-    delete cleanSettings.dataConfig;
-    try {
-        await databases.updateDocument(databaseId, COL_SETTINGS, settings.appwriteId, pack(cleanSettings));
-    } catch (e) { console.error("Update settings error", e); }
-};
+  /**
+   * Update Invoice
+   */
+  async updateInvoice(invoice: Invoice): Promise<Invoice> {
+    const { databases, config } = getInstances();
 
-// --- Invoices ---
-export const fetchInvoices = async (): Promise<Invoice[]> => {
-    // GUARD CLAUSE
-    if (!databases || !databaseId) return [];
-    
     try {
-        const list = await databases.listDocuments(databaseId, COL_INVOICES, [Query.limit(100), Query.orderDesc('$createdAt')]);
-        return list.documents.map(unpack).filter(Boolean);
-    } catch (e) {
-        console.error("Error fetching invoices:", e);
-        return [];
+      const { file, ...invoiceData } = invoice;
+
+      const doc = await databases.updateDocument(
+        config.databaseId,
+        config.invoicesCollectionId,
+        invoice.id,
+        invoiceData
+      );
+
+      return { ...doc, file } as Invoice;
+    } catch (error: any) {
+      console.error('Update invoice error:', error);
+      throw new Error(error.message || 'Error al actualizar factura');
     }
-};
+  },
 
-export const createInvoice = async (invoice: Invoice): Promise<Invoice> => {
-    if (!databases || !databaseId) throw new Error("No DB connection");
-    const doc = await databases.createDocument(databaseId, COL_INVOICES, ID.unique(), pack(invoice));
-    return { ...invoice, appwriteId: doc.$id };
-};
+  /**
+   * Delete Invoice
+   */
+  async deleteInvoice(id: string): Promise<void> {
+    const { databases, config } = getInstances();
 
-export const updateInvoice = async (invoice: Invoice) => {
-    if (!databases || !databaseId || !invoice.appwriteId) return;
-    await databases.updateDocument(databaseId, COL_INVOICES, invoice.appwriteId, pack(invoice));
-};
-
-export const deleteInvoice = async (id: string) => {
-    if (!databases || !databaseId) return;
-    await databases.deleteDocument(databaseId, COL_INVOICES, id);
-};
-
-// --- Entries ---
-export const fetchEntries = async (): Promise<AccountingEntry[]> => {
-    if (!databases || !databaseId) return [];
     try {
-        const list = await databases.listDocuments(databaseId, COL_ENTRIES, [Query.limit(100), Query.orderDesc('$createdAt')]);
-        return list.documents.map(unpack).filter(Boolean);
-    } catch (e) { return []; }
-};
+      await databases.deleteDocument(
+        config.databaseId,
+        config.invoicesCollectionId,
+        id
+      );
+    } catch (error: any) {
+      console.error('Delete invoice error:', error);
+      throw new Error(error.message || 'Error al eliminar factura');
+    }
+  },
 
-export const createEntry = async (entry: AccountingEntry): Promise<AccountingEntry> => {
-    if (!databases || !databaseId) throw new Error("No DB connection");
-    const doc = await databases.createDocument(databaseId, COL_ENTRIES, ID.unique(), pack(entry));
-    return { ...entry, appwriteId: doc.$id };
-};
+  /**
+   * Create Accounting Entry
+   */
+  async createEntry(entry: AccountingEntry): Promise<AccountingEntry> {
+    const { databases, config } = getInstances();
 
-export const updateEntry = async (entry: AccountingEntry) => {
-    if (!databases || !databaseId || !entry.appwriteId) return;
-    await databases.updateDocument(databaseId, COL_ENTRIES, entry.appwriteId, pack(entry));
-};
-
-export const deleteEntry = async (id: string) => {
-    if (!databases || !databaseId) return;
-    await databases.deleteDocument(databaseId, COL_ENTRIES, id);
-};
-
-// --- Transactions ---
-export const fetchTransactions = async (): Promise<BankTransaction[]> => {
-    if (!databases || !databaseId) return [];
     try {
-        const list = await databases.listDocuments(databaseId, COL_TRANSACTIONS, [Query.limit(100), Query.orderDesc('$createdAt')]);
-        return list.documents.map(unpack).filter(Boolean);
-    } catch (e) { return []; }
-};
+      const { referenceDoc, ...entryData } = entry;
 
-export const createTransaction = async (tx: BankTransaction): Promise<BankTransaction> => {
-    if (!databases || !databaseId) throw new Error("No DB connection");
-    const doc = await databases.createDocument(databaseId, COL_TRANSACTIONS, ID.unique(), pack(tx));
-    return { ...tx, appwriteId: doc.$id };
-};
+      const doc = await databases.createDocument(
+        config.databaseId,
+        config.entriesCollectionId,
+        entry.id || ID.unique(),
+        entryData
+      );
 
-export const updateTransaction = async (tx: BankTransaction) => {
-    if (!databases || !databaseId || !tx.appwriteId) return;
-    await databases.updateDocument(databaseId, COL_TRANSACTIONS, tx.appwriteId, pack(tx));
-};
+      return { ...doc, referenceDoc } as AccountingEntry;
+    } catch (error: any) {
+      console.error('Create entry error:', error);
+      throw new Error(error.message || 'Error al crear asiento');
+    }
+  },
 
+  /**
+   * Get all accounting entries
+   */
+  async getEntries(): Promise<AccountingEntry[]> {
+    const { databases, config } = getInstances();
 
-// ==========================================
-// 3. STORAGE (Files)
-// ==========================================
-
-export const uploadFile = async (file: File): Promise<string> => {
-    if (!storage || !bucketId) throw new Error("No Storage");
-    const result = await storage.createFile(bucketId, ID.unique(), file);
-    return result.$id;
-};
-
-export const getFileViewUrl = (fileId: string): string => {
-    if (!storage || !bucketId) return '';
-    return storage.getFileView(bucketId, fileId).href;
-};
-
-
-// ==========================================
-// 4. FUNCTIONS & REALTIME
-// ==========================================
-
-export const executeFunction = async (functionId: string, data?: string) => {
-    if (!functions) throw new Error("Functions not initialized");
-    return await functions.createExecution(functionId, data);
-};
-
-export const subscribeToChanges = (callback: (payload: any) => void) => {
-    if (!client || !databaseId) return () => {};
     try {
-        const channel = `databases.${databaseId}.collections.*.documents`;
-        return client.subscribe(channel, callback);
-    } catch (e) { return () => {}; }
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.entriesCollectionId,
+        [Query.orderDesc('date'), Query.limit(1000)]
+      );
+
+      return response.documents as AccountingEntry[];
+    } catch (error: any) {
+      console.error('Get entries error:', error);
+      throw new Error(error.message || 'Error al obtener asientos');
+    }
+  },
+
+  /**
+   * Update Accounting Entry
+   */
+  async updateEntry(entry: AccountingEntry): Promise<AccountingEntry> {
+    const { databases, config } = getInstances();
+
+    try {
+      const { referenceDoc, ...entryData } = entry;
+
+      const doc = await databases.updateDocument(
+        config.databaseId,
+        config.entriesCollectionId,
+        entry.id,
+        entryData
+      );
+
+      return { ...doc, referenceDoc } as AccountingEntry;
+    } catch (error: any) {
+      console.error('Update entry error:', error);
+      throw new Error(error.message || 'Error al actualizar asiento');
+    }
+  },
+
+  /**
+   * Delete Accounting Entry
+   */
+  async deleteEntry(id: string): Promise<void> {
+    const { databases, config } = getInstances();
+
+    try {
+      await databases.deleteDocument(
+        config.databaseId,
+        config.entriesCollectionId,
+        id
+      );
+    } catch (error: any) {
+      console.error('Delete entry error:', error);
+      throw new Error(error.message || 'Error al eliminar asiento');
+    }
+  },
+
+  /**
+   * Create Bank Transaction
+   */
+  async createTransaction(transaction: BankTransaction): Promise<BankTransaction> {
+    const { databases, config } = getInstances();
+
+    try {
+      const doc = await databases.createDocument(
+        config.databaseId,
+        config.transactionsCollectionId,
+        transaction.id || ID.unique(),
+        transaction
+      );
+
+      return doc as BankTransaction;
+    } catch (error: any) {
+      console.error('Create transaction error:', error);
+      throw new Error(error.message || 'Error al crear transacción');
+    }
+  },
+
+  /**
+   * Get all bank transactions
+   */
+  async getTransactions(): Promise<BankTransaction[]> {
+    const { databases, config } = getInstances();
+
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.transactionsCollectionId,
+        [Query.orderDesc('date'), Query.limit(1000)]
+      );
+
+      return response.documents as BankTransaction[];
+    } catch (error: any) {
+      console.error('Get transactions error:', error);
+      throw new Error(error.message || 'Error al obtener transacciones');
+    }
+  },
+
+  /**
+   * Update Bank Transaction
+   */
+  async updateTransaction(transaction: BankTransaction): Promise<BankTransaction> {
+    const { databases, config } = getInstances();
+
+    try {
+      const doc = await databases.updateDocument(
+        config.databaseId,
+        config.transactionsCollectionId,
+        transaction.id,
+        transaction
+      );
+
+      return doc as BankTransaction;
+    } catch (error: any) {
+      console.error('Update transaction error:', error);
+      throw new Error(error.message || 'Error al actualizar transacción');
+    }
+  },
+
+  /**
+   * Save App Settings
+   */
+  async saveSettings(settings: AppSettings): Promise<AppSettings> {
+    const { databases, config } = getInstances();
+
+    try {
+      // Try to get existing settings document
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.settingsCollectionId,
+        [Query.limit(1)]
+      );
+
+      if (response.documents.length > 0) {
+        // Update existing
+        const doc = await databases.updateDocument(
+          config.databaseId,
+          config.settingsCollectionId,
+          response.documents[0].$id,
+          settings
+        );
+        return doc as AppSettings;
+      } else {
+        // Create new
+        const doc = await databases.createDocument(
+          config.databaseId,
+          config.settingsCollectionId,
+          ID.unique(),
+          settings
+        );
+        return doc as AppSettings;
+      }
+    } catch (error: any) {
+      console.error('Save settings error:', error);
+      throw new Error(error.message || 'Error al guardar configuración');
+    }
+  },
+
+  /**
+   * Get App Settings
+   */
+  async getSettings(): Promise<AppSettings | null> {
+    const { databases, config } = getInstances();
+
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.settingsCollectionId,
+        [Query.limit(1)]
+      );
+
+      if (response.documents.length > 0) {
+        return response.documents[0] as AppSettings;
+      }
+
+      return null;
+    } catch (error: any) {
+      console.error('Get settings error:', error);
+      return null;
+    }
+  }
+};
+
+// ============================================================================
+// STORAGE SERVICES
+// ============================================================================
+
+export const storageService = {
+  /**
+   * Upload file to Appwrite Storage
+   */
+  async uploadFile(file: File, id?: string): Promise<string> {
+    const { storage, config } = getInstances();
+
+    try {
+      const uploadedFile = await storage.createFile(
+        config.storageBucketId,
+        id || ID.unique(),
+        file
+      );
+
+      return uploadedFile.$id;
+    } catch (error: any) {
+      console.error('Upload file error:', error);
+      throw new Error(error.message || 'Error al subir archivo');
+    }
+  },
+
+  /**
+   * Get file download URL
+   */
+  getFileUrl(fileId: string): string {
+    const { config } = getInstances();
+
+    return `${currentConfig?.endpoint}/storage/buckets/${config.storageBucketId}/files/${fileId}/view`;
+  },
+
+  /**
+   * Download file as blob
+   */
+  async downloadFile(fileId: string): Promise<Blob> {
+    const { storage, config } = getInstances();
+
+    try {
+      const file = await storage.getFileDownload(
+        config.storageBucketId,
+        fileId
+      );
+
+      return file as Blob;
+    } catch (error: any) {
+      console.error('Download file error:', error);
+      throw new Error(error.message || 'Error al descargar archivo');
+    }
+  },
+
+  /**
+   * Delete file from storage
+   */
+  async deleteFile(fileId: string): Promise<void> {
+    const { storage, config } = getInstances();
+
+    try {
+      await storage.deleteFile(config.storageBucketId, fileId);
+    } catch (error: any) {
+      console.error('Delete file error:', error);
+      throw new Error(error.message || 'Error al eliminar archivo');
+    }
+  }
+};
+
+// ============================================================================
+// REALTIME SUBSCRIPTIONS (Bonus)
+// ============================================================================
+
+export const realtimeService = {
+  /**
+   * Subscribe to invoices changes
+   */
+  subscribeToInvoices(callback: (payload: any) => void) {
+    const { client, config } = getInstances();
+
+    return client.subscribe(
+      `databases.${config.databaseId}.collections.${config.invoicesCollectionId}.documents`,
+      callback
+    );
+  },
+
+  /**
+   * Subscribe to entries changes
+   */
+  subscribeToEntries(callback: (payload: any) => void) {
+    const { client, config } = getInstances();
+
+    return client.subscribe(
+      `databases.${config.databaseId}.collections.${config.entriesCollectionId}.documents`,
+      callback
+    );
+  },
+
+  /**
+   * Subscribe to transactions changes
+   */
+  subscribeToTransactions(callback: (payload: any) => void) {
+    const { client, config } = getInstances();
+
+    return client.subscribe(
+      `databases.${config.databaseId}.collections.${config.transactionsCollectionId}.documents`,
+      callback
+    );
+  }
+};
+
+export default {
+  initialize: initializeAppwrite,
+  auth: authService,
+  database: databaseService,
+  storage: storageService,
+  realtime: realtimeService
 };

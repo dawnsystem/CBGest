@@ -9,9 +9,10 @@ import { useNavigate } from 'react-router-dom';
 interface DashboardProps {
   invoices: Invoice[];
   settings: AppSettings;
+  onUpdateSettings?: (settings: AppSettings) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpdateSettings }) => {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -120,10 +121,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings }) => {
   );
 
   const handleSavePartnerTaxInfo = (id: string, info: any) => {
-      alert("Datos fiscales actualizados en memoria. Guarda la Configuración global para persistir.");
+      if (!onUpdateSettings) {
+          alert("Error: No se puede guardar. Función de actualización no disponible.");
+          return;
+      }
+
+      const updatedPartners = settings.partners.map(p =>
+          p.id === id ? { ...p, taxInfo: info } : p
+      );
+
+      onUpdateSettings({
+          ...settings,
+          partners: updatedPartners
+      });
+
       setSelectedPartnerId(null);
   };
-  
 
   return (
     <div className="p-8 space-y-8 animate-fade-in">
