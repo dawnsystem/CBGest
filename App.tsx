@@ -100,12 +100,15 @@ const MainLayout: React.FC = () => {
               // USE DYNAMIC ENDPOINT FROM SETTINGS
               const endpoint = freshSettings.dataConfig.appwriteEndpoint || 'https://cloud.appwrite.io/v1';
               
-              appwriteService.initAppwrite(
-                  freshSettings.dataConfig.appwriteProjectId,
-                  freshSettings.dataConfig.appwriteBucketId || '',
-                  freshSettings.dataConfig.appwriteDatabaseId || '',
-                  endpoint
-              );
+              appwriteService.initializeAppwrite({
+                  projectId: freshSettings.dataConfig.appwriteProjectId,
+                  endpoint,
+                  databaseId: freshSettings.dataConfig.appwriteDatabaseId || 'CBGest_DB',
+                  bucketId: freshSettings.dataConfig.appwriteBucketId || 'cbgest-data',
+                  invoicesCollectionId: 'invoices',
+                  entriesCollectionId: 'entries',
+                  transactionsCollectionId: 'transactions'
+              });
               
               // 1. Initial Fetch
               try {

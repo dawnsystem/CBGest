@@ -31,6 +31,26 @@ export const initializeAppwrite = (config: AppwriteConfig) => {
 };
 
 /**
+ * Test connection to Appwrite
+ */
+export const testConnection = async (): Promise<boolean> => {
+  try {
+    if (!accountInstance) {
+      throw new Error('Appwrite not initialized');
+    }
+    // Try to get account (this will work even without session)
+    await accountInstance.get().catch(() => {
+      // If not authenticated, that's OK - connection still works
+      return true;
+    });
+    return true;
+  } catch (error) {
+    console.error('Connection test failed:', error);
+    return false;
+  }
+};
+
+/**
  * Get current Appwrite client instances
  */
 const getInstances = () => {
@@ -77,6 +97,17 @@ export const authService = {
     const { account } = getInstances();
 
     try {
+      // Check if session already exists
+      try {
+        const existingUser = await account.get();
+        if (existingUser) {
+          // Already logged in, delete current session first
+          await account.deleteSession('current');
+        }
+      } catch {
+        // No session exists, continue with login
+      }
+
       await account.createEmailPasswordSession(email, password);
       const user = await account.get();
       return user as AppUser;

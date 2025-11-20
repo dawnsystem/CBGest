@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { login, register, initAppwrite, ping } from '../services/appwriteService';
+import { initializeAppwrite, testConnection, authService } from '../services/appwriteService';
 import { useAuth } from '../context/AuthContext';
 import { Loader2, ShieldCheck, ArrowRight, Settings, CheckCircle, AlertTriangle, Globe } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const { checkSession } = useAuth();
+  const auth = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +32,15 @@ export const Login: React.FC = () => {
         } catch (e) { /* ignore */ }
     }
 
-    initAppwrite(projectId, '', '', endpoint);
+    initializeAppwrite({
+      projectId,
+      endpoint,
+      databaseId: 'CBGest_DB',
+      bucketId: 'cbgest-data',
+      invoicesCollectionId: 'invoices',
+      entriesCollectionId: 'entries',
+      transactionsCollectionId: 'transactions'
+    });
     setCurrentHost(window.location.hostname);
   }, []);
 
@@ -57,7 +65,15 @@ export const Login: React.FC = () => {
   };
 
   const handleConfigSave = () => {
-      initAppwrite(projectId, '', '', endpoint);
+      initializeAppwrite({
+        projectId,
+        endpoint,
+        databaseId: 'CBGest_DB',
+        bucketId: 'cbgest-data',
+        invoicesCollectionId: 'invoices',
+        entriesCollectionId: 'entries',
+        transactionsCollectionId: 'transactions'
+      });
       persistConfig(); // CRITICAL: Save to LS so App.tsx picks it up
       setShowConfig(false);
       setPingStatus('IDLE');
@@ -65,11 +81,19 @@ export const Login: React.FC = () => {
   };
 
   const handlePing = async () => {
-      initAppwrite(projectId, '', '', endpoint); // Ensure latest config
+      initializeAppwrite({
+        projectId,
+        endpoint,
+        databaseId: 'CBGest_DB',
+        bucketId: 'cbgest-data',
+        invoicesCollectionId: 'invoices',
+        entriesCollectionId: 'entries',
+        transactionsCollectionId: 'transactions'
+      });
       setLoading(true);
       setError('');
       try {
-          await ping();
+          await testConnection();
           setPingStatus('SUCCESS');
           persistConfig(); // If ping works, save it!
           setTimeout(() => setPingStatus('IDLE'), 3000);
@@ -90,16 +114,24 @@ export const Login: React.FC = () => {
     setError('');
     
     // Ensure initialized before login attempt
-    initAppwrite(projectId, '', '', endpoint);
+    initializeAppwrite({
+      projectId,
+      endpoint,
+      databaseId: 'CBGest_DB',
+      bucketId: 'cbgest-data',
+      invoicesCollectionId: 'invoices',
+      entriesCollectionId: 'entries',
+      transactionsCollectionId: 'transactions'
+    });
     persistConfig();
 
     try {
       if (isRegister) {
-        await register(email, password, name);
+        await auth.register(email, password, name);
       } else {
-        await login(email, password);
+        await auth.login(email, password);
       }
-      await checkSession(); // Refresh context to enter app
+      // Auth context will automatically update with the new user
     } catch (err: any) {
       console.error(err);
       if (err.message === "Failed to fetch") {

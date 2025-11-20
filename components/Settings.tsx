@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Users, Building, Info, Plus, Trash2, Database, Cloud, HardDrive, Download, Upload, CheckCircle, FilePlus, FileInput, Lock, LogOut, Check, Clock, ShieldCheck, Wifi, AlertTriangle, HelpCircle } from 'lucide-react';
 import { AppSettings, Partner, DataSourceType } from '../types';
-import { initAppwrite, testConnection } from '../services/appwriteService';
+import { initializeAppwrite, testConnection } from '../services/appwriteService';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -111,12 +111,15 @@ export const Settings: React.FC<SettingsProps> = ({
           return;
       }
       setAppwriteStatus('TESTING');
-      initAppwrite(
-          formData.dataConfig.appwriteProjectId, 
-          formData.dataConfig.appwriteBucketId, 
-          formData.dataConfig.appwriteDatabaseId,
-          formData.dataConfig.appwriteEndpoint
-      );
+      initializeAppwrite({
+          projectId: formData.dataConfig.appwriteProjectId,
+          endpoint: formData.dataConfig.appwriteEndpoint || 'https://fra.cloud.appwrite.io/v1',
+          databaseId: formData.dataConfig.appwriteDatabaseId,
+          bucketId: formData.dataConfig.appwriteBucketId,
+          invoicesCollectionId: 'invoices',
+          entriesCollectionId: 'entries',
+          transactionsCollectionId: 'transactions'
+      });
       const success = await testConnection();
       if (success) {
           setAppwriteStatus('SUCCESS');
