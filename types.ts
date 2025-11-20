@@ -81,10 +81,25 @@ export interface Partner {
 }
 
 // Data Source Types
-export type DataSourceType = 'LOCAL_STORAGE' | 'LOCAL_FILE' | 'SUPABASE' | 'FIREBASE';
+export type DataSourceType = 'LOCAL_STORAGE' | 'LOCAL_FILE' | 'APPWRITE' | 'SUPABASE' | 'FIREBASE';
+
+export interface AppwriteConfig {
+  endpoint: string;         // ej: https://cloud.appwrite.io/v1
+  projectId: string;        // Project ID de Appwrite
+  databaseId: string;       // Database ID
+  // Collection IDs
+  invoicesCollectionId: string;
+  entriesCollectionId: string;
+  transactionsCollectionId: string;
+  settingsCollectionId: string;
+  // Storage Bucket ID
+  storageBucketId: string;
+}
 
 export interface DataSourceConfig {
   type: DataSourceType;
+  // Appwrite config
+  appwrite?: AppwriteConfig;
   // Configuración futura para conectores remotos
   supabaseUrl?: string;
   supabaseKey?: string;
@@ -92,6 +107,15 @@ export interface DataSourceConfig {
   autoBackup: boolean;
   // Local File info (Not persisted, runtime only)
   fileName?: string;
+}
+
+// User types for Auth
+export interface AppUser {
+  $id: string;
+  email: string;
+  name: string;
+  emailVerification: boolean;
+  prefs: Record<string, any>;
 }
 
 export interface AppSettings {
