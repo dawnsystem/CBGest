@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 // Initialize Gemini client
@@ -9,25 +10,26 @@ export const analyzeInvoiceImage = async (base64Data: string, mimeType: string):
     
     const prompt = `
       Analiza este documento (factura o ticket).
-      Eres un contable experto en normativa española (Plan General Contable).
+      Eres un contable experto en normativa española (Plan General Contable) y europea.
       
-      Instrucciones:
+      Instrucciones CRÍTICAS de Limpieza de Datos:
+      1. **NIF/CIF/VAT**: Extrae el identificador fiscal del emisor.
+         - ELIMINA cualquier carácter que no sea letra o número (guiones, espacios, puntos, barras).
+         - Ejemplo: "B-12345678" -> "B12345678". "ES B 12345678" -> "ESB12345678".
+         - Estandariza a mayúsculas.
+      2. **Tipo de Documento**: Identifica si es un NIF (Persona física ES), CIF (Empresa ES), VAT (Intracomunitario), PASAPORTE o OTRO.
+      3. **Cuenta Contable**: Sugiere el código PGC (Grupo 6 o 7).
+
+      Instrucciones Generales:
       1. Extrae los datos fiscales.
       2. Valida que la fecha tenga sentido.
-      3. CRÍTICO: Basándote en el concepto y el emisor, sugiere el código de cuenta contable (Grupo 6 o 7) más apropiado según el PGC.
-         Ejemplos:
-         - Iberdrola/Endesa -> 628 (Suministros)
-         - Leroy Merlin/Reparación -> 622 (Reparaciones)
-         - Gestoría/Abogado -> 623 (Profesionales)
-         - Seguro -> 625 (Primas de seguros)
-         - Comisiones Booking/Airbnb -> 629 (Otros servicios)
-         - Ingreso Alquiler -> 705 (Prestación de servicios)
       
       Campos a extraer:
       - number (string)
       - date (YYYY-MM-DD)
       - issuerName (string)
-      - issuerNif (string)
+      - issuerNif (string) - LIMPIO SIN SEPARADORES
+      - issuerNifType (string) - Enum: 'NIF', 'CIF', 'VAT', 'PASSPORT', 'OTHER'
       - baseAmount (number)
       - vatRate (number, ej: 21)
       - vatAmount (number)
@@ -53,6 +55,7 @@ export const analyzeInvoiceImage = async (base64Data: string, mimeType: string):
             date: { type: Type.STRING },
             issuerName: { type: Type.STRING },
             issuerNif: { type: Type.STRING },
+            issuerNifType: { type: Type.STRING },
             baseAmount: { type: Type.NUMBER },
             vatRate: { type: Type.NUMBER },
             vatAmount: { type: Type.NUMBER },
