@@ -74,7 +74,7 @@ export const AppwriteConfig: React.FC<AppwriteConfigProps> = ({ config, onSave, 
           <div>
             <h3 className="text-xl font-bold mb-2">Appwrite Cloud Backend</h3>
             <p className="text-sm text-blue-100 leading-relaxed">
-              Conecta GestCB con Appwrite para sincronización multi-dispositivo,
+              Conecta CBGest con Appwrite para sincronización multi-dispositivo,
               autenticación de usuarios, backups automáticos y colaboración en tiempo real.
             </p>
             <a
@@ -153,7 +153,7 @@ export const AppwriteConfig: React.FC<AppwriteConfigProps> = ({ config, onSave, 
               value={formData.databaseId}
               onChange={(e) => handleChange('databaseId', e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
-              placeholder="ej: gestcb_main"
+              placeholder="ej: cbgest_main"
             />
             <p className="text-xs text-slate-400 mt-1">
               Databases → Tu database → Settings → Database ID

@@ -17,7 +17,7 @@ dist-ssr
 .env.local
 .env.*.local
 
-# GestCB secure database files
+# CBGest secure database files
 *.gestcb
 
 # Editor directories and files

@@ -1,6 +1,6 @@
-# 🚀 Guía de Configuración de Appwrite - GestCB
+# 🚀 Guía de Configuración de Appwrite - CBGest
 
-Esta guía te ayudará a configurar Appwrite como backend para GestCB.
+Esta guía te ayudará a configurar Appwrite como backend para CBGest.
 
 ---
 
@@ -18,11 +18,12 @@ Esta guía te ayudará a configurar Appwrite como backend para GestCB.
 ### Opciones de Despliegue
 
 1. **Appwrite Cloud** (Recomendado)
+
    - Gratis hasta cierto límite
    - Sin necesidad de servidor
    - URL: https://cloud.appwrite.io
-
 2. **Self-Hosted**
+
    - Docker en tu servidor
    - Control total
    - Requiere mantenimiento
@@ -41,7 +42,7 @@ Esta guía te ayudará a configurar Appwrite como backend para GestCB.
 ### Paso 2: Crear Nuevo Proyecto
 
 1. En el dashboard, haz clic en **"Create Project"**
-2. Nombre del proyecto: `GestCB`
+2. Nombre del proyecto: `CBGest`
 3. **Copia el Project ID** (lo necesitarás después)
 
 ### Paso 3: Configurar Platform (Web)
@@ -50,12 +51,12 @@ Esta guía te ayudará a configurar Appwrite como backend para GestCB.
 2. Haz clic en **"Add Platform" → "Web App"**
 3. Configura:
    ```
-   Name: GestCB Local
+   Name: CBGest Local
    Hostname: localhost
    ```
 4. Si vas a desplegar en producción, añade también:
    ```
-   Name: GestCB Production
+   Name: CBGest Production
    Hostname: tudominio.com
    ```
 
@@ -75,8 +76,10 @@ Necesitas crear 4 colecciones:
 1. En tu database, haz clic en **"Create Collection"**
 2. Nombre: `invoices`
 3. **Permissions:**
+
    - Role: `users` → Read, Create, Update, Delete
 4. **Attributes** (añade estos campos):
+
    ```
    - id: String (36 chars, required)
    - number: String (50 chars, required)
@@ -94,7 +97,6 @@ Necesitas crear 4 colecciones:
    - fileType: String (100 chars)
    - history: String (array) (10000 chars) // JSON string
    ```
-
 5. **Copia el Collection ID**
 
 #### B) Collection: `entries`
@@ -103,7 +105,9 @@ Necesitas crear 4 colecciones:
 2. Nombre: `entries`
 3. **Permissions:** igual que invoices
 4. **Attributes:**
+
    ```
+
    - id: String (36 chars, required)
    - date: String (20 chars, required)
    - concept: String (500 chars, required)
@@ -116,7 +120,6 @@ Necesitas crear 4 colecciones:
    - fileType: String (100 chars)
    - reconciled: Boolean (required)
    ```
-
 5. **Copia el Collection ID**
 
 #### C) Collection: `transactions`
@@ -125,6 +128,7 @@ Necesitas crear 4 colecciones:
 2. Nombre: `transactions`
 3. **Permissions:** igual que anteriores
 4. **Attributes:**
+
    ```
    - id: String (36 chars, required)
    - date: String (20 chars, required)
@@ -135,7 +139,6 @@ Necesitas crear 4 colecciones:
    - reconciledWithEntryId: String (36 chars)
    - status: String (15 chars, required) // PENDING or MATCHED
    ```
-
 5. **Copia el Collection ID**
 
 #### D) Collection: `settings`
@@ -144,6 +147,7 @@ Necesitas crear 4 colecciones:
 2. Nombre: `settings`
 3. **Permissions:** igual que anteriores
 4. **Attributes:**
+
    ```
    - cbName: String (200 chars, required)
    - nif: String (20 chars, required)
@@ -151,7 +155,6 @@ Necesitas crear 4 colecciones:
    - vatObligation: Boolean (required)
    - partners: String (array) (10000 chars) // JSON string
    ```
-
 5. **Copia el Collection ID**
 
 ### Paso 6: Crear Storage Bucket
@@ -167,12 +170,13 @@ Necesitas crear 4 colecciones:
    - Role: `users` → Read, Create, Delete
 6. **Copia el Bucket ID**
 
-### Paso 7: Configurar en GestCB
+### Paso 7: Configurar en CBGest
 
-1. Abre GestCB en tu navegador
+1. Abre CBGest en tu navegador
 2. Ve a **"Configuración" → pestaña "Datos y Conexiones"**
 3. Haz clic en la tarjeta **"Appwrite Cloud Backend"**
 4. Rellena los campos:
+
    ```
    Endpoint: https://cloud.appwrite.io/v1
    Project ID: [Tu Project ID]
@@ -183,7 +187,6 @@ Necesitas crear 4 colecciones:
    Settings Collection ID: [Tu settings Collection ID]
    Storage Bucket ID: [Tu Bucket ID]
    ```
-
 5. Haz clic en **"Guardar y Activar Appwrite"**
 6. Se abrirá un modal de Login/Register
 7. Crea tu cuenta o inicia sesión
@@ -225,22 +228,22 @@ docker compose up -d
 2. Completa el setup inicial
 3. Crea tu proyecto
 4. Sigue los pasos 4-7 de la opción Cloud (igual proceso)
-5. En GestCB, usa tu endpoint: `http://tu-ip/v1`
+5. En CBGest, usa tu endpoint: `http://tu-ip/v1`
 
 ---
 
 ## 📊 Comparación de Modos
 
-| Característica | LocalStorage | Archivo .gestcb | Appwrite Cloud |
-|---|---|---|---|
-| **Multi-dispositivo** | ❌ | ❌ | ✅ |
-| **Colaboración** | ❌ | ❌ | ✅ |
-| **Backup automático** | ❌ | Manual | ✅ |
-| **Requiere internet** | ❌ | ❌ | ✅ |
-| **Cifrado** | ❌ | ✅ (AES-256) | ✅ (HTTPS) |
-| **Límite de datos** | ~10MB | Sin límite | Plan Free: 2GB |
-| **Sincronización RT** | ❌ | ❌ | ✅ |
-| **Auth/Usuarios** | ❌ | ❌ | ✅ |
+| Característica              | LocalStorage | Archivo .gestcb | Appwrite Cloud |
+| ---------------------------- | ------------ | --------------- | -------------- |
+| **Multi-dispositivo**  | ❌           | ❌              | ✅             |
+| **Colaboración**      | ❌           | ❌              | ✅             |
+| **Backup automático** | ❌           | Manual          | ✅             |
+| **Requiere internet**  | ❌           | ❌              | ✅             |
+| **Cifrado**            | ❌           | ✅ (AES-256)    | ✅ (HTTPS)     |
+| **Límite de datos**   | ~10MB        | Sin límite     | Plan Free: 2GB |
+| **Sincronización RT** | ❌           | ❌              | ✅             |
+| **Auth/Usuarios**      | ❌           | ❌              | ✅             |
 
 ---
 
@@ -336,25 +339,26 @@ Si ya tienes datos en LocalStorage:
 Una vez configurado:
 
 1. **Prueba el sistema:**
+
    - Crea una factura
    - Verifica que aparece en Appwrite Dashboard
    - Cierra sesión e inicia sesión de nuevo
    - Verifica que los datos persisten
-
 2. **Invita colaboradores:**
+
    - En Settings → añade más usuarios
    - Asigna permisos específicos
-
 3. **Explora Realtime:**
-   - Abre GestCB en dos pestañas
+
+   - Abre CBGest en dos pestañas
    - Crea una factura en una
    - Observa cómo se sincroniza en la otra
-
 4. **Configura Functions** (opcional):
+
    - Auto-envío de recordatorios fiscales
    - Generación de PDFs en servidor
    - Notificaciones por email
 
 ---
 
-¡Disfruta de GestCB con Appwrite! 🎉
+¡Disfruta de CBGest con Appwrite! 🎉

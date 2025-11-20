@@ -1,6 +1,6 @@
-# 🚀 Guía de Instalación Local - GestCB
+# 🚀 Guía de Instalación Local - CBGest
 
-Esta guía te ayudará a ejecutar GestCB en tu PC local.
+Esta guía te ayudará a ejecutar CBGest en tu PC local.
 
 ---
 
@@ -143,7 +143,7 @@ npm run preview
 
 ## 📱 Uso en Dispositivos Móviles
 
-GestCB es completamente responsive. Para usar en móvil:
+CBGest es completamente responsive. Para usar en móvil:
 
 1. Asegúrate de que tu PC y móvil estén en la misma red WiFi
 2. Inicia el servidor: `npm run dev`
@@ -154,7 +154,7 @@ GestCB es completamente responsive. Para usar en móvil:
 
 ## 🔒 Modos de Almacenamiento
 
-GestCB ofrece 3 opciones de almacenamiento:
+CBGest ofrece 3 opciones de almacenamiento:
 
 ### 1. **Navegador Local** (por defecto)
 - **Ventaja:** No requiere configuración
@@ -276,11 +276,11 @@ Si tienes problemas:
 
 ## 📄 Licencia y Créditos
 
-- **Proyecto:** GestCB Cataluña
+- **Proyecto:** CBGest
 - **Stack:** React + TypeScript + Vite
 - **IA:** Google Gemini Flash 2.5
 - **Diseño:** Tailwind CSS + Lucide Icons
 
 ---
 
-¡Disfruta de GestCB! 🎉
+¡Disfruta de CBGest! 🎉

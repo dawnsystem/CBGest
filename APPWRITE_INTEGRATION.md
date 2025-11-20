@@ -1,4 +1,4 @@
-# 🔌 Guía de Integración de Appwrite en GestCB
+# 🔌 Guía de Integración de Appwrite en CBGest
 
 Esta guía te muestra cómo integrar el backend de Appwrite en la aplicación existente.
 
@@ -41,7 +41,7 @@ Tienes 2 opciones para configurar Appwrite:
 
 #### Opción A: Desde la interfaz (Recomendado)
 
-1. Abre GestCB
+1. Abre CBGest
 2. Ve a **Configuración → Datos y Conexiones**
 3. Verás una nueva tarjeta "Appwrite Cloud Backend"
 4. Haz clic y rellena los campos
@@ -430,7 +430,7 @@ Una vez integrado:
 
 ---
 
-¡Disfruta de GestCB con Appwrite! 🚀
+¡Disfruta de CBGest con Appwrite! 🚀
 
 Para soporte, consulta:
 - `APPWRITE_SETUP.md` - Setup completo

@@ -24,7 +24,7 @@ export const Sidebar: React.FC = () => {
             G
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white">GestCB</h1>
+            <h1 className="text-lg font-bold tracking-tight text-white">CBGest</h1>
             <p className="text-xs text-slate-300">Cataluña Edition</p>
           </div>
         </div>

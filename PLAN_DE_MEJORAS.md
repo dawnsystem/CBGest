@@ -1,4 +1,4 @@
-# 📊 Plan de Mejoras - GestCB Cataluña
+# 📊 Plan de Mejoras - CBGest
 
 **Fecha de análisis:** 2025-11-20
 **Estado actual:** ✅ Proyecto funcional al 95%
@@ -361,7 +361,7 @@ describe('Dashboard', () => {
 ### Para uso inmediato:
 1. Sigue `SETUP_LOCAL.md`
 2. Añade tu API Key de Gemini
-3. ¡Empieza a usar GestCB!
+3. ¡Empieza a usar CBGest!
 
 ### Para mejoras futuras:
 - Todas las sugerencias son opcionales

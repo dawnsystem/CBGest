@@ -260,7 +260,7 @@ export const Settings: React.FC<SettingsProps> = ({
                                 value={formData.dataConfig?.appwriteDatabaseId || ''} 
                                 onChange={(e) => handleDataConfigChange('appwriteDatabaseId', e.target.value)}
                                 className="w-full border-slate-200 rounded text-sm bg-white text-slate-900 font-mono" 
-                                placeholder="ej: GestCB_DB"
+                                placeholder="ej: CBGest_DB"
                             />
                         </div>
                         <div className="md:col-span-2">

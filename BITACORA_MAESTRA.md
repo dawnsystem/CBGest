@@ -1,5 +1,5 @@
 
-# 📝 Bitácora Maestra del Proyecto: GestCB - Contabilidad para Comunidades de Bienes
+# 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
 *Última actualización: 2025-11-19 05:30:00 UTC*
 
 ---

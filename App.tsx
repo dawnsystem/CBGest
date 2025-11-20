@@ -57,7 +57,7 @@ const MainLayout: React.FC = () => {
         type: 'APPWRITE', 
         autoBackup: false,
         appwriteProjectId: 'cbgest',
-        appwriteDatabaseId: 'GestCB_DB',
+        appwriteDatabaseId: 'CBGest_DB',
         appwriteBucketId: 'gestcb-data',
         appwriteEndpoint: 'https://fra.cloud.appwrite.io/v1'
     }
@@ -285,8 +285,8 @@ const MainLayout: React.FC = () => {
   const handleCloneToFile = async (password: string) => {
       try {
           const handle = await (window as any).showSaveFilePicker({
-              suggestedName: `Contabilidad_GestCB_${new Date().toISOString().split('T')[0]}.gestcb`,
-              types: [{ description: 'GestCB Secure File', accept: { 'application/gestcb': ['.gestcb'] } }],
+              suggestedName: `Contabilidad_CBGest_${new Date().toISOString().split('T')[0]}.gestcb`,
+              types: [{ description: 'CBGest Secure File', accept: { 'application/gestcb': ['.gestcb'] } }],
           });
           setFileHandle(handle);
           setEncryptionKey(password);
@@ -302,7 +302,7 @@ const MainLayout: React.FC = () => {
   const handleLoadFromFile = async (password: string) => {
        try {
           const [handle] = await (window as any).showOpenFilePicker({
-              types: [{ description: 'GestCB Secure File', accept: { 'application/gestcb': ['.gestcb'] } }],
+              types: [{ description: 'CBGest Secure File', accept: { 'application/gestcb': ['.gestcb'] } }],
           });
           // Logic to read file would go here if we implemented the full reader...
           // For now, we just set mode
