@@ -11,9 +11,8 @@ export const Sidebar: React.FC = () => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: FileText, label: 'Facturas', path: '/invoices' },
     { icon: BookOpen, label: 'Libros Contables', path: '/books' },
-    { icon: Scale, label: 'Conciliación Banco', path: '/reconciliation' }, // New Link
+    { icon: Scale, label: 'Conciliación Banco', path: '/reconciliation' },
     { icon: FileCheck, label: 'Modelos Fiscales', path: '/taxes' },
-    { icon: PieChart, label: 'Informes', path: '/reports' },
     { icon: Settings, label: 'Configuración', path: '/settings' },
   ];
 

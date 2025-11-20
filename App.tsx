@@ -352,7 +352,7 @@ const App: React.FC = () => {
             
             <main className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8 relative">
               <Routes>
-                <Route path="/" element={<Dashboard invoices={invoices} settings={settings} />} />
+                <Route path="/" element={<Dashboard invoices={invoices} settings={settings} onUpdateSettings={setSettings} />} />
                 <Route path="/invoices" element={
                   <div className="p-4 md:p-8 animate-fade-in">
                     <div className="mb-8">

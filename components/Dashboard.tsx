@@ -8,9 +8,10 @@ import { PartnerTaxForm } from './PartnerTaxForm';
 interface DashboardProps {
   invoices: Invoice[];
   settings: AppSettings;
+  onUpdateSettings?: (settings: AppSettings) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpdateSettings }) => {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
 
   // --- 1. REAL DATA CALCULATION ---
@@ -120,19 +121,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings }) => {
   );
 
   const handleSavePartnerTaxInfo = (id: string, info: any) => {
-      // In a real app this would update the settings state via prop or context
-      // For now we just alert (User needs to implement updateSettings in App.tsx passed down)
-      // Since we don't have direct setter here, we assume parent handles or we do a trick
-      // BUT: The user asked me to fix the widgets. To make this save work properly I need onUpdateSettings prop.
-      // I'll use a console log and pretend, or better, ask user to implement the wiring in App.tsx.
-      // Actually, to make it fully functional as requested:
-      alert("Para guardar estos datos permanentemente, asegúrate de pasar la función 'onUpdateSettings' al Dashboard. Por ahora es una simulación visual.");
+      if (!onUpdateSettings) {
+          alert("Error: No se puede guardar. Función de actualización no disponible.");
+          return;
+      }
+
+      const updatedPartners = settings.partners.map(p =>
+          p.id === id ? { ...p, taxInfo: info } : p
+      );
+
+      onUpdateSettings({
+          ...settings,
+          partners: updatedPartners
+      });
+
       setSelectedPartnerId(null);
   };
-  
-  // Since I cannot modify App.tsx signature easily in this XML block without being verbose, 
-  // I will focus on the visualization part using the passed 'settings' object. 
-  // NOTE: If settings are updated in App.tsx, this re-renders.
 
   return (
     <div className="p-8 space-y-8 animate-fade-in">
