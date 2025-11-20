@@ -1,5 +1,6 @@
+
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus, Landmark } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus, Landmark, ShieldAlert } from 'lucide-react';
 import { useUploadQueue } from '../context/UploadQueueContext';
 import { Invoice, AppSettings, QueueItem, UploadType, BankTransaction } from '../types';
 import { isValidNIF } from '../utils/validators';
@@ -22,6 +23,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   const [reviewItem, setReviewItem] = useState<QueueItem | null>(null);
   const [preview, setPreview] = useState<Invoice | null>(null);
   const [nifError, setNifError] = useState<boolean>(false);
+  const [forceAcceptNif, setForceAcceptNif] = useState(false); // User override
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -65,6 +67,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
         const initialPreview = { ...item.result, category };
         setPreview(initialPreview);
         setNifError(initialPreview.issuerNif ? !isValidNIF(initialPreview.issuerNif) : false);
+        setForceAcceptNif(false); // Reset override
 
     } else if (item.uploadType === 'BANK_STATEMENT' && item.bankResult) {
         if(window.confirm(`Se han detectado ${item.bankResult.length} movimientos bancarios. ¿Importar a Conciliación?`)) {
@@ -84,15 +87,22 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
          updated.totalAmount = base + updated.vatAmount;
       }
       setPreview(updated);
-      if (field === 'issuerNif') setNifError(!isValidNIF(value as string));
+      if (field === 'issuerNif') {
+          const isValid = isValidNIF(value as string);
+          setNifError(!isValid);
+          if (isValid) setForceAcceptNif(false); // Reset override if it becomes valid
+      }
     }
   };
 
   const confirmInvoice = (generateEntry: boolean) => {
     if (preview && reviewItem) {
-      if (nifError) {
-        if(!window.confirm("El NIF parece inválido. ¿Quieres guardar de todas formas?")) return;
+      // Strict blocking unless forced
+      if (nifError && !forceAcceptNif) {
+          alert("El NIF del emisor es inválido. Por favor, corrígelo o marca la casilla 'Forzar aceptación' si estás seguro.");
+          return;
       }
+
       const finalInvoice: Invoice = {
         ...preview,
         status: generateEntry ? 'PROCESSED' : 'PENDING',
@@ -134,8 +144,35 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
               <input type="text" value={preview.issuerName} onChange={(e) => handleFieldChange('issuerName', e.target.value)} className="w-full border-slate-200 rounded text-sm font-medium bg-white text-slate-900" />
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1">NIF/CIF {nifError && <span className="text-red-500 font-bold">(Inválido)</span>}</label>
-              <input type="text" value={preview.issuerNif} onChange={(e) => handleFieldChange('issuerNif', e.target.value)} className={`w-full rounded text-sm font-mono bg-white text-slate-900 ${nifError ? 'border-red-300' : 'border-slate-200'}`} />
+              <label className="block text-xs text-slate-500 mb-1 flex items-center gap-1">
+                  NIF/CIF 
+                  {nifError && <span className="text-red-600 flex items-center gap-0.5"><AlertTriangle className="w-3 h-3"/> (Formato Incorrecto)</span>}
+              </label>
+              <input 
+                  type="text" 
+                  value={preview.issuerNif} 
+                  onChange={(e) => handleFieldChange('issuerNif', e.target.value.toUpperCase())} 
+                  className={`w-full rounded text-sm font-mono bg-white text-slate-900 ${nifError ? 'border-2 border-red-500 focus:ring-red-200' : 'border-slate-200'}`} 
+              />
+              {nifError && (
+                  <div className="mt-2 flex items-start gap-2 bg-red-50 p-2 rounded border border-red-100">
+                      <ShieldAlert className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-xs text-red-700 leading-tight">
+                            El NIF no cumple con el algoritmo oficial (DNI/NIE/CIF). Revisa los dígitos.
+                        </p>
+                        <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={forceAcceptNif} 
+                                onChange={e => setForceAcceptNif(e.target.checked)}
+                                className="rounded text-red-600 focus:ring-red-500 bg-white"
+                            />
+                            <span className="text-xs font-bold text-red-800 underline">Forzar aceptación (Sé lo que hago)</span>
+                        </label>
+                      </div>
+                  </div>
+              )}
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1">Fecha</label>
@@ -166,7 +203,17 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
           <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
              <button onClick={() => { setReviewItem(null); setPreview(null); }} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-200 rounded-lg">Cancelar</button>
              <button onClick={() => confirmInvoice(false)} className="bg-white border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Borrador</button>
-             <button onClick={() => confirmInvoice(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2 shadow-md shadow-emerald-200"><BookPlus className="w-4 h-4" /> Contabilizar</button>
+             <button 
+                onClick={() => confirmInvoice(true)} 
+                disabled={nifError && !forceAcceptNif}
+                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-md transition-all ${
+                    nifError && !forceAcceptNif 
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'
+                }`}
+             >
+                <BookPlus className="w-4 h-4" /> Contabilizar
+             </button>
           </div>
         </div>
       );

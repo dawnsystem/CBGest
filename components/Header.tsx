@@ -1,11 +1,15 @@
+
 import React from 'react';
-import { Bell, Search, User, ShieldCheck } from 'lucide-react';
+import { Bell, Search, User, ShieldCheck, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   isLocalFileMode?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
+  const { user, signOut } = useAuth();
+
   return (
     <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
       <div className="flex items-center gap-4 w-full md:w-1/3">
@@ -38,12 +42,19 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
         </button>
         <div className="flex items-center gap-3 pl-2 md:pl-4 md:border-l border-slate-200">
           <div className="text-right hidden md:block">
-            <p className="text-sm font-medium text-slate-900">Admin Gestor</p>
-            <p className="text-xs text-slate-500">CB Cataluña Norte</p>
+            <p className="text-sm font-medium text-slate-900">{user?.name || 'Usuario'}</p>
+            <p className="text-xs text-slate-500 truncate max-w-[150px]">{user?.email || 'Invitado'}</p>
           </div>
           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center border border-blue-200">
             <User className="w-4 h-4 text-blue-600" />
           </div>
+          <button 
+            onClick={signOut} 
+            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors ml-2"
+            title="Cerrar Sesión"
+          >
+             <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </div>
     </header>

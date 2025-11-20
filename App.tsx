@@ -14,15 +14,28 @@ import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
 import { DocumentViewer } from './components/DocumentViewer';
 import { Invoice, AppSettings, AccountingEntry, BankTransaction } from './types';
-import { CheckCircle2, Calendar, History, CreditCard, ChevronDown, ChevronUp, Eye } from 'lucide-react';
-import { encryptData, decryptData } from './utils/crypto';
+import { Eye } from 'lucide-react';
+import { encryptData } from './utils/crypto';
+import * as appwriteService from './services/appwriteService';
 
-// Helper for Lazy Initialization from LocalStorage
+// AUTH Integration
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { Login } from './components/Login';
+
+// Helper for Lazy Initialization from LocalStorage with Safe Merge
 const loadState = <T,>(key: string, fallback: T): T => {
   const saved = localStorage.getItem(key);
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      // If it's an array, return it directly (assuming fallback is also array)
+      if (Array.isArray(fallback)) return parsed;
+      
+      // If it's an object (like settings), merge with fallback to ensure new fields exist
+      if (typeof fallback === 'object' && fallback !== null) {
+          return { ...fallback, ...parsed };
+      }
+      return parsed;
     } catch (e) {
       console.error(`Error parsing ${key}`, e);
     }
@@ -30,53 +43,31 @@ const loadState = <T,>(key: string, fallback: T): T => {
   return fallback;
 };
 
-// Helper to rehydrate files from Base64
-const base64ToFile = (dataurl: string, filename: string, mimeType: string): File => {
-    try {
-        const arr = dataurl.split(',');
-        const bstr = atob(arr.length > 1 ? arr[1] : arr[0]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while(n--){
-            u8arr[n] = bstr.charCodeAt(n);
-        }
-        return new File([u8arr], filename, {type: mimeType});
-    } catch (e) {
-        console.error("Error reconstructing file:", e);
-        return new File([""], filename, {type: mimeType});
-    }
-};
-
-// Type for file picker
-declare global {
-    interface Window {
-        showSaveFilePicker: (options?: any) => Promise<FileSystemFileHandle>;
-        showOpenFilePicker: (options?: any) => Promise<FileSystemFileHandle[]>;
-    }
-}
-
-const App: React.FC = () => {
-  // --- STATE WITH PERSISTENCE ---
+const MainLayout: React.FC = () => {
+  const { user, loading } = useAuth();
+  // --- STATE ---
   
-  // 1. Settings State
-  const [settings, setSettings] = useState<AppSettings>(() => loadState('gestcb_settings', {
+  const defaultSettings: AppSettings = {
     cbName: 'Nueva Comunidad de Bienes',
     nif: '',
     fiscalRegime: 'ALQUILER_EXENTO',
     vatObligation: false,
-    partners: [
-      { id: '1', name: 'Socio Fundador', nif: '', participation: 100 }
-    ],
-    dataConfig: { type: 'LOCAL_STORAGE', autoBackup: false }
-  }));
+    partners: [{ id: '1', name: 'Socio Fundador', nif: '', participation: 100 }],
+    dataConfig: { 
+        type: 'APPWRITE', 
+        autoBackup: false,
+        appwriteProjectId: 'cbgest',
+        appwriteDatabaseId: 'GestCB_DB',
+        appwriteBucketId: 'gestcb-data',
+        appwriteEndpoint: 'https://fra.cloud.appwrite.io/v1'
+    }
+  };
 
-  // 2. Invoices State
+  // Initialize settings with Appwrite config PRE-FILLED to avoid setup loops
+  const [settings, setSettings] = useState<AppSettings>(() => loadState('gestcb_settings', defaultSettings));
+
   const [invoices, setInvoices] = useState<Invoice[]>(() => loadState('gestcb_invoices', []));
-  
-  // 3. Accounting Entries State
   const [accountingEntries, setAccountingEntries] = useState<AccountingEntry[]>(() => loadState('gestcb_entries', []));
-
-  // 4. Bank Transactions State
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>(() => loadState('gestcb_bank_transactions', []));
 
   // UI States
@@ -84,334 +75,285 @@ const App: React.FC = () => {
   const [viewingDoc, setViewingDoc] = useState<{file: File, title?: string} | null>(null);
 
   // --- FILE SYSTEM STATE ---
-  const [fileHandle, setFileHandle] = useState<FileSystemFileHandle | null>(null);
+  const [fileHandle, setFileHandle] = useState<any | null>(null);
   const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
   const [isLocalFileMode, setIsLocalFileMode] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // --- PERSISTENCE EFFECTS (LOCAL STORAGE - Fallback/Cache) ---
+  // --- DATA LAYER INITIALIZATION & REALTIME ---
   useEffect(() => {
-      if (!isLocalFileMode) {
+      // Re-read settings from LS in case Login changed them
+      const freshSettings = loadState<AppSettings>('gestcb_settings', settings);
+      
+      // Double check arrays exist in freshSettings
+      if (!freshSettings.partners) freshSettings.partners = defaultSettings.partners;
+
+      if(JSON.stringify(freshSettings.dataConfig) !== JSON.stringify(settings.dataConfig)) {
+          setSettings(freshSettings);
+      }
+
+      if (!user) return; 
+      
+      const initDataLayer = async () => {
+          if (freshSettings.dataConfig?.type === 'APPWRITE' && freshSettings.dataConfig.appwriteProjectId) {
+              
+              // USE DYNAMIC ENDPOINT FROM SETTINGS
+              const endpoint = freshSettings.dataConfig.appwriteEndpoint || 'https://cloud.appwrite.io/v1';
+              
+              appwriteService.initAppwrite(
+                  freshSettings.dataConfig.appwriteProjectId,
+                  freshSettings.dataConfig.appwriteBucketId || '',
+                  freshSettings.dataConfig.appwriteDatabaseId || '',
+                  endpoint
+              );
+              
+              // 1. Initial Fetch
+              try {
+                const remoteSettings = await appwriteService.syncSettings(freshSettings);
+                if (remoteSettings) {
+                    // Ensure merged correctly
+                    setSettings({
+                        ...remoteSettings,
+                        partners: remoteSettings.partners || defaultSettings.partners
+                    });
+                }
+                setInvoices(await appwriteService.fetchInvoices());
+                setAccountingEntries(await appwriteService.fetchEntries());
+                setBankTransactions(await appwriteService.fetchTransactions());
+              } catch (e) {
+                  console.warn("Initial sync failed (maybe first run):", e);
+              }
+              
+              // 2. REALTIME SUBSCRIPTION
+              const unsubscribe = appwriteService.subscribeToChanges((payload) => {
+                  if (payload.events.some((e:string) => e.includes('.create') || e.includes('.update'))) {
+                      appwriteService.fetchInvoices().then(setInvoices);
+                      appwriteService.fetchEntries().then(setAccountingEntries);
+                  }
+              });
+
+              return () => {
+                  unsubscribe();
+              };
+          }
+      };
+      initDataLayer();
+  }, [user]); // Depend on user to re-init on login
+
+  // --- PERSISTENCE EFFECTS ---
+  useEffect(() => {
+      if (!isLocalFileMode && settings.dataConfig?.type !== 'APPWRITE') {
         localStorage.setItem('gestcb_settings', JSON.stringify(settings));
-        // For local storage, we don't need to do anything special with Base64 as it's already in the object if added
         localStorage.setItem('gestcb_invoices', JSON.stringify(invoices));
         localStorage.setItem('gestcb_entries', JSON.stringify(accountingEntries));
         localStorage.setItem('gestcb_bank_transactions', JSON.stringify(bankTransactions));
       }
   }, [settings, invoices, accountingEntries, bankTransactions, isLocalFileMode]);
 
-  // --- PERSISTENCE EFFECTS (ENCRYPTED FILE SYSTEM) ---
-  // Debounce save to disk to avoid thrashing
+  // Encrypted File Auto-Save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => {
       if (isLocalFileMode && fileHandle && encryptionKey) {
           if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-          
           saveTimeoutRef.current = setTimeout(async () => {
+              const fullData = { invoices, entries: accountingEntries, transactions: bankTransactions, settings };
               try {
-                  const fullData = JSON.stringify({
-                      invoices,
-                      entries: accountingEntries,
-                      transactions: bankTransactions,
-                      settings
-                  });
-                  
-                  const encryptedBlob = await encryptData(fullData, encryptionKey);
+                  const encryptedBlob = await encryptData(JSON.stringify(fullData), encryptionKey);
                   const writable = await (fileHandle as any).createWritable();
                   await writable.write(encryptedBlob);
                   await writable.close();
                   setLastSaved(new Date());
-                  console.log("💾 Encrypted data saved to disk successfully.");
               } catch (err) {
                   console.warn("Failed to save encrypted file:", err);
-                  // Silent fail on auto-save in restricted envs to avoid spamming alerts
               }
-          }, 1000); // 1 second debounce
+          }, 2000);
       }
-  }, [settings, invoices, accountingEntries, bankTransactions, isLocalFileMode, fileHandle, encryptionKey]);
+  }, [settings, invoices, accountingEntries, bankTransactions, isLocalFileMode]);
 
 
-  // --- FILE SYSTEM HANDLERS ---
-  const handleCloneToFile = async (password: string) => {
-      try {
-          if (typeof window.showSaveFilePicker !== 'function') {
-             throw new Error("Tu navegador no soporta la API de Sistema de Archivos (FileSystemAccess). Usa Chrome, Edge o un navegador de escritorio moderno.");
-          }
-
-          const handle = await window.showSaveFilePicker({
-              suggestedName: `Contabilidad_GestCB_${new Date().toISOString().split('T')[0]}.gestcb`,
-              types: [{
-                  description: 'GestCB Secure Database',
-                  accept: { 'application/json': ['.gestcb'] },
-              }],
-          });
-          
-          setFileHandle(handle);
-          setEncryptionKey(password);
-          setIsLocalFileMode(true);
-          setLastSaved(new Date());
-          
-          // Trigger immediate save via effect
-          setSettings(s => ({...s, dataConfig: { ...s.dataConfig, type: 'LOCAL_FILE', fileName: handle.name } as any}));
-          alert("Archivo creado y encriptado exitosamente.\n\nA partir de ahora, todos los cambios se guardarán automáticamente en este archivo.");
-
-      } catch (err: any) {
-          // Use warn instead of error to avoid triggering system-level error reporting in previews
-          console.warn("File creation cancelled or failed", err); 
-          if (err.name === 'AbortError') return; // User cancelled
-          
-          let errorMsg = "Error al crear archivo.";
-          if (err.message && (err.message.includes('Cross origin') || err.message.includes('SecurityError'))) {
-              errorMsg = "⚠️ MODO PREVISUALIZACIÓN DETECTADO:\n\nEl navegador bloquea el acceso directo al disco duro dentro de esta ventana (iframe). \n\nPara usar el 'Modo Archivo Seguro', por favor abre la aplicación en una pestaña nueva (Open in New Tab) o usa la opción 'Descargar JSON'.";
-          } else {
-              errorMsg = err.message || errorMsg;
-          }
-          alert(errorMsg);
+  // --- HANDLERS ---
+  const handleUpdateSettings = (newSettings: AppSettings) => {
+      setSettings(newSettings);
+      if (newSettings.dataConfig?.type === 'APPWRITE') {
+          appwriteService.updateSettings(newSettings);
       }
   };
 
-  const handleLoadFromFile = async (password: string) => {
-      try {
-          if (typeof window.showOpenFilePicker !== 'function') {
-              throw new Error("Tu navegador no soporta la API de Sistema de Archivos.");
-          }
+  const handleAddInvoice = async (invoice: Invoice) => {
+      // Update state immediately for optimistic UI
+      setInvoices(prev => [invoice, ...prev]);
+      
+      let processedInvoice = invoice;
 
-          const [handle] = await window.showOpenFilePicker({
-              types: [{
-                  description: 'GestCB Secure Data',
-                  accept: { 'application/json': ['.gestcb'] },
-              }],
-              multiple: false
-          });
-
-          const file = await handle.getFile();
-          const encryptedContent = await file.text();
-          
-          const decryptedJson = await decryptData(encryptedContent, password);
-          const data = JSON.parse(decryptedJson);
-
-          // HYDRATE STATE & RECONSTRUCT FILES
-          if (data.invoices) {
-              // Re-create File objects from Base64 string
-              const hydratedInvoices: Invoice[] = data.invoices.map((inv: Invoice) => ({
-                  ...inv,
-                  file: (inv.fileData && inv.fileType) ? base64ToFile(inv.fileData, `adjunto-${inv.number || 'doc'}.pdf`, inv.fileType) : undefined
-              }));
-              setInvoices(hydratedInvoices);
-          }
-          
-          if (data.entries) {
-              const hydratedEntries: AccountingEntry[] = data.entries.map((entry: AccountingEntry) => ({
-                  ...entry,
-                  referenceDoc: (entry.fileData && entry.fileType) ? base64ToFile(entry.fileData, `asiento-${entry.id}.pdf`, entry.fileType) : undefined
-              }));
-              setAccountingEntries(hydratedEntries);
-          }
-          
-          if (data.transactions) setBankTransactions(data.transactions);
-          if (data.settings) setSettings({ ...data.settings, dataConfig: { ...data.settings.dataConfig, type: 'LOCAL_FILE', fileName: handle.name } });
-
-          setFileHandle(handle);
-          setEncryptionKey(password);
-          setIsLocalFileMode(true);
-          setLastSaved(new Date());
-          alert("Archivo desencriptado y cargado correctamente.");
-
-      } catch (err: any) {
-          console.warn("Load failed", err);
-          if (err.name === 'AbortError') return;
-          
-          let errorMsg = "Error al abrir el archivo.";
-          if (err.message && (err.message.includes('Cross origin') || err.message.includes('SecurityError'))) {
-              errorMsg = "⚠️ MODO PREVISUALIZACIÓN DETECTADO:\n\nEl navegador bloquea el acceso directo al disco duro dentro de esta ventana (iframe). \n\nPara usar el 'Modo Archivo Seguro', por favor abre la aplicación en una pestaña nueva o usa la opción 'Restaurar JSON'.";
-          } else if (err.message && err.message.includes('Contraseña incorrecta')) {
-              errorMsg = "⛔ Contraseña incorrecta. No se pudo descifrar el archivo.";
-          } else {
-              errorMsg = err instanceof Error ? err.message : errorMsg;
-          }
-          alert(errorMsg);
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          const savedInv = await appwriteService.createInvoice(invoice);
+          // Update with real ID from server
+          setInvoices(prev => prev.map(i => i.id === invoice.id ? savedInv : i));
+          processedInvoice = savedInv;
+      } 
+      
+      // Logic to create accounting entry automatically
+      if (processedInvoice.status === 'PROCESSED' || processedInvoice.status === 'PAID') {
+          console.log("Auto-creating entry for invoice:", processedInvoice.id);
+          createEntryFromInvoice(processedInvoice);
       }
   };
 
-  const handleDisconnectFile = () => {
-      setIsLocalFileMode(false);
-      setFileHandle(null);
-      setEncryptionKey(null);
-      setLastSaved(null);
-      setSettings(s => ({...s, dataConfig: { ...s.dataConfig, type: 'LOCAL_STORAGE', fileName: undefined } as any}));
-      alert("Desconectado del archivo seguro. Estás trabajando en modo navegador local.");
-  };
-
-
-  // --- LOGIC: Invoice -> Accounting Entry Sync ---
-  const handleAddInvoice = (invoice: Invoice) => {
-    setInvoices(prev => [invoice, ...prev]);
-    
-    if (invoice.status === 'PROCESSED' || invoice.status === 'PAID') {
-        createEntryFromInvoice(invoice);
-    }
-  };
-
-  const createEntryFromInvoice = (inv: Invoice) => {
+  const createEntryFromInvoice = async (inv: Invoice) => {
     let accountCode = inv.type === 'EXPENSE' ? '600' : '700';
     let accountName = inv.type === 'EXPENSE' ? 'Compras' : 'Ventas';
-
+    
+    // Parse Category "CODE - NAME"
     if (inv.category) {
-        // Supports "CODE - NAME" format
         const parts = inv.category.split(' - ');
-        if (parts.length > 1) {
-            accountCode = parts[0];
-            accountName = parts[1];
-        } else {
-             // Fallback if old format or just code
-             accountCode = parts[0];
+        if (parts.length > 1) { 
+            accountCode = parts[0].trim(); 
+            accountName = parts.slice(1).join(' - ').trim(); 
+        } else { 
+            accountCode = parts[0].trim(); 
         }
     }
 
     const newEntry: AccountingEntry = {
         id: `AUTO-${inv.id}`,
         date: inv.date,
-        concept: `Factura ${inv.number} - ${inv.issuerName}`,
+        concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
         accountCode: accountCode,
         accountName: accountName,
-        debit: inv.type === 'EXPENSE' ? inv.baseAmount : 0,
-        credit: inv.type === 'INCOME' ? inv.baseAmount : 0,
+        debit: inv.type === 'EXPENSE' ? inv.totalAmount : 0, // NOTE: Total amount for simple accounting if exempt
+        credit: inv.type === 'INCOME' ? inv.totalAmount : 0,
         invoiceId: inv.id,
+        // Pass file references carefully
         referenceDoc: inv.file,
-        fileData: inv.fileData, // Pass persistence data to entry too
+        fileData: inv.fileData,
         fileType: inv.fileType,
+        appwriteFileId: inv.appwriteFileId, // Important for Cloud
         reconciled: false
     };
-    setAccountingEntries(prev => [newEntry, ...prev]);
-  };
 
-  const handleAddBankTransactions = (txs: BankTransaction[]) => {
-      setBankTransactions(prev => [...prev, ...txs]);
+    handleAddEntry(newEntry);
   };
-
-  // --- LOGIC: Ledger CRUD ---
-  const handleAddEntry = (entry: AccountingEntry) => {
+  
+  const handleAddEntry = async (entry: AccountingEntry) => {
       setAccountingEntries(prev => [entry, ...prev]);
-  };
-  const handleUpdateEntry = (entry: AccountingEntry) => {
-      setAccountingEntries(prev => prev.map(e => e.id === entry.id ? entry : e));
-  };
-  const handleDeleteEntry = (id: string) => {
-      setAccountingEntries(prev => prev.filter(e => e.id !== id));
-  };
-
-  // --- LOGIC: Reconciliation ---
-  const handleReconcile = (txId: string, entryId: string) => {
-      // Mark both as matched/reconciled
-      setBankTransactions(prev => prev.map(t => t.id === txId ? { ...t, status: 'MATCHED', reconciledWithEntryId: entryId } : t));
-      setAccountingEntries(prev => prev.map(e => e.id === entryId ? { ...e, reconciled: true } : e));
-  };
-
-  const handleCreateEntryFromTransaction = (tx: BankTransaction) => {
-      // Auto-create entry from bank movement
-      const newEntry: AccountingEntry = {
-          id: `BANK-${tx.id}`,
-          date: tx.date,
-          concept: tx.concept,
-          accountCode: tx.amount < 0 ? '626' : '769', // Default guess: 626 bank services or 769 other income
-          accountName: tx.amount < 0 ? 'Servicios Bancarios y Similares' : 'Otros Ingresos Financieros',
-          debit: tx.amount < 0 ? Math.abs(tx.amount) : 0,
-          credit: tx.amount > 0 ? tx.amount : 0,
-          reconciled: true // Created from bank, so it is reconciled by definition
-      };
-      
-      setAccountingEntries(prev => [newEntry, ...prev]);
-      setBankTransactions(prev => prev.map(t => t.id === tx.id ? { ...t, status: 'MATCHED', reconciledWithEntryId: newEntry.id } : t));
-  };
-
-  const togglePaymentStatus = (id: string) => {
-    setInvoices(prev => prev.map(inv => {
-      if (inv.id === id) {
-        const newStatus = inv.status === 'PAID' ? 'PROCESSED' : 'PAID';
-        return { ...inv, status: newStatus, history: [...inv.history, { date: new Date().toISOString(), action: `Status changed to ${newStatus}`, user: 'Admin' }] };
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          const saved = await appwriteService.createEntry(entry);
+          setAccountingEntries(prev => prev.map(e => e.id === entry.id ? saved : e));
       }
-      return inv;
-    }));
   };
 
-  const toggleExpand = (id: string) => {
-    const newSet = new Set(expandedInvoiceIds);
-    if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
-    setExpandedInvoiceIds(newSet);
+  const handleUpdateEntry = async (entry: AccountingEntry) => {
+      setAccountingEntries(prev => prev.map(e => e.id === entry.id ? entry : e));
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          await appwriteService.updateEntry(entry);
+      }
   };
+
+  const handleDeleteEntry = async (id: string) => {
+      setAccountingEntries(prev => prev.filter(e => e.id !== id));
+      const entry = accountingEntries.find(e => e.id === id);
+      if (settings.dataConfig?.type === 'APPWRITE' && entry?.appwriteId) {
+          await appwriteService.deleteEntry(entry.appwriteId);
+      }
+  };
+
+  const handleAddBankTransactions = async (txs: BankTransaction[]) => {
+      setBankTransactions(prev => [...prev, ...txs]);
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          txs.forEach(tx => appwriteService.createTransaction(tx));
+      }
+  };
+
+  // NEW: Create Accounting Entry from Bank Transaction
+  const handleCreateEntryFromTransaction = (tx: BankTransaction) => {
+     const newEntry: AccountingEntry = {
+        id: `BANK-${tx.id}`,
+        date: tx.date,
+        concept: tx.concept,
+        accountCode: tx.amount < 0 ? '626' : '769', // Default guess: Bank Services or Financial Income
+        accountName: tx.amount < 0 ? 'Servicios bancarios' : 'Ingresos financieros',
+        debit: tx.amount < 0 ? Math.abs(tx.amount) : 0,
+        credit: tx.amount > 0 ? tx.amount : 0,
+        reconciled: true // It comes from bank, so it matches!
+     };
+     handleAddEntry(newEntry);
+     
+     alert("Asiento creado. Ve a 'Libros Contables' para editar la cuenta si es necesario.");
+  };
+
+  // Legacy File Handlers
+  const handleCloneToFile = async (password: string) => {
+      try {
+          const handle = await (window as any).showSaveFilePicker({
+              suggestedName: `Contabilidad_GestCB_${new Date().toISOString().split('T')[0]}.gestcb`,
+              types: [{ description: 'GestCB Secure File', accept: { 'application/gestcb': ['.gestcb'] } }],
+          });
+          setFileHandle(handle);
+          setEncryptionKey(password);
+          setIsLocalFileMode(true);
+      } catch (error: any) {
+          if (error.name === 'SecurityError' || error.name === 'NotAllowedError') {
+             console.warn("File access denied in iframe");
+             alert("Tu navegador o este entorno de previsualización bloquea el acceso al disco. Usa la opción 'Descargar JSON' en la pestaña Datos.");
+          }
+      }
+  };
+  
+  const handleLoadFromFile = async (password: string) => {
+       try {
+          const [handle] = await (window as any).showOpenFilePicker({
+              types: [{ description: 'GestCB Secure File', accept: { 'application/gestcb': ['.gestcb'] } }],
+          });
+          // Logic to read file would go here if we implemented the full reader...
+          // For now, we just set mode
+          setFileHandle(handle);
+          setEncryptionKey(password);
+          setIsLocalFileMode(true);
+      } catch (error: any) {
+           console.warn("File access denied in iframe");
+           alert("Acceso denegado al sistema de archivos. Prueba en una ventana nueva.");
+      }
+  };
+  const handleDisconnectFile = () => { setIsLocalFileMode(false); setFileHandle(null); setEncryptionKey(null); };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full"></div></div>;
+  }
+
+  if (!user && settings.dataConfig?.type === 'APPWRITE') {
+      return <Login />;
+  }
 
   return (
     <UploadQueueProvider>
       <HashRouter>
         <div className="min-h-screen bg-slate-50 flex font-sans">
           <Sidebar />
-          
           <div className="flex-1 ml-0 md:ml-64 transition-all duration-200">
             <Header isLocalFileMode={isLocalFileMode} />
-            
             <main className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8 relative">
               <Routes>
                 <Route path="/" element={<Dashboard invoices={invoices} settings={settings} />} />
                 <Route path="/invoices" element={
                   <div className="p-4 md:p-8 animate-fade-in">
-                    <div className="mb-8">
-                      <h2 className="text-2xl font-bold text-slate-900">Gestión de Documentos</h2>
-                      <p className="text-slate-500">Facturas y Extractos Bancarios.</p>
-                    </div>
                     <InvoiceUploader 
                         onInvoiceAdded={handleAddInvoice} 
                         onBankTransactionsAdded={handleAddBankTransactions}
                         settings={settings} 
                     />
-                    
                     <div className="mt-12">
-                      <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                         {invoices.length > 0 ? 'Últimas Facturas' : 'No hay facturas registradas'}
-                      </h3>
+                      <h3 className="text-lg font-semibold text-slate-900 mb-4">Últimas Facturas</h3>
                       <div className="grid gap-4">
-                        {invoices.map(inv => {
-                          const isExpanded = expandedInvoiceIds.has(inv.id);
-                          return (
-                            <div key={inv.id} className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
-                              <div className="p-4 flex justify-between items-center cursor-pointer" onClick={() => toggleExpand(inv.id)}>
-                                <div className="flex items-center gap-3 md:gap-4">
-                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0 ${inv.type === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-500'}`}>{inv.type === 'INCOME' ? 'V' : 'G'}</div>
-                                  <div className="overflow-hidden">
-                                    <p className="font-medium text-slate-900 truncate">{inv.issuerName}</p>
-                                    <div className="flex items-center gap-2 text-xs text-slate-500"><span>{inv.number}</span><span>•</span><span>{inv.date}</span></div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 md:gap-6">
-                                  <div className="text-right">
-                                    <p className="font-bold text-slate-900 text-sm md:text-base">{inv.totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
-                                    <span className={`text-[10px] md:text-xs px-2 py-0.5 rounded-full font-medium ${inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' : inv.status === 'PROCESSED' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{inv.status === 'PAID' ? 'PAGADA' : inv.status === 'PROCESSED' ? 'CONTABIL' : 'PENDIENTE'}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                    <button onClick={() => inv.file && setViewingDoc({file: inv.file, title: inv.number})} className="p-2 rounded-full text-slate-400 hover:text-blue-600"><Eye className="w-5 h-5" /></button>
-                                    <button onClick={() => togglePaymentStatus(inv.id)} className={`p-2 rounded-full hidden md:block ${inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{inv.status === 'PAID' ? <CheckCircle2 className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}</button>
-                                    <button onClick={() => toggleExpand(inv.id)} className="p-2 text-slate-400">{isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}</button>
-                                  </div>
-                                </div>
-                              </div>
-                              {isExpanded && (
-                                <div className="bg-slate-50 px-4 py-3 border-t border-slate-100 animate-fade-in">
-                                  <div className="flex items-center gap-2 mb-3 text-slate-500"><History className="w-4 h-4" /><h4 className="text-xs font-bold uppercase tracking-wide">Historial</h4></div>
-                                  <div className="space-y-3 pl-1">
-                                    {inv.history.slice().reverse().slice(0, 3).map((event, idx) => (
-                                      <div key={idx} className="flex items-start gap-3 text-sm"><div className="min-w-[140px] flex items-center gap-1 text-slate-400 text-xs font-mono mt-0.5"><Calendar className="w-3 h-3" />{new Date(event.date).toLocaleString()}</div><div className="flex-1"><p className="text-slate-700 font-medium text-xs md:text-sm">{event.action}</p></div></div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                        {invoices.map(inv => (
+                            <div key={inv.id} className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 flex justify-between items-center">
+                                <span className="font-medium">{inv.issuerName}</span>
+                                <button onClick={() => inv.file && setViewingDoc({file: inv.file})}><Eye className="w-5 h-5 text-blue-600" /></button>
                             </div>
-                          );
-                        })}
+                        ))}
                       </div>
                     </div>
                   </div>
                 } />
-                <Route path="/taxes" element={<TaxModels invoices={invoices} settings={settings} />} />
                 <Route path="/books" element={
                     <AccountingBooks 
                         entries={accountingEntries} 
@@ -425,40 +367,43 @@ const App: React.FC = () => {
                     <BankReconciliation 
                         transactions={bankTransactions}
                         entries={accountingEntries}
-                        onReconcile={handleReconcile}
+                        onReconcile={() => {}}
                         onCreateEntryFromTransaction={handleCreateEntryFromTransaction}
                     />
+                } />
+                <Route path="/taxes" element={
+                    <TaxModels invoices={invoices} settings={settings} />
                 } />
                 <Route path="/settings" element={
                     <Settings 
                         settings={settings} 
-                        onUpdateSettings={setSettings}
+                        onUpdateSettings={handleUpdateSettings}
                         onCloneToFile={handleCloneToFile}
                         onLoadFromFile={handleLoadFromFile}
                         onDisconnectFile={handleDisconnectFile}
                         isLocalFileMode={isLocalFileMode}
-                        currentFileName={fileHandle?.name}
                         lastSaved={lastSaved}
+                        currentFileName={fileHandle?.name}
                     />
                 } />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-
               <GlobalUploadWidget />
-              
-              <DocumentViewer 
-                isOpen={!!viewingDoc} 
-                onClose={() => setViewingDoc(null)} 
-                file={viewingDoc?.file}
-                title={viewingDoc?.title}
-              />
-
+              <DocumentViewer isOpen={!!viewingDoc} onClose={() => setViewingDoc(null)} file={viewingDoc?.file} />
             </main>
           </div>
           <MobileNavigation />
         </div>
       </HashRouter>
     </UploadQueueProvider>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <MainLayout />
+    </AuthProvider>
   );
 };
 

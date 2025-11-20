@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileText, Download, Calculator, AlertCircle } from 'lucide-react';
 import { Invoice, AppSettings } from '../types';
@@ -10,11 +11,11 @@ interface TaxModelsProps {
 export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
   
   // Cálculo básico
-  const ivaRepercutido = invoices
+  const ivaRepercutido = (invoices || [])
     .filter(i => i.type === 'INCOME')
     .reduce((acc, curr) => acc + curr.vatAmount, 0);
 
-  const ivaSoportado = invoices
+  const ivaSoportado = (invoices || [])
     .filter(i => i.type === 'EXPENSE')
     .reduce((acc, curr) => acc + curr.vatAmount, 0);
 
@@ -22,11 +23,11 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
 
   // Cálculo Rendimiento Neto (Para Mod 184)
   // En régimen de alquiler, el IVA soportado es GASTO si no se deduce.
-  const totalIngresos = invoices
+  const totalIngresos = (invoices || [])
     .filter(i => i.type === 'INCOME')
     .reduce((acc, curr) => acc + curr.baseAmount, 0); // Rentas normalmente van sin IVA o exentas
 
-  const totalGastos = invoices
+  const totalGastos = (invoices || [])
     .filter(i => i.type === 'EXPENSE')
     .reduce((acc, curr) => {
         // Si es exento, el gasto es el Total (Base + IVA). Si es General, es solo Base.
@@ -39,6 +40,9 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
   const rendimientoNeto = totalIngresos - totalGastos;
 
   const showMod303 = settings.fiscalRegime === 'GENERAL' && settings.vatObligation;
+  
+  // SAFE GUARD: Ensure partners exists
+  const partners = settings.partners || [];
 
   return (
     <div className="p-8 space-y-8 animate-fade-in">
@@ -121,7 +125,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
                 </div>
                 
                 <div className="space-y-3">
-                  {settings.partners.map((partner, index) => (
+                  {partners.map((partner, index) => (
                     <div key={partner.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                         <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${index % 2 === 0 ? 'bg-indigo-500' : 'bg-purple-500'}`}>

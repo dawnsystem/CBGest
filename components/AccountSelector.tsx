@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Check } from 'lucide-react';
 import { ACCOUNT_PLAN, AccountOption } from '../utils/accountingPlan';
@@ -15,18 +16,9 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChang
 
   // Extract initial value logic
   useEffect(() => {
-    // If value comes in as "628 - Suministros", prepopulate search or keep it clean?
-    // Let's keep search term empty initially unless focusing?
-    // Actually, displaying the full value in the input is better.
-    if (value) {
-        const parts = value.split(' - ');
-        // If it matches a known account, use the full format
-        const known = ACCOUNT_PLAN.find(a => a.code === parts[0]);
-        if (known && !searchTerm) {
-            setSearchTerm(`${known.code} - ${known.name}`);
-        } else if (!searchTerm) {
-            setSearchTerm(value);
-        }
+    // Sync internal state with external value if it changes externally
+    if (value !== searchTerm) {
+        setSearchTerm(value);
     }
   }, [value]);
 
@@ -35,8 +27,6 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChang
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
         setIsOpen(false);
-        // Reset search term to current value on close if no selection made?
-        // For simplicity, we assume user selected or left it.
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -57,6 +47,13 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChang
     setIsOpen(false);
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+      setSearchTerm(newValue);
+      setIsOpen(true);
+      onChange(newValue); // Propagate manual typing immediately
+  };
+
   return (
     <div className={`relative ${className}`} ref={wrapperRef}>
       <div className="relative">
@@ -65,10 +62,7 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChang
           className="w-full border border-slate-200 rounded text-sm p-2 pl-8 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
           placeholder="Buscar cuenta (ej: 628 o Luz)..."
           value={searchTerm}
-          onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setIsOpen(true);
-          }}
+          onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
         />
         <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" />
@@ -96,9 +90,9 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChang
         </div>
       )}
       
-      {isOpen && filteredAccounts.length === 0 && (
+      {isOpen && searchTerm && filteredAccounts.length === 0 && (
           <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-xs text-slate-500 text-center">
-              No se encontraron cuentas.
+              Usa una cuenta personalizada o selecciona de la lista.
           </div>
       )}
     </div>
