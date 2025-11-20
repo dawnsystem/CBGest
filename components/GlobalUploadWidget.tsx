@@ -34,7 +34,7 @@ export const GlobalUploadWidget: React.FC = () => {
         </div>
         {/* This X button now only HIDES the notification, doesn't delete the file */}
         {!isProcessing && (
-          <button onClick={dismissNotifications} className="text-slate-400 hover:text-white" title="Cerrar notificación (los archivos permanecerán en la bandeja)">
+          <button onClick={dismissNotifications} className="text-slate-300 hover:text-white" title="Cerrar notificación (los archivos permanecerán en la bandeja)">
             <X className="w-4 h-4" />
           </button>
         )}

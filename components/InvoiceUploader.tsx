@@ -1,20 +1,24 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus, Landmark } from 'lucide-react';
 import { useUploadQueue } from '../context/UploadQueueContext';
-import { Invoice, AppSettings, QueueItem } from '../types';
+import { Invoice, AppSettings, QueueItem, UploadType, BankTransaction } from '../types';
 import { isValidNIF } from '../utils/validators';
+import { AccountSelector } from './AccountSelector';
+import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 
 interface InvoiceUploaderProps {
   onInvoiceAdded: (invoice: Invoice) => void;
+  onBankTransactionsAdded: (transactions: BankTransaction[]) => void;
   settings: AppSettings;
 }
 
-export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, settings }) => {
+export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, onBankTransactionsAdded, settings }) => {
   const { queue, addToQueue, removeFromQueue, retryItem } = useUploadQueue();
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadType, setUploadType] = useState<UploadType>('INVOICE');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Local state for reviewing an item
+  // Review States
   const [reviewItem, setReviewItem] = useState<QueueItem | null>(null);
   const [preview, setPreview] = useState<Invoice | null>(null);
   const [nifError, setNifError] = useState<boolean>(false);
@@ -22,11 +26,8 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setIsDragging(true);
-    } else if (e.type === "dragleave") {
-      setIsDragging(false);
-    }
+    if (e.type === "dragenter" || e.type === "dragover") setIsDragging(true);
+    else if (e.type === "dragleave") setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -34,28 +35,48 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
     e.stopPropagation();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      addToQueue(Array.from(e.dataTransfer.files));
+      addToQueue(Array.from(e.dataTransfer.files), uploadType);
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      addToQueue(Array.from(e.target.files));
+      addToQueue(Array.from(e.target.files), uploadType);
     }
   };
 
   const startReview = (item: QueueItem) => {
-    if (item.result) {
+    if (item.uploadType === 'INVOICE' && item.result) {
         setReviewItem(item);
-        setPreview(item.result);
-        setNifError(item.result.issuerNif ? !isValidNIF(item.result.issuerNif) : false);
+        
+        // Auto-map suggested code to "Code - Name" format
+        let category = '';
+        const suggestedCode = (item.result as any).suggestedAccountCode;
+        if (suggestedCode) {
+            const match = ACCOUNT_PLAN.find(a => a.code === suggestedCode);
+            if (match) {
+                category = `${match.code} - ${match.name}`;
+            } else {
+                // If code exists but not in our plan, keep code at least
+                category = `${suggestedCode} - (Cuenta detectada)`;
+            }
+        }
+
+        const initialPreview = { ...item.result, category };
+        setPreview(initialPreview);
+        setNifError(initialPreview.issuerNif ? !isValidNIF(initialPreview.issuerNif) : false);
+
+    } else if (item.uploadType === 'BANK_STATEMENT' && item.bankResult) {
+        if(window.confirm(`Se han detectado ${item.bankResult.length} movimientos bancarios. ¿Importar a Conciliación?`)) {
+            onBankTransactionsAdded(item.bankResult);
+            removeFromQueue(item.id);
+        }
     }
   };
 
   const handleFieldChange = (field: keyof Invoice, value: string | number) => {
     if (preview) {
       const updated = { ...preview, [field]: value };
-      // Recalculate totals
       if (field === 'baseAmount' || field === 'vatRate') {
          const base = field === 'baseAmount' ? Number(value) : updated.baseAmount;
          const rate = field === 'vatRate' ? Number(value) : updated.vatRate;
@@ -63,53 +84,44 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
          updated.totalAmount = base + updated.vatAmount;
       }
       setPreview(updated);
-      
-      if (field === 'issuerNif') {
-        setNifError(!isValidNIF(value as string));
-      }
+      if (field === 'issuerNif') setNifError(!isValidNIF(value as string));
     }
   };
 
   const confirmInvoice = (generateEntry: boolean) => {
     if (preview && reviewItem) {
       if (nifError) {
-        alert("El NIF detectado no es válido. Por favor corrígelo antes de guardar.");
-        return;
+        if(!window.confirm("El NIF parece inválido. ¿Quieres guardar de todas formas?")) return;
       }
-
       const finalInvoice: Invoice = {
         ...preview,
         status: generateEntry ? 'PROCESSED' : 'PENDING',
-        // CRITICAL: Attach the original file from the queue item
-        file: reviewItem.file, 
-        history: [
-          ...preview.history,
-          {
+        file: reviewItem.file,
+        fileData: reviewItem.base64Data,
+        fileType: reviewItem.mimeType,
+        history: [...preview.history, {
             date: new Date().toISOString(),
             action: generateEntry ? 'Confirmed and Accounting Entry Generated' : 'Invoice Confirmed',
             user: 'Admin Gestor'
-          }
-        ]
+        }]
       };
-
       onInvoiceAdded(finalInvoice);
-      removeFromQueue(reviewItem.id); // Remove from queue after processing
+      removeFromQueue(reviewItem.id);
       setReviewItem(null);
       setPreview(null);
     }
   };
 
-  // Filter items to show in the "Inbox" list (exclude those being reviewed right now)
   const inboxItems = queue.filter(i => i.id !== reviewItem?.id);
 
+  // --- REVIEW UI (Invoice) ---
   if (preview && reviewItem) {
-      // --- REVIEW MODE ---
       return (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-lg animate-fade-in-up">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
             <div className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" />
-              <h4 className="font-semibold text-slate-900">Revisión de Factura: {reviewItem.file.name}</h4>
+              <h4 className="font-semibold text-slate-900">Revisión de Factura</h4>
             </div>
             <button onClick={() => { setReviewItem(null); setPreview(null); }} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -117,87 +129,88 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
           </div>
           
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Fields (Same as previous implementation) */}
             <div>
               <label className="block text-xs text-slate-500 mb-1">Emisor</label>
-              <input type="text" value={preview.issuerName} onChange={(e) => handleFieldChange('issuerName', e.target.value)} className="w-full border-slate-200 rounded text-sm font-medium" />
+              <input type="text" value={preview.issuerName} onChange={(e) => handleFieldChange('issuerName', e.target.value)} className="w-full border-slate-200 rounded text-sm font-medium bg-white text-slate-900" />
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1">NIF/CIF {nifError && <span className="text-red-500 font-bold">(Inválido)</span>}</label>
-              <input type="text" value={preview.issuerNif} onChange={(e) => handleFieldChange('issuerNif', e.target.value)} className={`w-full rounded text-sm font-mono ${nifError ? 'border-red-300 bg-red-50' : 'border-slate-200'}`} />
+              <input type="text" value={preview.issuerNif} onChange={(e) => handleFieldChange('issuerNif', e.target.value)} className={`w-full rounded text-sm font-mono bg-white text-slate-900 ${nifError ? 'border-red-300' : 'border-slate-200'}`} />
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1">Fecha</label>
-              <input type="date" value={preview.date} onChange={(e) => handleFieldChange('date', e.target.value)} className="w-full border-slate-200 rounded text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Categoría</label>
-              <select 
-                value={preview.category || ''} 
-                onChange={(e) => handleFieldChange('category', e.target.value)}
-                className="w-full border-slate-200 rounded text-sm"
-              >
-                <option value="">Sin categorizar</option>
-                <option value="628. Suministros">628. Suministros (Luz/Agua)</option>
-                <option value="622. Reparaciones">622. Reparaciones</option>
-                <option value="623. Profesionales">623. Servicios Profesionales</option>
-              </select>
+              <input type="date" value={preview.date} onChange={(e) => handleFieldChange('date', e.target.value)} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" />
             </div>
             
+            {/* Smart Account Selector */}
+            <div>
+              <label className="block text-xs text-slate-500 mb-1 flex justify-between">
+                 <span>Cuenta Contable</span>
+                 <span className="text-[10px] text-blue-600 cursor-help" title="Sugerido por IA basado en PGC">
+                    {preview.category ? '✨ Detectada' : ''}
+                 </span>
+              </label>
+              <AccountSelector 
+                value={preview.category || ''} 
+                onChange={(val) => handleFieldChange('category', val)} 
+              />
+            </div>
+
             <div className="col-span-1 md:col-span-2 grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Base</label>
-                <input type="number" value={preview.baseAmount} onChange={(e) => handleFieldChange('baseAmount', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">IVA %</label>
-                <select value={preview.vatRate} onChange={(e) => handleFieldChange('vatRate', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm">
-                  <option value={21}>21%</option>
-                  <option value={10}>10%</option>
-                  <option value={4}>4%</option>
-                  <option value={0}>0%</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Total</label>
-                <input type="number" value={preview.totalAmount} onChange={(e) => handleFieldChange('totalAmount', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm font-bold" />
-              </div>
+              <div><label className="block text-xs text-slate-500 mb-1">Base</label><input type="number" value={preview.baseAmount} onChange={(e) => handleFieldChange('baseAmount', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" /></div>
+              <div><label className="block text-xs text-slate-500 mb-1">IVA %</label><select value={preview.vatRate} onChange={(e) => handleFieldChange('vatRate', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900"><option value={21}>21%</option><option value={10}>10%</option><option value={4}>4%</option><option value={0}>0%</option></select></div>
+              <div><label className="block text-xs text-slate-500 mb-1">Total</label><input type="number" value={preview.totalAmount} onChange={(e) => handleFieldChange('totalAmount', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm font-bold bg-white text-slate-900" /></div>
             </div>
           </div>
 
           <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
              <button onClick={() => { setReviewItem(null); setPreview(null); }} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-200 rounded-lg">Cancelar</button>
-             <button onClick={() => confirmInvoice(false)} className="bg-white border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" /> Guardar Borrador
-             </button>
-             <button onClick={() => confirmInvoice(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2 shadow-md shadow-emerald-200">
-                <BookPlus className="w-4 h-4" /> Contabilizar
-             </button>
+             <button onClick={() => confirmInvoice(false)} className="bg-white border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Borrador</button>
+             <button onClick={() => confirmInvoice(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2 shadow-md shadow-emerald-200"><BookPlus className="w-4 h-4" /> Contabilizar</button>
           </div>
         </div>
       );
   }
 
-  // --- UPLOAD / QUEUE MODE ---
+  // --- UPLOAD UI ---
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      {/* Drop Zone */}
+      {/* Upload Type Switcher */}
+      <div className="flex justify-center">
+          <div className="bg-white border border-slate-200 rounded-lg p-1 flex gap-1 shadow-sm">
+              <button 
+                onClick={() => setUploadType('INVOICE')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${uploadType === 'INVOICE' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                  <FileText className="w-4 h-4 inline mr-2" /> Facturas / Tickets
+              </button>
+              <button 
+                onClick={() => setUploadType('BANK_STATEMENT')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${uploadType === 'BANK_STATEMENT' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                  <Landmark className="w-4 h-4 inline mr-2" /> Extracto Bancario (BBVA)
+              </button>
+          </div>
+      </div>
+
       <div 
-        className={`border-2 border-dashed rounded-xl p-10 text-center transition-all duration-200 ${
-          isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400 bg-white'
-        }`}
+        className={`border-2 border-dashed rounded-xl p-10 text-center transition-all duration-200 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400 bg-white'}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
       >
         <div className="flex flex-col items-center justify-center gap-4">
-          <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
-            <Upload className="w-8 h-8" />
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center ${uploadType === 'INVOICE' ? 'bg-blue-100 text-blue-600' : 'bg-indigo-100 text-indigo-600'}`}>
+            {uploadType === 'INVOICE' ? <Upload className="w-8 h-8" /> : <Landmark className="w-8 h-8" />}
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Sube tus facturas</h3>
-            <p className="text-sm text-slate-500 mt-1">Arrastra archivos aquí o haz clic para buscar. La IA los procesará en segundo plano.</p>
+            <h3 className="text-lg font-semibold text-slate-900">
+                {uploadType === 'INVOICE' ? 'Sube tus facturas' : 'Sube Extracto Bancario (PDF)'}
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">
+                {uploadType === 'INVOICE' ? 'La IA extraerá los datos y asignará la cuenta contable (PGC).' : 'Soporte específico para BBVA Empresas y similares.'}
+            </p>
           </div>
           <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*,.pdf" onChange={handleFileInput} />
           <button onClick={() => fileInputRef.current?.click()} className="bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
@@ -206,13 +219,11 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
         </div>
       </div>
 
-      {/* Inbox List */}
       {inboxItems.length > 0 && (
         <div className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Bandeja de Procesamiento</h3>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Bandeja de Entrada</h3>
             {inboxItems.map(item => (
                 <div key={item.id} className="bg-white border border-slate-200 rounded-lg p-4 flex items-center gap-4 shadow-sm animate-fade-in">
-                    {/* Icon Status */}
                     <div className="shrink-0">
                          {item.status === 'QUEUED' && <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400"><Upload className="w-5 h-5" /></div>}
                          {item.status === 'ANALYZING' && (
@@ -224,38 +235,27 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                          {item.status === 'COMPLETED' && <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><CheckCircle className="w-6 h-6" /></div>}
                          {item.status === 'ERROR' && <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600"><AlertTriangle className="w-6 h-6" /></div>}
                     </div>
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-900 truncate">{item.file.name}</p>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-[10px] px-1.5 rounded border ${item.uploadType === 'INVOICE' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-indigo-200 bg-indigo-50 text-indigo-700'}`}>
+                                {item.uploadType === 'INVOICE' ? 'FRA' : 'BNC'}
+                            </span>
+                            <p className="font-medium text-slate-900 truncate">{item.file.name}</p>
+                        </div>
                         <p className="text-xs text-slate-500">
-                            {item.status === 'QUEUED' && 'Esperando turno...'}
-                            {item.status === 'ANALYZING' && 'Analizando con Gemini AI...'}
-                            {item.status === 'COMPLETED' && 'Análisis completado. Listo para revisión.'}
+                            {item.status === 'ANALYZING' && 'Analizando y asignando cuenta contable...'}
+                            {item.status === 'COMPLETED' && (item.uploadType === 'INVOICE' ? 'Listo para revisión.' : 'Movimientos detectados.')}
                             {item.status === 'ERROR' && <span className="text-red-500">{item.error}</span>}
                         </p>
-                        {item.status === 'ANALYZING' && (
-                            <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
-                                <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${item.progress}%` }}></div>
-                            </div>
-                        )}
+                        {item.status === 'ANALYZING' && <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${item.progress}%` }}></div></div>}
                     </div>
-
-                    {/* Actions */}
                     <div className="shrink-0 flex items-center gap-2">
                         {item.status === 'COMPLETED' && (
                             <button onClick={() => startReview(item)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
-                                <Play className="w-4 h-4" /> Revisar
+                                <Play className="w-4 h-4" /> {item.uploadType === 'INVOICE' ? 'Revisar' : 'Importar'}
                             </button>
                         )}
-                        {item.status === 'ERROR' && (
-                            <button onClick={() => retryItem(item.id)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-full">
-                                <Upload className="w-4 h-4" />
-                            </button>
-                        )}
-                        <button onClick={() => removeFromQueue(item.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full">
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                        <button onClick={() => removeFromQueue(item.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full"><Trash2 className="w-4 h-4" /></button>
                     </div>
                 </div>
             ))}

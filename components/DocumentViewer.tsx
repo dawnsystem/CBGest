@@ -154,22 +154,22 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
                <FileText className="w-5 h-5 text-blue-400" />
             </div>
             <div className="overflow-hidden">
-                <h3 className="text-sm font-medium max-w-[150px] md:max-w-md truncate">{title || file.name}</h3>
-                <p className="text-xs text-slate-400">{file.type} • {(file.size / 1024).toFixed(1)} KB</p>
+                <h3 className="text-sm font-medium text-white max-w-[150px] md:max-w-md truncate">{title || file.name}</h3>
+                <p className="text-xs text-slate-300">{file.type} • {(file.size / 1024).toFixed(1)} KB</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <a 
                 href={objectUrl} 
                 download={file.name}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
                 title="Descargar original"
             >
                 <Download className="w-5 h-5" />
             </a>
             <button 
                 onClick={onClose}
-                className="p-2 text-slate-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors ml-1"
+                className="p-2 text-slate-300 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors ml-1"
             >
                 <X className="w-5 h-5" />
             </button>
@@ -181,13 +181,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
            {isRendering && (
              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 z-10">
                <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-2" />
-               <span className="text-slate-400 text-sm">Renderizando documento...</span>
+               <span className="text-slate-200 text-sm">Renderizando documento...</span>
              </div>
            )}
 
            {isPdf ? (
                renderError ? (
-                 <div className="text-center text-slate-400 max-w-sm">
+                 <div className="text-center text-slate-300 max-w-sm">
                    <p className="text-red-400 mb-2 font-medium">Error de visualización</p>
                    <p className="text-sm mb-4">{renderError}</p>
                    <a 
@@ -219,17 +219,17 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
              <button 
                onClick={() => setPageNum(p => Math.max(1, p - 1))}
                disabled={pageNum <= 1}
-               className="p-1 text-slate-400 hover:text-white disabled:opacity-30"
+               className="p-1 text-slate-300 hover:text-white disabled:opacity-30"
              >
                <ChevronLeft className="w-6 h-6" />
              </button>
-             <span className="text-sm text-slate-300 font-mono">
+             <span className="text-sm text-slate-200 font-mono">
                Página {pageNum} de {numPages}
              </span>
              <button 
                onClick={() => setPageNum(p => Math.min(numPages, p + 1))}
                disabled={pageNum >= numPages}
-               className="p-1 text-slate-400 hover:text-white disabled:opacity-30"
+               className="p-1 text-slate-300 hover:text-white disabled:opacity-30"
              >
                <ChevronRight className="w-6 h-6" />
              </button>

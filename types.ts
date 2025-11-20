@@ -1,3 +1,4 @@
+
 export enum UserRole {
   ADMIN = "ADMINISTRADOR",
   COMUNERO = "COMUNERO",
@@ -24,17 +25,51 @@ export interface Invoice {
   status: 'PENDING' | 'PROCESSED' | 'PAID';
   category?: string;
   history: InvoiceHistoryEvent[];
-  file?: File; // Original attached document
+  
+  // File handling
+  file?: File; // Runtime only (not serializable)
+  fileData?: string; // Base64 for persistence
+  fileType?: string; // MIME type
 }
 
-export interface AsientoContable {
+// Asiento Contable REAL y EDITABLE
+export interface AccountingEntry {
   id: string;
   date: string;
   concept: string;
+  accountCode: string; // Ej: 628.0.1
+  accountName: string; // Ej: Suministros
   debit: number;
   credit: number;
-  accountCode: string;
-  invoiceId?: string;
+  invoiceId?: string; // Enlace opcional a factura origen
+  
+  referenceDoc?: File; // Runtime only
+  fileData?: string; // Base64 for persistence
+  fileType?: string; // MIME type
+  
+  reconciled: boolean; // ¿Conciliado con banco?
+}
+
+export interface BankTransaction {
+  id: string;
+  date: string;
+  valueDate?: string;
+  concept: string;
+  amount: number; // Positivo (Ingreso) o Negativo (Gasto)
+  balance?: number;
+  reconciledWithEntryId?: string; // ID del asiento con el que se casó
+  status: 'PENDING' | 'MATCHED';
+}
+
+// --- TAX INFO FOR PARTNERS ---
+export interface PartnerTaxInfo {
+  otherWorkIncome: number; // Rendimientos del trabajo (nómina externa)
+  otherActivitiesIncome: number; // Otras actividades económicas
+  taxResidency: 'CATALUÑA' | 'OTRA';
+  maritalStatus: 'SINGLE' | 'MARRIED';
+  childrenCount: number;
+  disability: boolean;
+  deductibleExpenses: number; // Gastos deducibles personales (SS, sindicatos)
 }
 
 export interface Partner {
@@ -42,6 +77,21 @@ export interface Partner {
   name: string;
   nif: string;
   participation: number; // Percentage 0-100
+  taxInfo?: PartnerTaxInfo; // Optional tax details for simulation
+}
+
+// Data Source Types
+export type DataSourceType = 'LOCAL_STORAGE' | 'LOCAL_FILE' | 'SUPABASE' | 'FIREBASE';
+
+export interface DataSourceConfig {
+  type: DataSourceType;
+  // Configuración futura para conectores remotos
+  supabaseUrl?: string;
+  supabaseKey?: string;
+  firebaseConfig?: string;
+  autoBackup: boolean;
+  // Local File info (Not persisted, runtime only)
+  fileName?: string;
 }
 
 export interface AppSettings {
@@ -50,6 +100,7 @@ export interface AppSettings {
   fiscalRegime: 'GENERAL' | 'ALQUILER_EXENTO'; // General (con IVA) vs Alquiler (Sin IVA)
   vatObligation: boolean;
   partners: Partner[];
+  dataConfig?: DataSourceConfig; // New field for data management
 }
 
 export interface DashboardMetrics {
@@ -70,30 +121,37 @@ export interface TaxModelData {
 // --- Upload Queue Types ---
 
 export type UploadStatus = 'QUEUED' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
+export type UploadType = 'INVOICE' | 'BANK_STATEMENT'; // Nuevo selector
 
 export interface QueueItem {
   id: string;
   file: File;
+  uploadType: UploadType; // Factura o Banco
+  
   // Persistence fields
   fileName: string;
   mimeType: string;
-  base64Data?: string; // Required for localStorage persistence
+  base64Data?: string; 
   
   status: UploadStatus;
   progress: number;
-  result?: Invoice;
+  
+  // Resultados (Union type simple)
+  result?: Invoice; 
+  bankResult?: BankTransaction[]; // Si es extracto bancario devuelve array
+
   error?: string;
   timestamp: number;
   
   // UI State
-  notificationDismissed?: boolean; // If true, hidden from global widget but kept in inbox
+  notificationDismissed?: boolean; 
 }
 
 export interface UploadQueueContextType {
   queue: QueueItem[];
-  addToQueue: (files: File[]) => void;
+  addToQueue: (files: File[], type: UploadType) => void;
   removeFromQueue: (id: string) => void;
   retryItem: (id: string) => void;
-  clearCompleted: () => void; // Deprecated behavior, creates confusion
-  dismissNotifications: () => void; // New: Hides from widget only
+  clearCompleted: () => void; 
+  dismissNotifications: () => void; 
 }

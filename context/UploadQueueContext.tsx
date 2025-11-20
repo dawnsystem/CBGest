@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { QueueItem, UploadQueueContextType, Invoice } from '../types';
-import { analyzeInvoiceImage } from '../services/geminiService';
+import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction } from '../types';
+import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
 
@@ -48,7 +48,7 @@ export const UploadQueueProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // 1. Hydrate from LocalStorage on Mount
+  // 1. Hydrate from LocalStorage
   useEffect(() => {
     const savedQueue = localStorage.getItem('gestcb_upload_queue');
     if (savedQueue) {
@@ -59,17 +59,7 @@ export const UploadQueueProvider: React.FC<{ children: ReactNode }> = ({ childre
                 if (item.base64Data) {
                     file = base64ToFile(item.base64Data, item.fileName, item.mimeType);
                 }
-                
-                let result = item.result;
-                if (result) {
-                    result = { ...result, file: file };
-                }
-
-                return {
-                    ...item,
-                    file,
-                    result
-                };
+                return { ...item, file };
             });
             setQueue(rehydratedItems);
         } catch (e) {
@@ -83,26 +73,25 @@ export const UploadQueueProvider: React.FC<{ children: ReactNode }> = ({ childre
   // 2. Persist to LocalStorage
   useEffect(() => {
     if (!isHydrated) return;
-
     try {
         const serializedQueue = queue.map(item => {
-            const { file, result, ...rest } = item;
-            const serializedResult = result ? { ...result, file: undefined } : undefined;
-            return { ...rest, result: serializedResult };
+            const { file, ...rest } = item;
+            return rest; // file is reconstructed from base64Data
         });
         localStorage.setItem('gestcb_upload_queue', JSON.stringify(serializedQueue));
     } catch (e) {
-        console.warn("Storage quota exceeded. Drafts might not be saved.");
+        console.warn("Storage quota exceeded.");
     }
   }, [queue, isHydrated]);
 
 
-  const addToQueue = async (files: File[]) => {
+  const addToQueue = async (files: File[], type: UploadType) => {
     const newItemsPromises = files.map(async (file) => {
         const base64Full = await fileToBase64(file);
         return {
             id: Math.random().toString(36).substr(2, 9),
             file,
+            uploadType: type,
             fileName: file.name,
             mimeType: file.type,
             base64Data: base64Full,
@@ -127,12 +116,10 @@ export const UploadQueueProvider: React.FC<{ children: ReactNode }> = ({ childre
     ));
   };
 
-  // FIX: clearCompleted removes data. We keep it for legacy but generally shouldn't be used by the widget X button.
   const clearCompleted = () => {
     setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
   };
 
-  // NEW: Just hides them from the notification widget
   const dismissNotifications = () => {
     setQueue(prev => prev.map(item => 
        (item.status === 'COMPLETED' || item.status === 'ERROR') 
@@ -152,7 +139,6 @@ export const UploadQueueProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   const processItem = async (item: QueueItem) => {
     setProcessingId(item.id);
-    
     setQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'ANALYZING', progress: 10 } : i));
 
     const progressInterval = setInterval(() => {
@@ -166,47 +152,38 @@ export const UploadQueueProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     try {
       let base64ForApi = item.base64Data || '';
-      if (base64ForApi.includes(',')) {
-          base64ForApi = base64ForApi.split(',')[1];
-      }
-
+      if (base64ForApi.includes(',')) base64ForApi = base64ForApi.split(',')[1];
       if (!base64ForApi) throw new Error("Data invalid");
 
-      const data = await analyzeInvoiceImage(base64ForApi, item.mimeType);
+      // CRITICAL: Choose parser based on uploadType
+      if (item.uploadType === 'INVOICE') {
+          const data = await analyzeInvoiceImage(base64ForApi, item.mimeType);
+          const resultInvoice: Invoice = {
+            id: Math.random().toString(36).substr(2, 9),
+            ...data,
+            status: 'PENDING',
+            history: [{ date: new Date().toISOString(), action: 'Analyzed via Gemini', user: 'System' }]
+          };
+          setQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'COMPLETED', progress: 100, result: resultInvoice, notificationDismissed: false } : i));
+      
+      } else if (item.uploadType === 'BANK_STATEMENT') {
+          const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
+          // Add IDs to transactions
+          const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
+              id: Math.random().toString(36).substr(2, 9),
+              ...t,
+              status: 'PENDING'
+          }));
+
+          setQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'COMPLETED', progress: 100, bankResult: enrichedTransactions, notificationDismissed: false } : i));
+      }
 
       clearInterval(progressInterval);
-      
-      const resultInvoice: Invoice = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...data,
-        status: 'PENDING',
-        history: [{
-          date: new Date().toISOString(),
-          action: 'Analyzed via Gemini',
-          user: 'System'
-        }]
-      };
-
-      setQueue(prev => prev.map(i => 
-        i.id === item.id 
-          ? { 
-              ...i, 
-              status: 'COMPLETED', 
-              progress: 100, 
-              result: resultInvoice,
-              notificationDismissed: false // Show notification when done
-            } 
-          : i
-      ));
 
     } catch (err) {
       clearInterval(progressInterval);
       console.error(err);
-      setQueue(prev => prev.map(i => 
-        i.id === item.id 
-          ? { ...i, status: 'ERROR', progress: 0, error: 'Error en análisis IA.', notificationDismissed: false } 
-          : i
-      ));
+      setQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'ERROR', progress: 0, error: 'Error en análisis IA.', notificationDismissed: false } : i));
     } finally {
       setProcessingId(null);
     }

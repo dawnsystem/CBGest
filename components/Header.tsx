@@ -1,7 +1,11 @@
 import React from 'react';
-import { Bell, Search, User, Menu } from 'lucide-react';
+import { Bell, Search, User, ShieldCheck } from 'lucide-react';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  isLocalFileMode?: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
   return (
     <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
       <div className="flex items-center gap-4 w-full md:w-1/3">
@@ -21,6 +25,13 @@ export const Header: React.FC = () => {
       </div>
       
       <div className="flex items-center gap-2 md:gap-4 ml-2">
+        {isLocalFileMode && (
+            <div className="hidden md:flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-100" title="Base de Datos Encriptada Activa">
+                <ShieldCheck className="w-4 h-4" />
+                <span className="text-xs font-bold tracking-wide">SECURE MODE</span>
+            </div>
+        )}
+        
         <button className="relative p-2 hover:bg-slate-100 rounded-full transition-colors">
           <Bell className="w-5 h-5 text-slate-600" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>

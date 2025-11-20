@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light">
     <title>GestCB - Contabilidad Comunidades de Bienes</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -16,7 +17,20 @@
     </script>
 
     <style>
-      body { font-family: 'Inter', sans-serif; }
+      /* FORCE LIGHT MODE ON NATIVE CONTROLS */
+      :root {
+        color-scheme: light;
+      }
+      html, body {
+        font-family: 'Inter', sans-serif;
+        background-color: #F8FAFC; /* slate-50 */
+        color: #0F172A; /* slate-900 */
+      }
+      /* Ensure inputs are always white background with dark text */
+      input, select, textarea {
+        background-color: #ffffff !important;
+        color: #0F172A !important;
+      }
     </style>
   <script type="importmap">
 {
