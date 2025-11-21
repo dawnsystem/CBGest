@@ -1,3 +1,20 @@
+import { NifType } from '../types';
+
+export const detectNifType = (nif: string): NifType => {
+  if (!nif) return 'NIF';
+  const str = nif.toUpperCase().replace(/\s/g, '');
+
+  const dniRegex = /^[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]$/;
+  const nieRegex = /^[XYZ][0-9]{7}[TRWAGMYFPDXBNJZSQVHLCKE]$/;
+  const cifRegex = /^[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J]$/;
+
+  if (dniRegex.test(str)) return 'DNI';
+  if (nieRegex.test(str)) return 'NIE';
+  if (cifRegex.test(str)) return 'CIF';
+
+  return 'NIF';
+};
+
 export const isValidNIF = (nif: string): boolean => {
   if (!nif) return false;
   const str = nif.toUpperCase().replace(/\s/g, '');
