@@ -248,11 +248,11 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
               >
                   <FileText className="w-4 h-4 inline mr-2" /> Facturas / Tickets
               </button>
-              <button 
+              <button
                 onClick={() => setUploadType('BANK_STATEMENT')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${uploadType === 'BANK_STATEMENT' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
               >
-                  <Landmark className="w-4 h-4 inline mr-2" /> Extracto Bancario (BBVA)
+                  <Landmark className="w-4 h-4 inline mr-2" /> Extracto Bancario
               </button>
           </div>
       </div>
@@ -270,13 +270,26 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
           </div>
           <div>
             <h3 className="text-lg font-semibold text-slate-900">
-                {uploadType === 'INVOICE' ? 'Sube tus facturas' : 'Sube Extracto Bancario (PDF)'}
+                {uploadType === 'INVOICE' ? 'Sube tus facturas' : 'Sube Extracto Bancario'}
             </h3>
             <p className="text-sm text-slate-500 mt-1">
-                {uploadType === 'INVOICE' ? 'La IA extraerá los datos y asignará la cuenta contable (PGC).' : 'Soporte específico para BBVA Empresas y similares.'}
+                {uploadType === 'INVOICE'
+                  ? 'La IA extraerá los datos y asignará la cuenta contable (PGC).'
+                  : 'Soporta PDF (análisis con IA) y Excel (.xlsx, .xls) para BBVA y similares.'}
             </p>
           </div>
-          <input id="invoice-uploader-file-input" name="files" type="file" ref={fileInputRef} className="hidden" multiple accept="image/*,.pdf" onChange={handleFileInput} />
+          <input
+            id="invoice-uploader-file-input"
+            name="files"
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            multiple
+            accept={uploadType === 'INVOICE'
+              ? "image/*,.pdf"
+              : ".pdf,.xlsx,.xls,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"}
+            onChange={handleFileInput}
+          />
           <button onClick={() => fileInputRef.current?.click()} className="bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
             Seleccionar Archivos
           </button>
@@ -307,7 +320,12 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                             <p className="font-medium text-slate-900 truncate">{item.file.name}</p>
                         </div>
                         <p className="text-xs text-slate-500">
-                            {item.status === 'ANALYZING' && 'Analizando y asignando cuenta contable...'}
+                            {item.status === 'ANALYZING' && (item.uploadType === 'INVOICE'
+                              ? 'Analizando y asignando cuenta contable...'
+                              : item.fileName.toLowerCase().match(/\.xlsx?$/)
+                                ? 'Procesando Excel...'
+                                : 'Analizando con IA...'
+                            )}
                             {item.status === 'COMPLETED' && (item.uploadType === 'INVOICE' ? 'Listo para revisión.' : 'Movimientos detectados.')}
                             {item.status === 'ERROR' && <span className="text-red-500">{item.error}</span>}
                         </p>
