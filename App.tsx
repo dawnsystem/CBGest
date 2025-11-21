@@ -79,11 +79,11 @@ const MainLayout: React.FC = () => {
     fiscalRegime: 'ALQUILER_EXENTO',
     vatObligation: false,
     partners: [{ id: '1', name: 'Socio Fundador', nif: '', participation: 100 }],
-    dataConfig: { 
-        type: 'APPWRITE', 
+    dataConfig: {
+        type: 'APPWRITE',
         autoBackup: false,
         appwriteProjectId: 'cbgest',
-        appwriteDatabaseId: 'CBGest_DB',
+        appwriteDatabaseId: '691f288100019843d43e',
         appwriteBucketId: 'gestcb-data',
         appwriteEndpoint: 'https://fra.cloud.appwrite.io/v1'
     }
@@ -135,7 +135,7 @@ const MainLayout: React.FC = () => {
               appwriteService.initializeAppwrite({
                   projectId: freshSettings.dataConfig.appwriteProjectId,
                   endpoint,
-                  databaseId: freshSettings.dataConfig.appwriteDatabaseId || 'CBGest_DB',
+                  databaseId: freshSettings.dataConfig.appwriteDatabaseId || '691f288100019843d43e',
                   storageBucketId: freshSettings.dataConfig.appwriteBucketId || 'cbgest-data',
                   invoicesCollectionId: 'invoices',
                   entriesCollectionId: 'entries',

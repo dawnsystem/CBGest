@@ -61,7 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         initializeAppwrite({
           projectId: settings.dataConfig.appwriteProjectId,
           endpoint,
-          databaseId: settings.dataConfig.appwriteDatabaseId || 'CBGest_DB',
+          databaseId: settings.dataConfig.appwriteDatabaseId || '691f288100019843d43e',
           storageBucketId: settings.dataConfig.appwriteBucketId || 'cbgest-data',
           invoicesCollectionId: 'invoices',
           entriesCollectionId: 'entries',
