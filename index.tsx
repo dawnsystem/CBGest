@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+// Initialize PDF.js locally to avoid Tracking Prevention issues
+import './utils/pdfLoader';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

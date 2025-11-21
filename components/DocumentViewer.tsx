@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { X, Download, ExternalLink, FileText, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { pdfjsLib } from '../utils/pdfLoader';
 
-// Declaración global para TypeScript ya que usamos CDN
+// Declaración global para TypeScript (para compatibilidad)
 declare global {
   interface Window {
     pdfjsLib: any;
@@ -56,9 +57,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
 
   // 2. Load PDF Document
   useEffect(() => {
-    if (isPdf && objectUrl && window.pdfjsLib) {
+    if (isPdf && objectUrl && pdfjsLib) {
       setIsRendering(true);
-      const loadingTask = window.pdfjsLib.getDocument(objectUrl);
+      const loadingTask = pdfjsLib.getDocument(objectUrl);
       
       loadingTask.promise.then((pdf: any) => {
         setPdfDoc(pdf);
