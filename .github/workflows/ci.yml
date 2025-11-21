@@ -68,13 +68,6 @@ jobs:
           fail_ci_if_error: false
         continue-on-error: true
 
-      - name: Check coverage thresholds
-        run: |
-          echo "Checking coverage thresholds..."
-          # This will fail if coverage is below thresholds defined in vitest.config.ts
-          npm run test:coverage
-        continue-on-error: false
-
       - name: Archive coverage artifacts
         uses: actions/upload-artifact@v4
         with:
