@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 // Initialize PDF.js locally to avoid Tracking Prevention issues
 import './utils/pdfLoader';
+// Import Tailwind CSS
+import './index.css';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
