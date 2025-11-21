@@ -40,13 +40,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       if (isUsingAppwrite()) {
         // Wait for Appwrite to be initialized before loading
         if (!isAppwriteInitialized()) {
-          console.log('⏳ Waiting for Appwrite initialization before loading notifications...');
-          // Retry after a short delay
+          // Silently wait for initialization without logging
           setTimeout(() => {
             if (isAppwriteInitialized()) {
               loadNotifications();
             } else {
-              console.warn('⚠️ Appwrite not initialized, skipping notification load');
+              // Appwrite not initialized after waiting, use empty state
               setIsLoading(false);
             }
           }, 500);
@@ -57,11 +56,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           const loadedNotifications = await databaseService.getNotifications();
           setNotifications(loadedNotifications);
         } catch (error: any) {
-          // Only log error if it's not a "database not found" error
-          if (!error.message?.includes('Database not found') && !error.message?.includes('404')) {
-            console.error('Error loading notifications from Appwrite:', error);
-          }
-          // Fallback to empty array
+          // Silently handle errors - getNotifications already logs unexpected errors
           setNotifications([]);
         }
       } else {
@@ -112,8 +107,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const savedNotif = await databaseService.createNotification(newNotification);
         setNotifications(prev => [savedNotif, ...prev]);
       } catch (error) {
-        console.error('Error creating notification in Appwrite:', error);
-        // Fallback to local state
+        // Silently fallback to local state
         setNotifications(prev => [newNotification, ...prev]);
       }
     } else {
@@ -133,8 +127,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           );
         }
       } catch (error) {
-        console.error('Error updating notification in Appwrite:', error);
-        // Still update local state
+        // Silently update local state on error
         setNotifications(prev =>
           prev.map(notif => notif.id === id ? { ...notif, read: true } : notif)
         );
@@ -160,8 +153,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           prev.map(notif => ({ ...notif, read: true }))
         );
       } catch (error) {
-        console.error('Error marking all as read in Appwrite:', error);
-        // Still update local state
+        // Silently update local state on error
         setNotifications(prev =>
           prev.map(notif => ({ ...notif, read: true }))
         );
@@ -179,8 +171,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         await databaseService.deleteNotification(id);
         setNotifications(prev => prev.filter(notif => notif.id !== id));
       } catch (error) {
-        console.error('Error deleting notification in Appwrite:', error);
-        // Still update local state
+        // Silently update local state on error
         setNotifications(prev => prev.filter(notif => notif.id !== id));
       }
     } else {
@@ -194,8 +185,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         await databaseService.deleteAllNotifications();
         setNotifications([]);
       } catch (error) {
-        console.error('Error clearing all notifications in Appwrite:', error);
-        // Still update local state
+        // Silently update local state on error
         setNotifications([]);
       }
     } else {
