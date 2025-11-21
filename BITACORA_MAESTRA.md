@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2025-11-21 09:30:00 UTC*
+*Última actualización: 2025-11-21 10:10:00 UTC*
 
 ---
 
@@ -10,6 +10,7 @@
 Estado actual: **A la espera de nuevas directivas del Director.**
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2025-11-21] - `FIX-038` - CI/CD Pipeline Corrections:** Corrección de workflows de GitHub Actions, mocks completos de APIs del navegador para tests, fix crítico de sintaxis en AuthModal.tsx, documentación de configuración GitHub.
 *   **[2025-11-21] - `TSK-037` - Testing & CI/CD Infrastructure:** Sistema completo de testing unitario con Vitest, workflows de GitHub Actions para CI/CD y seguridad, ESLint configurado, 102 tests implementados con >80% coverage.
 *   **[2025-11-19] - `TSK-036` - Data Integrity:** NIF Cleaning & Strict Validation + Accounting Logic Fix.
 *   **[2025-11-19] - `TSK-035` - Ledger UX:** Autocomplete de cuentas y visor de adjuntos en asientos.
@@ -118,3 +119,22 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 
 ### Documentación
 *   **TESTING.md** - Guía completa de testing con ejemplos y mejores prácticas
+
+### Sesión: [2025-11-21 10:10:00 UTC]
+*   **Directiva del Director:** Corrección integral del pipeline CI/CD - resolver lógica de workflows, añadir mocks de APIs del navegador, corregir sintaxis JSX.
+*   **Plan de Acción:** Ejecutar plan de 3 fases (Workflows → Código TS/React → Verificación).
+*   **Log de Acciones:**
+    - `[10:00:00]` - **MOD:** `.github/workflows/ci.yml`. Añadido logging detallado al status-check job con estado de cada job individual.
+    - `[10:02:00]` - **MOD:** `.github/workflows/security.yml`. Comentado job dependency-review (requiere Dependency Graph), añadida documentación de configuración.
+    - `[10:05:00]` - **FIX:** `components/AuthModal.tsx:2`. Corregido error crítico de sintaxis en import de lucide-react (`<parameter name=` → `import {`).
+    - `[10:10:00]` - **MOD:** `vitest.setup.ts`. Añadidos mocks completos de APIs del navegador:
+        * File, FileReader, Blob APIs
+        * atob, btoa (base64 encoding)
+        * TextEncoder, TextDecoder
+        * setInterval, clearInterval fallbacks
+        * Variable de entorno API_KEY para geminiService.ts
+    - `[10:15:00]` - **CREATE:** `GITHUB_SETUP.md`. Documentación completa de configuración de GitHub (Dependency Graph, Branch Protection, Codecov, Troubleshooting).
+    - `[10:20:00]` - **TEST:** Verificación local - 102/102 tests passing. Mocks funcionando correctamente, no más errores "X is not defined".
+*   **Resultado:** FIX-038 completado. Pipeline CI/CD corregido, tests pasando sin errores de variables globales.
+*   **Commit Asociado:** `5efa08c` - fix(ci): correct workflow logic and add browser API mocks for tests
+*   **Observaciones:** Errores TypeScript pre-existentes en App.tsx, Login.tsx, appwriteService.ts (conversiones de tipos) no bloquean CI/CD. Fuera del alcance de este fix. Dependency Graph debe ser habilitado manualmente en GitHub settings.
