@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier, AppSettings } from '../types';
-import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
+import { analyzeInvoiceImage, analyzeBankStatement, parseXlsxBankStatement } from '../services/geminiService';
 import { databaseService } from '../services/appwriteService';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
@@ -337,22 +337,42 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           await updateQueueItem(completedItem);
 
       } else if (item.uploadType === 'BANK_STATEMENT') {
-          const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
-          // Add IDs to transactions
-          const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
-              id: Math.random().toString(36).substr(2, 9),
-              ...t,
-              status: 'PENDING'
-          }));
+          // Detect file type
+          const isXlsx = item.mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                         item.mimeType === 'application/vnd.ms-excel' ||
+                         item.fileName.toLowerCase().endsWith('.xlsx') ||
+                         item.fileName.toLowerCase().endsWith('.xls');
 
-          const completedItem = {
-            ...item,
-            status: 'COMPLETED' as const,
-            progress: 100,
-            bankResult: enrichedTransactions,
-            notificationDismissed: false
-          };
-          await updateQueueItem(completedItem);
+          if (isXlsx) {
+            // XLSX files need manual column mapping - mark as ready for mapping
+            const completedItem = {
+              ...item,
+              status: 'COMPLETED' as const,
+              progress: 100,
+              needsMapping: true, // Flag to show mapping UI
+              notificationDismissed: false
+            };
+            await updateQueueItem(completedItem);
+          } else {
+            // Use AI for PDF/images
+            const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
+
+            // Add IDs to transactions
+            const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
+                id: Math.random().toString(36).substr(2, 9),
+                ...t,
+                status: 'PENDING' as const
+            }));
+
+            const completedItem = {
+              ...item,
+              status: 'COMPLETED' as const,
+              progress: 100,
+              bankResult: enrichedTransactions,
+              notificationDismissed: false
+            };
+            await updateQueueItem(completedItem);
+          }
       }
 
       clearInterval(progressInterval);

@@ -1,11 +1,12 @@
 
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus, Landmark, ShieldAlert } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus, Landmark, ShieldAlert, FileSpreadsheet } from 'lucide-react';
 import { useUploadQueue } from '../context/UploadQueueContext';
 import { Invoice, AppSettings, QueueItem, UploadType, BankTransaction } from '../types';
 import { isValidNIF } from '../utils/validators';
 import { AccountSelector } from './AccountSelector';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
+import { XlsxColumnMapper } from './XlsxColumnMapper';
 
 interface InvoiceUploaderProps {
   onInvoiceAdded: (invoice: Invoice) => void;
@@ -24,6 +25,9 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   const [preview, setPreview] = useState<Invoice | null>(null);
   const [nifError, setNifError] = useState<boolean>(false);
   const [forceAcceptNif, setForceAcceptNif] = useState(false); // User override
+
+  // XLSX Mapping State
+  const [mappingItem, setMappingItem] = useState<QueueItem | null>(null);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -69,10 +73,16 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
         setNifError(initialPreview.issuerNif ? !isValidNIF(initialPreview.issuerNif) : false);
         setForceAcceptNif(false); // Reset override
 
-    } else if (item.uploadType === 'BANK_STATEMENT' && item.bankResult) {
-        if(window.confirm(`Se han detectado ${item.bankResult.length} movimientos bancarios. ¿Importar a Conciliación?`)) {
-            onBankTransactionsAdded(item.bankResult);
-            removeFromQueue(item.id);
+    } else if (item.uploadType === 'BANK_STATEMENT') {
+        // Check if XLSX needs mapping
+        if (item.needsMapping && item.base64Data) {
+            setMappingItem(item);
+        } else if (item.bankResult) {
+            // PDF was processed by AI
+            if(window.confirm(`Se han detectado ${item.bankResult.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
+                onBankTransactionsAdded(item.bankResult);
+                removeFromQueue(item.id);
+            }
         }
     }
   };
@@ -120,6 +130,30 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
       setReviewItem(null);
       setPreview(null);
     }
+  };
+
+  // Handle XLSX mapping confirmation
+  const handleMappingConfirm = (transactions: { date: string; concept: string; amount: number }[]) => {
+    if (!mappingItem) return;
+
+    // Add IDs and status to transactions
+    const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
+      id: Math.random().toString(36).substr(2, 9),
+      ...t,
+      status: 'PENDING' as const
+    }));
+
+    // Confirm import
+    if (window.confirm(`Se han mapeado ${enrichedTransactions.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
+      onBankTransactionsAdded(enrichedTransactions);
+      removeFromQueue(mappingItem.id);
+    }
+
+    setMappingItem(null);
+  };
+
+  const handleMappingCancel = () => {
+    setMappingItem(null);
   };
 
   const inboxItems = queue.filter(i => i.id !== reviewItem?.id);
@@ -248,11 +282,11 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
               >
                   <FileText className="w-4 h-4 inline mr-2" /> Facturas / Tickets
               </button>
-              <button 
+              <button
                 onClick={() => setUploadType('BANK_STATEMENT')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${uploadType === 'BANK_STATEMENT' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
               >
-                  <Landmark className="w-4 h-4 inline mr-2" /> Extracto Bancario (BBVA)
+                  <Landmark className="w-4 h-4 inline mr-2" /> Extracto Bancario
               </button>
           </div>
       </div>
@@ -270,13 +304,26 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
           </div>
           <div>
             <h3 className="text-lg font-semibold text-slate-900">
-                {uploadType === 'INVOICE' ? 'Sube tus facturas' : 'Sube Extracto Bancario (PDF)'}
+                {uploadType === 'INVOICE' ? 'Sube tus facturas' : 'Sube Extracto Bancario'}
             </h3>
             <p className="text-sm text-slate-500 mt-1">
-                {uploadType === 'INVOICE' ? 'La IA extraerá los datos y asignará la cuenta contable (PGC).' : 'Soporte específico para BBVA Empresas y similares.'}
+                {uploadType === 'INVOICE'
+                  ? 'La IA extraerá los datos y asignará la cuenta contable (PGC).'
+                  : 'Soporta PDF (análisis con IA) y Excel (.xlsx, .xls) para BBVA y similares.'}
             </p>
           </div>
-          <input id="invoice-uploader-file-input" name="files" type="file" ref={fileInputRef} className="hidden" multiple accept="image/*,.pdf" onChange={handleFileInput} />
+          <input
+            id="invoice-uploader-file-input"
+            name="files"
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            multiple
+            accept={uploadType === 'INVOICE'
+              ? "image/*,.pdf"
+              : ".pdf,.xlsx,.xls,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"}
+            onChange={handleFileInput}
+          />
           <button onClick={() => fileInputRef.current?.click()} className="bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
             Seleccionar Archivos
           </button>
@@ -307,16 +354,40 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                             <p className="font-medium text-slate-900 truncate">{item.file.name}</p>
                         </div>
                         <p className="text-xs text-slate-500">
-                            {item.status === 'ANALYZING' && 'Analizando y asignando cuenta contable...'}
-                            {item.status === 'COMPLETED' && (item.uploadType === 'INVOICE' ? 'Listo para revisión.' : 'Movimientos detectados.')}
+                            {item.status === 'ANALYZING' && (item.uploadType === 'INVOICE'
+                              ? 'Analizando y asignando cuenta contable...'
+                              : item.fileName.toLowerCase().match(/\.xlsx?$/)
+                                ? 'Cargando Excel...'
+                                : 'Analizando con IA...'
+                            )}
+                            {item.status === 'COMPLETED' && (
+                              item.uploadType === 'INVOICE'
+                                ? 'Listo para revision.'
+                                : item.needsMapping
+                                  ? 'Excel cargado. Mapea las columnas.'
+                                  : 'Movimientos detectados.'
+                            )}
                             {item.status === 'ERROR' && <span className="text-red-500">{item.error}</span>}
                         </p>
                         {item.status === 'ANALYZING' && <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${item.progress}%` }}></div></div>}
                     </div>
                     <div className="shrink-0 flex items-center gap-2">
                         {item.status === 'COMPLETED' && (
-                            <button onClick={() => startReview(item)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
-                                <Play className="w-4 h-4" /> {item.uploadType === 'INVOICE' ? 'Revisar' : 'Importar'}
+                            <button
+                              onClick={() => startReview(item)}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                                item.needsMapping
+                                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                              }`}
+                            >
+                              {item.uploadType === 'INVOICE' ? (
+                                <><Play className="w-4 h-4" /> Revisar</>
+                              ) : item.needsMapping ? (
+                                <><FileSpreadsheet className="w-4 h-4" /> Mapear Columnas</>
+                              ) : (
+                                <><Play className="w-4 h-4" /> Importar</>
+                              )}
                             </button>
                         )}
                         <button onClick={() => removeFromQueue(item.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full"><Trash2 className="w-4 h-4" /></button>
@@ -324,6 +395,16 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                 </div>
             ))}
         </div>
+      )}
+
+      {/* XLSX Column Mapper Modal */}
+      {mappingItem && mappingItem.base64Data && (
+        <XlsxColumnMapper
+          base64Data={mappingItem.base64Data.includes(',') ? mappingItem.base64Data.split(',')[1] : mappingItem.base64Data}
+          fileName={mappingItem.fileName}
+          onConfirm={handleMappingConfirm}
+          onCancel={handleMappingCancel}
+        />
       )}
     </div>
   );

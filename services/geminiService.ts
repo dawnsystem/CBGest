@@ -1,7 +1,8 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
+import * as XLSX from 'xlsx';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
-import { Supplier } from '../types';
+import { Supplier, BankTransaction } from '../types';
 
 // Initialize Gemini client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
@@ -177,6 +178,155 @@ export const analyzeBankStatement = async (base64Data: string, mimeType: string)
 
   } catch (error) {
     console.error("Error parsing bank statement:", error);
+    throw error;
+  }
+};
+
+// NEW: Parse XLSX Bank Statement (without AI)
+export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<BankTransaction, 'id' | 'status'>[]> => {
+  try {
+    // Decode base64 to binary
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Read workbook
+    const workbook = XLSX.read(bytes, { type: 'array' });
+
+    // Get first sheet
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    // Convert to JSON with headers
+    const rawData: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+
+    if (rawData.length < 2) {
+      throw new Error("El archivo XLSX no contiene suficientes datos");
+    }
+
+    // Find header row (look for keywords in first 10 rows)
+    let headerRowIndex = 0;
+    const dateKeywords = ['fecha', 'date', 'f.valor', 'f. valor', 'f.operación', 'f. operación'];
+    const conceptKeywords = ['concepto', 'descripción', 'descripcion', 'concept', 'movimiento', 'detalle'];
+    const amountKeywords = ['importe', 'amount', 'cantidad', 'cargo', 'abono', 'débito', 'crédito', 'debito', 'credito', 'monto'];
+
+    for (let i = 0; i < Math.min(10, rawData.length); i++) {
+      const row = rawData[i];
+      if (!row || !Array.isArray(row)) continue;
+
+      const rowLower = row.map((cell: any) => String(cell || '').toLowerCase().trim());
+      const hasDate = rowLower.some((cell: string) => dateKeywords.some(k => cell.includes(k)));
+      const hasConcept = rowLower.some((cell: string) => conceptKeywords.some(k => cell.includes(k)));
+      const hasAmount = rowLower.some((cell: string) => amountKeywords.some(k => cell.includes(k)));
+
+      if (hasDate && (hasConcept || hasAmount)) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    const headers = rawData[headerRowIndex].map((h: any) => String(h || '').toLowerCase().trim());
+
+    // Find column indices
+    const findColumnIndex = (keywords: string[]): number => {
+      for (const keyword of keywords) {
+        const idx = headers.findIndex((h: string) => h.includes(keyword));
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    };
+
+    const dateCol = findColumnIndex(dateKeywords);
+    const conceptCol = findColumnIndex(conceptKeywords);
+    const amountCol = findColumnIndex(amountKeywords);
+
+    // Also check for separate debit/credit columns
+    const debitCol = findColumnIndex(['cargo', 'débito', 'debito', 'debe']);
+    const creditCol = findColumnIndex(['abono', 'crédito', 'credito', 'haber']);
+
+    if (dateCol === -1) {
+      throw new Error("No se encontró columna de fecha en el archivo XLSX");
+    }
+
+    // Parse data rows
+    const transactions: Omit<BankTransaction, 'id' | 'status'>[] = [];
+
+    for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+      const row = rawData[i];
+      if (!row || !Array.isArray(row)) continue;
+
+      // Skip empty rows
+      if (row.every((cell: any) => !cell || String(cell).trim() === '')) continue;
+
+      const rawDate = row[dateCol];
+      const concept = conceptCol !== -1 ? String(row[conceptCol] || '').trim() : '';
+
+      // Parse date
+      let date = '';
+      if (rawDate) {
+        const dateStr = String(rawDate).trim();
+
+        // Try different date formats
+        // DD/MM/YYYY or DD-MM-YYYY
+        const ddmmyyyy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (ddmmyyyy) {
+          date = `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`;
+        }
+        // YYYY-MM-DD
+        else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          date = dateStr;
+        }
+        // Excel serial date number
+        else if (!isNaN(Number(dateStr))) {
+          const excelDate = XLSX.SSF.parse_date_code(Number(dateStr));
+          if (excelDate) {
+            date = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
+          }
+        }
+      }
+
+      // Skip rows without valid date
+      if (!date) continue;
+
+      // Parse amount
+      let amount = 0;
+      if (amountCol !== -1 && row[amountCol] !== undefined && row[amountCol] !== '') {
+        // Single amount column
+        const rawAmount = String(row[amountCol]).replace(/[^\d,.\-]/g, '').replace(',', '.');
+        amount = parseFloat(rawAmount) || 0;
+      } else if (debitCol !== -1 || creditCol !== -1) {
+        // Separate debit/credit columns
+        const debit = debitCol !== -1 ? parseFloat(String(row[debitCol] || 0).replace(/[^\d,.\-]/g, '').replace(',', '.')) || 0 : 0;
+        const credit = creditCol !== -1 ? parseFloat(String(row[creditCol] || 0).replace(/[^\d,.\-]/g, '').replace(',', '.')) || 0 : 0;
+
+        // Debit is negative (expense), Credit is positive (income)
+        if (debit > 0) {
+          amount = -Math.abs(debit);
+        } else if (credit > 0) {
+          amount = Math.abs(credit);
+        }
+      }
+
+      // Skip rows with 0 amount (might be balance rows or headers)
+      if (amount === 0) continue;
+
+      transactions.push({
+        date,
+        concept: concept || 'Sin concepto',
+        amount
+      });
+    }
+
+    if (transactions.length === 0) {
+      throw new Error("No se encontraron transacciones válidas en el archivo XLSX");
+    }
+
+    return transactions;
+
+  } catch (error) {
+    console.error("Error parsing XLSX bank statement:", error);
     throw error;
   }
 };

@@ -200,24 +200,25 @@ export interface QueueItem {
   id: string;
   file: File;
   uploadType: UploadType; // Factura o Banco
-  
+
   // Persistence fields
   fileName: string;
   mimeType: string;
-  base64Data?: string; 
-  
+  base64Data?: string;
+
   status: UploadStatus;
   progress: number;
-  
+
   // Resultados (Union type simple)
-  result?: Invoice; 
+  result?: Invoice;
   bankResult?: BankTransaction[]; // Si es extracto bancario devuelve array
 
   error?: string;
   timestamp: number;
-  
+
   // UI State
-  notificationDismissed?: boolean; 
+  notificationDismissed?: boolean;
+  needsMapping?: boolean; // XLSX files need manual column mapping
 }
 
 export interface UploadQueueContextType {
