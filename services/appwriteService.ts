@@ -439,7 +439,12 @@ export const databaseService = {
       );
 
       // Remove dataConfig field before saving (it's not in Appwrite schema)
-      const { dataConfig, ...settingsToSave } = settings;
+      // Serialize partners array to JSON string for Appwrite storage
+      const { dataConfig, partners, ...restSettings } = settings;
+      const settingsToSave = {
+        ...restSettings,
+        partners: JSON.stringify(partners || [])
+      };
 
       if (response.documents.length > 0) {
         // Update existing
@@ -449,7 +454,13 @@ export const databaseService = {
           response.documents[0].$id,
           settingsToSave
         );
-        return { ...doc, dataConfig } as unknown as AppSettings;
+        // Parse partners back to array when returning
+        const parsedDoc = {
+          ...doc,
+          partners: JSON.parse((doc as any).partners || '[]'),
+          dataConfig
+        };
+        return parsedDoc as unknown as AppSettings;
       } else {
         // Create new
         const doc = await databases.createDocument(
@@ -458,7 +469,13 @@ export const databaseService = {
           ID.unique(),
           settingsToSave
         );
-        return { ...doc, dataConfig } as unknown as AppSettings;
+        // Parse partners back to array when returning
+        const parsedDoc = {
+          ...doc,
+          partners: JSON.parse((doc as any).partners || '[]'),
+          dataConfig
+        };
+        return parsedDoc as unknown as AppSettings;
       }
     } catch (error: any) {
       console.error('Save settings error:', error);
@@ -480,7 +497,14 @@ export const databaseService = {
       );
 
       if (response.documents.length > 0) {
-        return response.documents[0] as unknown as AppSettings;
+        const doc = response.documents[0] as any;
+        // Parse partners from JSON string back to array
+        return {
+          ...doc,
+          partners: typeof doc.partners === 'string'
+            ? JSON.parse(doc.partners || '[]')
+            : (doc.partners || [])
+        } as unknown as AppSettings;
       }
 
       return null;
@@ -699,16 +723,26 @@ export const databaseService = {
 
     try {
       // Remove File object before saving (not JSON serializable)
-      const { file, ...itemData } = item;
+      // Also remove result/bankResult objects as they're complex nested types
+      const { file, result, bankResult, ...itemData } = item;
+
+      // Ensure progress is an integer (Appwrite requires integer type)
+      const dataToSave = {
+        ...itemData,
+        progress: Math.round(itemData.progress || 0),
+        // Serialize complex objects to JSON strings if they exist
+        result: result ? JSON.stringify(result) : undefined,
+        bankResult: bankResult ? JSON.stringify(bankResult) : undefined
+      };
 
       const doc = await databases.createDocument(
         config.databaseId,
         config.uploadsCollectionId,
         item.id || ID.unique(),
-        itemData
+        dataToSave
       );
 
-      return { ...doc, file } as unknown as QueueItem;
+      return { ...doc, file, result, bankResult } as unknown as QueueItem;
     } catch (error: any) {
       console.error('Create upload item error:', error);
       throw new Error(error.message || 'Error al crear elemento de cola');
@@ -735,7 +769,16 @@ export const databaseService = {
       );
 
       // Note: File objects need to be reconstructed from base64Data on the client side
-      return response.documents as unknown as QueueItem[];
+      // Parse JSON strings back to objects for result and bankResult
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        result: doc.result && typeof doc.result === 'string'
+          ? JSON.parse(doc.result)
+          : doc.result,
+        bankResult: doc.bankResult && typeof doc.bankResult === 'string'
+          ? JSON.parse(doc.bankResult)
+          : doc.bankResult
+      })) as unknown as QueueItem[];
     } catch (error: any) {
       // Silently handle expected errors (collection not found, not authorized)
       if (error?.code === 404 || error?.code === 401 ||
@@ -755,16 +798,27 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      const { file, ...itemData } = item;
+      // Remove File object before saving (not JSON serializable)
+      // Also remove result/bankResult objects as they're complex nested types
+      const { file, result, bankResult, ...itemData } = item;
+
+      // Ensure progress is an integer (Appwrite requires integer type)
+      const dataToSave = {
+        ...itemData,
+        progress: Math.round(itemData.progress || 0),
+        // Serialize complex objects to JSON strings if they exist
+        result: result ? JSON.stringify(result) : undefined,
+        bankResult: bankResult ? JSON.stringify(bankResult) : undefined
+      };
 
       const doc = await databases.updateDocument(
         config.databaseId,
         config.uploadsCollectionId,
         item.id,
-        itemData
+        dataToSave
       );
 
-      return { ...doc, file } as unknown as QueueItem;
+      return { ...doc, file, result, bankResult } as unknown as QueueItem;
     } catch (error: any) {
       console.error('Update upload item error:', error);
       throw new Error(error.message || 'Error al actualizar elemento de cola');
