@@ -82,7 +82,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           });
           setQueue(rehydratedItems);
         } catch (error) {
-          console.error("Failed to load queue from Appwrite:", error);
+          // Silently handle errors - getUploadQueue already logs unexpected errors
           setQueue([]);
         }
       } else {
@@ -158,8 +158,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         );
         setQueue(prev => [...prev, ...savedItems]);
       } catch (error) {
-        console.error("Error creating upload items in Appwrite:", error);
-        // Fallback to local state
+        // Silently fallback to local state
         setQueue(prev => [...prev, ...newItems]);
       }
     } else {
@@ -173,8 +172,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         await databaseService.deleteUploadItem(id);
         setQueue(prev => prev.filter(item => item.id !== id));
       } catch (error) {
-        console.error("Error deleting upload item in Appwrite:", error);
-        // Still update local state
+        // Silently update local state on error
         setQueue(prev => prev.filter(item => item.id !== id));
       }
     } else {
@@ -199,8 +197,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         await databaseService.updateUploadItem(updatedItem);
         setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
       } catch (error) {
-        console.error("Error retrying upload item in Appwrite:", error);
-        // Still update local state
+        // Silently update local state on error
         setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
       }
     } else {
@@ -214,8 +211,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         await databaseService.deleteCompletedUploads();
         setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
       } catch (error) {
-        console.error("Error clearing completed uploads in Appwrite:", error);
-        // Still update local state
+        // Silently update local state on error
         setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
       }
     } else {
@@ -241,8 +237,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           : item
         ));
       } catch (error) {
-        console.error("Error dismissing notifications in Appwrite:", error);
-        // Still update local state
+        // Silently update local state on error
         setQueue(prev => prev.map(item =>
           (item.status === 'COMPLETED' || item.status === 'ERROR')
           ? { ...item, notificationDismissed: true }
@@ -275,8 +270,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       try {
         await databaseService.updateUploadItem(updatedItem);
       } catch (error) {
-        console.error("Error updating upload item in Appwrite:", error);
-        // Continue with local state update
+        // Silently continue with local state update on error
       }
     }
   };
@@ -294,9 +288,9 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           const updatedProgress = { ...i, progress: i.progress + (Math.random() * 10) };
           // Fire and forget progress updates to Appwrite
           if (isUsingAppwrite()) {
-            databaseService.updateUploadItem(updatedProgress).catch(err =>
-              console.error("Error updating progress in Appwrite:", err)
-            );
+            databaseService.updateUploadItem(updatedProgress).catch(() => {
+              // Silently ignore progress update errors
+            });
           }
           return updatedProgress;
         }

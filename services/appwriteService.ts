@@ -147,8 +147,13 @@ export const authService = {
     try {
       const user = await account.get();
       return user as AppUser;
-    } catch (error) {
-      // Not logged in
+    } catch (error: any) {
+      // Silently return null for expected auth errors (401, not logged in)
+      if (error?.code === 401 || error?.type === 'general_unauthorized_scope') {
+        return null;
+      }
+      // Log unexpected errors
+      console.error('Unexpected error getting current user:', error);
       return null;
     }
   },
@@ -433,24 +438,27 @@ export const databaseService = {
         [Query.limit(1)]
       );
 
+      // Remove dataConfig field before saving (it's not in Appwrite schema)
+      const { dataConfig, ...settingsToSave } = settings;
+
       if (response.documents.length > 0) {
         // Update existing
         const doc = await databases.updateDocument(
           config.databaseId,
           config.settingsCollectionId,
           response.documents[0].$id,
-          settings
+          settingsToSave
         );
-        return doc as unknown as AppSettings;
+        return { ...doc, dataConfig } as unknown as AppSettings;
       } else {
         // Create new
         const doc = await databases.createDocument(
           config.databaseId,
           config.settingsCollectionId,
           ID.unique(),
-          settings
+          settingsToSave
         );
-        return doc as unknown as AppSettings;
+        return { ...doc, dataConfig } as unknown as AppSettings;
       }
     } catch (error: any) {
       console.error('Save settings error:', error);
@@ -590,6 +598,12 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
+      // Check if collectionId is defined
+      if (!config.notificationsCollectionId) {
+        console.warn('Notifications collection ID not configured');
+        return [];
+      }
+
       const response = await databases.listDocuments(
         config.databaseId,
         config.notificationsCollectionId,
@@ -598,6 +612,12 @@ export const databaseService = {
 
       return response.documents as unknown as Notification[];
     } catch (error: any) {
+      // Silently handle expected errors (collection not found, not authorized)
+      if (error?.code === 404 || error?.code === 401 ||
+          error?.message?.includes('not found') ||
+          error?.message?.includes('not be found')) {
+        return [];
+      }
       console.error('Get notifications error:', error);
       throw new Error(error.message || 'Error al obtener notificaciones');
     }
@@ -702,6 +722,12 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
+      // Check if collectionId is defined
+      if (!config.uploadsCollectionId) {
+        console.warn('Uploads collection ID not configured');
+        return [];
+      }
+
       const response = await databases.listDocuments(
         config.databaseId,
         config.uploadsCollectionId,
@@ -711,6 +737,12 @@ export const databaseService = {
       // Note: File objects need to be reconstructed from base64Data on the client side
       return response.documents as unknown as QueueItem[];
     } catch (error: any) {
+      // Silently handle expected errors (collection not found, not authorized)
+      if (error?.code === 404 || error?.code === 401 ||
+          error?.message?.includes('not found') ||
+          error?.message?.includes('not be found')) {
+        return [];
+      }
       console.error('Get upload queue error:', error);
       throw new Error(error.message || 'Error al obtener cola de uploads');
     }
