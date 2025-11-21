@@ -1,0 +1,164 @@
+name: Security Audit
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  schedule:
+    # Run weekly on Mondays at 9:00 AM UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Run npm audit fix
+        run: |
+          npm audit fix --dry-run
+        continue-on-error: true
+
+      - name: Check for critical vulnerabilities
+        run: |
+          CRITICAL=$(npm audit --json | jq '.metadata.vulnerabilities.critical // 0')
+          HIGH=$(npm audit --json | jq '.metadata.vulnerabilities.high // 0')
+
+          echo "Critical vulnerabilities: $CRITICAL"
+          echo "High vulnerabilities: $HIGH"
+
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "❌ Critical vulnerabilities found!"
+            exit 1
+          fi
+
+          if [ "$HIGH" -gt 3 ]; then
+            echo "⚠️  Warning: More than 3 high vulnerabilities found"
+            exit 1
+          fi
+
+          echo "✅ No critical vulnerabilities found"
+
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better secret detection
+
+      - name: Scan for secrets
+        run: |
+          echo "Scanning for potential secrets in code..."
+
+          # Check for common secret patterns
+          FOUND_SECRETS=0
+
+          # API keys
+          if grep -r -E "api[_-]?key\s*=\s*['\"][a-zA-Z0-9]{20,}['\"]" --include="*.ts" --include="*.tsx" --include="*.js" .; then
+            echo "⚠️  Warning: Potential API key found in code"
+            FOUND_SECRETS=$((FOUND_SECRETS + 1))
+          fi
+
+          # AWS credentials
+          if grep -r -E "AKIA[0-9A-Z]{16}" --include="*.ts" --include="*.tsx" --include="*.js" .; then
+            echo "⚠️  Warning: Potential AWS access key found"
+            FOUND_SECRETS=$((FOUND_SECRETS + 1))
+          fi
+
+          # Private keys
+          if grep -r "BEGIN.*PRIVATE KEY" --include="*.ts" --include="*.tsx" --include="*.js" .; then
+            echo "⚠️  Warning: Private key found in code"
+            FOUND_SECRETS=$((FOUND_SECRETS + 1))
+          fi
+
+          # Generic secrets
+          if grep -r -E "secret\s*=\s*['\"][^'\"]{20,}['\"]" --include="*.ts" --include="*.tsx" --include="*.js" .; then
+            echo "⚠️  Warning: Potential secret found in code"
+            FOUND_SECRETS=$((FOUND_SECRETS + 1))
+          fi
+
+          if [ $FOUND_SECRETS -gt 0 ]; then
+            echo "❌ Found $FOUND_SECRETS potential secret(s) in code"
+            echo "Please review and remove any hardcoded secrets"
+            exit 1
+          fi
+
+          echo "✅ No secrets found in code"
+
+  codeql-analysis:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          allow-licenses: MIT, Apache-2.0, BSD-3-Clause, ISC, BSD-2-Clause
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-audit, secret-scanning]
+    if: always()
+
+    steps:
+      - name: Check security status
+        run: |
+          if [ "${{ needs.dependency-audit.result }}" != "success" ] || \
+             [ "${{ needs.secret-scanning.result }}" != "success" ]; then
+            echo "❌ Security checks failed"
+            echo "Please review the security issues above"
+            exit 1
+          fi
+          echo "✅ All security checks passed"
