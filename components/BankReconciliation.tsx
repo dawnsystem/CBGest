@@ -129,7 +129,7 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
                              <div className="text-center p-6">
                                 <AlertCircle className="w-8 h-8 text-amber-400 mx-auto mb-2" />
                                 <p className="text-sm text-slate-600">No se encontraron facturas/asientos con importe exacto.</p>
-                                <p className="text-xs text-slate-400 mt-1">Usa "Crear Asiento" en el panel izquierdo.</p>
+                                <p className="text-xs text-slate-400 mt-1">Usa &quot;Crear Asiento&quot; en el panel izquierdo.</p>
                              </div>
                         )}
                     </>

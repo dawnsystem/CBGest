@@ -234,7 +234,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                             onChange={handleAccountChange}
                         />
                         <p className="text-[10px] text-slate-400 mt-1 ml-1">
-                            Busca por nombre (ej: "Luz") o código (ej: "628"). 
+                            Busca por nombre (ej: &quot;Luz&quot;) o código (ej: &quot;628&quot;).
                             <span className="block text-slate-500 font-medium">Código seleccionado: {editingEntry.accountCode}</span>
                         </p>
                     </div>
