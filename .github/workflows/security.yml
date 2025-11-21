@@ -131,20 +131,25 @@ jobs:
         with:
           category: "/language:javascript-typescript"
 
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+  # IMPORTANT: Dependency Review requires "Dependency graph" to be enabled
+  # To enable: Go to https://github.com/dawnsystem/CBGest/settings/security_analysis
+  # Enable "Dependency graph" under "Data services"
+  # Uncomment the job below once enabled
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate
-          allow-licenses: MIT, Apache-2.0, BSD-3-Clause, ISC, BSD-2-Clause
+  # dependency-review:
+  #   name: Dependency Review
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'pull_request'
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Dependency Review
+  #       uses: actions/dependency-review-action@v4
+  #       with:
+  #         fail-on-severity: moderate
+  #         allow-licenses: MIT, Apache-2.0, BSD-3-Clause, ISC, BSD-2-Clause
 
   security-summary:
     name: Security Summary

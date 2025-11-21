@@ -129,10 +129,15 @@ jobs:
     steps:
       - name: Check job status
         run: |
+          # Check the result of each dependent job using GitHub Actions context
+          # Possible values: success, failure, cancelled, skipped
           if [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.build.result }}" != "success" ]; then
             echo "❌ One or more jobs failed"
+            echo "Lint: ${{ needs.lint.result }}"
+            echo "Test: ${{ needs.test.result }}"
+            echo "Build: ${{ needs.build.result }}"
             exit 1
           fi
           echo "✅ All checks passed successfully"
