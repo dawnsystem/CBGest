@@ -1,5 +1,5 @@
 import { Client, Account, Databases, Storage, Query, ID, Models } from 'appwrite';
-import { AppwriteConfig, Invoice, AccountingEntry, BankTransaction, AppSettings, AppUser } from '../types';
+import { AppwriteConfig, Invoice, AccountingEntry, BankTransaction, AppSettings, AppUser, Supplier } from '../types';
 
 // Singleton Client
 let clientInstance: Client | null = null;

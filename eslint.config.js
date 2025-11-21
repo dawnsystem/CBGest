@@ -20,10 +20,99 @@ export default [
         },
       },
       globals: {
+        // Browser globals - Window & Document
         window: 'readonly',
         document: 'readonly',
         console: 'readonly',
+        alert: 'readonly',
+        confirm: 'readonly',
+        prompt: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        navigator: 'readonly',
+        location: 'readonly',
+        history: 'readonly',
+
+        // Browser globals - Timers
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
+
+        // Browser globals - Fetch & Network
+        fetch: 'readonly',
+        Request: 'readonly',
+        Response: 'readonly',
+        Headers: 'readonly',
+        XMLHttpRequest: 'readonly',
+        WebSocket: 'readonly',
+
+        // Browser globals - Files & Blobs
+        Blob: 'readonly',
+        File: 'readonly',
+        FileReader: 'readonly',
+        FormData: 'readonly',
+        BlobPart: 'readonly',
+        BlobPropertyBag: 'readonly',
+        FilePropertyBag: 'readonly',
+
+        // Browser globals - URLs & Crypto
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        crypto: 'readonly',
+        CryptoKey: 'readonly',
+        SubtleCrypto: 'readonly',
+        btoa: 'readonly',
+        atob: 'readonly',
+
+        // Browser globals - DOM Types
+        Node: 'readonly',
+        Element: 'readonly',
+        HTMLElement: 'readonly',
+        HTMLDivElement: 'readonly',
+        HTMLInputElement: 'readonly',
+        HTMLButtonElement: 'readonly',
+        HTMLFormElement: 'readonly',
+        HTMLSelectElement: 'readonly',
+        HTMLTextAreaElement: 'readonly',
+        HTMLImageElement: 'readonly',
+        HTMLAnchorElement: 'readonly',
+        HTMLCanvasElement: 'readonly',
+        SVGElement: 'readonly',
+
+        // Browser globals - Events
+        Event: 'readonly',
+        MouseEvent: 'readonly',
+        KeyboardEvent: 'readonly',
+        FocusEvent: 'readonly',
+        InputEvent: 'readonly',
+        ChangeEvent: 'readonly',
+        SubmitEvent: 'readonly',
+        DragEvent: 'readonly',
+        TouchEvent: 'readonly',
+        WheelEvent: 'readonly',
+        EventTarget: 'readonly',
+
+        // Browser globals - Other APIs
+        MutationObserver: 'readonly',
+        IntersectionObserver: 'readonly',
+        ResizeObserver: 'readonly',
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+
+        // Node.js globals
         process: 'readonly',
+        global: 'readonly',
+        Buffer: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        exports: 'readonly',
       },
     },
     plugins: {
