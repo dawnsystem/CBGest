@@ -25,7 +25,9 @@ export const Login: React.FC = () => {
       invoicesCollectionId: APPWRITE_CONFIG.collections.invoices,
       entriesCollectionId: APPWRITE_CONFIG.collections.entries,
       transactionsCollectionId: APPWRITE_CONFIG.collections.transactions,
-      settingsCollectionId: APPWRITE_CONFIG.collections.settings
+      settingsCollectionId: APPWRITE_CONFIG.collections.settings,
+      notificationsCollectionId: APPWRITE_CONFIG.collections.notifications,
+      uploadsCollectionId: APPWRITE_CONFIG.collections.uploads
     });
 
     // Save config to localStorage for other components

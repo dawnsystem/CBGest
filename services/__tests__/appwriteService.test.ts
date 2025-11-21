@@ -14,6 +14,8 @@ describe('appwriteService', () => {
     entriesCollectionId: 'test-entries',
     transactionsCollectionId: 'test-transactions',
     settingsCollectionId: 'test-settings',
+    notificationsCollectionId: 'test-notifications',
+    uploadsCollectionId: 'test-uploads',
     storageBucketId: 'test-bucket',
   };
 
