@@ -4,18 +4,22 @@
 // =========================================================
 // Este módulo de cifrado NO se usa para datos en LocalStorage cuando Appwrite está activo.
 //
-// MIGRACIÓN A APPWRITE COMPLETADA (PARCIAL):
+// MIGRACIÓN A APPWRITE COMPLETADA AL 100% ✅:
 // ✅ Settings: Ya NO se guardan en localStorage cuando Appwrite está activo
 // ✅ Datos principales (invoices, entries, transactions, suppliers): Solo en localStorage si Appwrite NO está activo
-// ⏳ Notificaciones: Todavía en localStorage (servicios de Appwrite listos, pendiente migración de contexto)
-// ⏳ Cola de uploads: Todavía en localStorage (servicios de Appwrite listos, pendiente migración de contexto)
+// ✅ Notificaciones: Migradas completamente a Appwrite (NotificationContext actualizado)
+// ✅ Cola de uploads: Migrada completamente a Appwrite (UploadQueueContext actualizado)
 //
 // Este módulo se usa SOLO para:
 // - Cifrado de archivos locales cuando el usuario elige modo "archivo local cifrado"
 // - Exportación/importación de datos cifrados
 //
-// TODO: Migrar contextos de notificaciones y cola de uploads para usar Appwrite completamente
-// y eliminar las últimas dependencias de LocalStorage.
+// CUANDO APPWRITE ESTÁ ACTIVO:
+// - Settings, Datos, Notificaciones y Cola de Uploads se guardan SOLO en Appwrite
+// - LocalStorage NO se usa para persistencia de datos (excepto para leer settings iniciales)
+//
+// CUANDO APPWRITE NO ESTÁ ACTIVO (modo LOCAL_STORAGE):
+// - Todo funciona igual que antes, usando localStorage como backend de persistencia
 
 const ENC_ALGO = 'AES-GCM';
 const KDF_ALGO = 'PBKDF2';

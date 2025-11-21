@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Notification, NotificationContextType } from '../types';
+import { Notification, NotificationContextType, AppSettings } from '../types';
 import { useAuth } from './AuthContext';
+import { databaseService } from '../services/appwriteService';
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -16,29 +17,66 @@ interface NotificationProviderProps {
   children: ReactNode;
 }
 
+// Helper to check if using Appwrite
+const isUsingAppwrite = (): boolean => {
+  try {
+    const saved = localStorage.getItem('gestcb_settings');
+    if (!saved) return false;
+    const settings: AppSettings = JSON.parse(saved);
+    return settings.dataConfig?.type === 'APPWRITE' && !!settings.dataConfig.appwriteProjectId;
+  } catch {
+    return false;
+  }
+};
+
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load notifications from localStorage on mount
+  // Load notifications on mount (from Appwrite or localStorage)
   useEffect(() => {
-    const saved = localStorage.getItem('gestcb_notifications');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setNotifications(parsed);
-      } catch (error) {
-        console.error('Error loading notifications:', error);
+    const loadNotifications = async () => {
+      if (isUsingAppwrite()) {
+        try {
+          const loadedNotifications = await databaseService.getNotifications();
+          setNotifications(loadedNotifications);
+        } catch (error) {
+          console.error('Error loading notifications from Appwrite:', error);
+          // Fallback to empty array
+          setNotifications([]);
+        }
+      } else {
+        // Load from localStorage
+        const saved = localStorage.getItem('gestcb_notifications');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            setNotifications(parsed);
+          } catch (error) {
+            console.error('Error loading notifications from localStorage:', error);
+            setNotifications([]);
+          }
+        }
       }
-    }
+      setIsLoading(false);
+    };
+
+    loadNotifications();
   }, []);
 
-  // Save notifications to localStorage whenever they change
+  // Save notifications (to Appwrite or localStorage) - only in localStorage mode
   useEffect(() => {
-    localStorage.setItem('gestcb_notifications', JSON.stringify(notifications));
-  }, [notifications]);
+    if (isLoading) return; // Don't save during initial load
 
-  const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
+    if (!isUsingAppwrite()) {
+      // Only save to localStorage in LOCAL_STORAGE mode
+      localStorage.setItem('gestcb_notifications', JSON.stringify(notifications));
+    }
+    // In Appwrite mode, individual operations handle persistence
+  }, [notifications, isLoading]);
+
+  const addNotification = async (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     // Don't create notification for own actions
     if (user && notification.userId === user.$id) {
       return;
@@ -51,29 +89,100 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       read: false
     };
 
-    setNotifications(prev => [newNotification, ...prev]);
+    if (isUsingAppwrite()) {
+      try {
+        const savedNotif = await databaseService.createNotification(newNotification);
+        setNotifications(prev => [savedNotif, ...prev]);
+      } catch (error) {
+        console.error('Error creating notification in Appwrite:', error);
+        // Fallback to local state
+        setNotifications(prev => [newNotification, ...prev]);
+      }
+    } else {
+      setNotifications(prev => [newNotification, ...prev]);
+    }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(notif =>
-        notif.id === id ? { ...notif, read: true } : notif
-      )
-    );
+  const markAsRead = async (id: string) => {
+    if (isUsingAppwrite()) {
+      try {
+        const notif = notifications.find(n => n.id === id);
+        if (notif) {
+          const updated = { ...notif, read: true };
+          await databaseService.updateNotification(updated);
+          setNotifications(prev =>
+            prev.map(n => n.id === id ? updated : n)
+          );
+        }
+      } catch (error) {
+        console.error('Error updating notification in Appwrite:', error);
+        // Still update local state
+        setNotifications(prev =>
+          prev.map(notif => notif.id === id ? { ...notif, read: true } : notif)
+        );
+      }
+    } else {
+      setNotifications(prev =>
+        prev.map(notif => notif.id === id ? { ...notif, read: true } : notif)
+      );
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev =>
-      prev.map(notif => ({ ...notif, read: true }))
-    );
+  const markAllAsRead = async () => {
+    if (isUsingAppwrite()) {
+      try {
+        // Update all unread notifications
+        const unreadNotifs = notifications.filter(n => !n.read);
+        await Promise.all(
+          unreadNotifs.map(notif =>
+            databaseService.updateNotification({ ...notif, read: true })
+          )
+        );
+        setNotifications(prev =>
+          prev.map(notif => ({ ...notif, read: true }))
+        );
+      } catch (error) {
+        console.error('Error marking all as read in Appwrite:', error);
+        // Still update local state
+        setNotifications(prev =>
+          prev.map(notif => ({ ...notif, read: true }))
+        );
+      }
+    } else {
+      setNotifications(prev =>
+        prev.map(notif => ({ ...notif, read: true }))
+      );
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  const deleteNotification = async (id: string) => {
+    if (isUsingAppwrite()) {
+      try {
+        await databaseService.deleteNotification(id);
+        setNotifications(prev => prev.filter(notif => notif.id !== id));
+      } catch (error) {
+        console.error('Error deleting notification in Appwrite:', error);
+        // Still update local state
+        setNotifications(prev => prev.filter(notif => notif.id !== id));
+      }
+    } else {
+      setNotifications(prev => prev.filter(notif => notif.id !== id));
+    }
   };
 
-  const clearAll = () => {
-    setNotifications([]);
+  const clearAll = async () => {
+    if (isUsingAppwrite()) {
+      try {
+        await databaseService.deleteAllNotifications();
+        setNotifications([]);
+      } catch (error) {
+        console.error('Error clearing all notifications in Appwrite:', error);
+        // Still update local state
+        setNotifications([]);
+      }
+    } else {
+      setNotifications([]);
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;

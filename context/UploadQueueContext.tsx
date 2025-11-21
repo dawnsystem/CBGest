@@ -1,8 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier } from '../types';
+import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier, AppSettings } from '../types';
 import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
+import { databaseService } from '../services/appwriteService';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
+
+// Helper to check if using Appwrite
+const isUsingAppwrite = (): boolean => {
+  try {
+    const saved = localStorage.getItem('gestcb_settings');
+    if (!saved) return false;
+    const settings: AppSettings = JSON.parse(saved);
+    return settings.dataConfig?.type === 'APPWRITE' && !!settings.dataConfig.appwriteProjectId;
+  } catch {
+    return false;
+  }
+};
 
 export const useUploadQueue = () => {
   const context = useContext(UploadQueueContext);
@@ -53,40 +66,68 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // 1. Hydrate from LocalStorage
+  // 1. Hydrate from Appwrite or LocalStorage
   useEffect(() => {
-    const savedQueue = localStorage.getItem('gestcb_upload_queue');
-    if (savedQueue) {
+    const loadQueue = async () => {
+      if (isUsingAppwrite()) {
         try {
+          const loadedItems = await databaseService.getUploadQueue();
+          // Reconstruct File objects from base64Data
+          const rehydratedItems: QueueItem[] = loadedItems.map((item: any) => {
+            let file = item.file;
+            if (item.base64Data) {
+              file = base64ToFile(item.base64Data, item.fileName, item.mimeType);
+            }
+            return { ...item, file };
+          });
+          setQueue(rehydratedItems);
+        } catch (error) {
+          console.error("Failed to load queue from Appwrite:", error);
+          setQueue([]);
+        }
+      } else {
+        // Load from localStorage
+        const savedQueue = localStorage.getItem('gestcb_upload_queue');
+        if (savedQueue) {
+          try {
             const parsedItems = JSON.parse(savedQueue);
             const rehydratedItems: QueueItem[] = parsedItems.map((item: any) => {
-                let file = item.file;
-                if (item.base64Data) {
-                    file = base64ToFile(item.base64Data, item.fileName, item.mimeType);
-                }
-                return { ...item, file };
+              let file = item.file;
+              if (item.base64Data) {
+                file = base64ToFile(item.base64Data, item.fileName, item.mimeType);
+              }
+              return { ...item, file };
             });
             setQueue(rehydratedItems);
-        } catch (e) {
-            console.error("Failed to hydrate queue:", e);
+          } catch (e) {
+            console.error("Failed to hydrate queue from localStorage:", e);
             localStorage.removeItem('gestcb_upload_queue');
+          }
         }
-    }
-    setIsHydrated(true);
+      }
+      setIsHydrated(true);
+    };
+
+    loadQueue();
   }, []);
 
-  // 2. Persist to LocalStorage
+  // 2. Persist to LocalStorage (only in LOCAL_STORAGE mode)
   useEffect(() => {
     if (!isHydrated) return;
-    try {
+
+    if (!isUsingAppwrite()) {
+      // Only save to localStorage in LOCAL_STORAGE mode
+      try {
         const serializedQueue = queue.map(item => {
-            const { file, ...rest } = item;
-            return rest; // file is reconstructed from base64Data
+          const { file, ...rest } = item;
+          return rest; // file is reconstructed from base64Data
         });
         localStorage.setItem('gestcb_upload_queue', JSON.stringify(serializedQueue));
-    } catch (e) {
+      } catch (e) {
         console.warn("Storage quota exceeded.");
+      }
     }
+    // In Appwrite mode, individual operations handle persistence
   }, [queue, isHydrated]);
 
 
@@ -108,29 +149,113 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     });
 
     const newItems = await Promise.all(newItemsPromises);
-    setQueue(prev => [...prev, ...newItems]);
+
+    if (isUsingAppwrite()) {
+      try {
+        // Create items in Appwrite
+        const savedItems = await Promise.all(
+          newItems.map(item => databaseService.createUploadItem(item))
+        );
+        setQueue(prev => [...prev, ...savedItems]);
+      } catch (error) {
+        console.error("Error creating upload items in Appwrite:", error);
+        // Fallback to local state
+        setQueue(prev => [...prev, ...newItems]);
+      }
+    } else {
+      setQueue(prev => [...prev, ...newItems]);
+    }
   };
 
-  const removeFromQueue = (id: string) => {
-    setQueue(prev => prev.filter(item => item.id !== id));
+  const removeFromQueue = async (id: string) => {
+    if (isUsingAppwrite()) {
+      try {
+        await databaseService.deleteUploadItem(id);
+        setQueue(prev => prev.filter(item => item.id !== id));
+      } catch (error) {
+        console.error("Error deleting upload item in Appwrite:", error);
+        // Still update local state
+        setQueue(prev => prev.filter(item => item.id !== id));
+      }
+    } else {
+      setQueue(prev => prev.filter(item => item.id !== id));
+    }
   };
 
-  const retryItem = (id: string) => {
-    setQueue(prev => prev.map(item => 
-      item.id === id ? { ...item, status: 'QUEUED', progress: 0, error: undefined, notificationDismissed: false } : item
-    ));
+  const retryItem = async (id: string) => {
+    const item = queue.find(i => i.id === id);
+    if (!item) return;
+
+    const updatedItem = {
+      ...item,
+      status: 'QUEUED' as const,
+      progress: 0,
+      error: undefined,
+      notificationDismissed: false
+    };
+
+    if (isUsingAppwrite()) {
+      try {
+        await databaseService.updateUploadItem(updatedItem);
+        setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
+      } catch (error) {
+        console.error("Error retrying upload item in Appwrite:", error);
+        // Still update local state
+        setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
+      }
+    } else {
+      setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
+    }
   };
 
-  const clearCompleted = () => {
-    setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
+  const clearCompleted = async () => {
+    if (isUsingAppwrite()) {
+      try {
+        await databaseService.deleteCompletedUploads();
+        setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
+      } catch (error) {
+        console.error("Error clearing completed uploads in Appwrite:", error);
+        // Still update local state
+        setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
+      }
+    } else {
+      setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
+    }
   };
 
-  const dismissNotifications = () => {
-    setQueue(prev => prev.map(item => 
-       (item.status === 'COMPLETED' || item.status === 'ERROR') 
-       ? { ...item, notificationDismissed: true } 
-       : item
-    ));
+  const dismissNotifications = async () => {
+    const itemsToDismiss = queue.filter(
+      item => (item.status === 'COMPLETED' || item.status === 'ERROR') && !item.notificationDismissed
+    );
+
+    if (isUsingAppwrite()) {
+      try {
+        await Promise.all(
+          itemsToDismiss.map(item =>
+            databaseService.updateUploadItem({ ...item, notificationDismissed: true })
+          )
+        );
+        setQueue(prev => prev.map(item =>
+          (item.status === 'COMPLETED' || item.status === 'ERROR')
+          ? { ...item, notificationDismissed: true }
+          : item
+        ));
+      } catch (error) {
+        console.error("Error dismissing notifications in Appwrite:", error);
+        // Still update local state
+        setQueue(prev => prev.map(item =>
+          (item.status === 'COMPLETED' || item.status === 'ERROR')
+          ? { ...item, notificationDismissed: true }
+          : item
+        ));
+      }
+    } else {
+      setQueue(prev => prev.map(item =>
+        (item.status === 'COMPLETED' || item.status === 'ERROR')
+        ? { ...item, notificationDismissed: true }
+        : item
+      ));
+    }
   };
 
   // Processing Logic
@@ -142,14 +267,38 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     processItem(nextItem);
   }, [queue, processingId]);
 
+  // Helper to update queue item both locally and in Appwrite
+  const updateQueueItem = async (updatedItem: QueueItem) => {
+    setQueue(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i));
+
+    if (isUsingAppwrite()) {
+      try {
+        await databaseService.updateUploadItem(updatedItem);
+      } catch (error) {
+        console.error("Error updating upload item in Appwrite:", error);
+        // Continue with local state update
+      }
+    }
+  };
+
   const processItem = async (item: QueueItem) => {
     setProcessingId(item.id);
-    setQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'ANALYZING', progress: 10 } : i));
+
+    // Update to ANALYZING status
+    const analyzingItem = { ...item, status: 'ANALYZING' as const, progress: 10 };
+    await updateQueueItem(analyzingItem);
 
     const progressInterval = setInterval(() => {
       setQueue(prev => prev.map(i => {
         if (i.id === item.id && i.status === 'ANALYZING' && i.progress < 90) {
-          return { ...i, progress: i.progress + (Math.random() * 10) };
+          const updatedProgress = { ...i, progress: i.progress + (Math.random() * 10) };
+          // Fire and forget progress updates to Appwrite
+          if (isUsingAppwrite()) {
+            databaseService.updateUploadItem(updatedProgress).catch(err =>
+              console.error("Error updating progress in Appwrite:", err)
+            );
+          }
+          return updatedProgress;
         }
         return i;
       }));
@@ -183,8 +332,16 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
             status: 'PENDING',
             history: [{ date: new Date().toISOString(), action: 'Analyzed via Gemini', user: 'System' }]
           };
-          setQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'COMPLETED', progress: 100, result: resultInvoice, notificationDismissed: false } : i));
-      
+
+          const completedItem = {
+            ...item,
+            status: 'COMPLETED' as const,
+            progress: 100,
+            result: resultInvoice,
+            notificationDismissed: false
+          };
+          await updateQueueItem(completedItem);
+
       } else if (item.uploadType === 'BANK_STATEMENT') {
           const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
           // Add IDs to transactions
@@ -194,7 +351,14 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
               status: 'PENDING'
           }));
 
-          setQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'COMPLETED', progress: 100, bankResult: enrichedTransactions, notificationDismissed: false } : i));
+          const completedItem = {
+            ...item,
+            status: 'COMPLETED' as const,
+            progress: 100,
+            bankResult: enrichedTransactions,
+            notificationDismissed: false
+          };
+          await updateQueueItem(completedItem);
       }
 
       clearInterval(progressInterval);
@@ -202,7 +366,15 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     } catch (err) {
       clearInterval(progressInterval);
       console.error(err);
-      setQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'ERROR', progress: 0, error: 'Error en análisis IA.', notificationDismissed: false } : i));
+
+      const errorItem = {
+        ...item,
+        status: 'ERROR' as const,
+        progress: 0,
+        error: 'Error en análisis IA.',
+        notificationDismissed: false
+      };
+      await updateQueueItem(errorItem);
     } finally {
       setProcessingId(null);
     }
