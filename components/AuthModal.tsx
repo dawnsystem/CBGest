@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-<parameter name="X, Mail, Lock, User, Eye, EyeOff, LogIn, UserPlus, Loader2 } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, LogIn, UserPlus, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface AuthModalProps {
