@@ -4,9 +4,9 @@
  */
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure worker
+// Configure worker for pdfjs-dist v5
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
+  'pdfjs-dist/build/pdf.worker.min.js',
   import.meta.url
 ).toString();
 
