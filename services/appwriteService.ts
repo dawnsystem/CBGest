@@ -1,5 +1,5 @@
 import { Client, Account, Databases, Storage, Query, ID, Models } from 'appwrite';
-import { AppwriteConfig, Invoice, AccountingEntry, BankTransaction, AppSettings, AppUser } from '../types';
+import { AppwriteConfig, Invoice, AccountingEntry, BankTransaction, AppSettings, AppUser, Supplier } from '../types';
 
 // Singleton Client
 let clientInstance: Client | null = null;
@@ -198,7 +198,7 @@ export const databaseService = {
         invoiceData
       );
 
-      return { ...doc, file } as Invoice;
+      return { ...doc, file } as unknown as Invoice;
     } catch (error: any) {
       console.error('Create invoice error:', error);
       throw new Error(error.message || 'Error al crear factura');
@@ -218,7 +218,7 @@ export const databaseService = {
         [Query.orderDesc('date'), Query.limit(1000)]
       );
 
-      return response.documents as Invoice[];
+      return response.documents as unknown as Invoice[];
     } catch (error: any) {
       console.error('Get invoices error:', error);
       throw new Error(error.message || 'Error al obtener facturas');
@@ -241,7 +241,7 @@ export const databaseService = {
         invoiceData
       );
 
-      return { ...doc, file } as Invoice;
+      return { ...doc, file } as unknown as Invoice;
     } catch (error: any) {
       console.error('Update invoice error:', error);
       throw new Error(error.message || 'Error al actualizar factura');
@@ -282,7 +282,7 @@ export const databaseService = {
         entryData
       );
 
-      return { ...doc, referenceDoc } as AccountingEntry;
+      return { ...doc, referenceDoc } as unknown as AccountingEntry;
     } catch (error: any) {
       console.error('Create entry error:', error);
       throw new Error(error.message || 'Error al crear asiento');
@@ -302,7 +302,7 @@ export const databaseService = {
         [Query.orderDesc('date'), Query.limit(1000)]
       );
 
-      return response.documents as AccountingEntry[];
+      return response.documents as unknown as AccountingEntry[];
     } catch (error: any) {
       console.error('Get entries error:', error);
       throw new Error(error.message || 'Error al obtener asientos');
@@ -325,7 +325,7 @@ export const databaseService = {
         entryData
       );
 
-      return { ...doc, referenceDoc } as AccountingEntry;
+      return { ...doc, referenceDoc } as unknown as AccountingEntry;
     } catch (error: any) {
       console.error('Update entry error:', error);
       throw new Error(error.message || 'Error al actualizar asiento');
@@ -364,7 +364,7 @@ export const databaseService = {
         transaction
       );
 
-      return doc as BankTransaction;
+      return doc as unknown as BankTransaction;
     } catch (error: any) {
       console.error('Create transaction error:', error);
       throw new Error(error.message || 'Error al crear transacción');
@@ -384,7 +384,7 @@ export const databaseService = {
         [Query.orderDesc('date'), Query.limit(1000)]
       );
 
-      return response.documents as BankTransaction[];
+      return response.documents as unknown as BankTransaction[];
     } catch (error: any) {
       console.error('Get transactions error:', error);
       throw new Error(error.message || 'Error al obtener transacciones');
@@ -405,7 +405,7 @@ export const databaseService = {
         transaction
       );
 
-      return doc as BankTransaction;
+      return doc as unknown as BankTransaction;
     } catch (error: any) {
       console.error('Update transaction error:', error);
       throw new Error(error.message || 'Error al actualizar transacción');
@@ -434,7 +434,7 @@ export const databaseService = {
           response.documents[0].$id,
           settings
         );
-        return doc as AppSettings;
+        return doc as unknown as AppSettings;
       } else {
         // Create new
         const doc = await databases.createDocument(
@@ -443,7 +443,7 @@ export const databaseService = {
           ID.unique(),
           settings
         );
-        return doc as AppSettings;
+        return doc as unknown as AppSettings;
       }
     } catch (error: any) {
       console.error('Save settings error:', error);
@@ -465,13 +465,93 @@ export const databaseService = {
       );
 
       if (response.documents.length > 0) {
-        return response.documents[0] as AppSettings;
+        return response.documents[0] as unknown as AppSettings;
       }
 
       return null;
     } catch (error: any) {
       console.error('Get settings error:', error);
       return null;
+    }
+  },
+
+  /**
+   * Create Supplier
+   */
+  async createSupplier(supplier: Supplier): Promise<Supplier> {
+    const { databases, config } = getInstances();
+
+    try {
+      const doc = await databases.createDocument(
+        config.databaseId,
+        'suppliers', // You'll need to add suppliersCollectionId to AppwriteConfig
+        supplier.id || ID.unique(),
+        supplier
+      );
+
+      return doc as unknown as Supplier;
+    } catch (error: any) {
+      console.error('Create supplier error:', error);
+      throw new Error(error.message || 'Error al crear proveedor');
+    }
+  },
+
+  /**
+   * Get all suppliers
+   */
+  async getSuppliers(): Promise<Supplier[]> {
+    const { databases, config } = getInstances();
+
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        'suppliers',
+        [Query.orderAsc('name'), Query.limit(1000)]
+      );
+
+      return response.documents as unknown as Supplier[];
+    } catch (error: any) {
+      console.error('Get suppliers error:', error);
+      throw new Error(error.message || 'Error al obtener proveedores');
+    }
+  },
+
+  /**
+   * Update Supplier
+   */
+  async updateSupplier(supplier: Supplier): Promise<Supplier> {
+    const { databases, config } = getInstances();
+
+    try {
+      const doc = await databases.updateDocument(
+        config.databaseId,
+        'suppliers',
+        supplier.appwriteId || supplier.id,
+        supplier
+      );
+
+      return doc as unknown as Supplier;
+    } catch (error: any) {
+      console.error('Update supplier error:', error);
+      throw new Error(error.message || 'Error al actualizar proveedor');
+    }
+  },
+
+  /**
+   * Delete Supplier
+   */
+  async deleteSupplier(appwriteId: string): Promise<void> {
+    const { databases, config } = getInstances();
+
+    try {
+      await databases.deleteDocument(
+        config.databaseId,
+        'suppliers',
+        appwriteId
+      );
+    } catch (error: any) {
+      console.error('Delete supplier error:', error);
+      throw new Error(error.message || 'Error al eliminar proveedor');
     }
   }
 };
@@ -522,7 +602,7 @@ export const storageService = {
         fileId
       );
 
-      return file as Blob;
+      return file as unknown as Blob;
     } catch (error: any) {
       console.error('Download file error:', error);
       throw new Error(error.message || 'Error al descargar archivo');

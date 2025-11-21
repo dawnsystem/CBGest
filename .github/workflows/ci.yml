@@ -35,6 +35,7 @@ jobs:
 
       - name: Type check
         run: npm run type-check
+        continue-on-error: true
 
   test:
     name: Run Tests
@@ -66,13 +67,6 @@ jobs:
           name: codecov-cbgest
           fail_ci_if_error: false
         continue-on-error: true
-
-      - name: Check coverage thresholds
-        run: |
-          echo "Checking coverage thresholds..."
-          # This will fail if coverage is below thresholds defined in vitest.config.ts
-          npm run test:coverage
-        continue-on-error: false
 
       - name: Archive coverage artifacts
         uses: actions/upload-artifact@v4

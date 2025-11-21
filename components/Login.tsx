@@ -37,9 +37,11 @@ export const Login: React.FC = () => {
       endpoint,
       databaseId: 'CBGest_DB',
       bucketId: 'cbgest-data',
+      storageBucketId: 'cbgest-data',
       invoicesCollectionId: 'invoices',
       entriesCollectionId: 'entries',
-      transactionsCollectionId: 'transactions'
+      transactionsCollectionId: 'transactions',
+      settingsCollectionId: 'settings'
     });
     setCurrentHost(window.location.hostname);
   }, []);
@@ -70,9 +72,11 @@ export const Login: React.FC = () => {
         endpoint,
         databaseId: 'CBGest_DB',
         bucketId: 'cbgest-data',
+        storageBucketId: 'cbgest-data',
         invoicesCollectionId: 'invoices',
         entriesCollectionId: 'entries',
-        transactionsCollectionId: 'transactions'
+        transactionsCollectionId: 'transactions',
+        settingsCollectionId: 'settings'
       });
       persistConfig(); // CRITICAL: Save to LS so App.tsx picks it up
       setShowConfig(false);
@@ -86,9 +90,11 @@ export const Login: React.FC = () => {
         endpoint,
         databaseId: 'CBGest_DB',
         bucketId: 'cbgest-data',
+        storageBucketId: 'cbgest-data',
         invoicesCollectionId: 'invoices',
         entriesCollectionId: 'entries',
-        transactionsCollectionId: 'transactions'
+        transactionsCollectionId: 'transactions',
+        settingsCollectionId: 'settings'
       });
       setLoading(true);
       setError('');
@@ -119,9 +125,11 @@ export const Login: React.FC = () => {
       endpoint,
       databaseId: 'CBGest_DB',
       bucketId: 'cbgest-data',
+      storageBucketId: 'cbgest-data',
       invoicesCollectionId: 'invoices',
       entriesCollectionId: 'entries',
-      transactionsCollectionId: 'transactions'
+      transactionsCollectionId: 'transactions',
+      settingsCollectionId: 'settings'
     });
     persistConfig();
 
