@@ -129,10 +129,15 @@ export const Settings: React.FC<SettingsProps> = ({
         bucketId: false
       });
 
-      const endpoint = formData.dataConfig.appwriteEndpoint || 'https://fra.cloud.appwrite.io/v1';
+      const endpoint = formData.dataConfig.appwriteEndpoint;
       const projectId = formData.dataConfig.appwriteProjectId;
       const databaseId = formData.dataConfig.appwriteDatabaseId;
       const bucketId = formData.dataConfig.appwriteBucketId;
+
+      if (!endpoint || !projectId || !databaseId || !bucketId) {
+          alert("Todos los campos son obligatorios (Endpoint, Project ID, Database ID y Bucket ID).");
+          return;
+      }
 
       try {
           // Step 1: Verify Endpoint & Project ID by initializing

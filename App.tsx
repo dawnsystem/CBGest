@@ -82,10 +82,10 @@ const MainLayout: React.FC = () => {
     dataConfig: {
         type: 'APPWRITE',
         autoBackup: false,
-        appwriteProjectId: 'cbgest',
-        appwriteDatabaseId: '691f288100019843d43e',
-        appwriteBucketId: 'gestcb-data',
-        appwriteEndpoint: 'https://fra.cloud.appwrite.io/v1'
+        appwriteProjectId: '',
+        appwriteDatabaseId: '',
+        appwriteBucketId: '',
+        appwriteEndpoint: ''
     }
   };
 
@@ -127,16 +127,18 @@ const MainLayout: React.FC = () => {
       const initDataLayer = async () => {
           const freshSettings = loadState<AppSettings>('gestcb_settings', settings);
 
-          if (freshSettings.dataConfig?.type === 'APPWRITE' && freshSettings.dataConfig.appwriteProjectId) {
-              
-              // USE DYNAMIC ENDPOINT FROM SETTINGS
-              const endpoint = freshSettings.dataConfig.appwriteEndpoint || 'https://cloud.appwrite.io/v1';
-              
+          if (freshSettings.dataConfig?.type === 'APPWRITE' &&
+              freshSettings.dataConfig.appwriteProjectId &&
+              freshSettings.dataConfig.appwriteEndpoint &&
+              freshSettings.dataConfig.appwriteDatabaseId &&
+              freshSettings.dataConfig.appwriteBucketId) {
+
+              // USE DYNAMIC ENDPOINT AND IDS FROM SETTINGS - NO FALLBACKS
               appwriteService.initializeAppwrite({
                   projectId: freshSettings.dataConfig.appwriteProjectId,
-                  endpoint,
-                  databaseId: freshSettings.dataConfig.appwriteDatabaseId || '691f288100019843d43e',
-                  storageBucketId: freshSettings.dataConfig.appwriteBucketId || 'cbgest-data',
+                  endpoint: freshSettings.dataConfig.appwriteEndpoint,
+                  databaseId: freshSettings.dataConfig.appwriteDatabaseId,
+                  storageBucketId: freshSettings.dataConfig.appwriteBucketId,
                   invoicesCollectionId: 'invoices',
                   entriesCollectionId: 'entries',
                   transactionsCollectionId: 'transactions',

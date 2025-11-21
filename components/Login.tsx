@@ -15,8 +15,10 @@ export const Login: React.FC = () => {
 
   // Config State
   const [showConfig, setShowConfig] = useState(false);
-  const [projectId, setProjectId] = useState('cbgest');
-  const [endpoint, setEndpoint] = useState('https://fra.cloud.appwrite.io/v1');
+  const [projectId, setProjectId] = useState('');
+  const [endpoint, setEndpoint] = useState('');
+  const [databaseId, setDatabaseId] = useState('');
+  const [bucketId, setBucketId] = useState('');
   const [pingStatus, setPingStatus] = useState<'IDLE' | 'SUCCESS' | 'ERROR'>('IDLE');
   const [currentHost, setCurrentHost] = useState('');
 
@@ -29,20 +31,10 @@ export const Login: React.FC = () => {
             const saved = JSON.parse(savedSettingsStr);
             if (saved.dataConfig?.appwriteEndpoint) setEndpoint(saved.dataConfig.appwriteEndpoint);
             if (saved.dataConfig?.appwriteProjectId) setProjectId(saved.dataConfig.appwriteProjectId);
+            if (saved.dataConfig?.appwriteDatabaseId) setDatabaseId(saved.dataConfig.appwriteDatabaseId);
+            if (saved.dataConfig?.appwriteBucketId) setBucketId(saved.dataConfig.appwriteBucketId);
         } catch (e) { /* ignore */ }
     }
-
-    initializeAppwrite({
-      projectId,
-      endpoint,
-      databaseId: '691f288100019843d43e',
-      bucketId: 'cbgest-data',
-      storageBucketId: 'cbgest-data',
-      invoicesCollectionId: 'invoices',
-      entriesCollectionId: 'entries',
-      transactionsCollectionId: 'transactions',
-      settingsCollectionId: 'settings'
-    });
     setCurrentHost(window.location.hostname);
   }, []);
 
@@ -53,26 +45,32 @@ export const Login: React.FC = () => {
       try {
           settings = savedSettingsStr ? JSON.parse(savedSettingsStr) : {};
       } catch(e) {}
-      
+
       const newSettings = {
           ...settings,
           dataConfig: {
               ...(settings as any).dataConfig,
               type: 'APPWRITE',
               appwriteProjectId: projectId,
-              appwriteEndpoint: endpoint
+              appwriteEndpoint: endpoint,
+              appwriteDatabaseId: databaseId,
+              appwriteBucketId: bucketId
           }
       };
       localStorage.setItem('gestcb_settings', JSON.stringify(newSettings));
   };
 
   const handleConfigSave = () => {
+      if (!projectId || !endpoint || !databaseId || !bucketId) {
+        alert('Por favor completa todos los campos requeridos: Endpoint, Project ID, Database ID y Bucket ID');
+        return;
+      }
+
       initializeAppwrite({
         projectId,
         endpoint,
-        databaseId: '691f288100019843d43e',
-        bucketId: 'cbgest-data',
-        storageBucketId: 'cbgest-data',
+        databaseId: databaseId,
+        storageBucketId: bucketId,
         invoicesCollectionId: 'invoices',
         entriesCollectionId: 'entries',
         transactionsCollectionId: 'transactions',
@@ -85,12 +83,16 @@ export const Login: React.FC = () => {
   };
 
   const handlePing = async () => {
+      if (!projectId || !endpoint || !databaseId || !bucketId) {
+        alert('Por favor completa todos los campos requeridos antes de probar la conexión');
+        return;
+      }
+
       initializeAppwrite({
         projectId,
         endpoint,
-        databaseId: '691f288100019843d43e',
-        bucketId: 'cbgest-data',
-        storageBucketId: 'cbgest-data',
+        databaseId: databaseId,
+        storageBucketId: bucketId,
         invoicesCollectionId: 'invoices',
         entriesCollectionId: 'entries',
         transactionsCollectionId: 'transactions',
@@ -118,14 +120,20 @@ export const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
+    // Ensure config is loaded and valid before login attempt
+    if (!projectId || !endpoint || !databaseId || !bucketId) {
+      setError('Configuración de Appwrite incompleta. Por favor configura la conexión usando el botón de configuración.');
+      setLoading(false);
+      return;
+    }
+
     // Ensure initialized before login attempt
     initializeAppwrite({
       projectId,
       endpoint,
-      databaseId: '691f288100019843d43e',
-      bucketId: 'cbgest-data',
-      storageBucketId: 'cbgest-data',
+      databaseId: databaseId,
+      storageBucketId: bucketId,
       invoicesCollectionId: 'invoices',
       entriesCollectionId: 'entries',
       transactionsCollectionId: 'transactions',
@@ -174,12 +182,20 @@ export const Login: React.FC = () => {
                   <div className="space-y-4">
                       <div>
                           <label htmlFor="endpoint-input" className="block text-xs font-bold text-slate-500 mb-1">Endpoint API</label>
-                          <input id="endpoint-input" name="endpoint" type="text" value={endpoint} onChange={e => setEndpoint(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" />
+                          <input id="endpoint-input" name="endpoint" type="text" value={endpoint} onChange={e => setEndpoint(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" placeholder="https://cloud.appwrite.io/v1" />
                           <p className="text-[10px] text-slate-400 mt-1">Ej: https://cloud.appwrite.io/v1 o https://fra.cloud.appwrite.io/v1</p>
                       </div>
                       <div>
                           <label htmlFor="projectid-input" className="block text-xs font-bold text-slate-500 mb-1">Project ID</label>
-                          <input id="projectid-input" name="projectId" type="text" value={projectId} onChange={e => setProjectId(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" />
+                          <input id="projectid-input" name="projectId" type="text" value={projectId} onChange={e => setProjectId(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" placeholder="tu_project_id" />
+                      </div>
+                      <div>
+                          <label htmlFor="databaseid-input" className="block text-xs font-bold text-slate-500 mb-1">Database ID</label>
+                          <input id="databaseid-input" name="databaseId" type="text" value={databaseId} onChange={e => setDatabaseId(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" placeholder="tu_database_id" />
+                      </div>
+                      <div>
+                          <label htmlFor="bucketid-input" className="block text-xs font-bold text-slate-500 mb-1">Bucket ID (Storage)</label>
+                          <input id="bucketid-input" name="bucketId" type="text" value={bucketId} onChange={e => setBucketId(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" placeholder="tu_bucket_id" />
                       </div>
                       
                       <div className="flex gap-2 pt-2">

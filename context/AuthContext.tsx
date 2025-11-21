@@ -52,17 +52,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         // IMPORTANT: Initialize Appwrite FIRST before trying to get current user
-        const endpoint = settings.dataConfig.appwriteEndpoint || 'https://fra.cloud.appwrite.io/v1';
+        // Only initialize if all required config is present - NO HARDCODED FALLBACKS
+        if (!settings.dataConfig.appwriteEndpoint ||
+            !settings.dataConfig.appwriteProjectId ||
+            !settings.dataConfig.appwriteDatabaseId ||
+            !settings.dataConfig.appwriteBucketId) {
+          console.log('⚠️ Incomplete Appwrite configuration. Skipping session check.');
+          setLoading(false);
+          return;
+        }
+
         console.log('🔧 Initializing Appwrite for session check...', {
-          endpoint,
-          projectId: settings.dataConfig.appwriteProjectId
+          endpoint: settings.dataConfig.appwriteEndpoint,
+          projectId: settings.dataConfig.appwriteProjectId,
+          databaseId: settings.dataConfig.appwriteDatabaseId,
+          bucketId: settings.dataConfig.appwriteBucketId
         });
 
         initializeAppwrite({
           projectId: settings.dataConfig.appwriteProjectId,
-          endpoint,
-          databaseId: settings.dataConfig.appwriteDatabaseId || '691f288100019843d43e',
-          storageBucketId: settings.dataConfig.appwriteBucketId || 'cbgest-data',
+          endpoint: settings.dataConfig.appwriteEndpoint,
+          databaseId: settings.dataConfig.appwriteDatabaseId,
+          storageBucketId: settings.dataConfig.appwriteBucketId,
           invoicesCollectionId: 'invoices',
           entriesCollectionId: 'entries',
           transactionsCollectionId: 'transactions',
