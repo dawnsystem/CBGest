@@ -132,6 +132,8 @@ export interface AppwriteConfig {
   entriesCollectionId: string;
   transactionsCollectionId: string;
   settingsCollectionId: string;
+  notificationsCollectionId: string;  // Colección de notificaciones
+  uploadsCollectionId: string;         // Colección de cola de uploads
   // Storage Bucket ID
   storageBucketId: string;
   bucketId?: string;        // Alias for backward compatibility

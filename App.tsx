@@ -140,7 +140,9 @@ const MainLayout: React.FC = () => {
                   invoicesCollectionId: 'invoices',
                   entriesCollectionId: 'entries',
                   transactionsCollectionId: 'transactions',
-                  settingsCollectionId: 'settings'
+                  settingsCollectionId: 'settings',
+                  notificationsCollectionId: 'notifications',
+                  uploadsCollectionId: 'uploads'
               });
               
               // 1. Initial Fetch
@@ -179,16 +181,18 @@ const MainLayout: React.FC = () => {
   // --- PERSISTENCE EFFECTS ---
   useEffect(() => {
       if (!isLocalFileMode) {
-        // Always save settings to localStorage (even when using Appwrite)
-        localStorage.setItem('gestcb_settings', JSON.stringify(settings));
-
-        // Only save data to localStorage if NOT using Appwrite (Appwrite handles data storage)
+        // Only use localStorage if NOT using Appwrite
+        // When Appwrite is active, everything is stored in Appwrite collections
         if (settings.dataConfig?.type !== 'APPWRITE') {
+          // Save everything to localStorage for LOCAL_STORAGE mode
+          localStorage.setItem('gestcb_settings', JSON.stringify(settings));
           localStorage.setItem('gestcb_invoices', JSON.stringify(invoices));
           localStorage.setItem('gestcb_entries', JSON.stringify(accountingEntries));
           localStorage.setItem('gestcb_bank_transactions', JSON.stringify(bankTransactions));
           localStorage.setItem('gestcb_suppliers', JSON.stringify(suppliers));
         }
+        // If Appwrite is active, settings are auto-saved via syncSettings in initDataLayer
+        // and data (invoices, entries, etc.) are saved via their respective service calls
       }
   }, [settings, invoices, accountingEntries, bankTransactions, suppliers, isLocalFileMode]);
 
