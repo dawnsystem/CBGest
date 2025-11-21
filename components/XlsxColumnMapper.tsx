@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, FileSpreadsheet, Check, AlertCircle, ArrowRight, ChevronDown, ChevronUp, Save, RefreshCw } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import {
   findMatchingMapping,
   saveMapping,
@@ -50,92 +50,124 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
 
   // Parse XLSX on mount and check for saved mapping
   useEffect(() => {
-    try {
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const workbook = XLSX.read(bytes, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const data: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
-
-      if (data.length < 2) {
-        setError('El archivo no contiene suficientes datos');
-        return;
-      }
-
-      setRawData(data);
-
-      // Try to auto-detect header row and set initial column names
-      const firstRow = data[0] || [];
-      const columnNames = firstRow.map((cell: any, idx: number) =>
-        cell ? String(cell).trim() : `Columna ${idx + 1}`
-      );
-      setHeaders(columnNames);
-
-      // Check for saved mapping first
-      const savedMapping = findMatchingMapping(columnNames);
-      if (savedMapping && validateMapping(columnNames, savedMapping)) {
-        // Use saved mapping
-        setMapping({
-          dateColumn: savedMapping.dateColumn,
-          conceptColumn: savedMapping.conceptColumn,
-          amountColumn: savedMapping.amountColumn,
-          debitColumn: savedMapping.debitColumn,
-          creditColumn: savedMapping.creditColumn
-        });
-        setAmountMode(savedMapping.amountMode);
-        setDataStartRow(savedMapping.dataStartRow);
-        setUsingSavedMapping(true);
-
-        // Auto-process with saved mapping
-        setAutoProcessing(true);
-        return;
-      }
-
-      // No saved mapping - auto-detect columns based on common keywords
-      const detectColumn = (keywords: string[]): number | null => {
-        for (let i = 0; i < columnNames.length; i++) {
-          const name = columnNames[i].toLowerCase();
-          if (keywords.some(k => name.includes(k))) return i;
+    const parseExcel = async () => {
+      try {
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
         }
-        return null;
-      };
 
-      const dateCol = detectColumn(['fecha', 'date', 'f.valor', 'f. valor', 'f.operación', 'f. operación']);
-      const conceptCol = detectColumn(['concepto', 'descripción', 'descripcion', 'concept', 'movimiento', 'detalle']);
-      const amountCol = detectColumn(['importe', 'amount', 'cantidad', 'monto']);
-      const debitCol = detectColumn(['cargo', 'débito', 'debito', 'debe']);
-      const creditCol = detectColumn(['abono', 'crédito', 'credito', 'haber']);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(bytes.buffer);
 
-      // Determine if we have separate debit/credit or single amount
-      if (debitCol !== null || creditCol !== null) {
-        setAmountMode('separate');
-        setMapping({
-          dateColumn: dateCol,
-          conceptColumn: conceptCol,
-          amountColumn: null,
-          debitColumn: debitCol,
-          creditColumn: creditCol
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) {
+          setError('El archivo no contiene hojas de cálculo');
+          return;
+        }
+
+        // Convert worksheet to 2D array
+        const data: any[][] = [];
+        worksheet.eachRow({ includeEmpty: true }, (row) => {
+          const rowData: any[] = [];
+          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            // Handle different cell value types
+            let value = cell.value;
+            if (value && typeof value === 'object') {
+              if ('result' in value) {
+                // Formula cell - use result
+                value = value.result;
+              } else if ('richText' in value) {
+                // Rich text - concatenate text
+                value = (value as any).richText.map((rt: any) => rt.text).join('');
+              } else if (value instanceof Date) {
+                // Date object - keep as is for now
+                value = value;
+              }
+            }
+            rowData[colNumber - 1] = value;
+          });
+          data.push(rowData);
         });
-      } else {
-        setAmountMode('single');
-        setMapping({
-          dateColumn: dateCol,
-          conceptColumn: conceptCol,
-          amountColumn: amountCol,
-          debitColumn: null,
-          creditColumn: null
-        });
+
+        if (data.length < 2) {
+          setError('El archivo no contiene suficientes datos');
+          return;
+        }
+
+        setRawData(data);
+
+        // Try to auto-detect header row and set initial column names
+        const firstRow = data[0] || [];
+        const columnNames = firstRow.map((cell: any, idx: number) =>
+          cell ? String(cell).trim() : `Columna ${idx + 1}`
+        );
+        setHeaders(columnNames);
+
+        // Check for saved mapping first
+        const savedMapping = findMatchingMapping(columnNames);
+        if (savedMapping && validateMapping(columnNames, savedMapping)) {
+          // Use saved mapping
+          setMapping({
+            dateColumn: savedMapping.dateColumn,
+            conceptColumn: savedMapping.conceptColumn,
+            amountColumn: savedMapping.amountColumn,
+            debitColumn: savedMapping.debitColumn,
+            creditColumn: savedMapping.creditColumn
+          });
+          setAmountMode(savedMapping.amountMode);
+          setDataStartRow(savedMapping.dataStartRow);
+          setUsingSavedMapping(true);
+
+          // Auto-process with saved mapping
+          setAutoProcessing(true);
+          return;
+        }
+
+        // No saved mapping - auto-detect columns based on common keywords
+        const detectColumn = (keywords: string[]): number | null => {
+          for (let i = 0; i < columnNames.length; i++) {
+            const name = columnNames[i].toLowerCase();
+            if (keywords.some(k => name.includes(k))) return i;
+          }
+          return null;
+        };
+
+        const dateCol = detectColumn(['fecha', 'date', 'f.valor', 'f. valor', 'f.operación', 'f. operación']);
+        const conceptCol = detectColumn(['concepto', 'descripción', 'descripcion', 'concept', 'movimiento', 'detalle']);
+        const amountCol = detectColumn(['importe', 'amount', 'cantidad', 'monto']);
+        const debitCol = detectColumn(['cargo', 'débito', 'debito', 'debe']);
+        const creditCol = detectColumn(['abono', 'crédito', 'credito', 'haber']);
+
+        // Determine if we have separate debit/credit or single amount
+        if (debitCol !== null || creditCol !== null) {
+          setAmountMode('separate');
+          setMapping({
+            dateColumn: dateCol,
+            conceptColumn: conceptCol,
+            amountColumn: null,
+            debitColumn: debitCol,
+            creditColumn: creditCol
+          });
+        } else {
+          setAmountMode('single');
+          setMapping({
+            dateColumn: dateCol,
+            conceptColumn: conceptCol,
+            amountColumn: amountCol,
+            debitColumn: null,
+            creditColumn: null
+          });
+        }
+
+      } catch (err) {
+        console.error('Error parsing XLSX:', err);
+        setError('Error al leer el archivo Excel');
       }
+    };
 
-    } catch (err) {
-      console.error('Error parsing XLSX:', err);
-      setError('Error al leer el archivo Excel');
-    }
+    parseExcel();
   }, [base64Data]);
 
   // Preview rows (limited or all)
@@ -177,6 +209,15 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
   // Parse date helper
   const parseDate = (value: any): string => {
     if (!value) return '';
+
+    // Handle Date objects (ExcelJS returns actual Date objects for date cells)
+    if (value instanceof Date) {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
     const str = String(value).trim();
 
     // DD/MM/YYYY or DD-MM-YYYY
@@ -190,12 +231,16 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
       return str;
     }
 
-    // Excel serial number
+    // Excel serial number (days since 1900-01-01)
     if (!isNaN(Number(str))) {
-      const excelDate = XLSX.SSF.parse_date_code(Number(str));
-      if (excelDate) {
-        return `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
-      }
+      const serial = Number(str);
+      // Excel serial date: days since 1899-12-30 (Excel's epoch with the 1900 leap year bug)
+      const excelEpoch = new Date(1899, 11, 30);
+      const date = new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
 
     return '';
