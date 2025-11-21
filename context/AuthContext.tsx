@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AppUser } from '../types';
 import { authService, initializeAppwrite } from '../services/appwriteService';
+import { APPWRITE_CONFIG } from '../config/appwrite';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -34,52 +35,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check if user is already logged in on mount or page refresh
   useEffect(() => {
     const checkAuth = async () => {
-      // Check if Appwrite is configured by reading settings from localStorage
-      const savedSettings = localStorage.getItem('gestcb_settings');
-      if (!savedSettings) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        const settings = JSON.parse(savedSettings);
-        const isAppwriteEnabled = settings?.dataConfig?.type === 'APPWRITE' &&
-                                   settings?.dataConfig?.appwriteProjectId;
-
-        if (!isAppwriteEnabled) {
-          setLoading(false);
-          return;
-        }
-
         // IMPORTANT: Initialize Appwrite FIRST before trying to get current user
-        // Only initialize if all required config is present - NO HARDCODED FALLBACKS
-        if (!settings.dataConfig.appwriteEndpoint ||
-            !settings.dataConfig.appwriteProjectId ||
-            !settings.dataConfig.appwriteDatabaseId ||
-            !settings.dataConfig.appwriteBucketId) {
-          console.log('⚠️ Incomplete Appwrite configuration. Skipping session check.');
-          setLoading(false);
-          return;
-        }
-
+        // Use hardcoded configuration
         console.log('🔧 Initializing Appwrite for session check...', {
-          endpoint: settings.dataConfig.appwriteEndpoint,
-          projectId: settings.dataConfig.appwriteProjectId,
-          databaseId: settings.dataConfig.appwriteDatabaseId,
-          bucketId: settings.dataConfig.appwriteBucketId
+          endpoint: APPWRITE_CONFIG.endpoint,
+          projectId: APPWRITE_CONFIG.projectId,
+          databaseId: APPWRITE_CONFIG.databaseId,
+          bucketId: APPWRITE_CONFIG.bucketId
         });
 
         initializeAppwrite({
-          projectId: settings.dataConfig.appwriteProjectId,
-          endpoint: settings.dataConfig.appwriteEndpoint,
-          databaseId: settings.dataConfig.appwriteDatabaseId,
-          storageBucketId: settings.dataConfig.appwriteBucketId,
-          invoicesCollectionId: 'invoices',
-          entriesCollectionId: 'entries',
-          transactionsCollectionId: 'transactions',
-          settingsCollectionId: 'settings',
-          notificationsCollectionId: 'notifications',
-          uploadsCollectionId: 'uploads'
+          projectId: APPWRITE_CONFIG.projectId,
+          endpoint: APPWRITE_CONFIG.endpoint,
+          databaseId: APPWRITE_CONFIG.databaseId,
+          storageBucketId: APPWRITE_CONFIG.bucketId,
+          invoicesCollectionId: APPWRITE_CONFIG.collections.invoices,
+          entriesCollectionId: APPWRITE_CONFIG.collections.entries,
+          transactionsCollectionId: APPWRITE_CONFIG.collections.transactions,
+          settingsCollectionId: APPWRITE_CONFIG.collections.settings,
+          notificationsCollectionId: APPWRITE_CONFIG.collections.notifications,
+          uploadsCollectionId: APPWRITE_CONFIG.collections.uploads
         });
 
         // Now try to restore session from Appwrite

@@ -18,6 +18,7 @@ import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier } from
 import { Eye, Trash } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import * as appwriteService from './services/appwriteService';
+import { APPWRITE_CONFIG } from './config/appwrite';
 
 // AUTH Integration
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -82,10 +83,10 @@ const MainLayout: React.FC = () => {
     dataConfig: {
         type: 'APPWRITE',
         autoBackup: false,
-        appwriteProjectId: '',
-        appwriteDatabaseId: '',
-        appwriteBucketId: '',
-        appwriteEndpoint: ''
+        appwriteProjectId: APPWRITE_CONFIG.projectId,
+        appwriteDatabaseId: APPWRITE_CONFIG.databaseId,
+        appwriteBucketId: APPWRITE_CONFIG.bucketId,
+        appwriteEndpoint: APPWRITE_CONFIG.endpoint
     }
   };
 
@@ -127,24 +128,19 @@ const MainLayout: React.FC = () => {
       const initDataLayer = async () => {
           const freshSettings = loadState<AppSettings>('gestcb_settings', settings);
 
-          if (freshSettings.dataConfig?.type === 'APPWRITE' &&
-              freshSettings.dataConfig.appwriteProjectId &&
-              freshSettings.dataConfig.appwriteEndpoint &&
-              freshSettings.dataConfig.appwriteDatabaseId &&
-              freshSettings.dataConfig.appwriteBucketId) {
-
-              // USE DYNAMIC ENDPOINT AND IDS FROM SETTINGS - NO FALLBACKS
+          if (freshSettings.dataConfig?.type === 'APPWRITE') {
+              // USE HARDCODED APPWRITE CONFIG
               appwriteService.initializeAppwrite({
-                  projectId: freshSettings.dataConfig.appwriteProjectId,
-                  endpoint: freshSettings.dataConfig.appwriteEndpoint,
-                  databaseId: freshSettings.dataConfig.appwriteDatabaseId,
-                  storageBucketId: freshSettings.dataConfig.appwriteBucketId,
-                  invoicesCollectionId: 'invoices',
-                  entriesCollectionId: 'entries',
-                  transactionsCollectionId: 'transactions',
-                  settingsCollectionId: 'settings',
-                  notificationsCollectionId: 'notifications',
-                  uploadsCollectionId: 'uploads'
+                  projectId: APPWRITE_CONFIG.projectId,
+                  endpoint: APPWRITE_CONFIG.endpoint,
+                  databaseId: APPWRITE_CONFIG.databaseId,
+                  storageBucketId: APPWRITE_CONFIG.bucketId,
+                  invoicesCollectionId: APPWRITE_CONFIG.collections.invoices,
+                  entriesCollectionId: APPWRITE_CONFIG.collections.entries,
+                  transactionsCollectionId: APPWRITE_CONFIG.collections.transactions,
+                  settingsCollectionId: APPWRITE_CONFIG.collections.settings,
+                  notificationsCollectionId: APPWRITE_CONFIG.collections.notifications,
+                  uploadsCollectionId: APPWRITE_CONFIG.collections.uploads
               });
               
               // 1. Initial Fetch
