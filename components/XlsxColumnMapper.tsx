@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, FileSpreadsheet, Check, AlertCircle, ArrowRight, ChevronDown, ChevronUp, Save, RefreshCw } from 'lucide-react';
-import ExcelJS from 'exceljs';
+import readXlsxFile from 'read-excel-file';
 import {
   findMatchingMapping,
   saveMapping,
@@ -52,49 +52,35 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
   useEffect(() => {
     const parseExcel = async () => {
       try {
+        // Convert base64 to ArrayBuffer for read-excel-file
         const binaryString = atob(base64Data);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
 
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(bytes.buffer);
-
-        const worksheet = workbook.worksheets[0];
-        if (!worksheet) {
-          setError('El archivo no contiene hojas de cálculo');
-          return;
-        }
-
-        // Convert worksheet to 2D array
-        const data: any[][] = [];
-        worksheet.eachRow({ includeEmpty: true }, (row) => {
-          const rowData: any[] = [];
-          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-            // Handle different cell value types
-            let value = cell.value;
-            if (value && typeof value === 'object') {
-              if ('result' in value) {
-                // Formula cell - use result
-                value = value.result;
-              } else if ('richText' in value) {
-                // Rich text - concatenate text
-                value = (value as any).richText.map((rt: any) => rt.text).join('');
-              } else if (value instanceof Date) {
-                // Date object - keep as is for now
-                value = value;
-              }
-            }
-            rowData[colNumber - 1] = value;
-          });
-          data.push(rowData);
+        // Create a Blob and File from the buffer for read-excel-file
+        const blob = new Blob([bytes.buffer], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         });
 
-        if (data.length < 2) {
+        // read-excel-file returns rows as arrays of cell values
+        // It automatically handles dates, numbers, and strings
+        const rows = await readXlsxFile(blob);
+
+        if (!rows || rows.length < 2) {
           setError('El archivo no contiene suficientes datos');
           return;
         }
+
+        // Convert to our expected format (array of arrays with any type)
+        const data: any[][] = rows.map(row =>
+          row.map(cell => {
+            // read-excel-file already handles most type conversions
+            // Dates are returned as Date objects, numbers as numbers
+            return cell;
+          })
+        );
 
         setRawData(data);
 

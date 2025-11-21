@@ -235,13 +235,25 @@ const MainLayout: React.FC = () => {
       // Update state immediately for optimistic UI
       setInvoices(prev => [invoice, ...prev]);
 
-      let processedInvoice = invoice;
+      // IMPORTANT: Save original status BEFORE calling Appwrite
+      // This ensures we use the correct status for creating accounting entries
+      // even if Appwrite's response doesn't include the status field
+      const originalStatus = invoice.status;
+      const originalInvoice = { ...invoice };
 
       if (settings.dataConfig?.type === 'APPWRITE') {
-          const savedInv = await appwriteService.createInvoice(invoice);
-          // Update with real ID from server
-          setInvoices(prev => prev.map(i => i.id === invoice.id ? savedInv : i));
-          processedInvoice = savedInv;
+          try {
+              const savedInv = await appwriteService.createInvoice(invoice);
+              // Update with real ID from server, but preserve original status if missing
+              const mergedInvoice = {
+                  ...savedInv,
+                  status: savedInv.status || originalStatus
+              };
+              setInvoices(prev => prev.map(i => i.id === invoice.id ? mergedInvoice : i));
+          } catch (error) {
+              console.error('Error saving invoice to Appwrite:', error);
+              // Invoice is already in local state, continue with entry creation
+          }
       }
 
       // Create notification
@@ -257,11 +269,12 @@ const MainLayout: React.FC = () => {
       }
 
       // Solo crear asiento si la factura está PROCESADA o PAGADA (no PENDIENTE)
-      if (processedInvoice.status === 'PROCESSED' || processedInvoice.status === 'PAID') {
-          console.log("Auto-creating entry for invoice:", processedInvoice.id, "Status:", processedInvoice.status);
-          createEntryFromInvoice(processedInvoice);
+      // Use ORIGINAL status to ensure entry is created even if Appwrite response is incomplete
+      if (originalStatus === 'PROCESSED' || originalStatus === 'PAID') {
+          console.log("Auto-creating entry for invoice:", originalInvoice.id, "Status:", originalStatus);
+          createEntryFromInvoice(originalInvoice);
       } else {
-          console.log("Invoice saved as PENDING - no accounting entry created yet:", processedInvoice.id);
+          console.log("Invoice saved as PENDING - no accounting entry created yet:", originalInvoice.id);
       }
   };
 
@@ -321,9 +334,15 @@ const MainLayout: React.FC = () => {
       }
 
       // If status changed from PENDING to PROCESSED/PAID, create accounting entry
+      // But first check if entry doesn't already exist (avoid duplicates)
       if (oldInvoice?.status === 'PENDING' && (invoice.status === 'PROCESSED' || invoice.status === 'PAID')) {
-          console.log("Invoice status changed to PROCESSED/PAID - creating accounting entry:", invoice.id);
-          createEntryFromInvoice(invoice);
+          const existingEntry = accountingEntries.find(e => e.invoiceId === invoice.id);
+          if (!existingEntry) {
+              console.log("Invoice status changed to PROCESSED/PAID - creating accounting entry:", invoice.id);
+              createEntryFromInvoice(invoice);
+          } else {
+              console.log("Accounting entry already exists for invoice:", invoice.id);
+          }
       }
   };
 

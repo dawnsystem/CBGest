@@ -1,25 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { XlsxColumnMapper } from '../XlsxColumnMapper';
-import ExcelJS from 'exceljs';
 
-// Helper to create a base64 encoded Excel file
+// Store test data for mock to return
+let mockTestData: any[][] = [];
+
+// Mock read-excel-file to work in Node.js test environment
+vi.mock('read-excel-file', () => ({
+  default: vi.fn(async () => {
+    // Return the test data that was set before the test
+    return mockTestData;
+  })
+}));
+
+// Helper to create a base64 "file" and set up mock data
+// Instead of actually creating an Excel file, we just set up the mock
 async function createMockExcelBase64(data: any[][]): Promise<string> {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Sheet1');
+  // Store the data for the mock to return
+  mockTestData = data;
 
-  data.forEach((row) => {
-    worksheet.addRow(row);
-  });
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  const base64 = btoa(
-    new Uint8Array(buffer as ArrayBuffer).reduce(
-      (data, byte) => data + String.fromCharCode(byte),
-      ''
-    )
-  );
-  return base64;
+  // Return a dummy base64 string (the actual content doesn't matter
+  // since we're mocking read-excel-file)
+  return btoa('mock-excel-content');
 }
 
 describe('XlsxColumnMapper', () => {
