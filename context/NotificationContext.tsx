@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Notification, NotificationContextType, AppSettings } from '../types';
 import { useAuth } from './AuthContext';
-import { databaseService } from '../services/appwriteService';
+import { databaseService, isAppwriteInitialized } from '../services/appwriteService';
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -38,11 +38,29 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   useEffect(() => {
     const loadNotifications = async () => {
       if (isUsingAppwrite()) {
+        // Wait for Appwrite to be initialized before loading
+        if (!isAppwriteInitialized()) {
+          console.log('⏳ Waiting for Appwrite initialization before loading notifications...');
+          // Retry after a short delay
+          setTimeout(() => {
+            if (isAppwriteInitialized()) {
+              loadNotifications();
+            } else {
+              console.warn('⚠️ Appwrite not initialized, skipping notification load');
+              setIsLoading(false);
+            }
+          }, 500);
+          return;
+        }
+
         try {
           const loadedNotifications = await databaseService.getNotifications();
           setNotifications(loadedNotifications);
-        } catch (error) {
-          console.error('Error loading notifications from Appwrite:', error);
+        } catch (error: any) {
+          // Only log error if it's not a "database not found" error
+          if (!error.message?.includes('Database not found') && !error.message?.includes('404')) {
+            console.error('Error loading notifications from Appwrite:', error);
+          }
           // Fallback to empty array
           setNotifications([]);
         }

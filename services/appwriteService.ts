@@ -31,6 +31,13 @@ export const initializeAppwrite = (config: AppwriteConfig) => {
 };
 
 /**
+ * Check if Appwrite is initialized
+ */
+export const isAppwriteInitialized = (): boolean => {
+  return !!(clientInstance && accountInstance && databasesInstance && storageInstance && currentConfig);
+};
+
+/**
  * Test connection to Appwrite
  */
 export const testConnection = async (): Promise<boolean> => {

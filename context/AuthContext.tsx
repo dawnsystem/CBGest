@@ -74,7 +74,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Now try to restore session from Appwrite
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
-        console.log('✅ Session restored from Appwrite:', currentUser.email);
+        if (currentUser) {
+          console.log('✅ Session restored from Appwrite:', currentUser.email);
+        }
       } catch (error: any) {
         console.log('No active session found:', error?.message || 'Unknown error');
         setUser(null);
