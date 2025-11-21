@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import ExcelJS from 'exceljs';
+import readXlsxFile from 'read-excel-file';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 import { Supplier, BankTransaction } from '../types';
 
@@ -186,7 +186,7 @@ export const analyzeBankStatement = async (base64Data: string, mimeType: string)
 const parseDateValue = (value: any): string => {
   if (!value) return '';
 
-  // Handle Date objects (ExcelJS returns actual Date objects for date cells)
+  // Handle Date objects (read-excel-file returns actual Date objects for date cells)
   if (value instanceof Date) {
     const year = value.getFullYear();
     const month = String(value.getMonth() + 1).padStart(2, '0');
@@ -231,38 +231,21 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Read workbook with ExcelJS
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(bytes.buffer);
-
-    // Get first sheet
-    const worksheet = workbook.worksheets[0];
-    if (!worksheet) {
-      throw new Error("El archivo XLSX no contiene hojas de cálculo");
-    }
-
-    // Convert worksheet to 2D array
-    const rawData: any[][] = [];
-    worksheet.eachRow({ includeEmpty: true }, (row) => {
-      const rowData: any[] = [];
-      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-        let value = cell.value;
-        // Handle formula cells
-        if (value && typeof value === 'object' && 'result' in value) {
-          value = value.result;
-        }
-        // Handle rich text
-        if (value && typeof value === 'object' && 'richText' in value) {
-          value = (value as any).richText.map((rt: any) => rt.text).join('');
-        }
-        rowData[colNumber - 1] = value;
-      });
-      rawData.push(rowData);
+    // Create a Blob for read-excel-file
+    const blob = new Blob([bytes.buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
 
-    if (rawData.length < 2) {
+    // read-excel-file returns rows as arrays of cell values
+    // It automatically handles dates, numbers, and strings
+    const rows = await readXlsxFile(blob);
+
+    if (!rows || rows.length < 2) {
       throw new Error("El archivo XLSX no contiene suficientes datos");
     }
+
+    // Convert to our expected format
+    const rawData: any[][] = rows.map(row => [...row]);
 
     // Find header row (look for keywords in first 10 rows)
     let headerRowIndex = 0;
