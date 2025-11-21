@@ -111,6 +111,7 @@ export interface Supplier {
   postalCode?: string;
   email?: string;
   phone?: string;
+  category?: string; // Business category
   notes?: string;
   createdAt: string; // ISO date
   updatedAt: string; // ISO date
@@ -133,12 +134,18 @@ export interface AppwriteConfig {
   settingsCollectionId: string;
   // Storage Bucket ID
   storageBucketId: string;
+  bucketId?: string;        // Alias for backward compatibility
 }
 
 export interface DataSourceConfig {
   type: DataSourceType;
   // Appwrite config
   appwrite?: AppwriteConfig;
+  // Direct Appwrite properties for backward compatibility
+  appwriteEndpoint?: string;
+  appwriteProjectId?: string;
+  appwriteDatabaseId?: string;
+  appwriteBucketId?: string;
   // Configuración futura para conectores remotos
   supabaseUrl?: string;
   supabaseKey?: string;

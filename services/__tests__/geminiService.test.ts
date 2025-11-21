@@ -108,6 +108,7 @@ describe('geminiService', () => {
           nifType: 'CIF',
           category: 'Servicios',
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         },
         {
           id: 'supplier2',
@@ -116,6 +117,7 @@ describe('geminiService', () => {
           nifType: 'CIF',
           category: 'Materiales',
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         },
       ];
 
