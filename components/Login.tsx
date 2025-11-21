@@ -35,7 +35,7 @@ export const Login: React.FC = () => {
     initializeAppwrite({
       projectId,
       endpoint,
-      databaseId: 'CBGest_DB',
+      databaseId: '691f288100019843d43e',
       bucketId: 'cbgest-data',
       storageBucketId: 'cbgest-data',
       invoicesCollectionId: 'invoices',
@@ -70,7 +70,7 @@ export const Login: React.FC = () => {
       initializeAppwrite({
         projectId,
         endpoint,
-        databaseId: 'CBGest_DB',
+        databaseId: '691f288100019843d43e',
         bucketId: 'cbgest-data',
         storageBucketId: 'cbgest-data',
         invoicesCollectionId: 'invoices',
@@ -88,7 +88,7 @@ export const Login: React.FC = () => {
       initializeAppwrite({
         projectId,
         endpoint,
-        databaseId: 'CBGest_DB',
+        databaseId: '691f288100019843d43e',
         bucketId: 'cbgest-data',
         storageBucketId: 'cbgest-data',
         invoicesCollectionId: 'invoices',
@@ -123,7 +123,7 @@ export const Login: React.FC = () => {
     initializeAppwrite({
       projectId,
       endpoint,
-      databaseId: 'CBGest_DB',
+      databaseId: '691f288100019843d43e',
       bucketId: 'cbgest-data',
       storageBucketId: 'cbgest-data',
       invoicesCollectionId: 'invoices',
