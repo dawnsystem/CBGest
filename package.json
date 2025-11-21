@@ -20,7 +20,7 @@
     "@google/genai": "^1.30.0",
     "appwrite": "^16.0.2",
     "lucide-react": "^0.554.0",
-    "pdfjs-dist": "^3.11.174",
+    "pdfjs-dist": "^4.2.67",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
