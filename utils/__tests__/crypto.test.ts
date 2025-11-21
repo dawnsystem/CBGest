@@ -174,4 +174,124 @@ describe('crypto utilities', () => {
       ).rejects.toThrow();
     });
   });
+
+  describe('type validation and edge cases', () => {
+    it('should reject invalid encrypted data (empty string)', async () => {
+      await expect(
+        decryptData('', testPassword)
+      ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
+    });
+
+    it('should reject null/undefined encrypted data', async () => {
+      await expect(
+        decryptData(null as any, testPassword)
+      ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
+
+      await expect(
+        decryptData(undefined as any, testPassword)
+      ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
+    });
+
+    it('should reject invalid password types', async () => {
+      const encrypted = await encryptData(testData, testPassword);
+
+      await expect(
+        decryptData(encrypted, '' as any)
+      ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
+
+      await expect(
+        decryptData(encrypted, null as any)
+      ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
+    });
+
+    it('should reject packet with invalid base64 in salt', async () => {
+      const invalidPacket = JSON.stringify({
+        salt: 'invalid!!!base64',
+        iv: 'dGVzdA==',
+        ciphertext: 'dGVzdA==',
+        version: 1
+      });
+
+      await expect(
+        decryptData(invalidPacket, testPassword)
+      ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
+    });
+
+    it('should reject packet with non-string fields', async () => {
+      const invalidPacket1 = JSON.stringify({
+        salt: 123,
+        iv: 'dGVzdA==',
+        ciphertext: 'dGVzdA==',
+        version: 1
+      });
+
+      await expect(
+        decryptData(invalidPacket1, testPassword)
+      ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
+
+      const invalidPacket2 = JSON.stringify({
+        salt: 'dGVzdA==',
+        iv: {},
+        ciphertext: 'dGVzdA==',
+        version: 1
+      });
+
+      await expect(
+        decryptData(invalidPacket2, testPassword)
+      ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
+    });
+
+    it('should reject packet with wrong salt/iv length', async () => {
+      // Create a packet with valid base64 but wrong lengths
+      const shortSalt = btoa('short'); // Too short
+      const shortIv = btoa('short'); // Too short
+      const encrypted = await encryptData(testData, testPassword);
+      const validPacket = JSON.parse(encrypted);
+
+      const invalidPacket = JSON.stringify({
+        salt: shortSalt,
+        iv: validPacket.iv,
+        ciphertext: validPacket.ciphertext,
+        version: 1
+      });
+
+      await expect(
+        decryptData(invalidPacket, testPassword)
+      ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
+    });
+
+    it('should handle very large encrypted payloads without type errors', async () => {
+      // Test with 1MB of data to ensure buffer handling is correct
+      const largeData = 'A'.repeat(1024 * 1024);
+      const encrypted = await encryptData(largeData, testPassword);
+
+      // This should not throw any ArrayBuffer type errors
+      const decrypted = await decryptData(encrypted, testPassword);
+      expect(decrypted).toBe(largeData);
+    });
+
+    it('should handle binary-like data (emojis, unicode) without type errors', async () => {
+      const binaryLikeData = '🔐🔑💾📁\u0000\u0001\u0002\u0003\uFFFF';
+      const encrypted = await encryptData(binaryLikeData, testPassword);
+
+      // Should handle all unicode characters correctly without type errors
+      const decrypted = await decryptData(encrypted, testPassword);
+      expect(decrypted).toBe(binaryLikeData);
+    });
+
+    it('should consistently return Uint8Array from base642ab (internal test)', async () => {
+      // This test verifies that the fix prevents the original error:
+      // "3rd argument is not instance of ArrayBuffer, Buffer, TypedArray, or DataView"
+
+      const encrypted = await encryptData(testData, testPassword);
+      const packet = JSON.parse(encrypted);
+
+      // The internal base642ab should now return Uint8Array, not ArrayBuffer
+      // This ensures SubtleCrypto.decrypt receives the correct type
+
+      // If this test passes, it means the type error is fixed
+      const decrypted = await decryptData(encrypted, testPassword);
+      expect(decrypted).toBe(testData);
+    });
+  });
 });

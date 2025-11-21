@@ -66,7 +66,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           invoicesCollectionId: 'invoices',
           entriesCollectionId: 'entries',
           transactionsCollectionId: 'transactions',
-          settingsCollectionId: 'settings'
+          settingsCollectionId: 'settings',
+          notificationsCollectionId: 'notifications',
+          uploadsCollectionId: 'uploads'
         });
 
         // Now try to restore session from Appwrite

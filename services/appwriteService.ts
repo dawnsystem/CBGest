@@ -1,5 +1,5 @@
 import { Client, Account, Databases, Storage, Query, ID, Models } from 'appwrite';
-import { AppwriteConfig, Invoice, AccountingEntry, BankTransaction, AppSettings, AppUser, Supplier } from '../types';
+import { AppwriteConfig, Invoice, AccountingEntry, BankTransaction, AppSettings, AppUser, Supplier, Notification, QueueItem } from '../types';
 
 // Singleton Client
 let clientInstance: Client | null = null;
@@ -552,6 +552,229 @@ export const databaseService = {
     } catch (error: any) {
       console.error('Delete supplier error:', error);
       throw new Error(error.message || 'Error al eliminar proveedor');
+    }
+  },
+
+  /**
+   * Create Notification
+   */
+  async createNotification(notification: Notification): Promise<Notification> {
+    const { databases, config } = getInstances();
+
+    try {
+      const doc = await databases.createDocument(
+        config.databaseId,
+        config.notificationsCollectionId,
+        notification.id || ID.unique(),
+        notification
+      );
+
+      return doc as unknown as Notification;
+    } catch (error: any) {
+      console.error('Create notification error:', error);
+      throw new Error(error.message || 'Error al crear notificación');
+    }
+  },
+
+  /**
+   * Get all notifications
+   */
+  async getNotifications(): Promise<Notification[]> {
+    const { databases, config } = getInstances();
+
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.notificationsCollectionId,
+        [Query.orderDesc('timestamp'), Query.limit(100)]
+      );
+
+      return response.documents as unknown as Notification[];
+    } catch (error: any) {
+      console.error('Get notifications error:', error);
+      throw new Error(error.message || 'Error al obtener notificaciones');
+    }
+  },
+
+  /**
+   * Update Notification (mainly for marking as read)
+   */
+  async updateNotification(notification: Notification): Promise<Notification> {
+    const { databases, config } = getInstances();
+
+    try {
+      const doc = await databases.updateDocument(
+        config.databaseId,
+        config.notificationsCollectionId,
+        notification.appwriteId || notification.id,
+        notification
+      );
+
+      return doc as unknown as Notification;
+    } catch (error: any) {
+      console.error('Update notification error:', error);
+      throw new Error(error.message || 'Error al actualizar notificación');
+    }
+  },
+
+  /**
+   * Delete Notification
+   */
+  async deleteNotification(id: string): Promise<void> {
+    const { databases, config } = getInstances();
+
+    try {
+      await databases.deleteDocument(
+        config.databaseId,
+        config.notificationsCollectionId,
+        id
+      );
+    } catch (error: any) {
+      console.error('Delete notification error:', error);
+      throw new Error(error.message || 'Error al eliminar notificación');
+    }
+  },
+
+  /**
+   * Delete all notifications
+   */
+  async deleteAllNotifications(): Promise<void> {
+    const { databases, config } = getInstances();
+
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.notificationsCollectionId,
+        [Query.limit(100)]
+      );
+
+      // Delete all notifications in batch
+      await Promise.all(
+        response.documents.map(doc =>
+          databases.deleteDocument(
+            config.databaseId,
+            config.notificationsCollectionId,
+            doc.$id
+          )
+        )
+      );
+    } catch (error: any) {
+      console.error('Delete all notifications error:', error);
+      throw new Error(error.message || 'Error al eliminar notificaciones');
+    }
+  },
+
+  /**
+   * Create Upload Queue Item
+   */
+  async createUploadItem(item: QueueItem): Promise<QueueItem> {
+    const { databases, config } = getInstances();
+
+    try {
+      // Remove File object before saving (not JSON serializable)
+      const { file, ...itemData } = item;
+
+      const doc = await databases.createDocument(
+        config.databaseId,
+        config.uploadsCollectionId,
+        item.id || ID.unique(),
+        itemData
+      );
+
+      return { ...doc, file } as unknown as QueueItem;
+    } catch (error: any) {
+      console.error('Create upload item error:', error);
+      throw new Error(error.message || 'Error al crear elemento de cola');
+    }
+  },
+
+  /**
+   * Get all upload queue items
+   */
+  async getUploadQueue(): Promise<QueueItem[]> {
+    const { databases, config } = getInstances();
+
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.uploadsCollectionId,
+        [Query.orderDesc('timestamp'), Query.limit(100)]
+      );
+
+      // Note: File objects need to be reconstructed from base64Data on the client side
+      return response.documents as unknown as QueueItem[];
+    } catch (error: any) {
+      console.error('Get upload queue error:', error);
+      throw new Error(error.message || 'Error al obtener cola de uploads');
+    }
+  },
+
+  /**
+   * Update Upload Queue Item
+   */
+  async updateUploadItem(item: QueueItem): Promise<QueueItem> {
+    const { databases, config } = getInstances();
+
+    try {
+      const { file, ...itemData } = item;
+
+      const doc = await databases.updateDocument(
+        config.databaseId,
+        config.uploadsCollectionId,
+        item.id,
+        itemData
+      );
+
+      return { ...doc, file } as unknown as QueueItem;
+    } catch (error: any) {
+      console.error('Update upload item error:', error);
+      throw new Error(error.message || 'Error al actualizar elemento de cola');
+    }
+  },
+
+  /**
+   * Delete Upload Queue Item
+   */
+  async deleteUploadItem(id: string): Promise<void> {
+    const { databases, config } = getInstances();
+
+    try {
+      await databases.deleteDocument(
+        config.databaseId,
+        config.uploadsCollectionId,
+        id
+      );
+    } catch (error: any) {
+      console.error('Delete upload item error:', error);
+      throw new Error(error.message || 'Error al eliminar elemento de cola');
+    }
+  },
+
+  /**
+   * Delete completed upload queue items
+   */
+  async deleteCompletedUploads(): Promise<void> {
+    const { databases, config } = getInstances();
+
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.uploadsCollectionId,
+        [Query.equal('status', 'COMPLETED'), Query.limit(100)]
+      );
+
+      await Promise.all(
+        response.documents.map(doc =>
+          databases.deleteDocument(
+            config.databaseId,
+            config.uploadsCollectionId,
+            doc.$id
+          )
+        )
+      );
+    } catch (error: any) {
+      console.error('Delete completed uploads error:', error);
+      throw new Error(error.message || 'Error al eliminar uploads completados');
     }
   }
 };
