@@ -118,12 +118,21 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
             <Filter className="w-4 h-4" /> Filtros
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
-            <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900">
-                <option value="">Todas las cuentas</option>
-                {uniqueAccounts.map(acc => <option key={acc} value={acc}>{acc}</option>)}
-            </select>
+            <div>
+              <label htmlFor="accountingbooks-startdate-input" className="sr-only">Fecha inicio</label>
+              <input id="accountingbooks-startdate-input" name="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" autoComplete="off" />
+            </div>
+            <div>
+              <label htmlFor="accountingbooks-enddate-input" className="sr-only">Fecha fin</label>
+              <input id="accountingbooks-enddate-input" name="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" autoComplete="off" />
+            </div>
+            <div>
+              <label htmlFor="accountingbooks-account-select" className="sr-only">Cuenta</label>
+              <select id="accountingbooks-account-select" name="selectedAccount" value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900">
+                  <option value="">Todas las cuentas</option>
+                  {uniqueAccounts.map(acc => <option key={acc} value={acc}>{acc}</option>)}
+              </select>
+            </div>
             <button onClick={() => { setStartDate(''); setEndDate(''); setSelectedAccount(''); }} className="bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium">Limpiar</button>
         </div>
       </div>
@@ -217,13 +226,16 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                 
                 <div className="p-6 space-y-5 overflow-y-auto">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1.5">Fecha</label>
-                        <input 
-                            type="date" 
-                            required 
-                            value={editingEntry.date} 
-                            onChange={e => setEditingEntry({...editingEntry, date: e.target.value})} 
-                            className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" 
+                        <label htmlFor="accountingbooks-entry-date-input" className="block text-xs font-bold text-slate-500 mb-1.5">Fecha</label>
+                        <input
+                            id="accountingbooks-entry-date-input"
+                            name="date"
+                            type="date"
+                            required
+                            value={editingEntry.date}
+                            onChange={e => setEditingEntry({...editingEntry, date: e.target.value})}
+                            className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                            autoComplete="off"
                         />
                     </div>
 
@@ -240,38 +252,47 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1.5">Concepto</label>
-                        <input 
-                            type="text" 
-                            required 
-                            value={editingEntry.concept} 
-                            onChange={e => setEditingEntry({...editingEntry, concept: e.target.value})} 
-                            className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" 
+                        <label htmlFor="accountingbooks-entry-concept-input" className="block text-xs font-bold text-slate-500 mb-1.5">Concepto</label>
+                        <input
+                            id="accountingbooks-entry-concept-input"
+                            name="concept"
+                            type="text"
+                            required
+                            value={editingEntry.concept}
+                            onChange={e => setEditingEntry({...editingEntry, concept: e.target.value})}
+                            className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
                             placeholder="Descripción del movimiento..."
+                            autoComplete="off"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Debe (Gastos/Activos)</label>
-                            <input 
-                                type="number" 
-                                step="0.01" 
-                                value={editingEntry.debit || ''} 
-                                onChange={e => setEditingEntry({...editingEntry, debit: parseFloat(e.target.value) || 0, credit: 0})} 
-                                className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none font-mono" 
+                            <label htmlFor="accountingbooks-entry-debit-input" className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Debe (Gastos/Activos)</label>
+                            <input
+                                id="accountingbooks-entry-debit-input"
+                                name="debit"
+                                type="number"
+                                step="0.01"
+                                value={editingEntry.debit || ''}
+                                onChange={e => setEditingEntry({...editingEntry, debit: parseFloat(e.target.value) || 0, credit: 0})}
+                                className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none font-mono"
                                 placeholder="0.00"
+                                autoComplete="off"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Haber (Ingresos/Pasivos)</label>
-                            <input 
-                                type="number" 
-                                step="0.01" 
-                                value={editingEntry.credit || ''} 
-                                onChange={e => setEditingEntry({...editingEntry, credit: parseFloat(e.target.value) || 0, debit: 0})} 
-                                className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none font-mono" 
+                            <label htmlFor="accountingbooks-entry-credit-input" className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Haber (Ingresos/Pasivos)</label>
+                            <input
+                                id="accountingbooks-entry-credit-input"
+                                name="credit"
+                                type="number"
+                                step="0.01"
+                                value={editingEntry.credit || ''}
+                                onChange={e => setEditingEntry({...editingEntry, credit: parseFloat(e.target.value) || 0, debit: 0})}
+                                className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
                                 placeholder="0.00"
+                                autoComplete="off"
                             />
                         </div>
                     </div>

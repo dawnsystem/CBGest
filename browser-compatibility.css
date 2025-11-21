@@ -1,0 +1,115 @@
+/**
+ * Browser Compatibility Fixes
+ * This file contains CSS fixes for cross-browser compatibility issues
+ * detected in the console warnings.
+ */
+
+/* Fix for -moz-appearance - Add standard appearance property */
+input[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* Fix for -webkit-text-size-adjust - Add standard text-size-adjust */
+html,
+:host {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* Fix for backdrop-filter - Add -webkit-backdrop-filter for Safari 9+ */
+.modal_backdrop {
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+}
+
+/*
+ * Fix for field-sizing - Not supported in Firefox/Safari
+ * Using fallback with min-width for browsers that don't support it
+ */
+.field-sizing-content {
+    min-width: fit-content;
+    field-sizing: content;
+}
+
+/*
+ * Fix for scrollbar-color - Not supported in Safari
+ * Safari will use default scrollbar styling
+ */
+@supports (scrollbar-color: auto) {
+    * {
+        scrollbar-color: initial;
+    }
+}
+
+/*
+ * Fix for scrollbar-width - Not supported in Safari
+ * Safari will use default scrollbar width
+ */
+@supports (scrollbar-width: auto) {
+    * {
+        scrollbar-width: initial;
+    }
+}
+
+/*
+ * Fix for text-wrap: balance - Not supported in Safari < 17.5
+ * Using feature detection to apply only when supported
+ */
+@supports (text-wrap: balance) {
+    .text-balance {
+        text-wrap: balance;
+    }
+}
+
+/* Fallback for browsers that don't support text-wrap: balance */
+@supports not (text-wrap: balance) {
+    .text-balance {
+        /* Use text-align for a similar visual effect as fallback */
+        text-align: center;
+    }
+}
+
+/* Additional cross-browser compatibility fixes */
+
+/* Remove spinner from number inputs consistently across browsers */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
+/* Ensure smooth scrolling is supported */
+@supports (scroll-behavior: smooth) {
+    html {
+        scroll-behavior: smooth;
+    }
+}
+
+/* Fix for Safari input styling */
+input,
+textarea,
+select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Restore button appearance for button elements */
+button,
+input[type="submit"],
+input[type="reset"],
+input[type="button"] {
+    -webkit-appearance: button;
+    -moz-appearance: button;
+    appearance: button;
+}
+
+/* Fix for checkbox and radio buttons */
+input[type="checkbox"],
+input[type="radio"] {
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    appearance: auto;
+}

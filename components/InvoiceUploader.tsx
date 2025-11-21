@@ -140,19 +140,22 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
           
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs text-slate-500 mb-1">Emisor</label>
-              <input type="text" value={preview.issuerName} onChange={(e) => handleFieldChange('issuerName', e.target.value)} className="w-full border-slate-200 rounded text-sm font-medium bg-white text-slate-900" />
+              <label htmlFor="invoice-issuer-name-input" className="block text-xs text-slate-500 mb-1">Emisor</label>
+              <input id="invoice-issuer-name-input" name="issuerName" type="text" value={preview.issuerName} onChange={(e) => handleFieldChange('issuerName', e.target.value)} className="w-full border-slate-200 rounded text-sm font-medium bg-white text-slate-900" autoComplete="organization" />
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1 flex items-center gap-1">
-                  NIF/CIF 
+              <label htmlFor="invoice-issuer-nif-input" className="block text-xs text-slate-500 mb-1 flex items-center gap-1">
+                  NIF/CIF
                   {nifError && <span className="text-red-600 flex items-center gap-0.5"><AlertTriangle className="w-3 h-3"/> (Formato Incorrecto)</span>}
               </label>
-              <input 
-                  type="text" 
-                  value={preview.issuerNif} 
-                  onChange={(e) => handleFieldChange('issuerNif', e.target.value.toUpperCase())} 
-                  className={`w-full rounded text-sm font-mono bg-white text-slate-900 ${nifError ? 'border-2 border-red-500 focus:ring-red-200' : 'border-slate-200'}`} 
+              <input
+                  id="invoice-issuer-nif-input"
+                  name="issuerNif"
+                  type="text"
+                  value={preview.issuerNif}
+                  onChange={(e) => handleFieldChange('issuerNif', e.target.value.toUpperCase())}
+                  className={`w-full rounded text-sm font-mono bg-white text-slate-900 ${nifError ? 'border-2 border-red-500 focus:ring-red-200' : 'border-slate-200'}`}
+                  autoComplete="off"
               />
               {nifError && (
                   <div className="mt-2 flex items-start gap-2 bg-red-50 p-2 rounded border border-red-100">
@@ -161,10 +164,12 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                         <p className="text-xs text-red-700 leading-tight">
                             El NIF no cumple con el algoritmo oficial (DNI/NIE/CIF). Revisa los dígitos.
                         </p>
-                        <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                checked={forceAcceptNif} 
+                        <label htmlFor="invoice-force-accept-nif-checkbox" className="flex items-center gap-2 mt-2 cursor-pointer">
+                            <input
+                                id="invoice-force-accept-nif-checkbox"
+                                name="forceAcceptNif"
+                                type="checkbox"
+                                checked={forceAcceptNif}
                                 onChange={e => setForceAcceptNif(e.target.checked)}
                                 className="rounded text-red-600 focus:ring-red-500 bg-white"
                             />
@@ -175,8 +180,8 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
               )}
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1">Fecha</label>
-              <input type="date" value={preview.date} onChange={(e) => handleFieldChange('date', e.target.value)} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" />
+              <label htmlFor="invoice-date-input" className="block text-xs text-slate-500 mb-1">Fecha</label>
+              <input id="invoice-date-input" name="date" type="date" value={preview.date} onChange={(e) => handleFieldChange('date', e.target.value)} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" autoComplete="off" />
             </div>
             
             {/* Smart Account Selector */}
@@ -194,9 +199,9 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
             </div>
 
             <div className="col-span-1 md:col-span-2 grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
-              <div><label className="block text-xs text-slate-500 mb-1">Base</label><input type="number" value={preview.baseAmount} onChange={(e) => handleFieldChange('baseAmount', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" /></div>
-              <div><label className="block text-xs text-slate-500 mb-1">IVA %</label><select value={preview.vatRate} onChange={(e) => handleFieldChange('vatRate', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900"><option value={21}>21%</option><option value={10}>10%</option><option value={4}>4%</option><option value={0}>0%</option></select></div>
-              <div><label className="block text-xs text-slate-500 mb-1">Total</label><input type="number" value={preview.totalAmount} onChange={(e) => handleFieldChange('totalAmount', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm font-bold bg-white text-slate-900" /></div>
+              <div><label htmlFor="invoice-base-amount-input" className="block text-xs text-slate-500 mb-1">Base</label><input id="invoice-base-amount-input" name="baseAmount" type="number" value={preview.baseAmount} onChange={(e) => handleFieldChange('baseAmount', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" autoComplete="off" /></div>
+              <div><label htmlFor="invoice-vat-rate-select" className="block text-xs text-slate-500 mb-1">IVA %</label><select id="invoice-vat-rate-select" name="vatRate" value={preview.vatRate} onChange={(e) => handleFieldChange('vatRate', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900"><option value={21}>21%</option><option value={10}>10%</option><option value={4}>4%</option><option value={0}>0%</option></select></div>
+              <div><label htmlFor="invoice-total-amount-input" className="block text-xs text-slate-500 mb-1">Total</label><input id="invoice-total-amount-input" name="totalAmount" type="number" value={preview.totalAmount} onChange={(e) => handleFieldChange('totalAmount', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm font-bold bg-white text-slate-900" autoComplete="off" /></div>
             </div>
           </div>
 
@@ -271,7 +276,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                 {uploadType === 'INVOICE' ? 'La IA extraerá los datos y asignará la cuenta contable (PGC).' : 'Soporte específico para BBVA Empresas y similares.'}
             </p>
           </div>
-          <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*,.pdf" onChange={handleFileInput} />
+          <input id="invoice-uploader-file-input" name="files" type="file" ref={fileInputRef} className="hidden" multiple accept="image/*,.pdf" onChange={handleFileInput} />
           <button onClick={() => fileInputRef.current?.click()} className="bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
             Seleccionar Archivos
           </button>
