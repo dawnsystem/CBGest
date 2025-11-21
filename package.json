@@ -19,13 +19,13 @@
   "dependencies": {
     "@google/genai": "^1.30.0",
     "appwrite": "^16.0.2",
+    "exceljs": "^4.4.0",
     "lucide-react": "^0.554.0",
-    "pdfjs-dist": "^3.11.174",
+    "pdfjs-dist": "^5.4.394",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
-    "recharts": "^3.4.1",
-    "xlsx": "^0.18.5"
+    "recharts": "^3.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",

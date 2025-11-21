@@ -1,19 +1,11 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { MobileNavigation } from './components/MobileNavigation';
 import { Header } from './components/Header';
-import { Dashboard } from './components/Dashboard';
-import { InvoiceUploader } from './components/InvoiceUploader';
-import { TaxModels } from './components/TaxModels';
-import { AccountingBooks } from './components/AccountingBooks';
-import { BankReconciliation } from './components/BankReconciliation';
-import { Settings } from './components/Settings';
-import { Suppliers } from './components/Suppliers';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
-import { DocumentViewer } from './components/DocumentViewer';
 import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier } from './types';
 import { Eye, Trash } from 'lucide-react';
 import { encryptData } from './utils/crypto';
@@ -26,6 +18,23 @@ import { Login } from './components/Login';
 
 // NOTIFICATIONS Integration
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
+
+// Lazy-loaded components for code splitting
+const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const InvoiceUploader = lazy(() => import('./components/InvoiceUploader').then(m => ({ default: m.InvoiceUploader })));
+const TaxModels = lazy(() => import('./components/TaxModels').then(m => ({ default: m.TaxModels })));
+const AccountingBooks = lazy(() => import('./components/AccountingBooks').then(m => ({ default: m.AccountingBooks })));
+const BankReconciliation = lazy(() => import('./components/BankReconciliation').then(m => ({ default: m.BankReconciliation })));
+const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
+const Suppliers = lazy(() => import('./components/Suppliers').then(m => ({ default: m.Suppliers })));
+const DocumentViewer = lazy(() => import('./components/DocumentViewer').then(m => ({ default: m.DocumentViewer })));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[50vh]">
+    <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+  </div>
+);
 
 // Helper for Lazy Initialization from LocalStorage with Safe Deep Merge
 const loadState = <T,>(key: string, fallback: T): T => {
@@ -538,6 +547,7 @@ const MainLayout: React.FC = () => {
           <div className="flex-1 ml-0 md:ml-64 transition-all duration-200">
             <Header isLocalFileMode={isLocalFileMode} />
             <main className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8 relative">
+              <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<Dashboard invoices={invoices} settings={settings} onUpdateSettings={setSettings} />} />
                 <Route path="/invoices" element={
@@ -713,8 +723,11 @@ const MainLayout: React.FC = () => {
                 } />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              </Suspense>
               <GlobalUploadWidget />
-              <DocumentViewer isOpen={!!viewingDoc} onClose={() => setViewingDoc(null)} file={viewingDoc?.file} />
+              <Suspense fallback={null}>
+                <DocumentViewer isOpen={!!viewingDoc} onClose={() => setViewingDoc(null)} file={viewingDoc?.file} />
+              </Suspense>
             </main>
           </div>
           <MobileNavigation />

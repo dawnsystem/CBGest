@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 import { Supplier, BankTransaction } from '../types';
 
@@ -182,6 +182,45 @@ export const analyzeBankStatement = async (base64Data: string, mimeType: string)
   }
 };
 
+// Helper function to parse dates from various formats
+const parseDateValue = (value: any): string => {
+  if (!value) return '';
+
+  // Handle Date objects (ExcelJS returns actual Date objects for date cells)
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  const dateStr = String(value).trim();
+
+  // DD/MM/YYYY or DD-MM-YYYY
+  const ddmmyyyy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (ddmmyyyy) {
+    return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`;
+  }
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+
+  // Excel serial date number (days since 1899-12-30)
+  if (!isNaN(Number(dateStr))) {
+    const serial = Number(dateStr);
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  return '';
+};
+
 // NEW: Parse XLSX Bank Statement (without AI)
 export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<BankTransaction, 'id' | 'status'>[]> => {
   try {
@@ -192,15 +231,34 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Read workbook
-    const workbook = XLSX.read(bytes, { type: 'array' });
+    // Read workbook with ExcelJS
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(bytes.buffer);
 
     // Get first sheet
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new Error("El archivo XLSX no contiene hojas de cálculo");
+    }
 
-    // Convert to JSON with headers
-    const rawData: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+    // Convert worksheet to 2D array
+    const rawData: any[][] = [];
+    worksheet.eachRow({ includeEmpty: true }, (row) => {
+      const rowData: any[] = [];
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        let value = cell.value;
+        // Handle formula cells
+        if (value && typeof value === 'object' && 'result' in value) {
+          value = value.result;
+        }
+        // Handle rich text
+        if (value && typeof value === 'object' && 'richText' in value) {
+          value = (value as any).richText.map((rt: any) => rt.text).join('');
+        }
+        rowData[colNumber - 1] = value;
+      });
+      rawData.push(rowData);
+    });
 
     if (rawData.length < 2) {
       throw new Error("El archivo XLSX no contiene suficientes datos");
@@ -263,29 +321,8 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       const rawDate = row[dateCol];
       const concept = conceptCol !== -1 ? String(row[conceptCol] || '').trim() : '';
 
-      // Parse date
-      let date = '';
-      if (rawDate) {
-        const dateStr = String(rawDate).trim();
-
-        // Try different date formats
-        // DD/MM/YYYY or DD-MM-YYYY
-        const ddmmyyyy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-        if (ddmmyyyy) {
-          date = `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`;
-        }
-        // YYYY-MM-DD
-        else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-          date = dateStr;
-        }
-        // Excel serial date number
-        else if (!isNaN(Number(dateStr))) {
-          const excelDate = XLSX.SSF.parse_date_code(Number(dateStr));
-          if (excelDate) {
-            date = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
-          }
-        }
-      }
+      // Parse date using helper function
+      const date = parseDateValue(rawDate);
 
       // Skip rows without valid date
       if (!date) continue;
