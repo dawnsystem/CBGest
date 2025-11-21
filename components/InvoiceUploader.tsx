@@ -95,7 +95,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
     }
   };
 
-  const confirmInvoice = (generateEntry: boolean) => {
+  const confirmInvoice = (markAsProcessed: boolean) => {
     if (preview && reviewItem) {
       // Strict blocking unless forced
       if (nifError && !forceAcceptNif) {
@@ -105,13 +105,13 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
       const finalInvoice: Invoice = {
         ...preview,
-        status: generateEntry ? 'PROCESSED' : 'PENDING',
+        status: markAsProcessed ? 'PROCESSED' : 'PENDING',
         file: reviewItem.file,
         fileData: reviewItem.base64Data,
         fileType: reviewItem.mimeType,
         history: [...preview.history, {
             date: new Date().toISOString(),
-            action: generateEntry ? 'Confirmed and Accounting Entry Generated' : 'Invoice Confirmed',
+            action: markAsProcessed ? 'Factura procesada y asiento contable creado' : 'Factura guardada como borrador (pendiente de revisión)',
             user: 'Admin Gestor'
         }]
       };
@@ -201,18 +201,30 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
           </div>
 
           <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-             <button onClick={() => { setReviewItem(null); setPreview(null); }} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-200 rounded-lg">Cancelar</button>
-             <button onClick={() => confirmInvoice(false)} className="bg-white border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Borrador</button>
-             <button 
-                onClick={() => confirmInvoice(true)} 
+             <button
+                onClick={() => { setReviewItem(null); setPreview(null); }}
+                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+             >
+                Cancelar
+             </button>
+             <button
+                onClick={() => confirmInvoice(false)}
+                className="bg-white border border-amber-500 text-amber-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-50 flex items-center gap-2 transition-colors"
+                title="Guardar como borrador sin crear asiento contable (requiere revisión posterior)"
+             >
+                <CheckCircle className="w-4 h-4" /> Guardar Borrador
+             </button>
+             <button
+                onClick={() => confirmInvoice(true)}
                 disabled={nifError && !forceAcceptNif}
                 className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-md transition-all ${
-                    nifError && !forceAcceptNif 
-                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                    nifError && !forceAcceptNif
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                     : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'
                 }`}
+                title="Validar factura y crear asiento contable automáticamente"
              >
-                <BookPlus className="w-4 h-4" /> Contabilizar
+                <BookPlus className="w-4 h-4" /> Validar y Contabilizar
              </button>
           </div>
         </div>

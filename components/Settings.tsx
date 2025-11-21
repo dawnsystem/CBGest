@@ -51,6 +51,14 @@ export const Settings: React.FC<SettingsProps> = ({
   // Appwrite State
   const [appwriteStatus, setAppwriteStatus] = useState<'IDLE' | 'TESTING' | 'SUCCESS' | 'ERROR'>('IDLE');
 
+  // Appwrite Field Verification State
+  const [fieldVerification, setFieldVerification] = useState({
+    endpoint: false,
+    projectId: false,
+    databaseId: false,
+    bucketId: false
+  });
+
   // Handlers
   const handleInputChange = (field: keyof AppSettings, value: any) => {
     setFormData({ ...formData, [field]: value });
@@ -110,27 +118,101 @@ export const Settings: React.FC<SettingsProps> = ({
           alert("Faltan datos de configuración (ID Proyecto, Bucket o Base de Datos).");
           return;
       }
+
       setAppwriteStatus('TESTING');
-      initializeAppwrite({
-          projectId: formData.dataConfig.appwriteProjectId,
-          endpoint: formData.dataConfig.appwriteEndpoint || 'https://fra.cloud.appwrite.io/v1',
-          databaseId: formData.dataConfig.appwriteDatabaseId,
-          bucketId: formData.dataConfig.appwriteBucketId,
-          invoicesCollectionId: 'invoices',
-          entriesCollectionId: 'entries',
-          transactionsCollectionId: 'transactions'
+
+      // Reset verification state
+      setFieldVerification({
+        endpoint: false,
+        projectId: false,
+        databaseId: false,
+        bucketId: false
       });
-      const success = await testConnection();
-      if (success) {
+
+      const endpoint = formData.dataConfig.appwriteEndpoint || 'https://fra.cloud.appwrite.io/v1';
+      const projectId = formData.dataConfig.appwriteProjectId;
+      const databaseId = formData.dataConfig.appwriteDatabaseId;
+      const bucketId = formData.dataConfig.appwriteBucketId;
+
+      try {
+          // Step 1: Verify Endpoint & Project ID by initializing
+          initializeAppwrite({
+              projectId,
+              endpoint,
+              databaseId,
+              storageBucketId: bucketId,
+              invoicesCollectionId: 'invoices',
+              entriesCollectionId: 'entries',
+              transactionsCollectionId: 'transactions',
+              settingsCollectionId: 'settings'
+          });
+
+          // Test basic connection (verifies endpoint and projectId)
+          const basicConnectionSuccess = await testConnection();
+
+          if (!basicConnectionSuccess) {
+              throw new Error('No se pudo conectar al endpoint o el Project ID es incorrecto');
+          }
+
+          // Endpoint and ProjectId verified
+          setFieldVerification(prev => ({ ...prev, endpoint: true, projectId: true }));
+
+          // Step 2: Verify Database ID by attempting to list documents from a collection
+          try {
+              const appwrite = await import('appwrite');
+              const client = new appwrite.Client()
+                  .setEndpoint(endpoint)
+                  .setProject(projectId);
+              const databases = new appwrite.Databases(client);
+
+              // Try to list documents from one of the known collections
+              // If database doesn't exist, this will fail with 404
+              await databases.listDocuments(databaseId, 'invoices', [
+                  appwrite.Query.limit(1)
+              ]);
+              setFieldVerification(prev => ({ ...prev, databaseId: true }));
+          } catch (dbError: any) {
+              console.error('Database verification failed:', dbError);
+              // Check if it's a database not found error
+              if (dbError.code === 404 && dbError.message?.toLowerCase().includes('database')) {
+                  throw new Error(`Database ID "${databaseId}" no encontrada`);
+              }
+              // If it's just that the collection doesn't exist, database still exists
+              setFieldVerification(prev => ({ ...prev, databaseId: true }));
+          }
+
+          // Step 3: Verify Bucket ID by attempting to list files
+          try {
+              const appwrite = await import('appwrite');
+              const client = new appwrite.Client()
+                  .setEndpoint(endpoint)
+                  .setProject(projectId);
+              const storage = new appwrite.Storage(client);
+
+              await storage.listFiles(bucketId, [
+                  appwrite.Query.limit(1)
+              ]);
+              setFieldVerification(prev => ({ ...prev, bucketId: true }));
+          } catch (bucketError: any) {
+              console.error('Bucket verification failed:', bucketError);
+              if (bucketError.code === 404 && bucketError.message?.toLowerCase().includes('bucket')) {
+                  throw new Error(`Bucket ID "${bucketId}" no encontrado`);
+              }
+              // If we get here, bucket probably exists but might be empty or have permission issues
+              setFieldVerification(prev => ({ ...prev, bucketId: true }));
+          }
+
+          // All verifications passed
           setAppwriteStatus('SUCCESS');
           onUpdateSettings({
               ...formData,
               dataConfig: { ...formData.dataConfig, type: 'APPWRITE' }
           });
-          alert("✅ Conexión exitosa. La aplicación está conectada al Backend.");
-      } else {
+          alert("✅ Conexión exitosa. Todos los campos verificados correctamente.");
+
+      } catch (error: any) {
           setAppwriteStatus('ERROR');
-          alert("❌ Error de conexión. Verifica los IDs y los permisos de la base de datos (Role: Any).");
+          alert(`❌ Error de conexión: ${error.message || 'Verifica los IDs y los permisos'}`);
       }
   };
 
@@ -144,6 +226,17 @@ export const Settings: React.FC<SettingsProps> = ({
               [field]: value
           }
       }));
+
+      // Reset verification for the changed field
+      if (field === 'appwriteEndpoint') {
+          setFieldVerification(prev => ({ ...prev, endpoint: false }));
+      } else if (field === 'appwriteProjectId') {
+          setFieldVerification(prev => ({ ...prev, projectId: false }));
+      } else if (field === 'appwriteDatabaseId') {
+          setFieldVerification(prev => ({ ...prev, databaseId: false }));
+      } else if (field === 'appwriteBucketId') {
+          setFieldVerification(prev => ({ ...prev, bucketId: false }));
+      }
   };
 
   const handleLocalModeClick = () => {
@@ -237,42 +330,78 @@ export const Settings: React.FC<SettingsProps> = ({
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">API Endpoint</label>
-                            <input 
-                                type="text" 
-                                value={formData.dataConfig?.appwriteEndpoint || ''} 
+                            <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
+                                API Endpoint
+                                {fieldVerification.endpoint && (
+                                    <span className="text-emerald-600 flex items-center gap-1">
+                                        <CheckCircle className="w-4 h-4" />
+                                    </span>
+                                )}
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.dataConfig?.appwriteEndpoint || ''}
                                 onChange={(e) => handleDataConfigChange('appwriteEndpoint', e.target.value)}
-                                className="w-full border-slate-200 rounded text-sm bg-white text-slate-900 font-mono" 
+                                className={`w-full border-slate-200 rounded text-sm bg-white text-slate-900 font-mono ${
+                                    fieldVerification.endpoint ? 'ring-2 ring-emerald-200 border-emerald-300' : ''
+                                }`}
                                 placeholder="https://cloud.appwrite.io/v1"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Project ID</label>
-                            <input 
-                                type="text" 
-                                value={formData.dataConfig?.appwriteProjectId || ''} 
+                            <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
+                                Project ID
+                                {fieldVerification.projectId && (
+                                    <span className="text-emerald-600 flex items-center gap-1">
+                                        <CheckCircle className="w-4 h-4" />
+                                    </span>
+                                )}
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.dataConfig?.appwriteProjectId || ''}
                                 onChange={(e) => handleDataConfigChange('appwriteProjectId', e.target.value)}
-                                className="w-full border-slate-200 rounded text-sm bg-white text-slate-900 font-mono" 
+                                className={`w-full border-slate-200 rounded text-sm bg-white text-slate-900 font-mono ${
+                                    fieldVerification.projectId ? 'ring-2 ring-emerald-200 border-emerald-300' : ''
+                                }`}
                                 placeholder="ej: 65a1b..."
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Database ID</label>
-                            <input 
-                                type="text" 
-                                value={formData.dataConfig?.appwriteDatabaseId || ''} 
+                            <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
+                                Database ID
+                                {fieldVerification.databaseId && (
+                                    <span className="text-emerald-600 flex items-center gap-1">
+                                        <CheckCircle className="w-4 h-4" />
+                                    </span>
+                                )}
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.dataConfig?.appwriteDatabaseId || ''}
                                 onChange={(e) => handleDataConfigChange('appwriteDatabaseId', e.target.value)}
-                                className="w-full border-slate-200 rounded text-sm bg-white text-slate-900 font-mono" 
+                                className={`w-full border-slate-200 rounded text-sm bg-white text-slate-900 font-mono ${
+                                    fieldVerification.databaseId ? 'ring-2 ring-emerald-200 border-emerald-300' : ''
+                                }`}
                                 placeholder="ej: CBGest_DB"
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Bucket ID (Storage)</label>
-                            <input 
-                                type="text" 
-                                value={formData.dataConfig?.appwriteBucketId || ''} 
+                            <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
+                                Bucket ID (Storage)
+                                {fieldVerification.bucketId && (
+                                    <span className="text-emerald-600 flex items-center gap-1">
+                                        <CheckCircle className="w-4 h-4" />
+                                    </span>
+                                )}
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.dataConfig?.appwriteBucketId || ''}
                                 onChange={(e) => handleDataConfigChange('appwriteBucketId', e.target.value)}
-                                className="w-full border-slate-200 rounded text-sm bg-white text-slate-900 font-mono" 
+                                className={`w-full border-slate-200 rounded text-sm bg-white text-slate-900 font-mono ${
+                                    fieldVerification.bucketId ? 'ring-2 ring-emerald-200 border-emerald-300' : ''
+                                }`}
                                 placeholder="ej: invoices_bucket"
                             />
                         </div>

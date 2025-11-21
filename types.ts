@@ -25,6 +25,7 @@ export interface Invoice {
   date: string; // YYYY-MM-DD
   issuerName: string;
   issuerNif: string;
+  supplierId?: string; // Reference to Supplier (if matched)
   baseAmount: number;
   vatRate: number; // 4, 10, 21
   vatAmount: number;
@@ -33,12 +34,12 @@ export interface Invoice {
   status: 'PENDING' | 'PROCESSED' | 'PAID';
   category?: string;
   history: InvoiceHistoryEvent[];
-  
+
   // File handling
   file?: File; // Runtime only (not serializable)
   fileData?: string; // Base64 for persistence (Local/File mode)
   fileType?: string; // MIME type
-  
+
   // Cloud fields
   appwriteId?: string; // Document ID in Cloud
   appwriteFileId?: string; // Attachment ID in Storage
@@ -95,6 +96,27 @@ export interface Partner {
   nif: string;
   participation: number; // Percentage 0-100
   taxInfo?: PartnerTaxInfo; // Optional tax details for simulation
+}
+
+// --- SUPPLIER/PROVIDER TYPES ---
+export type NifType = 'NIF' | 'CIF' | 'NIE' | 'DNI' | 'PASAPORTE';
+
+export interface Supplier {
+  id: string;
+  name: string;
+  nif: string;
+  nifType: NifType;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+  createdAt: string; // ISO date
+  updatedAt: string; // ISO date
+
+  // Cloud fields
+  appwriteId?: string;
 }
 
 // Data Source Types
@@ -194,6 +216,43 @@ export interface UploadQueueContextType {
   addToQueue: (files: File[], type: UploadType) => void;
   removeFromQueue: (id: string) => void;
   retryItem: (id: string) => void;
-  clearCompleted: () => void; 
-  dismissNotifications: () => void; 
+  clearCompleted: () => void;
+  dismissNotifications: () => void;
+}
+
+// --- Notification Types ---
+
+export type NotificationType =
+  | 'INVOICE_CREATED'
+  | 'INVOICE_UPDATED'
+  | 'INVOICE_DELETED'
+  | 'ENTRY_CREATED'
+  | 'ENTRY_UPDATED'
+  | 'ENTRY_DELETED'
+  | 'TRANSACTION_ADDED'
+  | 'SETTINGS_UPDATED'
+  | 'USER_LOGIN'
+  | 'USER_LOGOUT';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  userId: string; // ID del usuario que realizó la acción
+  userName: string; // Nombre del usuario que realizó la acción
+  timestamp: number;
+  read: boolean;
+  relatedId?: string; // ID de la factura/asiento/transacción relacionada
+  appwriteId?: string; // ID del documento en Appwrite
+}
+
+export interface NotificationContextType {
+  notifications: Notification[];
+  unreadCount: number;
+  addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  markAsRead: (id: string) => void;
+  markAllAsRead: () => void;
+  deleteNotification: (id: string) => void;
+  clearAll: () => void;
 }

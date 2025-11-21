@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction } from '../types';
+import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier } from '../types';
 import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
@@ -43,7 +43,12 @@ const base64ToFile = (dataurl: string, filename: string, mimeType: string): File
     }
 };
 
-export const UploadQueueProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+interface UploadQueueProviderProps {
+  children: ReactNode;
+  suppliers?: Supplier[];
+}
+
+export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ children, suppliers = [] }) => {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -157,10 +162,24 @@ export const UploadQueueProvider: React.FC<{ children: ReactNode }> = ({ childre
 
       // CRITICAL: Choose parser based on uploadType
       if (item.uploadType === 'INVOICE') {
-          const data = await analyzeInvoiceImage(base64ForApi, item.mimeType);
+          const data = await analyzeInvoiceImage(base64ForApi, item.mimeType, suppliers);
+
+          // If AI matched a supplier, find the supplier ID
+          let matchedSupplierId: string | undefined = undefined;
+          if (data.matchedSupplierId) {
+            const supplier = suppliers.find(s =>
+              s.name.toLowerCase() === data.matchedSupplierId.toLowerCase() ||
+              s.nif === data.issuerNif
+            );
+            if (supplier) {
+              matchedSupplierId = supplier.id;
+            }
+          }
+
           const resultInvoice: Invoice = {
             id: Math.random().toString(36).substr(2, 9),
             ...data,
+            supplierId: matchedSupplierId,
             status: 'PENDING',
             history: [{ date: new Date().toISOString(), action: 'Analyzed via Gemini', user: 'System' }]
           };

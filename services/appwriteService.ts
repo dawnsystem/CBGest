@@ -586,6 +586,278 @@ export const realtimeService = {
   }
 };
 
+/**
+ * Subscribe to all collection changes
+ * Returns an unsubscribe function that cleans up all subscriptions
+ */
+export const subscribeToChanges = (callback: (payload: any) => void): (() => void) => {
+  const unsubscribeInvoices = realtimeService.subscribeToInvoices(callback);
+  const unsubscribeEntries = realtimeService.subscribeToEntries(callback);
+  const unsubscribeTransactions = realtimeService.subscribeToTransactions(callback);
+
+  // Return a function that unsubscribes from all collections
+  return () => {
+    unsubscribeInvoices();
+    unsubscribeEntries();
+    unsubscribeTransactions();
+  };
+};
+
+// ============================================================================
+// CONVENIENCE FUNCTIONS (Wrapper functions for complete operations)
+// ============================================================================
+
+/**
+ * Create Invoice with file upload to storage
+ * This handles both the file upload to bucket and document creation
+ */
+export const createInvoice = async (invoice: Invoice): Promise<Invoice> => {
+  try {
+    let appwriteFileId: string | undefined;
+
+    // 1. Upload file to storage if it exists
+    if (invoice.file) {
+      console.log('📤 Uploading invoice file to Appwrite storage:', invoice.file.name);
+      appwriteFileId = await storageService.uploadFile(invoice.file, `invoice-${invoice.id}`);
+      console.log('✅ File uploaded with ID:', appwriteFileId);
+    }
+
+    // 2. Create invoice document with file reference
+    const invoiceToSave = {
+      ...invoice,
+      appwriteFileId // Store the file ID from storage
+    };
+
+    const savedInvoice = await databaseService.createInvoice(invoiceToSave);
+
+    // 3. Return invoice with both file object and appwriteFileId
+    return {
+      ...savedInvoice,
+      file: invoice.file,
+      appwriteFileId
+    };
+  } catch (error: any) {
+    console.error('Error creating invoice with file:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update Invoice (with optional file update)
+ */
+export const updateInvoice = async (invoice: Invoice): Promise<Invoice> => {
+  try {
+    let appwriteFileId = invoice.appwriteFileId;
+
+    // If there's a new file, upload it
+    if (invoice.file && !invoice.appwriteFileId) {
+      console.log('📤 Uploading new file for invoice update:', invoice.file.name);
+      appwriteFileId = await storageService.uploadFile(invoice.file, `invoice-${invoice.id}`);
+      console.log('✅ New file uploaded with ID:', appwriteFileId);
+    }
+
+    const invoiceToUpdate = {
+      ...invoice,
+      appwriteFileId
+    };
+
+    return await databaseService.updateInvoice(invoiceToUpdate);
+  } catch (error: any) {
+    console.error('Error updating invoice:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete Invoice (also deletes associated file from storage)
+ */
+export const deleteInvoice = async (invoiceId: string): Promise<void> => {
+  try {
+    // First get the invoice to find the file ID
+    const invoices = await databaseService.getInvoices();
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+
+    // Delete file from storage if it exists
+    if (invoice?.appwriteFileId) {
+      console.log('🗑️ Deleting file from storage:', invoice.appwriteFileId);
+      try {
+        await storageService.deleteFile(invoice.appwriteFileId);
+        console.log('✅ File deleted from storage');
+      } catch (error) {
+        console.warn('Could not delete file from storage (might not exist):', error);
+      }
+    }
+
+    // Delete invoice document
+    await databaseService.deleteInvoice(invoiceId);
+  } catch (error: any) {
+    console.error('Error deleting invoice:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create Accounting Entry
+ */
+export const createEntry = async (entry: AccountingEntry): Promise<AccountingEntry> => {
+  return await databaseService.createEntry(entry);
+};
+
+/**
+ * Update Accounting Entry
+ */
+export const updateEntry = async (entry: AccountingEntry): Promise<AccountingEntry> => {
+  return await databaseService.updateEntry(entry);
+};
+
+/**
+ * Delete Accounting Entry
+ */
+export const deleteEntry = async (entryId: string): Promise<void> => {
+  return await databaseService.deleteEntry(entryId);
+};
+
+/**
+ * Create Bank Transaction
+ */
+export const createTransaction = async (transaction: BankTransaction): Promise<BankTransaction> => {
+  return await databaseService.createTransaction(transaction);
+};
+
+/**
+ * Save Settings
+ */
+export const saveSettings = async (settings: AppSettings): Promise<AppSettings> => {
+  return await databaseService.saveSettings(settings);
+};
+
+/**
+ * Get Settings
+ */
+export const getSettings = async (): Promise<AppSettings | null> => {
+  return await databaseService.getSettings();
+};
+
+/**
+ * Sync settings between local and Appwrite
+ * This function merges local settings with remote settings
+ */
+export const syncSettings = async (localSettings: AppSettings): Promise<AppSettings | null> => {
+  try {
+    const remoteSettings = await databaseService.getSettings();
+
+    if (!remoteSettings) {
+      // No remote settings, save local to cloud
+      console.log('No remote settings found, saving local settings to Appwrite');
+      await databaseService.saveSettings(localSettings);
+      return localSettings;
+    }
+
+    // Merge settings (remote takes precedence for non-config fields)
+    const merged = {
+      ...localSettings,
+      ...remoteSettings,
+      // Keep local dataConfig since it contains connection info
+      dataConfig: localSettings.dataConfig
+    };
+
+    return merged;
+  } catch (error) {
+    console.error('Error syncing settings:', error);
+    return null;
+  }
+};
+
+/**
+ * Load all data from Appwrite
+ */
+export const loadAllData = async (): Promise<{
+  invoices: Invoice[];
+  entries: AccountingEntry[];
+  transactions: BankTransaction[];
+}> => {
+  const [invoices, entries, transactions] = await Promise.all([
+    databaseService.getInvoices(),
+    databaseService.getEntries(),
+    databaseService.getTransactions()
+  ]);
+
+  return { invoices, entries, transactions };
+};
+
+/**
+ * Fetch invoices (alias for getInvoices)
+ */
+export const fetchInvoices = async (): Promise<Invoice[]> => {
+  return await databaseService.getInvoices();
+};
+
+/**
+ * Fetch entries (alias for getEntries)
+ */
+export const fetchEntries = async (): Promise<AccountingEntry[]> => {
+  return await databaseService.getEntries();
+};
+
+/**
+ * Fetch transactions (alias for getTransactions)
+ */
+export const fetchTransactions = async (): Promise<BankTransaction[]> => {
+  return await databaseService.getTransactions();
+};
+
+// ========================================
+// SUPPLIER CRUD OPERATIONS
+// ========================================
+
+/**
+ * Create Supplier
+ */
+export const createSupplier = async (supplier: Supplier): Promise<Supplier> => {
+  try {
+    const savedSupplier = await databaseService.createSupplier(supplier);
+    return savedSupplier;
+  } catch (error: any) {
+    console.error('Error creating supplier:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update Supplier
+ */
+export const updateSupplier = async (supplier: Supplier): Promise<Supplier> => {
+  try {
+    if (!supplier.appwriteId) {
+      throw new Error('Cannot update supplier without appwriteId');
+    }
+    const updatedSupplier = await databaseService.updateSupplier(supplier);
+    return updatedSupplier;
+  } catch (error: any) {
+    console.error('Error updating supplier:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete Supplier
+ */
+export const deleteSupplier = async (appwriteId: string): Promise<void> => {
+  try {
+    await databaseService.deleteSupplier(appwriteId);
+  } catch (error: any) {
+    console.error('Error deleting supplier:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch all suppliers
+ */
+export const fetchSuppliers = async (): Promise<Supplier[]> => {
+  return await databaseService.getSuppliers();
+};
+
 export default {
   initialize: initializeAppwrite,
   auth: authService,

@@ -8,13 +8,14 @@ import { Dashboard } from './components/Dashboard';
 import { InvoiceUploader } from './components/InvoiceUploader';
 import { TaxModels } from './components/TaxModels';
 import { AccountingBooks } from './components/AccountingBooks';
-import { BankReconciliation } from './components/BankReconciliation'; 
+import { BankReconciliation } from './components/BankReconciliation';
 import { Settings } from './components/Settings';
+import { Suppliers } from './components/Suppliers';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
 import { DocumentViewer } from './components/DocumentViewer';
-import { Invoice, AppSettings, AccountingEntry, BankTransaction } from './types';
-import { Eye } from 'lucide-react';
+import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier } from './types';
+import { Eye, Trash } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import * as appwriteService from './services/appwriteService';
 
@@ -22,7 +23,10 @@ import * as appwriteService from './services/appwriteService';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
 
-// Helper for Lazy Initialization from LocalStorage with Safe Merge
+// NOTIFICATIONS Integration
+import { NotificationProvider, useNotifications } from './context/NotificationContext';
+
+// Helper for Lazy Initialization from LocalStorage with Safe Deep Merge
 const loadState = <T,>(key: string, fallback: T): T => {
   const saved = localStorage.getItem(key);
   if (saved) {
@@ -30,10 +34,31 @@ const loadState = <T,>(key: string, fallback: T): T => {
       const parsed = JSON.parse(saved);
       // If it's an array, return it directly (assuming fallback is also array)
       if (Array.isArray(fallback)) return parsed;
-      
-      // If it's an object (like settings), merge with fallback to ensure new fields exist
+
+      // If it's an object (like settings), do a DEEP merge to preserve nested defaults
       if (typeof fallback === 'object' && fallback !== null) {
-          return { ...fallback, ...parsed };
+          const result: any = { ...fallback };
+
+          // Merge top-level properties
+          for (const key in parsed) {
+            if (parsed.hasOwnProperty(key)) {
+              // If both are objects (like dataConfig), merge them
+              if (
+                typeof parsed[key] === 'object' &&
+                parsed[key] !== null &&
+                !Array.isArray(parsed[key]) &&
+                typeof result[key] === 'object' &&
+                result[key] !== null &&
+                !Array.isArray(result[key])
+              ) {
+                result[key] = { ...result[key], ...parsed[key] };
+              } else {
+                result[key] = parsed[key];
+              }
+            }
+          }
+
+          return result as T;
       }
       return parsed;
     } catch (e) {
@@ -45,6 +70,7 @@ const loadState = <T,>(key: string, fallback: T): T => {
 
 const MainLayout: React.FC = () => {
   const { user, loading } = useAuth();
+  const { addNotification } = useNotifications();
   // --- STATE ---
   
   const defaultSettings: AppSettings = {
@@ -69,6 +95,7 @@ const MainLayout: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>(() => loadState('gestcb_invoices', []));
   const [accountingEntries, setAccountingEntries] = useState<AccountingEntry[]>(() => loadState('gestcb_entries', []));
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>(() => loadState('gestcb_bank_transactions', []));
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => loadState('gestcb_suppliers', []));
 
   // UI States
   const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<string>>(new Set());
@@ -104,10 +131,11 @@ const MainLayout: React.FC = () => {
                   projectId: freshSettings.dataConfig.appwriteProjectId,
                   endpoint,
                   databaseId: freshSettings.dataConfig.appwriteDatabaseId || 'CBGest_DB',
-                  bucketId: freshSettings.dataConfig.appwriteBucketId || 'cbgest-data',
+                  storageBucketId: freshSettings.dataConfig.appwriteBucketId || 'cbgest-data',
                   invoicesCollectionId: 'invoices',
                   entriesCollectionId: 'entries',
-                  transactionsCollectionId: 'transactions'
+                  transactionsCollectionId: 'transactions',
+                  settingsCollectionId: 'settings'
               });
               
               // 1. Initial Fetch
@@ -145,13 +173,19 @@ const MainLayout: React.FC = () => {
 
   // --- PERSISTENCE EFFECTS ---
   useEffect(() => {
-      if (!isLocalFileMode && settings.dataConfig?.type !== 'APPWRITE') {
+      if (!isLocalFileMode) {
+        // Always save settings to localStorage (even when using Appwrite)
         localStorage.setItem('gestcb_settings', JSON.stringify(settings));
-        localStorage.setItem('gestcb_invoices', JSON.stringify(invoices));
-        localStorage.setItem('gestcb_entries', JSON.stringify(accountingEntries));
-        localStorage.setItem('gestcb_bank_transactions', JSON.stringify(bankTransactions));
+
+        // Only save data to localStorage if NOT using Appwrite (Appwrite handles data storage)
+        if (settings.dataConfig?.type !== 'APPWRITE') {
+          localStorage.setItem('gestcb_invoices', JSON.stringify(invoices));
+          localStorage.setItem('gestcb_entries', JSON.stringify(accountingEntries));
+          localStorage.setItem('gestcb_bank_transactions', JSON.stringify(bankTransactions));
+          localStorage.setItem('gestcb_suppliers', JSON.stringify(suppliers));
+        }
       }
-  }, [settings, invoices, accountingEntries, bankTransactions, isLocalFileMode]);
+  }, [settings, invoices, accountingEntries, bankTransactions, suppliers, isLocalFileMode]);
 
   // Encrypted File Auto-Save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -177,15 +211,14 @@ const MainLayout: React.FC = () => {
   // --- HANDLERS ---
   const handleUpdateSettings = (newSettings: AppSettings) => {
       setSettings(newSettings);
-      if (newSettings.dataConfig?.type === 'APPWRITE') {
-          appwriteService.updateSettings(newSettings);
-      }
+      // Settings are auto-saved to localStorage via useEffect
+      // If using Appwrite, optionally sync to cloud (not required for basic operation)
   };
 
   const handleAddInvoice = async (invoice: Invoice) => {
       // Update state immediately for optimistic UI
       setInvoices(prev => [invoice, ...prev]);
-      
+
       let processedInvoice = invoice;
 
       if (settings.dataConfig?.type === 'APPWRITE') {
@@ -193,12 +226,26 @@ const MainLayout: React.FC = () => {
           // Update with real ID from server
           setInvoices(prev => prev.map(i => i.id === invoice.id ? savedInv : i));
           processedInvoice = savedInv;
-      } 
-      
-      // Logic to create accounting entry automatically
+      }
+
+      // Create notification
+      if (user) {
+        addNotification({
+          type: 'INVOICE_CREATED',
+          title: 'Nueva factura creada',
+          message: `${invoice.type === 'INCOME' ? 'Ingreso' : 'Gasto'} de ${invoice.issuerName} por ${invoice.totalAmount.toFixed(2)}€`,
+          userId: user.$id,
+          userName: user.name,
+          relatedId: invoice.id
+        });
+      }
+
+      // Solo crear asiento si la factura está PROCESADA o PAGADA (no PENDIENTE)
       if (processedInvoice.status === 'PROCESSED' || processedInvoice.status === 'PAID') {
-          console.log("Auto-creating entry for invoice:", processedInvoice.id);
+          console.log("Auto-creating entry for invoice:", processedInvoice.id, "Status:", processedInvoice.status);
           createEntryFromInvoice(processedInvoice);
+      } else {
+          console.log("Invoice saved as PENDING - no accounting entry created yet:", processedInvoice.id);
       }
   };
 
@@ -237,11 +284,77 @@ const MainLayout: React.FC = () => {
     handleAddEntry(newEntry);
   };
   
+  const handleUpdateInvoice = async (invoice: Invoice) => {
+      const oldInvoice = invoices.find(i => i.id === invoice.id);
+      setInvoices(prev => prev.map(i => i.id === invoice.id ? invoice : i));
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          await appwriteService.updateInvoice(invoice);
+      }
+
+      // Create notification
+      if (user) {
+        addNotification({
+          type: 'INVOICE_UPDATED',
+          title: 'Factura actualizada',
+          message: `${invoice.issuerName} - Estado: ${invoice.status}`,
+          userId: user.$id,
+          userName: user.name,
+          relatedId: invoice.id
+        });
+      }
+
+      // If status changed from PENDING to PROCESSED/PAID, create accounting entry
+      if (oldInvoice?.status === 'PENDING' && (invoice.status === 'PROCESSED' || invoice.status === 'PAID')) {
+          console.log("Invoice status changed to PROCESSED/PAID - creating accounting entry:", invoice.id);
+          createEntryFromInvoice(invoice);
+      }
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+      const invoice = invoices.find(i => i.id === id);
+      setInvoices(prev => prev.filter(i => i.id !== id));
+
+      if (settings.dataConfig?.type === 'APPWRITE' && invoice?.appwriteId) {
+          await appwriteService.deleteInvoice(invoice.appwriteId);
+      }
+
+      // Create notification
+      if (user && invoice) {
+        addNotification({
+          type: 'INVOICE_DELETED',
+          title: 'Factura eliminada',
+          message: `${invoice.issuerName} - ${invoice.totalAmount.toFixed(2)}€`,
+          userId: user.$id,
+          userName: user.name,
+          relatedId: id
+        });
+      }
+
+      // Also delete related accounting entry if it exists
+      const relatedEntry = accountingEntries.find(e => e.invoiceId === id);
+      if (relatedEntry) {
+          handleDeleteEntry(relatedEntry.id);
+      }
+  };
+
   const handleAddEntry = async (entry: AccountingEntry) => {
       setAccountingEntries(prev => [entry, ...prev]);
       if (settings.dataConfig?.type === 'APPWRITE') {
           const saved = await appwriteService.createEntry(entry);
           setAccountingEntries(prev => prev.map(e => e.id === entry.id ? saved : e));
+      }
+
+      // Create notification (only for manual entries, not auto-generated from invoices)
+      if (user && !entry.id.startsWith('AUTO-')) {
+        addNotification({
+          type: 'ENTRY_CREATED',
+          title: 'Nuevo asiento contable',
+          message: `${entry.concept} - ${entry.debit > 0 ? entry.debit.toFixed(2) : entry.credit.toFixed(2)}€`,
+          userId: user.$id,
+          userName: user.name,
+          relatedId: entry.id
+        });
       }
   };
 
@@ -250,13 +363,38 @@ const MainLayout: React.FC = () => {
       if (settings.dataConfig?.type === 'APPWRITE') {
           await appwriteService.updateEntry(entry);
       }
+
+      // Create notification
+      if (user) {
+        addNotification({
+          type: 'ENTRY_UPDATED',
+          title: 'Asiento actualizado',
+          message: `${entry.concept}`,
+          userId: user.$id,
+          userName: user.name,
+          relatedId: entry.id
+        });
+      }
   };
 
   const handleDeleteEntry = async (id: string) => {
-      setAccountingEntries(prev => prev.filter(e => e.id !== id));
       const entry = accountingEntries.find(e => e.id === id);
+      setAccountingEntries(prev => prev.filter(e => e.id !== id));
+
       if (settings.dataConfig?.type === 'APPWRITE' && entry?.appwriteId) {
           await appwriteService.deleteEntry(entry.appwriteId);
+      }
+
+      // Create notification
+      if (user && entry) {
+        addNotification({
+          type: 'ENTRY_DELETED',
+          title: 'Asiento eliminado',
+          message: `${entry.concept}`,
+          userId: user.$id,
+          userName: user.name,
+          relatedId: id
+        });
       }
   };
 
@@ -280,8 +418,34 @@ const MainLayout: React.FC = () => {
         reconciled: true // It comes from bank, so it matches!
      };
      handleAddEntry(newEntry);
-     
+
      alert("Asiento creado. Ve a 'Libros Contables' para editar la cuenta si es necesario.");
+  };
+
+  // Supplier Handlers
+  const handleAddSupplier = async (supplier: Supplier) => {
+      setSuppliers(prev => [supplier, ...prev]);
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          await appwriteService.createSupplier(supplier);
+      }
+  };
+
+  const handleUpdateSupplier = async (supplier: Supplier) => {
+      setSuppliers(prev => prev.map(s => s.id === supplier.id ? supplier : s));
+
+      if (settings.dataConfig?.type === 'APPWRITE' && supplier.appwriteId) {
+          await appwriteService.updateSupplier(supplier);
+      }
+  };
+
+  const handleDeleteSupplier = async (id: string) => {
+      const supplier = suppliers.find(s => s.id === id);
+      setSuppliers(prev => prev.filter(s => s.id !== id));
+
+      if (settings.dataConfig?.type === 'APPWRITE' && supplier?.appwriteId) {
+          await appwriteService.deleteSupplier(supplier.appwriteId);
+      }
   };
 
   // Legacy File Handlers
@@ -327,11 +491,43 @@ const MainLayout: React.FC = () => {
       return <Login />;
   }
 
+  // Determine connection status and health
+  const connectionStatus: 'APPWRITE' | 'LOCAL' | 'OFFLINE' =
+    settings.dataConfig?.type === 'APPWRITE' ? 'APPWRITE' :
+    (isLocalFileMode || settings.dataConfig?.type === 'LOCAL_STORAGE') ? 'LOCAL' : 'OFFLINE';
+
+  // Determine connection health
+  const connectionHealth: 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED' = (() => {
+    // For Appwrite: check if configured and user is logged in
+    if (settings.dataConfig?.type === 'APPWRITE') {
+      if (!settings.dataConfig.appwriteProjectId || !settings.dataConfig.appwriteDatabaseId || !settings.dataConfig.appwriteBucketId) {
+        return 'DISCONNECTED'; // Not configured
+      }
+      return user ? 'CONNECTED' : 'DISCONNECTED'; // Connected if user session exists
+    }
+
+    // For Local File Mode: always connected if file is loaded
+    if (isLocalFileMode) {
+      return fileHandle ? 'CONNECTED' : 'DISCONNECTED';
+    }
+
+    // For Local Storage: always connected (no server needed)
+    if (settings.dataConfig?.type === 'LOCAL_STORAGE') {
+      return 'CONNECTED';
+    }
+
+    return 'DISCONNECTED'; // Default fallback
+  })();
+
   return (
-    <UploadQueueProvider>
+    <UploadQueueProvider suppliers={suppliers}>
       <HashRouter>
         <div className="min-h-screen bg-slate-50 flex font-sans">
-          <Sidebar />
+          <Sidebar
+            connectionStatus={connectionStatus}
+            connectionHealth={connectionHealth}
+            isLocalFileMode={isLocalFileMode}
+          />
           <div className="flex-1 ml-0 md:ml-64 transition-all duration-200">
             <Header isLocalFileMode={isLocalFileMode} />
             <main className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8 relative">
@@ -339,31 +535,150 @@ const MainLayout: React.FC = () => {
                 <Route path="/" element={<Dashboard invoices={invoices} settings={settings} onUpdateSettings={setSettings} />} />
                 <Route path="/invoices" element={
                   <div className="p-4 md:p-8 animate-fade-in">
-                    <InvoiceUploader 
-                        onInvoiceAdded={handleAddInvoice} 
+                    <InvoiceUploader
+                        onInvoiceAdded={handleAddInvoice}
                         onBankTransactionsAdded={handleAddBankTransactions}
-                        settings={settings} 
+                        settings={settings}
                     />
                     <div className="mt-12">
                       <h3 className="text-lg font-semibold text-slate-900 mb-4">Últimas Facturas</h3>
-                      <div className="grid gap-4">
-                        {invoices.map(inv => (
-                            <div key={inv.id} className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 flex justify-between items-center">
-                                <span className="font-medium">{inv.issuerName}</span>
-                                <button onClick={() => inv.file && setViewingDoc({file: inv.file})}><Eye className="w-5 h-5 text-blue-600" /></button>
+                      <div className="hidden md:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                        <table className="w-full text-left">
+                          <thead className="bg-slate-50 text-xs uppercase text-slate-500 border-b border-slate-200">
+                            <tr>
+                              <th className="px-6 py-4">Fecha</th>
+                              <th className="px-6 py-4">Emisor</th>
+                              <th className="px-6 py-4">Número</th>
+                              <th className="px-6 py-4 text-right">Importe</th>
+                              <th className="px-6 py-4">Tipo</th>
+                              <th className="px-6 py-4">Estado</th>
+                              <th className="px-6 py-4 text-center">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {invoices.map(inv => {
+                              const statusColor = inv.status === 'PROCESSED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                  inv.status === 'PAID' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                  'bg-amber-100 text-amber-700 border-amber-200';
+                              const statusText = inv.status === 'PROCESSED' ? 'PROCESADA' :
+                                                 inv.status === 'PAID' ? 'PAGADA' :
+                                                 'PENDIENTE';
+                              return (
+                                <tr key={inv.id} className="hover:bg-slate-50">
+                                  <td className="px-6 py-4 text-sm text-slate-600">{inv.date}</td>
+                                  <td className="px-6 py-4 text-sm font-medium text-slate-900">{inv.issuerName}</td>
+                                  <td className="px-6 py-4 text-sm text-slate-600">{inv.number || 'S/N'}</td>
+                                  <td className="px-6 py-4 text-sm font-mono text-right text-slate-900">{inv.totalAmount.toFixed(2)}€</td>
+                                  <td className="px-6 py-4 text-sm">
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${inv.type === 'INCOME' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                      {inv.type === 'INCOME' ? 'INGRESO' : 'GASTO'}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <select
+                                      value={inv.status}
+                                      onChange={(e) => handleUpdateInvoice({...inv, status: e.target.value as Invoice['status']})}
+                                      className={`text-xs px-2 py-1 rounded border font-medium ${statusColor}`}
+                                    >
+                                      <option value="PENDING">PENDIENTE</option>
+                                      <option value="PROCESSED">PROCESADA</option>
+                                      <option value="PAID">PAGADA</option>
+                                    </select>
+                                  </td>
+                                  <td className="px-6 py-4 flex justify-center gap-2">
+                                    <button
+                                      onClick={() => inv.file && setViewingDoc({file: inv.file})}
+                                      className="p-1 text-slate-400 hover:text-blue-600"
+                                      title="Ver documento"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm('¿Eliminar esta factura?')) {
+                                          handleDeleteInvoice(inv.id);
+                                        }
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-red-600"
+                                      title="Eliminar factura"
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile View */}
+                      <div className="md:hidden space-y-4">
+                        {invoices.map(inv => {
+                          const statusColor = inv.status === 'PROCESSED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                              inv.status === 'PAID' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                              'bg-amber-100 text-amber-700 border-amber-200';
+                          return (
+                            <div key={inv.id} className="bg-white p-4 rounded-lg shadow-sm border border-slate-100">
+                              <div className="flex justify-between mb-2">
+                                <span className="text-xs text-slate-500">{inv.date}</span>
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${inv.type === 'INCOME' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                  {inv.type === 'INCOME' ? 'INGRESO' : 'GASTO'}
+                                </span>
+                              </div>
+                              <p className="font-semibold text-slate-900 mb-2">{inv.issuerName}</p>
+                              <div className="flex justify-between items-center mb-3">
+                                <span className="text-lg font-bold text-slate-900">{inv.totalAmount.toFixed(2)}€</span>
+                                <select
+                                  value={inv.status}
+                                  onChange={(e) => handleUpdateInvoice({...inv, status: e.target.value as Invoice['status']})}
+                                  className={`text-xs px-2 py-1 rounded border font-medium ${statusColor}`}
+                                >
+                                  <option value="PENDING">PENDIENTE</option>
+                                  <option value="PROCESSED">PROCESADA</option>
+                                  <option value="PAID">PAGADA</option>
+                                </select>
+                              </div>
+                              <div className="flex gap-3 pt-3 border-t border-slate-100">
+                                <button
+                                  onClick={() => inv.file && setViewingDoc({file: inv.file})}
+                                  className="flex-1 text-blue-600 text-xs font-medium uppercase"
+                                >
+                                  Ver PDF
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('¿Eliminar esta factura?')) {
+                                      handleDeleteInvoice(inv.id);
+                                    }
+                                  }}
+                                  className="flex-1 text-red-500 text-xs font-medium uppercase"
+                                >
+                                  Borrar
+                                </button>
+                              </div>
                             </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
                 } />
+                <Route path="/suppliers" element={
+                    <Suppliers
+                        suppliers={suppliers}
+                        onAddSupplier={handleAddSupplier}
+                        onUpdateSupplier={handleUpdateSupplier}
+                        onDeleteSupplier={handleDeleteSupplier}
+                    />
+                } />
                 <Route path="/books" element={
-                    <AccountingBooks 
-                        entries={accountingEntries} 
+                    <AccountingBooks
+                        entries={accountingEntries}
                         onAddEntry={handleAddEntry}
                         onUpdateEntry={handleUpdateEntry}
                         onDeleteEntry={handleDeleteEntry}
-                        onViewDocument={(file) => setViewingDoc({file})} 
+                        onViewDocument={(file) => setViewingDoc({file})}
                     />
                 } />
                 <Route path="/reconciliation" element={
@@ -405,7 +720,9 @@ const MainLayout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <MainLayout />
+      <NotificationProvider>
+        <MainLayout />
+      </NotificationProvider>
     </AuthProvider>
   );
 };

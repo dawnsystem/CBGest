@@ -27,6 +27,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
   const [renderError, setRenderError] = useState<string | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   // Reference to keep track of the active render task to cancel it if needed
   const renderTaskRef = useRef<any>(null);
 
@@ -74,8 +75,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
   // 3. Render PDF Page (with Cancellation Logic)
   useEffect(() => {
     const renderPage = async () => {
-      if (!pdfDoc || !canvasRef.current) return;
-      
+      if (!pdfDoc || !canvasRef.current || !containerRef.current) return;
+
       // CANCEL PREVIOUS TASK if it exists
       if (renderTaskRef.current) {
         try {
@@ -89,19 +90,29 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
       try {
         const page = await pdfDoc.getPage(pageNum);
         const canvas = canvasRef.current;
+        const container = containerRef.current;
         const context = canvas.getContext('2d');
-        
+
         if (!context) throw new Error("Canvas context not found");
 
-        // Responsive scaling
-        const viewport = page.getViewport({ scale: 1.5 });
+        // Calculate scale to fit container with padding
+        const containerWidth = container.clientWidth - 32; // 32px for padding
+        const containerHeight = container.clientHeight - 32;
+        const viewport = page.getViewport({ scale: 1 });
 
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
+        // Calculate scale to fit both width AND height, use the smaller scale
+        const scaleX = containerWidth / viewport.width;
+        const scaleY = containerHeight / viewport.height;
+        const scale = Math.min(scaleX, scaleY, 1.8); // Max scale 1.8 to prevent over-zooming
+
+        const scaledViewport = page.getViewport({ scale });
+
+        canvas.height = scaledViewport.height;
+        canvas.width = scaledViewport.width;
 
         const renderContext = {
           canvasContext: context,
-          viewport: viewport
+          viewport: scaledViewport
         };
 
         // Store the task reference
@@ -109,7 +120,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
         renderTaskRef.current = renderTask;
 
         await renderTask.promise;
-        
+
+        // Scroll to top after rendering to show the document from the beginning
+        container.scrollTop = 0;
+
         // Success
         setIsRendering(false);
         setRenderError(null);
@@ -125,7 +139,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
     };
 
     renderPage();
-    
+
     // Cleanup on unmount or dependency change
     return () => {
         if (renderTaskRef.current) {
@@ -177,7 +191,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
         </div>
 
         {/* Viewer Body */}
-        <div className="flex-1 bg-slate-950 relative flex items-center justify-center overflow-auto p-4">
+        <div ref={containerRef} className="flex-1 bg-slate-950 relative flex items-center justify-center overflow-auto p-4">
            {isRendering && (
              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 z-10">
                <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-2" />
