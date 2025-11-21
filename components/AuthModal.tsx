@@ -85,47 +85,55 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
           {mode === 'register' && (
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+              <label htmlFor="auth-name-input" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                 Nombre Completo
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                 <input
+                  id="auth-name-input"
+                  name="name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900"
                   placeholder="Juan Pérez"
                   required
+                  autoComplete="name"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+            <label htmlFor="auth-email-input" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
               Email
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
+                id="auth-email-input"
+                name="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900"
                 placeholder="email@ejemplo.com"
                 required
+                autoComplete="email"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+            <label htmlFor="auth-password-input" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
               Contraseña
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
+                id="auth-password-input"
+                name="password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -133,11 +141,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 placeholder="••••••••"
                 minLength={8}
                 required
+                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>

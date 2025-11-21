@@ -137,11 +137,14 @@ export const Suppliers: React.FC<SuppliersProps> = ({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <input
+            id="suppliers-search-input"
+            name="search"
             type="text"
             placeholder="Buscar por nombre, NIF o email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            autoComplete="off"
           />
         </div>
         <button
@@ -175,25 +178,30 @@ export const Suppliers: React.FC<SuppliersProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Name */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="suppliers-name-input" className="block text-sm font-medium text-slate-700 mb-1">
                   Nombre <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="suppliers-name-input"
+                  name="name"
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="Nombre del proveedor"
                   required
+                  autoComplete="organization"
                 />
               </div>
 
               {/* NIF Type */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="suppliers-niftype-select" className="block text-sm font-medium text-slate-700 mb-1">
                   Tipo de Identificación
                 </label>
                 <select
+                  id="suppliers-niftype-select"
+                  name="nifType"
                   value={formData.nifType}
                   onChange={(e) => setFormData({ ...formData, nifType: e.target.value as NifType })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -208,83 +216,103 @@ export const Suppliers: React.FC<SuppliersProps> = ({
 
               {/* NIF */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="suppliers-nif-input" className="block text-sm font-medium text-slate-700 mb-1">
                   {formData.nifType} <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="suppliers-nif-input"
+                  name="nif"
                   type="text"
                   value={formData.nif}
                   onChange={(e) => setFormData({ ...formData, nif: e.target.value.toUpperCase() })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="A12345678"
                   required
+                  autoComplete="off"
                 />
               </div>
 
               {/* Address */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Dirección</label>
+                <label htmlFor="suppliers-address-input" className="block text-sm font-medium text-slate-700 mb-1">Dirección</label>
                 <input
+                  id="suppliers-address-input"
+                  name="address"
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="Calle, número, piso..."
+                  autoComplete="street-address"
                 />
               </div>
 
               {/* City */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ciudad</label>
+                <label htmlFor="suppliers-city-input" className="block text-sm font-medium text-slate-700 mb-1">Ciudad</label>
                 <input
+                  id="suppliers-city-input"
+                  name="city"
                   type="text"
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="Barcelona"
+                  autoComplete="address-level2"
                 />
               </div>
 
               {/* Postal Code */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Código Postal</label>
+                <label htmlFor="suppliers-postalcode-input" className="block text-sm font-medium text-slate-700 mb-1">Código Postal</label>
                 <input
+                  id="suppliers-postalcode-input"
+                  name="postalCode"
                   type="text"
                   value={formData.postalCode}
                   onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="08001"
+                  autoComplete="postal-code"
                 />
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <label htmlFor="suppliers-email-input" className="block text-sm font-medium text-slate-700 mb-1">Email</label>
                 <input
+                  id="suppliers-email-input"
+                  name="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="contacto@proveedor.com"
+                  autoComplete="email"
                 />
               </div>
 
               {/* Phone */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono</label>
+                <label htmlFor="suppliers-phone-input" className="block text-sm font-medium text-slate-700 mb-1">Teléfono</label>
                 <input
+                  id="suppliers-phone-input"
+                  name="phone"
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="+34 600 000 000"
+                  autoComplete="tel"
                 />
               </div>
 
               {/* Notes */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Notas</label>
+                <label htmlFor="suppliers-notes-textarea" className="block text-sm font-medium text-slate-700 mb-1">Notas</label>
                 <textarea
+                  id="suppliers-notes-textarea"
+                  name="notes"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"

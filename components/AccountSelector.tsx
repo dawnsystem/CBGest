@@ -59,12 +59,15 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChang
     <div className={`relative ${className}`} ref={wrapperRef}>
       <div className="relative">
         <input
+          id="account-selector-search-input"
+          name="accountSearch"
           type="text"
           className="w-full border border-slate-200 rounded text-sm p-2 pl-8 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
           placeholder="Buscar cuenta (ej: 628 o Luz)..."
           value={searchTerm}
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
+          autoComplete="off"
         />
         <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" />
       </div>

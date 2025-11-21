@@ -330,7 +330,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
+                            <label htmlFor="settings-appwrite-endpoint-input" className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
                                 API Endpoint
                                 {fieldVerification.endpoint && (
                                     <span className="text-emerald-600 flex items-center gap-1">
@@ -339,6 +339,8 @@ export const Settings: React.FC<SettingsProps> = ({
                                 )}
                             </label>
                             <input
+                                id="settings-appwrite-endpoint-input"
+                                name="appwriteEndpoint"
                                 type="text"
                                 value={formData.dataConfig?.appwriteEndpoint || ''}
                                 onChange={(e) => handleDataConfigChange('appwriteEndpoint', e.target.value)}
@@ -346,10 +348,11 @@ export const Settings: React.FC<SettingsProps> = ({
                                     fieldVerification.endpoint ? 'ring-2 ring-emerald-200 border-emerald-300' : ''
                                 }`}
                                 placeholder="https://cloud.appwrite.io/v1"
+                                autoComplete="url"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
+                            <label htmlFor="settings-appwrite-projectid-input" className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
                                 Project ID
                                 {fieldVerification.projectId && (
                                     <span className="text-emerald-600 flex items-center gap-1">
@@ -358,6 +361,8 @@ export const Settings: React.FC<SettingsProps> = ({
                                 )}
                             </label>
                             <input
+                                id="settings-appwrite-projectid-input"
+                                name="appwriteProjectId"
                                 type="text"
                                 value={formData.dataConfig?.appwriteProjectId || ''}
                                 onChange={(e) => handleDataConfigChange('appwriteProjectId', e.target.value)}
@@ -365,10 +370,11 @@ export const Settings: React.FC<SettingsProps> = ({
                                     fieldVerification.projectId ? 'ring-2 ring-emerald-200 border-emerald-300' : ''
                                 }`}
                                 placeholder="ej: 65a1b..."
+                                autoComplete="off"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
+                            <label htmlFor="settings-appwrite-databaseid-input" className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
                                 Database ID
                                 {fieldVerification.databaseId && (
                                     <span className="text-emerald-600 flex items-center gap-1">
@@ -377,6 +383,8 @@ export const Settings: React.FC<SettingsProps> = ({
                                 )}
                             </label>
                             <input
+                                id="settings-appwrite-databaseid-input"
+                                name="appwriteDatabaseId"
                                 type="text"
                                 value={formData.dataConfig?.appwriteDatabaseId || ''}
                                 onChange={(e) => handleDataConfigChange('appwriteDatabaseId', e.target.value)}
@@ -384,10 +392,11 @@ export const Settings: React.FC<SettingsProps> = ({
                                     fieldVerification.databaseId ? 'ring-2 ring-emerald-200 border-emerald-300' : ''
                                 }`}
                                 placeholder="ej: CBGest_DB"
+                                autoComplete="off"
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
+                            <label htmlFor="settings-appwrite-bucketid-input" className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-2">
                                 Bucket ID (Storage)
                                 {fieldVerification.bucketId && (
                                     <span className="text-emerald-600 flex items-center gap-1">
@@ -396,6 +405,8 @@ export const Settings: React.FC<SettingsProps> = ({
                                 )}
                             </label>
                             <input
+                                id="settings-appwrite-bucketid-input"
+                                name="appwriteBucketId"
                                 type="text"
                                 value={formData.dataConfig?.appwriteBucketId || ''}
                                 onChange={(e) => handleDataConfigChange('appwriteBucketId', e.target.value)}
@@ -403,6 +414,7 @@ export const Settings: React.FC<SettingsProps> = ({
                                     fieldVerification.bucketId ? 'ring-2 ring-emerald-200 border-emerald-300' : ''
                                 }`}
                                 placeholder="ej: invoices_bucket"
+                                autoComplete="off"
                             />
                         </div>
                     </div>
@@ -446,22 +458,22 @@ export const Settings: React.FC<SettingsProps> = ({
                 {/* Existing General Form */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Denominación (Razón Social)</label>
-                    <input type="text" value={formData.cbName} onChange={(e) => handleInputChange('cbName', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
+                    <label htmlFor="settings-cbname-input" className="block text-sm font-medium text-slate-700 mb-1">Denominación (Razón Social)</label>
+                    <input id="settings-cbname-input" name="cbName" type="text" value={formData.cbName} onChange={(e) => handleInputChange('cbName', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" autoComplete="organization" />
                     </div>
                     <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">NIF Comunidad</label>
-                    <input type="text" value={formData.nif} onChange={(e) => handleInputChange('nif', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm font-mono bg-white text-slate-900" />
+                    <label htmlFor="settings-nif-input" className="block text-sm font-medium text-slate-700 mb-1">NIF Comunidad</label>
+                    <input id="settings-nif-input" name="nif" type="text" value={formData.nif} onChange={(e) => handleInputChange('nif', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm font-mono bg-white text-slate-900" autoComplete="off" />
                     </div>
                     <div className="col-span-1 md:col-span-2 bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <label className="block text-sm font-semibold text-blue-900 mb-2">Régimen Fiscal</label>
                     <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="fiscalRegime" checked={formData.fiscalRegime === 'GENERAL'} onChange={() => handleInputChange('fiscalRegime', 'GENERAL')} className="text-blue-600 focus:ring-blue-500 bg-white" />
+                        <label htmlFor="settings-fiscalregime-general-radio" className="flex items-center gap-2 cursor-pointer">
+                        <input id="settings-fiscalregime-general-radio" type="radio" name="fiscalRegime" checked={formData.fiscalRegime === 'GENERAL'} onChange={() => handleInputChange('fiscalRegime', 'GENERAL')} className="text-blue-600 focus:ring-blue-500 bg-white" />
                         <span className="text-sm text-slate-700">General (IVA Trimestral)</span>
                         </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="fiscalRegime" checked={formData.fiscalRegime === 'ALQUILER_EXENTO'} onChange={() => handleInputChange('fiscalRegime', 'ALQUILER_EXENTO')} className="text-blue-600 focus:ring-blue-500 bg-white" />
+                        <label htmlFor="settings-fiscalregime-alquiler-radio" className="flex items-center gap-2 cursor-pointer">
+                        <input id="settings-fiscalregime-alquiler-radio" type="radio" name="fiscalRegime" checked={formData.fiscalRegime === 'ALQUILER_EXENTO'} onChange={() => handleInputChange('fiscalRegime', 'ALQUILER_EXENTO')} className="text-blue-600 focus:ring-blue-500 bg-white" />
                         <span className="text-sm text-slate-700 font-medium">Arrendamiento Inmuebles (Exento IVA)</span>
                         </label>
                     </div>
@@ -488,10 +500,10 @@ export const Settings: React.FC<SettingsProps> = ({
                             {partner.name.charAt(0)}
                         </div>
                         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <input type="text" placeholder="Nombre" value={partner.name} onChange={(e) => handlePartnerChange(partner.id, 'name', e.target.value)} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" />
-                            <input type="text" placeholder="NIF" value={partner.nif} onChange={(e) => handlePartnerChange(partner.id, 'nif', e.target.value)} className="w-full border-slate-200 rounded text-sm font-mono bg-white text-slate-900" />
+                            <input id={`settings-partner-${partner.id}-name-input`} name={`partner-${partner.id}-name`} type="text" placeholder="Nombre" value={partner.name} onChange={(e) => handlePartnerChange(partner.id, 'name', e.target.value)} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" autoComplete="name" />
+                            <input id={`settings-partner-${partner.id}-nif-input`} name={`partner-${partner.id}-nif`} type="text" placeholder="NIF" value={partner.nif} onChange={(e) => handlePartnerChange(partner.id, 'nif', e.target.value)} className="w-full border-slate-200 rounded text-sm font-mono bg-white text-slate-900" autoComplete="off" />
                             <div className="relative">
-                                <input type="number" value={partner.participation} onChange={(e) => handlePartnerChange(partner.id, 'participation', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm pr-8 bg-white text-slate-900" />
+                                <input id={`settings-partner-${partner.id}-participation-input`} name={`partner-${partner.id}-participation`} type="number" value={partner.participation} onChange={(e) => handlePartnerChange(partner.id, 'participation', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm pr-8 bg-white text-slate-900" autoComplete="off" />
                                 <span className="absolute right-3 top-2 text-xs text-slate-500">%</span>
                             </div>
                         </div>
@@ -512,7 +524,7 @@ export const Settings: React.FC<SettingsProps> = ({
                      {/* ... content same as previous ... */}
                      <div className="bg-slate-50 px-6 py-4 border-b border-slate-100"><h3 className="font-bold text-slate-900">Contraseña</h3></div>
                      <div className="p-6">
-                        <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className="w-full border p-2 rounded" autoFocus onKeyDown={e => e.key === 'Enter' && handlePasswordSubmit()}/>
+                        <input id="settings-password-input" name="password" type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className="w-full border p-2 rounded" autoFocus onKeyDown={e => e.key === 'Enter' && handlePasswordSubmit()} autoComplete="current-password"/>
                      </div>
                      <div className="p-6 flex justify-end gap-2"><button onClick={() => setShowPasswordModal('NONE')}>Cancelar</button><button onClick={handlePasswordSubmit} className="bg-blue-600 text-white px-4 py-2 rounded">Confirmar</button></div>
                 </div>

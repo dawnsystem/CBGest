@@ -173,13 +173,13 @@ export const Login: React.FC = () => {
                   <h3 className="font-bold text-slate-900 text-lg mb-4">Configuración de Conexión</h3>
                   <div className="space-y-4">
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-1">Endpoint API</label>
-                          <input type="text" value={endpoint} onChange={e => setEndpoint(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" />
+                          <label htmlFor="endpoint-input" className="block text-xs font-bold text-slate-500 mb-1">Endpoint API</label>
+                          <input id="endpoint-input" name="endpoint" type="text" value={endpoint} onChange={e => setEndpoint(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" />
                           <p className="text-[10px] text-slate-400 mt-1">Ej: https://cloud.appwrite.io/v1 o https://fra.cloud.appwrite.io/v1</p>
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-1">Project ID</label>
-                          <input type="text" value={projectId} onChange={e => setProjectId(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" />
+                          <label htmlFor="projectid-input" className="block text-xs font-bold text-slate-500 mb-1">Project ID</label>
+                          <input id="projectid-input" name="projectId" type="text" value={projectId} onChange={e => setProjectId(e.target.value)} className="w-full border-slate-200 rounded p-2 text-sm font-mono bg-white text-slate-900" />
                       </div>
                       
                       <div className="flex gap-2 pt-2">
@@ -244,40 +244,49 @@ export const Login: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {isRegister && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
-                <input 
-                  type="text" 
-                  required 
+                <label htmlFor="name-input" className="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
+                <input
+                  id="name-input"
+                  name="name"
+                  type="text"
+                  required
                   className="w-full border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                   placeholder="Ej: Juan Pérez"
                   value={name}
                   onChange={e => setName(e.target.value)}
+                  autoComplete="name"
                 />
               </div>
             )}
-            
+
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
-              <input 
-                type="email" 
-                required 
+              <label htmlFor="email-input" className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+              <input
+                id="email-input"
+                name="email"
+                type="email"
+                required
                 className="w-full border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                 placeholder="admin@comunidad.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
+                autoComplete="email"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
-              <input 
-                type="password" 
-                required 
+              <label htmlFor="password-input" className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+              <input
+                id="password-input"
+                name="password"
+                type="password"
+                required
                 minLength={8}
                 className="w-full border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                autoComplete={isRegister ? "new-password" : "current-password"}
               />
             </div>
 

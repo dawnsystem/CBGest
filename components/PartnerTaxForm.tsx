@@ -48,14 +48,17 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
            </div>
 
            <div>
-             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Rendimientos del Trabajo</label>
+             <label htmlFor={`partner-${partner.id}-otherworkincome-input`} className="block text-xs font-bold text-slate-500 uppercase mb-1">Rendimientos del Trabajo</label>
              <div className="relative">
-               <input 
-                 type="number" 
-                 value={info.otherWorkIncome} 
+               <input
+                 id={`partner-${partner.id}-otherworkincome-input`}
+                 name="otherWorkIncome"
+                 type="number"
+                 value={info.otherWorkIncome}
                  onChange={e => setInfo({...info, otherWorkIncome: Number(e.target.value)})}
                  className="w-full border-slate-200 rounded-lg pl-8 py-2 text-sm bg-white text-slate-900"
                  placeholder="0.00"
+                 autoComplete="off"
                />
                <span className="absolute left-3 top-2 text-slate-400">€</span>
              </div>
@@ -63,14 +66,17 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
            </div>
 
            <div>
-             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Otros Rendimientos</label>
+             <label htmlFor={`partner-${partner.id}-otheractivitiesincome-input`} className="block text-xs font-bold text-slate-500 uppercase mb-1">Otros Rendimientos</label>
              <div className="relative">
-               <input 
-                 type="number" 
-                 value={info.otherActivitiesIncome} 
+               <input
+                 id={`partner-${partner.id}-otheractivitiesincome-input`}
+                 name="otherActivitiesIncome"
+                 type="number"
+                 value={info.otherActivitiesIncome}
                  onChange={e => setInfo({...info, otherActivitiesIncome: Number(e.target.value)})}
                  className="w-full border-slate-200 rounded-lg pl-8 py-2 text-sm bg-white text-slate-900"
                  placeholder="0.00"
+                 autoComplete="off"
                />
                <span className="absolute left-3 top-2 text-slate-400">€</span>
              </div>
@@ -78,22 +84,27 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
            </div>
 
            <div>
-             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Gastos Deducibles (SS, etc)</label>
+             <label htmlFor={`partner-${partner.id}-deductibleexpenses-input`} className="block text-xs font-bold text-slate-500 uppercase mb-1">Gastos Deducibles (SS, etc)</label>
              <div className="relative">
-               <input 
-                 type="number" 
-                 value={info.deductibleExpenses} 
+               <input
+                 id={`partner-${partner.id}-deductibleexpenses-input`}
+                 name="deductibleExpenses"
+                 type="number"
+                 value={info.deductibleExpenses}
                  onChange={e => setInfo({...info, deductibleExpenses: Number(e.target.value)})}
                  className="w-full border-slate-200 rounded-lg pl-8 py-2 text-sm bg-white text-slate-900"
                  placeholder="0.00"
+                 autoComplete="off"
                />
                <span className="absolute left-3 top-2 text-slate-400">€</span>
              </div>
            </div>
 
            <div>
-             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Residencia Fiscal</label>
-             <select 
+             <label htmlFor={`partner-${partner.id}-taxresidency-select`} className="block text-xs font-bold text-slate-500 uppercase mb-1">Residencia Fiscal</label>
+             <select
+                id={`partner-${partner.id}-taxresidency-select`}
+                name="taxResidency"
                 value={info.taxResidency}
                 onChange={e => setInfo({...info, taxResidency: e.target.value as any})}
                 className="w-full border-slate-200 rounded-lg py-2 text-sm bg-white text-slate-900"
@@ -104,8 +115,10 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
            </div>
 
            <div>
-             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Situación Familiar</label>
-             <select 
+             <label htmlFor={`partner-${partner.id}-maritalstatus-select`} className="block text-xs font-bold text-slate-500 uppercase mb-1">Situación Familiar</label>
+             <select
+                id={`partner-${partner.id}-maritalstatus-select`}
+                name="maritalStatus"
                 value={info.maritalStatus}
                 onChange={e => setInfo({...info, maritalStatus: e.target.value as any})}
                 className="w-full border-slate-200 rounded-lg py-2 text-sm bg-white text-slate-900"
@@ -117,21 +130,26 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
 
            <div className="grid grid-cols-2 gap-4">
              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Hijos (&lt;25 años)</label>
-                <input 
-                  type="number" 
-                  value={info.childrenCount} 
+                <label htmlFor={`partner-${partner.id}-childrencount-input`} className="block text-xs font-bold text-slate-500 uppercase mb-1">Hijos (&lt;25 años)</label>
+                <input
+                  id={`partner-${partner.id}-childrencount-input`}
+                  name="childrenCount"
+                  type="number"
+                  value={info.childrenCount}
                   onChange={e => setInfo({...info, childrenCount: Number(e.target.value)})}
                   className="w-full border-slate-200 rounded-lg py-2 text-sm bg-white text-slate-900"
+                  autoComplete="off"
                 />
              </div>
              <div className="flex items-center pt-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
+                <label htmlFor={`partner-${partner.id}-disability-checkbox`} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    id={`partner-${partner.id}-disability-checkbox`}
+                    name="disability"
+                    type="checkbox"
                     checked={info.disability}
                     onChange={e => setInfo({...info, disability: e.target.checked})}
-                    className="rounded text-purple-600 focus:ring-purple-500 bg-white" 
+                    className="rounded text-purple-600 focus:ring-purple-500 bg-white"
                   />
                   <span className="text-sm text-slate-700">Discapacidad &gt; 33%</span>
                 </label>
