@@ -41,7 +41,7 @@ const loadState = <T,>(key: string, fallback: T): T => {
 
           // Merge top-level properties
           for (const key in parsed) {
-            if (parsed.hasOwnProperty(key)) {
+            if (Object.prototype.hasOwnProperty.call(parsed, key)) {
               // If both are objects (like dataConfig), merge them
               if (
                 typeof parsed[key] === 'object' &&
@@ -107,21 +107,26 @@ const MainLayout: React.FC = () => {
   const [isLocalFileMode, setIsLocalFileMode] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // --- DATA LAYER INITIALIZATION & REALTIME ---
+  // --- SYNC SETTINGS FROM LOCALSTORAGE ---
   useEffect(() => {
       // Re-read settings from LS in case Login changed them
       const freshSettings = loadState<AppSettings>('gestcb_settings', settings);
-      
+
       // Double check arrays exist in freshSettings
       if (!freshSettings.partners) freshSettings.partners = defaultSettings.partners;
 
       if(JSON.stringify(freshSettings.dataConfig) !== JSON.stringify(settings.dataConfig)) {
           setSettings(freshSettings);
       }
+  }, [user]); // Re-sync when user changes
 
-      if (!user) return; 
-      
+  // --- DATA LAYER INITIALIZATION & REALTIME ---
+  useEffect(() => {
+      if (!user) return;
+
       const initDataLayer = async () => {
+          const freshSettings = loadState<AppSettings>('gestcb_settings', settings);
+
           if (freshSettings.dataConfig?.type === 'APPWRITE' && freshSettings.dataConfig.appwriteProjectId) {
               
               // USE DYNAMIC ENDPOINT FROM SETTINGS

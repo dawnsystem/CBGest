@@ -11,14 +11,15 @@ interface AccountSelectorProps {
 
 export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChange, className }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(value);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const prevValueRef = useRef(value);
 
-  // Extract initial value logic
+  // Sync internal state when external value changes
   useEffect(() => {
-    // Sync internal state with external value if it changes externally
-    if (value !== searchTerm) {
-        setSearchTerm(value);
+    if (value !== prevValueRef.current) {
+      setSearchTerm(value);
+      prevValueRef.current = value;
     }
   }, [value]);
 
