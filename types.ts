@@ -25,6 +25,10 @@ export interface Invoice {
   date: string; // YYYY-MM-DD
   issuerName: string;
   issuerNif: string;
+  issuerAddress?: string; // Domicilio fiscal del emisor
+  issuerCity?: string; // Ciudad del emisor
+  issuerPostalCode?: string; // Código postal del emisor
+  issuerCountry?: string; // País del emisor (si no es España)
   supplierId?: string; // Reference to Supplier (if matched)
   baseAmount: number;
   vatRate: number; // 4, 10, 21
@@ -134,6 +138,7 @@ export interface AppwriteConfig {
   settingsCollectionId: string;
   notificationsCollectionId: string;  // Colección de notificaciones
   uploadsCollectionId: string;         // Colección de cola de uploads
+  suppliersCollectionId: string;       // Colección de proveedores
   // Storage Bucket ID
   storageBucketId: string;
   bucketId?: string;        // Alias for backward compatibility

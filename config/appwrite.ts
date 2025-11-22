@@ -16,6 +16,7 @@ export const APPWRITE_CONFIG = {
     transactions: 'transactions',
     settings: 'settings',
     notifications: 'notifications',
-    uploads: 'uploads'
+    uploads: 'uploads',
+    suppliers: 'suppliers'
   }
 } as const;

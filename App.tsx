@@ -9,6 +9,7 @@ import { UploadQueueProvider } from './context/UploadQueueContext';
 import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier } from './types';
 import { Eye, Trash } from 'lucide-react';
 import { encryptData } from './utils/crypto';
+import { detectNifType } from './utils/validators';
 import * as appwriteService from './services/appwriteService';
 import { APPWRITE_CONFIG } from './config/appwrite';
 
@@ -149,7 +150,8 @@ const MainLayout: React.FC = () => {
                   transactionsCollectionId: APPWRITE_CONFIG.collections.transactions,
                   settingsCollectionId: APPWRITE_CONFIG.collections.settings,
                   notificationsCollectionId: APPWRITE_CONFIG.collections.notifications,
-                  uploadsCollectionId: APPWRITE_CONFIG.collections.uploads
+                  uploadsCollectionId: APPWRITE_CONFIG.collections.uploads,
+                  suppliersCollectionId: APPWRITE_CONFIG.collections.suppliers
               });
               
               // 1. Initial Fetch
@@ -266,6 +268,41 @@ const MainLayout: React.FC = () => {
           userName: user.name,
           relatedId: invoice.id
         });
+      }
+
+      // AUTO-CREATE SUPPLIER if invoice is being processed and supplier doesn't exist
+      if ((originalStatus === 'PROCESSED' || originalStatus === 'PAID') && invoice.issuerNif && invoice.issuerName) {
+          // Check if supplier already exists by NIF
+          const existingSupplier = suppliers.find(s =>
+              s.nif.toUpperCase().replace(/\s/g, '') === invoice.issuerNif.toUpperCase().replace(/\s/g, '')
+          );
+
+          if (!existingSupplier) {
+              const now = new Date().toISOString();
+              const newSupplier: Supplier = {
+                  id: `SUP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  name: invoice.issuerName,
+                  nif: invoice.issuerNif.toUpperCase(),
+                  nifType: detectNifType(invoice.issuerNif),
+                  address: invoice.issuerAddress,
+                  city: invoice.issuerCity,
+                  postalCode: invoice.issuerPostalCode,
+                  createdAt: now,
+                  updatedAt: now
+              };
+
+              console.log("Auto-creating supplier from invoice:", newSupplier.name, newSupplier.nif);
+              handleAddSupplier(newSupplier);
+
+              // Update invoice with supplier reference
+              const updatedInvoice = { ...originalInvoice, supplierId: newSupplier.id };
+              setInvoices(prev => prev.map(i => i.id === invoice.id ? updatedInvoice : i));
+          } else if (!invoice.supplierId) {
+              // Link invoice to existing supplier if not already linked
+              const updatedInvoice = { ...originalInvoice, supplierId: existingSupplier.id };
+              setInvoices(prev => prev.map(i => i.id === invoice.id ? updatedInvoice : i));
+              console.log("Linked invoice to existing supplier:", existingSupplier.name);
+          }
       }
 
       // Solo crear asiento si la factura está PROCESADA o PAGADA (no PENDIENTE)
