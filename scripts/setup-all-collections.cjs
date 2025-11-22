@@ -39,24 +39,65 @@ const client = new Client()
 const databases = new Databases(client);
 
 /**
+ * Sleep helper
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry with exponential backoff for transient errors
+ */
+async function withRetry(operation, maxRetries = 4) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      // Don't retry on 409 (already exists) - this is expected
+      if (error.code === 409) {
+        throw error;
+      }
+
+      // Retry on 500 (server error) or network errors
+      const isRetryable = error.code === 500 || error.code >= 502 || error.message?.includes('ECONNRESET');
+
+      if (isRetryable && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s, 16s
+        console.log(`    ⚠️  Server error, retrying in ${delay / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
+        await sleep(delay);
+        continue;
+      }
+
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Create a collection
  */
 async function createCollection(collectionId, name) {
   try {
     console.log(`📦 Creating collection: ${name} (${collectionId})...`);
 
-    const collection = await databases.createCollection(
-      CONFIG.databaseId,
-      collectionId,
-      name,
-      [
-        Permission.create(Role.users()),
-        Permission.read(Role.users()),
-        Permission.update(Role.users()),
-        Permission.delete(Role.users()),
-      ],
-      true // Document-level security enabled
-    );
+    const collection = await withRetry(async () => {
+      return await databases.createCollection(
+        CONFIG.databaseId,
+        collectionId,
+        name,
+        [
+          Permission.create(Role.users()),
+          Permission.read(Role.users()),
+          Permission.update(Role.users()),
+          Permission.delete(Role.users()),
+        ],
+        true // Document-level security enabled
+      );
+    });
 
     console.log(`✅ Collection '${name}' created successfully`);
     return collection;
@@ -78,72 +119,68 @@ async function createAttribute(collectionId, attributeConfig) {
   try {
     console.log(`  - Creating ${type} attribute: ${key}...`);
 
-    let result;
-    switch (type) {
-      case 'string':
-        result = await databases.createStringAttribute(
-          CONFIG.databaseId,
-          collectionId,
-          key,
-          config.size,
-          config.required,
-          config.default,
-          config.array || false
-        );
-        break;
+    const result = await withRetry(async () => {
+      switch (type) {
+        case 'string':
+          return await databases.createStringAttribute(
+            CONFIG.databaseId,
+            collectionId,
+            key,
+            config.size,
+            config.required,
+            config.default,
+            config.array || false
+          );
 
-      case 'integer':
-        result = await databases.createIntegerAttribute(
-          CONFIG.databaseId,
-          collectionId,
-          key,
-          config.required,
-          config.min,
-          config.max,
-          config.default,
-          config.array || false
-        );
-        break;
+        case 'integer':
+          return await databases.createIntegerAttribute(
+            CONFIG.databaseId,
+            collectionId,
+            key,
+            config.required,
+            config.min,
+            config.max,
+            config.default,
+            config.array || false
+          );
 
-      case 'float':
-        result = await databases.createFloatAttribute(
-          CONFIG.databaseId,
-          collectionId,
-          key,
-          config.required,
-          config.min,
-          config.max,
-          config.default,
-          config.array || false
-        );
-        break;
+        case 'float':
+          return await databases.createFloatAttribute(
+            CONFIG.databaseId,
+            collectionId,
+            key,
+            config.required,
+            config.min,
+            config.max,
+            config.default,
+            config.array || false
+          );
 
-      case 'boolean':
-        result = await databases.createBooleanAttribute(
-          CONFIG.databaseId,
-          collectionId,
-          key,
-          config.required,
-          config.default,
-          config.array || false
-        );
-        break;
+        case 'boolean':
+          return await databases.createBooleanAttribute(
+            CONFIG.databaseId,
+            collectionId,
+            key,
+            config.required,
+            config.default,
+            config.array || false
+          );
 
-      case 'enum':
-        result = await databases.createEnumAttribute(
-          CONFIG.databaseId,
-          collectionId,
-          key,
-          config.elements,
-          config.required,
-          config.default,
-          config.array || false
-        );
-        break;
+        case 'enum':
+          return await databases.createEnumAttribute(
+            CONFIG.databaseId,
+            collectionId,
+            key,
+            config.elements,
+            config.required,
+            config.default,
+            config.array || false
+          );
 
-      default:
-        throw new Error(`Unsupported attribute type: ${type}`);
-    }
+        default:
+          throw new Error(`Unsupported attribute type: ${type}`);
+      }
+    });
 
     console.log(`    ✓ Attribute '${key}' created`);
     return result;
@@ -228,14 +265,16 @@ async function createIndex(collectionId, indexConfig) {
       console.log(`  - Creating index: ${key}...`);
     }
 
-    const result = await databases.createIndex(
-      CONFIG.databaseId,
-      collectionId,
-      key,
-      type,
-      attributes,
-      orders
-    );
+    const result = await withRetry(async () => {
+      return await databases.createIndex(
+        CONFIG.databaseId,
+        collectionId,
+        key,
+        type,
+        attributes,
+        orders
+      );
+    });
 
     console.log(`    ✓ Index '${key}' created`);
     return result;
