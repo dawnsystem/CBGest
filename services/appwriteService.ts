@@ -523,7 +523,7 @@ export const databaseService = {
     try {
       const doc = await databases.createDocument(
         config.databaseId,
-        'suppliers', // You'll need to add suppliersCollectionId to AppwriteConfig
+        config.suppliersCollectionId,
         supplier.id || ID.unique(),
         supplier
       );
@@ -544,7 +544,7 @@ export const databaseService = {
     try {
       const response = await databases.listDocuments(
         config.databaseId,
-        'suppliers',
+        config.suppliersCollectionId,
         [Query.orderAsc('name'), Query.limit(1000)]
       );
 
@@ -564,7 +564,7 @@ export const databaseService = {
     try {
       const doc = await databases.updateDocument(
         config.databaseId,
-        'suppliers',
+        config.suppliersCollectionId,
         supplier.appwriteId || supplier.id,
         supplier
       );
@@ -585,7 +585,7 @@ export const databaseService = {
     try {
       await databases.deleteDocument(
         config.databaseId,
-        'suppliers',
+        config.suppliersCollectionId,
         appwriteId
       );
     } catch (error: any) {

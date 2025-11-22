@@ -71,9 +71,13 @@ export const analyzeInvoiceImage = async (
       Campos a extraer:
       - number (string)
       - date (YYYY-MM-DD)
-      - issuerName (string)
+      - issuerName (string) - Nombre o razón social del emisor
       - issuerNif (string) - LIMPIO SIN SEPARADORES
       - issuerNifType (string) - Enum: 'NIF', 'CIF', 'VAT', 'PASSPORT', 'OTHER'
+      - issuerAddress (string | null) - Domicilio fiscal completo del emisor (calle, número, piso, etc.). Extrae toda la dirección visible en el documento.
+      - issuerCity (string | null) - Ciudad/localidad del emisor
+      - issuerPostalCode (string | null) - Código postal del emisor
+      - issuerCountry (string | null) - País del emisor (si no es España, indica el país)
       - matchedSupplierId (string | null) - Nombre del proveedor que coincide, o null
       - baseAmount (number)
       - vatRate (number, ej: 21)
@@ -101,6 +105,10 @@ export const analyzeInvoiceImage = async (
             issuerName: { type: Type.STRING },
             issuerNif: { type: Type.STRING },
             issuerNifType: { type: Type.STRING },
+            issuerAddress: { type: Type.STRING, nullable: true, description: "Domicilio fiscal del emisor" },
+            issuerCity: { type: Type.STRING, nullable: true, description: "Ciudad del emisor" },
+            issuerPostalCode: { type: Type.STRING, nullable: true, description: "Código postal del emisor" },
+            issuerCountry: { type: Type.STRING, nullable: true, description: "País del emisor" },
             matchedSupplierId: { type: Type.STRING, nullable: true, description: "Nombre del proveedor existente que coincide, o null" },
             baseAmount: { type: Type.NUMBER },
             vatRate: { type: Type.NUMBER },

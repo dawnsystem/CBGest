@@ -217,7 +217,66 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
               <label htmlFor="invoice-date-input" className="block text-xs text-slate-500 mb-1">Fecha</label>
               <input id="invoice-date-input" name="date" type="date" value={preview.date} onChange={(e) => handleFieldChange('date', e.target.value)} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" autoComplete="off" />
             </div>
-            
+
+            {/* Domicilio Fiscal del Emisor */}
+            <div className="col-span-1 md:col-span-2 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+              <p className="text-xs font-medium text-blue-700 mb-3">Domicilio Fiscal del Emisor (para facturas válidas)</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="md:col-span-2">
+                  <label htmlFor="invoice-issuer-address-input" className="block text-xs text-slate-500 mb-1">Dirección</label>
+                  <input
+                    id="invoice-issuer-address-input"
+                    name="issuerAddress"
+                    type="text"
+                    value={preview.issuerAddress || ''}
+                    onChange={(e) => handleFieldChange('issuerAddress', e.target.value)}
+                    className="w-full border-slate-200 rounded text-sm bg-white text-slate-900"
+                    placeholder="Calle, número, piso..."
+                    autoComplete="street-address"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="invoice-issuer-postalcode-input" className="block text-xs text-slate-500 mb-1">Código Postal</label>
+                  <input
+                    id="invoice-issuer-postalcode-input"
+                    name="issuerPostalCode"
+                    type="text"
+                    value={preview.issuerPostalCode || ''}
+                    onChange={(e) => handleFieldChange('issuerPostalCode', e.target.value)}
+                    className="w-full border-slate-200 rounded text-sm bg-white text-slate-900"
+                    placeholder="08001"
+                    autoComplete="postal-code"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="invoice-issuer-city-input" className="block text-xs text-slate-500 mb-1">Ciudad</label>
+                  <input
+                    id="invoice-issuer-city-input"
+                    name="issuerCity"
+                    type="text"
+                    value={preview.issuerCity || ''}
+                    onChange={(e) => handleFieldChange('issuerCity', e.target.value)}
+                    className="w-full border-slate-200 rounded text-sm bg-white text-slate-900"
+                    placeholder="Barcelona"
+                    autoComplete="address-level2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="invoice-issuer-country-input" className="block text-xs text-slate-500 mb-1">País</label>
+                  <input
+                    id="invoice-issuer-country-input"
+                    name="issuerCountry"
+                    type="text"
+                    value={preview.issuerCountry || 'España'}
+                    onChange={(e) => handleFieldChange('issuerCountry', e.target.value)}
+                    className="w-full border-slate-200 rounded text-sm bg-white text-slate-900"
+                    placeholder="España"
+                    autoComplete="country-name"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Smart Account Selector */}
             <div>
               <label className="block text-xs text-slate-500 mb-1 flex justify-between">

@@ -150,7 +150,8 @@ const MainLayout: React.FC = () => {
                   transactionsCollectionId: APPWRITE_CONFIG.collections.transactions,
                   settingsCollectionId: APPWRITE_CONFIG.collections.settings,
                   notificationsCollectionId: APPWRITE_CONFIG.collections.notifications,
-                  uploadsCollectionId: APPWRITE_CONFIG.collections.uploads
+                  uploadsCollectionId: APPWRITE_CONFIG.collections.uploads,
+                  suppliersCollectionId: APPWRITE_CONFIG.collections.suppliers
               });
               
               // 1. Initial Fetch
@@ -283,6 +284,9 @@ const MainLayout: React.FC = () => {
                   name: invoice.issuerName,
                   nif: invoice.issuerNif.toUpperCase(),
                   nifType: detectNifType(invoice.issuerNif),
+                  address: invoice.issuerAddress,
+                  city: invoice.issuerCity,
+                  postalCode: invoice.issuerPostalCode,
                   createdAt: now,
                   updatedAt: now
               };
