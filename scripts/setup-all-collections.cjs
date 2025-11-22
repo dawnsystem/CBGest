@@ -1,0 +1,580 @@
+#!/usr/bin/env node
+
+/**
+ * Script to automatically create ALL Appwrite collections for CBGest
+ *
+ * This script creates/updates ALL collections with all required attributes.
+ *
+ * Usage:
+ *   export APPWRITE_API_KEY="your-api-key"
+ *   node scripts/setup-all-collections.js
+ */
+
+const { Client, Databases, Permission, Role } = require('node-appwrite');
+
+// Configuration from config/appwrite.ts
+const CONFIG = {
+  endpoint: 'https://fra.cloud.appwrite.io/v1',
+  projectId: 'cbgest',
+  databaseId: '691f288100019843d43e',
+};
+
+// Get API key from environment variable
+const API_KEY = process.env.APPWRITE_API_KEY;
+
+if (!API_KEY) {
+  console.error('❌ Error: APPWRITE_API_KEY environment variable is required');
+  console.error('');
+  console.error('Please set it before running this script:');
+  console.error('  export APPWRITE_API_KEY="your-api-key-here"');
+  process.exit(1);
+}
+
+// Initialize Appwrite client
+const client = new Client()
+  .setEndpoint(CONFIG.endpoint)
+  .setProject(CONFIG.projectId)
+  .setKey(API_KEY);
+
+const databases = new Databases(client);
+
+/**
+ * Create a collection
+ */
+async function createCollection(collectionId, name) {
+  try {
+    console.log(`📦 Creating collection: ${name} (${collectionId})...`);
+
+    const collection = await databases.createCollection(
+      CONFIG.databaseId,
+      collectionId,
+      name,
+      [
+        Permission.create(Role.users()),
+        Permission.read(Role.users()),
+        Permission.update(Role.users()),
+        Permission.delete(Role.users()),
+      ],
+      true // Document-level security enabled
+    );
+
+    console.log(`✅ Collection '${name}' created successfully`);
+    return collection;
+  } catch (error) {
+    if (error.code === 409) {
+      console.log(`⚠️  Collection '${name}' already exists`);
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Create an attribute with retry logic
+ */
+async function createAttribute(collectionId, attributeConfig) {
+  const { type, key, ...config } = attributeConfig;
+
+  try {
+    console.log(`  - Creating ${type} attribute: ${key}...`);
+
+    let result;
+    switch (type) {
+      case 'string':
+        result = await databases.createStringAttribute(
+          CONFIG.databaseId,
+          collectionId,
+          key,
+          config.size,
+          config.required,
+          config.default,
+          config.array || false
+        );
+        break;
+
+      case 'integer':
+        result = await databases.createIntegerAttribute(
+          CONFIG.databaseId,
+          collectionId,
+          key,
+          config.required,
+          config.min,
+          config.max,
+          config.default,
+          config.array || false
+        );
+        break;
+
+      case 'float':
+        result = await databases.createFloatAttribute(
+          CONFIG.databaseId,
+          collectionId,
+          key,
+          config.required,
+          config.min,
+          config.max,
+          config.default,
+          config.array || false
+        );
+        break;
+
+      case 'boolean':
+        result = await databases.createBooleanAttribute(
+          CONFIG.databaseId,
+          collectionId,
+          key,
+          config.required,
+          config.default,
+          config.array || false
+        );
+        break;
+
+      case 'enum':
+        result = await databases.createEnumAttribute(
+          CONFIG.databaseId,
+          collectionId,
+          key,
+          config.elements,
+          config.required,
+          config.default,
+          config.array || false
+        );
+        break;
+
+      default:
+        throw new Error(`Unsupported attribute type: ${type}`);
+    }
+
+    console.log(`    ✓ Attribute '${key}' created`);
+    return result;
+  } catch (error) {
+    if (error.code === 409) {
+      console.log(`    ⚠️  Attribute '${key}' already exists, skipping`);
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Create an index
+ */
+async function createIndex(collectionId, indexConfig) {
+  const { key, type, attributes, orders } = indexConfig;
+
+  try {
+    console.log(`  - Creating index: ${key}...`);
+
+    const result = await databases.createIndex(
+      CONFIG.databaseId,
+      collectionId,
+      key,
+      type,
+      attributes,
+      orders
+    );
+
+    console.log(`    ✓ Index '${key}' created`);
+    return result;
+  } catch (error) {
+    if (error.code === 409) {
+      console.log(`    ⚠️  Index '${key}' already exists, skipping`);
+      return null;
+    }
+    throw error;
+  }
+}
+
+// ============================================================================
+// COLLECTION DEFINITIONS
+// ============================================================================
+
+/**
+ * INVOICES Collection
+ */
+async function setupInvoicesCollection() {
+  console.log('\n=== Setting up INVOICES collection ===\n');
+  const collectionId = 'invoices';
+
+  await createCollection(collectionId, 'Invoices');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    // Core fields
+    { type: 'string', key: 'number', size: 100, required: false },
+    { type: 'string', key: 'date', size: 20, required: true },
+    { type: 'string', key: 'issuerName', size: 500, required: true },
+    { type: 'string', key: 'issuerNif', size: 50, required: false },
+    { type: 'string', key: 'issuerAddress', size: 500, required: false },
+    { type: 'string', key: 'issuerCity', size: 200, required: false },
+    { type: 'string', key: 'issuerPostalCode', size: 20, required: false },
+    { type: 'string', key: 'issuerCountry', size: 100, required: false },
+    { type: 'string', key: 'supplierId', size: 100, required: false },
+
+    // Amounts
+    { type: 'float', key: 'baseAmount', required: true, min: -999999999, max: 999999999 },
+    { type: 'float', key: 'vatRate', required: false, min: 0, max: 100, default: 0 },
+    { type: 'float', key: 'vatAmount', required: false, min: -999999999, max: 999999999, default: 0 },
+    { type: 'float', key: 'totalAmount', required: true, min: -999999999, max: 999999999 },
+
+    // Type and status
+    { type: 'enum', key: 'type', elements: ['EXPENSE', 'INCOME'], required: true },
+    { type: 'enum', key: 'status', elements: ['PENDING', 'PROCESSED', 'PAID'], required: true },
+    { type: 'string', key: 'category', size: 500, required: false },
+
+    // History - stored as JSON string
+    { type: 'string', key: 'history', size: 50000, required: false },
+
+    // File references
+    { type: 'string', key: 'fileData', size: 10000000, required: false },
+    { type: 'string', key: 'fileType', size: 100, required: false },
+    { type: 'string', key: 'appwriteFileId', size: 100, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'date_index', type: 'key', attributes: ['date'], orders: ['DESC'] },
+    { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+    { key: 'type_index', type: 'key', attributes: ['type'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Invoices collection setup complete!\n');
+}
+
+/**
+ * ENTRIES (Accounting Entries) Collection
+ */
+async function setupEntriesCollection() {
+  console.log('\n=== Setting up ENTRIES collection ===\n');
+  const collectionId = 'entries';
+
+  await createCollection(collectionId, 'Accounting Entries');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'date', size: 20, required: true },
+    { type: 'string', key: 'concept', size: 1000, required: true },
+    { type: 'string', key: 'accountCode', size: 50, required: true },
+    { type: 'string', key: 'accountName', size: 500, required: false },
+    { type: 'float', key: 'debit', required: true, min: 0, max: 999999999 },
+    { type: 'float', key: 'credit', required: true, min: 0, max: 999999999 },
+    { type: 'string', key: 'invoiceId', size: 100, required: false },
+    { type: 'boolean', key: 'reconciled', required: false, default: false },
+    // File references
+    { type: 'string', key: 'fileData', size: 10000000, required: false },
+    { type: 'string', key: 'fileType', size: 100, required: false },
+    { type: 'string', key: 'appwriteFileId', size: 100, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'date_index', type: 'key', attributes: ['date'], orders: ['DESC'] },
+    { key: 'reconciled_index', type: 'key', attributes: ['reconciled'], orders: ['ASC'] },
+    { key: 'invoiceId_index', type: 'key', attributes: ['invoiceId'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Entries collection setup complete!\n');
+}
+
+/**
+ * TRANSACTIONS (Bank Transactions) Collection
+ */
+async function setupTransactionsCollection() {
+  console.log('\n=== Setting up TRANSACTIONS collection ===\n');
+  const collectionId = 'transactions';
+
+  await createCollection(collectionId, 'Bank Transactions');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'date', size: 20, required: true },
+    { type: 'string', key: 'valueDate', size: 20, required: false },
+    { type: 'string', key: 'concept', size: 1000, required: true },
+    { type: 'float', key: 'amount', required: true, min: -999999999, max: 999999999 },
+    { type: 'float', key: 'balance', required: false, min: -999999999, max: 999999999 },
+    { type: 'string', key: 'reconciledWithEntryId', size: 100, required: false },
+    { type: 'enum', key: 'status', elements: ['PENDING', 'MATCHED'], required: true },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'date_index', type: 'key', attributes: ['date'], orders: ['DESC'] },
+    { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Transactions collection setup complete!\n');
+}
+
+/**
+ * SETTINGS Collection
+ */
+async function setupSettingsCollection() {
+  console.log('\n=== Setting up SETTINGS collection ===\n');
+  const collectionId = 'settings';
+
+  await createCollection(collectionId, 'App Settings');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'cbName', size: 500, required: false },
+    { type: 'string', key: 'nif', size: 50, required: false },
+    { type: 'enum', key: 'fiscalRegime', elements: ['GENERAL', 'ALQUILER_EXENTO'], required: false },
+    { type: 'boolean', key: 'vatObligation', required: false, default: false },
+    // Partners stored as JSON string (array of objects not supported)
+    { type: 'string', key: 'partners', size: 50000, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Settings collection setup complete!\n');
+}
+
+/**
+ * SUPPLIERS Collection
+ */
+async function setupSuppliersCollection() {
+  console.log('\n=== Setting up SUPPLIERS collection ===\n');
+  const collectionId = 'suppliers';
+
+  await createCollection(collectionId, 'Suppliers');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'name', size: 500, required: true },
+    { type: 'string', key: 'nif', size: 50, required: true },
+    { type: 'enum', key: 'nifType', elements: ['NIF', 'CIF', 'NIE', 'DNI', 'PASAPORTE'], required: false },
+    { type: 'string', key: 'address', size: 500, required: false },
+    { type: 'string', key: 'city', size: 200, required: false },
+    { type: 'string', key: 'postalCode', size: 20, required: false },
+    { type: 'string', key: 'email', size: 255, required: false },
+    { type: 'string', key: 'phone', size: 50, required: false },
+    { type: 'string', key: 'category', size: 200, required: false },
+    { type: 'string', key: 'notes', size: 2000, required: false },
+    { type: 'string', key: 'createdAt', size: 50, required: false },
+    { type: 'string', key: 'updatedAt', size: 50, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'name_index', type: 'key', attributes: ['name'], orders: ['ASC'] },
+    { key: 'nif_index', type: 'unique', attributes: ['nif'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Suppliers collection setup complete!\n');
+}
+
+/**
+ * NOTIFICATIONS Collection
+ */
+async function setupNotificationsCollection() {
+  console.log('\n=== Setting up NOTIFICATIONS collection ===\n');
+  const collectionId = 'notifications';
+
+  await createCollection(collectionId, 'Notifications');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'type', size: 50, required: true },
+    { type: 'string', key: 'title', size: 255, required: true },
+    { type: 'string', key: 'message', size: 1000, required: true },
+    { type: 'string', key: 'userId', size: 255, required: true },
+    { type: 'string', key: 'userName', size: 255, required: true },
+    { type: 'integer', key: 'timestamp', required: true, min: 0, max: 9999999999999 },
+    { type: 'boolean', key: 'read', required: true, default: false },
+    { type: 'string', key: 'relatedId', size: 255, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'timestamp_index', type: 'key', attributes: ['timestamp'], orders: ['DESC'] },
+    { key: 'userId_index', type: 'key', attributes: ['userId'], orders: ['ASC'] },
+    { key: 'read_index', type: 'key', attributes: ['read'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Notifications collection setup complete!\n');
+}
+
+/**
+ * UPLOADS Collection
+ */
+async function setupUploadsCollection() {
+  console.log('\n=== Setting up UPLOADS collection ===\n');
+  const collectionId = 'uploads';
+
+  await createCollection(collectionId, 'Upload Queue');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'uploadType', size: 50, required: true },
+    { type: 'string', key: 'fileName', size: 255, required: true },
+    { type: 'string', key: 'mimeType', size: 100, required: true },
+    { type: 'string', key: 'base64Data', size: 10000000, required: false },
+    { type: 'string', key: 'status', size: 50, required: true },
+    { type: 'integer', key: 'progress', required: true, min: 0, max: 100, default: 0 },
+    { type: 'string', key: 'error', size: 1000, required: false },
+    { type: 'integer', key: 'timestamp', required: true, min: 0, max: 9999999999999 },
+    { type: 'boolean', key: 'notificationDismissed', required: false, default: false },
+    { type: 'boolean', key: 'needsMapping', required: false, default: false },
+    { type: 'string', key: 'result', size: 50000, required: false },
+    { type: 'string', key: 'bankResult', size: 100000, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'timestamp_index', type: 'key', attributes: ['timestamp'], orders: ['DESC'] },
+    { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Uploads collection setup complete!\n');
+}
+
+/**
+ * Main execution
+ */
+async function main() {
+  console.log('🚀 Starting COMPLETE Appwrite collections setup...');
+  console.log('');
+  console.log(`📡 Endpoint: ${CONFIG.endpoint}`);
+  console.log(`🎯 Project: ${CONFIG.projectId}`);
+  console.log(`🗄️  Database: ${CONFIG.databaseId}`);
+
+  try {
+    // Setup all collections
+    await setupInvoicesCollection();
+    await setupEntriesCollection();
+    await setupTransactionsCollection();
+    await setupSettingsCollection();
+    await setupSuppliersCollection();
+    await setupNotificationsCollection();
+    await setupUploadsCollection();
+
+    console.log('');
+    console.log('🎉 ALL collections have been set up successfully!');
+    console.log('');
+    console.log('Collections configured:');
+    console.log('  ✅ invoices');
+    console.log('  ✅ entries');
+    console.log('  ✅ transactions');
+    console.log('  ✅ settings');
+    console.log('  ✅ suppliers');
+    console.log('  ✅ notifications');
+    console.log('  ✅ uploads');
+    console.log('');
+    console.log('Next steps:');
+    console.log('  1. Verify the collections in Appwrite Console');
+    console.log('  2. Run your application - data should now be saved correctly');
+    console.log('');
+  } catch (error) {
+    console.error('');
+    console.error('❌ Error during setup:', error.message);
+    console.error('');
+    if (error.response) {
+      console.error('Response:', error.response);
+    }
+    process.exit(1);
+  }
+}
+
+// Run the script
+main();

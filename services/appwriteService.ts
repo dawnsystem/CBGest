@@ -201,7 +201,13 @@ export const databaseService = {
 
     try {
       // Remove File object from invoice before saving (not JSON serializable)
-      const { file, ...invoiceData } = invoice;
+      const { file, history, ...restInvoiceData } = invoice;
+
+      // Serialize history array to JSON string (Appwrite doesn't support arrays of objects)
+      const invoiceData = {
+        ...restInvoiceData,
+        history: history ? JSON.stringify(history) : undefined
+      };
 
       const doc = await databases.createDocument(
         config.databaseId,
@@ -210,7 +216,16 @@ export const databaseService = {
         invoiceData
       );
 
-      return { ...doc, file } as unknown as Invoice;
+      // Parse history back to array when returning and map appwriteId
+      const parsedDoc = {
+        ...doc,
+        file,
+        id: doc.$id,
+        appwriteId: doc.$id,
+        history: doc.history ? JSON.parse(doc.history as string) : []
+      };
+
+      return parsedDoc as unknown as Invoice;
     } catch (error: any) {
       console.error('Create invoice error:', error);
       throw new Error(error.message || 'Error al crear factura');
@@ -230,7 +245,15 @@ export const databaseService = {
         [Query.orderDesc('date'), Query.limit(1000)]
       );
 
-      return response.documents as unknown as Invoice[];
+      // Parse history from JSON string back to array and map appwriteId for each invoice
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id,
+        history: doc.history && typeof doc.history === 'string'
+          ? JSON.parse(doc.history)
+          : (doc.history || [])
+      })) as unknown as Invoice[];
     } catch (error: any) {
       console.error('Get invoices error:', error);
       throw new Error(error.message || 'Error al obtener facturas');
@@ -244,7 +267,13 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      const { file, ...invoiceData } = invoice;
+      const { file, history, ...restInvoiceData } = invoice;
+
+      // Serialize history array to JSON string
+      const invoiceData = {
+        ...restInvoiceData,
+        history: history ? JSON.stringify(history) : undefined
+      };
 
       const doc = await databases.updateDocument(
         config.databaseId,
@@ -253,7 +282,16 @@ export const databaseService = {
         invoiceData
       );
 
-      return { ...doc, file } as unknown as Invoice;
+      // Parse history back to array when returning and map appwriteId
+      const parsedDoc = {
+        ...doc,
+        file,
+        id: doc.$id,
+        appwriteId: doc.$id,
+        history: doc.history ? JSON.parse(doc.history as string) : []
+      };
+
+      return parsedDoc as unknown as Invoice;
     } catch (error: any) {
       console.error('Update invoice error:', error);
       throw new Error(error.message || 'Error al actualizar factura');
@@ -285,16 +323,23 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      const { referenceDoc, ...entryData } = entry;
+      // Remove fields that shouldn't be sent to Appwrite
+      const { referenceDoc, id, appwriteId, ...entryData } = entry;
 
       const doc = await databases.createDocument(
         config.databaseId,
         config.entriesCollectionId,
-        entry.id || ID.unique(),
+        id || ID.unique(),
         entryData
       );
 
-      return { ...doc, referenceDoc } as unknown as AccountingEntry;
+      // Return with appwriteId mapped from $id
+      return {
+        ...doc,
+        referenceDoc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      } as unknown as AccountingEntry;
     } catch (error: any) {
       console.error('Create entry error:', error);
       throw new Error(error.message || 'Error al crear asiento');
@@ -314,7 +359,12 @@ export const databaseService = {
         [Query.orderDesc('date'), Query.limit(1000)]
       );
 
-      return response.documents as unknown as AccountingEntry[];
+      // Map $id to appwriteId for each entry
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      })) as unknown as AccountingEntry[];
     } catch (error: any) {
       console.error('Get entries error:', error);
       throw new Error(error.message || 'Error al obtener asientos');
@@ -328,16 +378,28 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      const { referenceDoc, ...entryData } = entry;
+      // Remove fields that shouldn't be sent to Appwrite
+      const { referenceDoc, id, appwriteId, ...entryData } = entry;
+
+      const docId = appwriteId || id;
+      if (!docId) {
+        throw new Error('Cannot update entry without ID');
+      }
 
       const doc = await databases.updateDocument(
         config.databaseId,
         config.entriesCollectionId,
-        entry.id,
+        docId,
         entryData
       );
 
-      return { ...doc, referenceDoc } as unknown as AccountingEntry;
+      // Return with appwriteId mapped from $id
+      return {
+        ...doc,
+        referenceDoc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      } as unknown as AccountingEntry;
     } catch (error: any) {
       console.error('Update entry error:', error);
       throw new Error(error.message || 'Error al actualizar asiento');
@@ -369,14 +431,22 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
+      // Remove fields that shouldn't be sent to Appwrite
+      const { id, appwriteId, ...transactionData } = transaction;
+
       const doc = await databases.createDocument(
         config.databaseId,
         config.transactionsCollectionId,
-        transaction.id || ID.unique(),
-        transaction
+        id || ID.unique(),
+        transactionData
       );
 
-      return doc as unknown as BankTransaction;
+      // Return with appwriteId mapped from $id
+      return {
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      } as unknown as BankTransaction;
     } catch (error: any) {
       console.error('Create transaction error:', error);
       throw new Error(error.message || 'Error al crear transacción');
@@ -396,7 +466,12 @@ export const databaseService = {
         [Query.orderDesc('date'), Query.limit(1000)]
       );
 
-      return response.documents as unknown as BankTransaction[];
+      // Map $id to appwriteId for each transaction
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      })) as unknown as BankTransaction[];
     } catch (error: any) {
       console.error('Get transactions error:', error);
       throw new Error(error.message || 'Error al obtener transacciones');
@@ -410,14 +485,27 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
+      // Remove fields that shouldn't be sent to Appwrite
+      const { id, appwriteId, ...transactionData } = transaction;
+
+      const docId = appwriteId || id;
+      if (!docId) {
+        throw new Error('Cannot update transaction without ID');
+      }
+
       const doc = await databases.updateDocument(
         config.databaseId,
         config.transactionsCollectionId,
-        transaction.id,
-        transaction
+        docId,
+        transactionData
       );
 
-      return doc as unknown as BankTransaction;
+      // Return with appwriteId mapped from $id
+      return {
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      } as unknown as BankTransaction;
     } catch (error: any) {
       console.error('Update transaction error:', error);
       throw new Error(error.message || 'Error al actualizar transacción');
@@ -521,14 +609,22 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
+      // Remove fields that shouldn't be sent to Appwrite
+      const { id, appwriteId, ...supplierData } = supplier;
+
       const doc = await databases.createDocument(
         config.databaseId,
         config.suppliersCollectionId,
-        supplier.id || ID.unique(),
-        supplier
+        id || ID.unique(),
+        supplierData
       );
 
-      return doc as unknown as Supplier;
+      // Return with appwriteId mapped from $id
+      return {
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      } as unknown as Supplier;
     } catch (error: any) {
       console.error('Create supplier error:', error);
       throw new Error(error.message || 'Error al crear proveedor');
@@ -548,7 +644,12 @@ export const databaseService = {
         [Query.orderAsc('name'), Query.limit(1000)]
       );
 
-      return response.documents as unknown as Supplier[];
+      // Map $id to appwriteId for each supplier
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      })) as unknown as Supplier[];
     } catch (error: any) {
       console.error('Get suppliers error:', error);
       throw new Error(error.message || 'Error al obtener proveedores');
@@ -562,14 +663,27 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
+      // Remove fields that shouldn't be sent to Appwrite
+      const { id, appwriteId, ...supplierData } = supplier;
+
+      const docId = appwriteId || id;
+      if (!docId) {
+        throw new Error('Cannot update supplier without ID');
+      }
+
       const doc = await databases.updateDocument(
         config.databaseId,
         config.suppliersCollectionId,
-        supplier.appwriteId || supplier.id,
-        supplier
+        docId,
+        supplierData
       );
 
-      return doc as unknown as Supplier;
+      // Return with appwriteId mapped from $id
+      return {
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      } as unknown as Supplier;
     } catch (error: any) {
       console.error('Update supplier error:', error);
       throw new Error(error.message || 'Error al actualizar proveedor');
@@ -601,14 +715,22 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
+      // Remove fields that shouldn't be sent to Appwrite
+      const { id, appwriteId, ...notificationData } = notification;
+
       const doc = await databases.createDocument(
         config.databaseId,
         config.notificationsCollectionId,
-        notification.id || ID.unique(),
-        notification
+        id || ID.unique(),
+        notificationData
       );
 
-      return doc as unknown as Notification;
+      // Return with appwriteId mapped from $id
+      return {
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      } as unknown as Notification;
     } catch (error: any) {
       console.error('Create notification error:', error);
       throw new Error(error.message || 'Error al crear notificación');
@@ -634,7 +756,12 @@ export const databaseService = {
         [Query.orderDesc('timestamp'), Query.limit(100)]
       );
 
-      return response.documents as unknown as Notification[];
+      // Map $id to appwriteId for each notification
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      })) as unknown as Notification[];
     } catch (error: any) {
       // Silently handle expected errors (collection not found, not authorized)
       if (error?.code === 404 || error?.code === 401 ||
@@ -654,14 +781,27 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
+      // Remove fields that shouldn't be sent to Appwrite
+      const { id, appwriteId, ...notificationData } = notification;
+
+      const docId = appwriteId || id;
+      if (!docId) {
+        throw new Error('Cannot update notification without ID');
+      }
+
       const doc = await databases.updateDocument(
         config.databaseId,
         config.notificationsCollectionId,
-        notification.appwriteId || notification.id,
-        notification
+        docId,
+        notificationData
       );
 
-      return doc as unknown as Notification;
+      // Return with appwriteId mapped from $id
+      return {
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      } as unknown as Notification;
     } catch (error: any) {
       console.error('Update notification error:', error);
       throw new Error(error.message || 'Error al actualizar notificación');
@@ -735,14 +875,24 @@ export const databaseService = {
         bankResult: bankResult ? JSON.stringify(bankResult) : undefined
       };
 
+      // Remove id field as it shouldn't be sent to Appwrite
+      const { id, ...dataToSaveWithoutId } = dataToSave;
+
       const doc = await databases.createDocument(
         config.databaseId,
         config.uploadsCollectionId,
         item.id || ID.unique(),
-        dataToSave
+        dataToSaveWithoutId
       );
 
-      return { ...doc, file, result, bankResult } as unknown as QueueItem;
+      // Return with id mapped from $id
+      return {
+        ...doc,
+        file,
+        result,
+        bankResult,
+        id: doc.$id
+      } as unknown as QueueItem;
     } catch (error: any) {
       console.error('Create upload item error:', error);
       throw new Error(error.message || 'Error al crear elemento de cola');
@@ -770,8 +920,10 @@ export const databaseService = {
 
       // Note: File objects need to be reconstructed from base64Data on the client side
       // Parse JSON strings back to objects for result and bankResult
+      // Map $id to id for each item
       return response.documents.map((doc: any) => ({
         ...doc,
+        id: doc.$id,
         result: doc.result && typeof doc.result === 'string'
           ? JSON.parse(doc.result)
           : doc.result,
@@ -800,7 +952,7 @@ export const databaseService = {
     try {
       // Remove File object before saving (not JSON serializable)
       // Also remove result/bankResult objects as they're complex nested types
-      const { file, result, bankResult, ...itemData } = item;
+      const { file, result, bankResult, id, ...itemData } = item;
 
       // Ensure progress is an integer (Appwrite requires integer type)
       const dataToSave = {
@@ -811,14 +963,25 @@ export const databaseService = {
         bankResult: bankResult ? JSON.stringify(bankResult) : undefined
       };
 
+      if (!id) {
+        throw new Error('Cannot update upload item without ID');
+      }
+
       const doc = await databases.updateDocument(
         config.databaseId,
         config.uploadsCollectionId,
-        item.id,
+        id,
         dataToSave
       );
 
-      return { ...doc, file, result, bankResult } as unknown as QueueItem;
+      // Return with id mapped from $id
+      return {
+        ...doc,
+        file,
+        result,
+        bankResult,
+        id: doc.$id
+      } as unknown as QueueItem;
     } catch (error: any) {
       console.error('Update upload item error:', error);
       throw new Error(error.message || 'Error al actualizar elemento de cola');
