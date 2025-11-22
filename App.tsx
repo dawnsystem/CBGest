@@ -167,6 +167,13 @@ const MainLayout: React.FC = () => {
                 setInvoices(await appwriteService.fetchInvoices());
                 setAccountingEntries(await appwriteService.fetchEntries());
                 setBankTransactions(await appwriteService.fetchTransactions());
+                // Load suppliers from Appwrite
+                try {
+                  const remoteSuppliers = await appwriteService.fetchSuppliers();
+                  setSuppliers(remoteSuppliers);
+                } catch (supplierError) {
+                  console.warn("Failed to load suppliers:", supplierError);
+                }
               } catch (e) {
                   console.warn("Initial sync failed (maybe first run):", e);
               }
@@ -491,7 +498,68 @@ const MainLayout: React.FC = () => {
      };
      handleAddEntry(newEntry);
 
+     // Mark transaction as matched
+     handleUpdateBankTransaction({
+       ...tx,
+       status: 'MATCHED',
+       reconciledWithEntryId: newEntry.id
+     });
+
      alert("Asiento creado. Ve a 'Libros Contables' para editar la cuenta si es necesario.");
+  };
+
+  // NEW: Reconcile a bank transaction with an accounting entry
+  const handleReconcileTransaction = async (transactionId: string, entryId: string) => {
+    // Find the transaction and entry
+    const transaction = bankTransactions.find(t => t.id === transactionId);
+    const entry = accountingEntries.find(e => e.id === entryId);
+
+    if (!transaction || !entry) {
+      console.error('Transaction or entry not found for reconciliation');
+      return;
+    }
+
+    // Update the bank transaction
+    const updatedTransaction: BankTransaction = {
+      ...transaction,
+      status: 'MATCHED',
+      reconciledWithEntryId: entryId
+    };
+    await handleUpdateBankTransaction(updatedTransaction);
+
+    // Update the accounting entry
+    const updatedEntry: AccountingEntry = {
+      ...entry,
+      reconciled: true
+    };
+    await handleUpdateEntry(updatedEntry);
+
+    // Create notification
+    if (user) {
+      addNotification({
+        type: 'ENTRY_UPDATED',
+        title: 'Conciliación realizada',
+        message: `Transacción "${transaction.concept}" conciliada con asiento "${entry.concept}"`,
+        userId: user.$id,
+        userName: user.name,
+        relatedId: entryId
+      });
+    }
+
+    console.log('✅ Reconciliation completed:', transactionId, '<->', entryId);
+  };
+
+  // NEW: Update Bank Transaction
+  const handleUpdateBankTransaction = async (transaction: BankTransaction) => {
+    setBankTransactions(prev => prev.map(t => t.id === transaction.id ? transaction : t));
+
+    if (settings.dataConfig?.type === 'APPWRITE' && transaction.appwriteId) {
+      try {
+        await appwriteService.databaseService.updateTransaction(transaction);
+      } catch (error) {
+        console.error('Error updating transaction in Appwrite:', error);
+      }
+    }
   };
 
   // Supplier Handlers
@@ -755,10 +823,10 @@ const MainLayout: React.FC = () => {
                     />
                 } />
                 <Route path="/reconciliation" element={
-                    <BankReconciliation 
+                    <BankReconciliation
                         transactions={bankTransactions}
                         entries={accountingEntries}
-                        onReconcile={() => {}}
+                        onReconcile={handleReconcileTransaction}
                         onCreateEntryFromTransaction={handleCreateEntryFromTransaction}
                     />
                 } />
