@@ -157,13 +157,76 @@ async function createAttribute(collectionId, attributeConfig) {
 }
 
 /**
+ * Check if an index already exists and its status
+ * Returns: { exists: boolean, status: string | null }
+ */
+async function getIndexStatus(collectionId, indexKey) {
+  try {
+    const indexes = await databases.listIndexes(CONFIG.databaseId, collectionId);
+    const existingIndex = indexes.indexes.find(idx => idx.key === indexKey);
+    if (existingIndex) {
+      return { exists: true, status: existingIndex.status, index: existingIndex };
+    }
+    return { exists: false, status: null, index: null };
+  } catch (error) {
+    // If we can't list indexes, assume it doesn't exist
+    return { exists: false, status: null, index: null };
+  }
+}
+
+/**
+ * Delete an index
+ */
+async function deleteIndex(collectionId, indexKey) {
+  try {
+    await databases.deleteIndex(CONFIG.databaseId, collectionId, indexKey);
+    console.log(`    🗑️  Deleted failed index '${indexKey}'`);
+    return true;
+  } catch (error) {
+    console.log(`    ⚠️  Could not delete index '${indexKey}': ${error.message}`);
+    return false;
+  }
+}
+
+/**
  * Create an index
  */
 async function createIndex(collectionId, indexConfig) {
   const { key, type, attributes, orders } = indexConfig;
 
   try {
-    console.log(`  - Creating index: ${key}...`);
+    // First check if index already exists and its status
+    const indexStatus = await getIndexStatus(collectionId, key);
+
+    if (indexStatus.exists) {
+      console.log(`  - Index: ${key}...`);
+
+      // If index is in 'available' status, skip
+      if (indexStatus.status === 'available') {
+        console.log(`    ⚠️  Index '${key}' already exists, skipping`);
+        return null;
+      }
+
+      // If index is in 'failed' status, delete it and recreate
+      if (indexStatus.status === 'failed') {
+        console.log(`    ⚠️  Index '${key}' is in failed state, deleting and recreating...`);
+        await deleteIndex(collectionId, key);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      // If index is in 'processing' status, wait and check again
+      if (indexStatus.status === 'processing') {
+        console.log(`    ⏳ Index '${key}' is still processing, waiting...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const newStatus = await getIndexStatus(collectionId, key);
+        if (newStatus.exists && newStatus.status === 'available') {
+          console.log(`    ⚠️  Index '${key}' now available, skipping`);
+          return null;
+        }
+      }
+    } else {
+      console.log(`  - Creating index: ${key}...`);
+    }
 
     const result = await databases.createIndex(
       CONFIG.databaseId,
@@ -179,6 +242,12 @@ async function createIndex(collectionId, indexConfig) {
   } catch (error) {
     if (error.code === 409) {
       console.log(`    ⚠️  Index '${key}' already exists, skipping`);
+      return null;
+    }
+    // Handle index length error - this means the attribute size is too large
+    if (error.code === 400 && error.message && error.message.includes('Index length')) {
+      console.log(`    ❌ Index '${key}' cannot be created: attribute size exceeds index limit (767 bytes)`);
+      console.log(`       Consider reducing the size of indexed attributes to <= 191 characters`);
       return null;
     }
     throw error;
