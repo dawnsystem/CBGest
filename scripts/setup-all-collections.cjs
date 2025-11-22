@@ -559,7 +559,7 @@ async function setupNotificationsCollection() {
     { type: 'string', key: 'userId', size: 255, required: true },
     { type: 'string', key: 'userName', size: 255, required: true },
     { type: 'integer', key: 'timestamp', required: true, min: 0, max: 9999999999999 },
-    { type: 'boolean', key: 'read', required: true, default: false },
+    { type: 'boolean', key: 'read', required: false, default: false },
     { type: 'string', key: 'relatedId', size: 255, required: false },
   ];
 
@@ -605,7 +605,7 @@ async function setupUploadsCollection() {
     { type: 'string', key: 'mimeType', size: 100, required: true },
     { type: 'string', key: 'base64Data', size: 10000000, required: false },
     { type: 'string', key: 'status', size: 50, required: true },
-    { type: 'integer', key: 'progress', required: true, min: 0, max: 100, default: 0 },
+    { type: 'integer', key: 'progress', required: false, min: 0, max: 100, default: 0 },
     { type: 'string', key: 'error', size: 1000, required: false },
     { type: 'integer', key: 'timestamp', required: true, min: 0, max: 9999999999999 },
     { type: 'boolean', key: 'notificationDismissed', required: false, default: false },
