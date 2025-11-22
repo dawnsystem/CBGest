@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
 import { TrendingUp, TrendingDown, Wallet, AlertCircle, Calculator, FileText, Euro } from 'lucide-react';
-import { Invoice, AppSettings, Partner } from '../types';
+import { Invoice, AppSettings, Partner, PartnerTaxInfo, DisabilityLevel } from '../types';
 import { PartnerTaxForm } from './PartnerTaxForm';
 import { useNavigate } from 'react-router-dom';
 
@@ -61,41 +61,192 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
   }, [invoices, isRental]);
 
 
-  // --- 2. TAX ESTIMATION LOGIC (SIMPLIFIED) ---
+  // --- 2. TAX ESTIMATION LOGIC (COMPLETE IRPF 2024) ---
+  const currentYear = new Date().getFullYear();
+
+  // Helper: Calculate disability minimum
+  const getDisabilityMinimum = (level: DisabilityLevel): number => {
+    switch (level) {
+      case 'LEVEL_33_65': return 3000;
+      case 'LEVEL_65_PLUS': return 9000;
+      case 'LEVEL_65_MOBILITY': return 12000;
+      default: return 0;
+    }
+  };
+
+  // Helper: Calculate children minimum (IRPF Spain 2024)
+  const getChildrenMinimum = (info: PartnerTaxInfo): number => {
+    const totalChildren = info.childrenUnder3 + info.childrenFrom3To25;
+    if (totalChildren === 0) return 0;
+
+    // Base minimums per child (progressive)
+    const baseAmounts = [2400, 2700, 4000, 4500]; // 1st, 2nd, 3rd, 4th+
+    let minimum = 0;
+
+    for (let i = 0; i < totalChildren; i++) {
+      minimum += baseAmounts[Math.min(i, 3)];
+    }
+
+    // Additional 2,800€ for children under 3
+    minimum += info.childrenUnder3 * 2800;
+
+    // Additional for children with disability (using average 3,000€)
+    minimum += info.childrenWithDisability * 3000;
+
+    return minimum;
+  };
+
+  // Helper: Calculate ascendants minimum
+  const getAscendantsMinimum = (info: PartnerTaxInfo): number => {
+    let minimum = 0;
+
+    // Ascendants >65 years: 1,150€ each
+    minimum += info.ascendantsOver65 * 1150;
+
+    // Ascendants >75 years: additional 1,400€ (total 2,550€)
+    minimum += info.ascendantsOver75 * 1400;
+
+    // Ascendants with disability (using average 3,000€)
+    minimum += info.ascendantsWithDisability * 3000;
+
+    return minimum;
+  };
+
   const calculateEstimatedTax = (partner: Partner) => {
-     if (!partner.taxInfo) return 0;
+    if (!partner.taxInfo) return 0;
 
-     // 1. Attributable Yield from CB
-     const cbYield = netResult * (partner.participation / 100);
-     
-     // 2. Tax Base
-     const totalBase = cbYield + partner.taxInfo.otherWorkIncome + partner.taxInfo.otherActivitiesIncome - partner.taxInfo.deductibleExpenses;
-     
-     if (totalBase <= 0) return 0;
+    const info = partner.taxInfo;
 
-     // 3. Simplified Progressive Tax Scale (Spain/Catalunya 2024 approx mixed)
-     let tax = 0;
-     let remaining = totalBase;
+    // --- 1. GROSS INCOME ---
+    // Attributable Yield from CB
+    const cbYield = netResult * (partner.participation / 100);
 
-     const brackets = [
-         { limit: 12450, rate: 0.19 },
-         { limit: 7750, rate: 0.24 }, // 20200 - 12450
-         { limit: 15000, rate: 0.30 }, // 35200 - 20200
-         { limit: 24800, rate: 0.37 }, // 60000 - 35200
-         { limit: Infinity, rate: 0.45 }
-     ];
+    // Total work income (including CB yield)
+    const totalWorkIncome = info.otherWorkIncome + cbYield;
 
-     for (let bracket of brackets) {
-         if (remaining <= 0) break;
-         const taxableAmount = Math.min(remaining, bracket.limit);
-         tax += taxableAmount * bracket.rate;
-         remaining -= taxableAmount;
-     }
+    // Other income (activities, capital gains, etc.)
+    const otherIncome = info.otherActivitiesIncome;
 
-     // Child deductions (Simplified)
-     const childDeduction = partner.taxInfo.childrenCount * 200; 
-     
-     return Math.max(0, tax - childDeduction);
+    // --- 2. DEDUCTIONS FROM GROSS INCOME ---
+    // SS contributions and other deductible expenses
+    const deductibleExpenses = info.deductibleExpenses;
+
+    // Pension plan contributions (max 1,500€)
+    const pensionContributions = Math.min(info.pensionContributions || 0, 1500);
+
+    // Work income reduction (for incomes < 21,000€)
+    let workIncomeReduction = 0;
+    if (totalWorkIncome <= 14852) {
+      workIncomeReduction = 6498;
+    } else if (totalWorkIncome <= 17673.52) {
+      workIncomeReduction = 6498 - 1.14 * (totalWorkIncome - 14852);
+    } else if (totalWorkIncome <= 21000) {
+      // Reduced amount
+      workIncomeReduction = 3700;
+    }
+
+    // --- 3. TAX BASE (Base Liquidable) ---
+    const netWorkIncome = Math.max(0, totalWorkIncome - deductibleExpenses - pensionContributions - workIncomeReduction);
+    const taxBase = netWorkIncome + otherIncome;
+
+    if (taxBase <= 0) return 0;
+
+    // --- 4. PERSONAL AND FAMILY MINIMUMS ---
+    // Personal minimum (5,550€ base)
+    let personalMinimum = 5550;
+
+    // Age adjustment
+    const age = currentYear - (info.birthYear || 1980);
+    if (age >= 75) {
+      personalMinimum += 1400; // Additional for >75
+    }
+    if (age >= 65) {
+      personalMinimum += 1150; // Additional for >65
+    }
+
+    // Disability minimum (contributor)
+    personalMinimum += getDisabilityMinimum(info.disabilityLevel || 'NONE');
+
+    // Joint declaration minimum
+    if (info.jointDeclaration) {
+      personalMinimum += 3400;
+    }
+
+    // Children minimum
+    const childrenMinimum = getChildrenMinimum(info);
+
+    // Ascendants minimum
+    const ascendantsMinimum = getAscendantsMinimum(info);
+
+    // Total minimum
+    const totalMinimum = personalMinimum + childrenMinimum + ascendantsMinimum;
+
+    // --- 5. PROGRESSIVE TAX BRACKETS (Spain/Catalunya 2024) ---
+    const brackets = [
+      { limit: 12450, rate: 0.19 },   // 0 - 12,450€
+      { limit: 7750, rate: 0.24 },    // 12,450€ - 20,200€
+      { limit: 15000, rate: 0.30 },   // 20,200€ - 35,200€
+      { limit: 24800, rate: 0.37 },   // 35,200€ - 60,000€
+      { limit: Infinity, rate: 0.45 } // > 60,000€
+    ];
+
+    // Apply brackets to tax base
+    const applyBrackets = (base: number): number => {
+      let tax = 0;
+      let remaining = base;
+
+      for (const bracket of brackets) {
+        if (remaining <= 0) break;
+        const taxableAmount = Math.min(remaining, bracket.limit);
+        tax += taxableAmount * bracket.rate;
+        remaining -= taxableAmount;
+      }
+
+      return tax;
+    };
+
+    // Tax on base
+    const grossTax = applyBrackets(taxBase);
+
+    // Tax reduction from minimums (apply brackets to minimum)
+    const minimumReduction = applyBrackets(totalMinimum);
+
+    // --- 6. FINAL TAX ---
+    const finalTax = Math.max(0, grossTax - minimumReduction);
+
+    return finalTax;
+  };
+
+  // Helper: Check if declaration is mandatory
+  const isDeclarationMandatory = (partner: Partner): { mandatory: boolean; reason: string } => {
+    if (!partner.taxInfo) return { mandatory: false, reason: 'Sin datos fiscales' };
+
+    const info = partner.taxInfo;
+    const cbYield = netResult * (partner.participation / 100);
+    const totalWorkIncome = info.otherWorkIncome + cbYield;
+
+    // Multiple payers rule
+    const hasMultiplePayers = (info.numberOfPayers || 1) >= 2;
+    const secondPayerOver1500 = (info.secondPayerAmount || 0) > 1500;
+
+    // Income limits
+    const limit = (hasMultiplePayers && secondPayerOver1500) ? 15000 : 22000;
+
+    if (totalWorkIncome > limit) {
+      return {
+        mandatory: true,
+        reason: hasMultiplePayers && secondPayerOver1500
+          ? `Ingresos > ${limit.toLocaleString()}€ (2+ pagadores)`
+          : `Ingresos > ${limit.toLocaleString()}€`
+      };
+    }
+
+    // CB income rule: if CB yields > 1,000€, generally must declare
+    if (cbYield > 1000) {
+      return { mandatory: true, reason: 'Rendimientos CB > 1.000€' };
+    }
+
+    return { mandatory: false, reason: 'Bajo límites de declaración' };
   };
 
   // --- UI COMPONENTS ---
@@ -214,6 +365,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
               {partners.map(partner => {
                   const estimatedPay = calculateEstimatedTax(partner);
                   const hasData = !!partner.taxInfo;
+                  const declarationStatus = isDeclarationMandatory(partner);
+                  const cbYield = netResult * (partner.participation / 100);
 
                   return (
                       <div key={partner.id} className="p-4 border border-slate-100 rounded-lg bg-slate-50">
@@ -229,7 +382,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
                                       {partner.participation}% Part.
                                   </span>
                               ) : (
-                                  <button 
+                                  <button
                                     onClick={() => setSelectedPartnerId(partner.id)}
                                     className="text-xs text-blue-600 hover:underline"
                                   >
@@ -237,15 +390,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
                                   </button>
                               )}
                           </div>
-                          
+
                           {hasData ? (
                               <>
-                                <div className="flex justify-between items-end mt-3">
+                                {/* Rendimiento CB atribuible */}
+                                <div className="flex justify-between items-center text-xs text-slate-500 mb-1">
+                                    <span>Rendimiento CB:</span>
+                                    <span className="font-medium">{cbYield.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                </div>
+
+                                {/* Cuota estimada */}
+                                <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-200">
                                     <span className="text-xs text-slate-500">Cuota Estimada:</span>
                                     <span className="text-lg font-bold text-purple-700">
                                         ~{estimatedPay.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                                     </span>
                                 </div>
+
+                                {/* Obligación de declarar */}
+                                <div className={`mt-2 px-2 py-1 rounded text-xs ${
+                                  declarationStatus.mandatory
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                }`}>
+                                    {declarationStatus.mandatory ? '⚠️' : '✓'} {declarationStatus.reason}
+                                </div>
+
                                 <div className="flex gap-2 mt-3">
                                     <button onClick={() => setSelectedPartnerId(partner.id)} className="flex-1 text-xs text-slate-500 hover:text-slate-800 bg-white border border-slate-200 py-1 rounded">
                                         Editar Datos

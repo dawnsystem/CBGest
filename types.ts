@@ -84,14 +84,41 @@ export interface BankTransaction {
 }
 
 // --- TAX INFO FOR PARTNERS ---
+export type DisabilityLevel = 'NONE' | 'LEVEL_33_65' | 'LEVEL_65_PLUS' | 'LEVEL_65_MOBILITY';
+
 export interface PartnerTaxInfo {
+  // --- Datos Personales ---
+  birthYear: number; // Año de nacimiento (para calcular >65, >75)
+  disabilityLevel: DisabilityLevel; // Grado de discapacidad
+
+  // --- Ingresos ---
   otherWorkIncome: number; // Rendimientos del trabajo (nómina externa)
   otherActivitiesIncome: number; // Otras actividades económicas
+  numberOfPayers: number; // Número de pagadores (1, 2 o más) - afecta obligación declarar
+  secondPayerAmount: number; // Importe del 2º pagador (si >1.500€, baja límite exención)
+
+  // --- Situación Familiar ---
   taxResidency: 'CATALUÑA' | 'OTRA';
   maritalStatus: 'SINGLE' | 'MARRIED';
-  childrenCount: number;
-  disability: boolean;
+  jointDeclaration: boolean; // Declaración conjunta (solo si casado)
+
+  // --- Hijos ---
+  childrenUnder3: number; // Hijos menores de 3 años (mayor deducción)
+  childrenFrom3To25: number; // Hijos de 3 a 25 años
+  childrenWithDisability: number; // Hijos con discapacidad (cualquier edad)
+
+  // --- Ascendientes ---
+  ascendantsOver65: number; // Ascendientes >65 años a cargo (convivencia)
+  ascendantsOver75: number; // Ascendientes >75 años a cargo
+  ascendantsWithDisability: number; // Ascendientes con discapacidad
+
+  // --- Deducciones y Reducciones ---
   deductibleExpenses: number; // Gastos deducibles personales (SS, sindicatos)
+  pensionContributions: number; // Aportaciones planes de pensiones (máx 1.500€)
+
+  // Legacy fields for backward compatibility
+  childrenCount?: number; // Deprecated: usar childrenUnder3 + childrenFrom3To25
+  disability?: boolean; // Deprecated: usar disabilityLevel
 }
 
 export interface Partner {
