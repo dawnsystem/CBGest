@@ -159,7 +159,7 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
               isOpen={openSections.personal}
               onToggle={() => toggleSection('personal')}
             >
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center">
                     Año de Nacimiento
@@ -196,7 +196,7 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                     Residencia Fiscal
@@ -261,7 +261,7 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
                 El número de pagadores es importante: si tienes 2+ pagadores y el 2º te pagó más de 1.500€, el límite para estar obligado a declarar baja de 22.000€ a 15.000€.
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center">
                     Rendimientos del Trabajo
@@ -297,7 +297,7 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center">
                     Nº de Pagadores
@@ -359,7 +359,7 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
                   <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                     <Heart className="w-4 h-4 text-pink-500" /> Hijos
                   </h4>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center">
                         &lt;3 años
@@ -410,7 +410,7 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
                   <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                     <Users className="w-4 h-4 text-blue-500" /> Ascendientes a cargo
                   </h4>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center">
                         &gt;65 años
@@ -466,7 +466,7 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
               onToggle={() => toggleSection('deductions')}
               badge={getSectionBadge('deductions')}
             >
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center">
                     Gastos Deducibles
@@ -509,22 +509,22 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center shrink-0">
-          <p className="text-xs text-slate-400">* Cálculo orientativo. Consulta con un asesor fiscal.</p>
-          <div className="flex gap-3">
+        <div className="px-4 md:px-6 py-3 md:py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
+          <p className="text-[10px] md:text-xs text-slate-400 text-center sm:text-left">* Cálculo orientativo. Consulta con un asesor fiscal.</p>
+          <div className="flex gap-2 md:gap-3 w-full sm:w-auto">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-200 rounded-lg"
+              className="flex-1 sm:flex-none px-3 md:px-4 py-2 text-xs md:text-sm text-slate-600 hover:bg-slate-200 rounded-lg"
             >
               Cancelar
             </button>
             <button
               type="submit"
               form="tax-form"
-              className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-2 shadow-sm"
+              className="flex-1 sm:flex-none bg-purple-600 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium hover:bg-purple-700 flex items-center justify-center gap-2 shadow-sm"
             >
-              <Save className="w-4 h-4" /> Guardar Datos
+              <Save className="w-4 h-4" /> Guardar
             </button>
           </div>
         </div>

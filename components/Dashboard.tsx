@@ -252,20 +252,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
   // --- UI COMPONENTS ---
 
   const StatCard = ({ title, amount, type, icon: Icon }: any) => (
-    <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-slate-500 text-sm font-medium uppercase tracking-wider">{title}</span>
-        <div className={`p-2 rounded-lg ${
-          type === 'positive' ? 'bg-emerald-100 text-emerald-600' : 
+    <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-3 md:mb-4">
+        <span className="text-slate-500 text-xs md:text-sm font-medium uppercase tracking-wider">{title}</span>
+        <div className={`p-1.5 md:p-2 rounded-lg ${
+          type === 'positive' ? 'bg-emerald-100 text-emerald-600' :
           type === 'negative' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'
         }`}>
-          <Icon className="w-5 h-5" />
+          <Icon className="w-4 h-4 md:w-5 md:h-5" />
         </div>
       </div>
       <div className="flex items-end gap-2">
-        <h3 className="text-2xl font-bold text-slate-900">{amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</h3>
+        <h3 className="text-lg md:text-2xl font-bold text-slate-900">{amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</h3>
       </div>
-      <p className="text-xs text-slate-400 mt-2">
+      <p className="text-[10px] md:text-xs text-slate-400 mt-2">
           {isRental && title.includes('Neto') ? 'Rendimiento Inmobiliario (YTD)' : 'Acumulado Año Actual'}
       </p>
     </div>
@@ -290,24 +290,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
   };
 
   return (
-    <div className="p-8 space-y-8 animate-fade-in">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Panel General</h2>
-          <p className="text-slate-500">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-900">Panel General</h2>
+          <p className="text-sm md:text-base text-slate-500">
               {isRental ? 'Gestión de Patrimonio Inmobiliario (Exento IVA)' : 'Resumen financiero y estado de la CB'}
           </p>
         </div>
-        <div className="flex gap-3">
-          <button 
+        <div className="flex gap-2 md:gap-3 w-full sm:w-auto">
+          <button
             onClick={() => navigate('/taxes')}
-            className="bg-white text-slate-700 px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium hover:bg-slate-50 transition-colors"
+            className="flex-1 sm:flex-none bg-white text-slate-700 px-3 md:px-4 py-2 rounded-lg border border-slate-200 text-xs md:text-sm font-medium hover:bg-slate-50 transition-colors"
           >
             Informe Trimestral
           </button>
-          <button 
+          <button
             onClick={() => navigate('/invoices')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200 transition-colors"
+            className="flex-1 sm:flex-none bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200 transition-colors"
           >
             Nueva Factura
           </button>
@@ -322,10 +322,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
       </div>
 
       {/* 2. CHARTS (REAL DATA) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900 mb-6">Evolución Tesorería (Real)</h3>
-          <div className="h-72">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-100 shadow-sm">
+          <h3 className="text-base md:text-lg font-semibold text-slate-900 mb-4 md:mb-6">Evolución Tesorería (Real)</h3>
+          <div className="h-56 md:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -344,14 +344,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
         </div>
 
         {/* 3. TAX ESTIMATION WIDGET (NEW) */}
-        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col">
-          <div className="flex justify-between items-start mb-6">
+        <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col">
+          <div className="flex justify-between items-start mb-4 md:mb-6">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Estimación IRPF (Renta)</h3>
-                <p className="text-xs text-slate-500 mt-1">Simulación de cuota a pagar por comunero.</p>
+                <h3 className="text-base md:text-lg font-semibold text-slate-900">Estimación IRPF (Renta)</h3>
+                <p className="text-[10px] md:text-xs text-slate-500 mt-1">Simulación de cuota a pagar por comunero.</p>
               </div>
-              <div className="bg-purple-100 p-2 rounded-lg">
-                  <Calculator className="w-5 h-5 text-purple-600" />
+              <div className="bg-purple-100 p-1.5 md:p-2 rounded-lg">
+                  <Calculator className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
               </div>
           </div>
           

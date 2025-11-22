@@ -126,7 +126,7 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
 
           {/* Notifications Panel */}
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden animate-fade-in-up max-h-[600px] flex flex-col">
+            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-96 bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden animate-fade-in-up max-h-[70vh] sm:max-h-[600px] flex flex-col -right-2 sm:right-0">
               {/* Header */}
               <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <div>

@@ -45,13 +45,13 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
   const partners = settings.partners || [];
 
   return (
-    <div className="p-8 space-y-8 animate-fade-in">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Modelos Fiscales</h2>
-          <p className="text-slate-500">
-            {settings.fiscalRegime === 'ALQUILER_EXENTO' 
-              ? 'Régimen de Atribución de Rentas (Alquileres)' 
+          <h2 className="text-xl md:text-2xl font-bold text-slate-900">Modelos Fiscales</h2>
+          <p className="text-sm md:text-base text-slate-500">
+            {settings.fiscalRegime === 'ALQUILER_EXENTO'
+              ? 'Régimen de Atribución de Rentas (Alquileres)'
               : 'Régimen General'}
           </p>
         </div>
