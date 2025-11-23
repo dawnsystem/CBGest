@@ -31,9 +31,9 @@ const fileToBase64 = (file: File): Promise<string> => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
-        const result = reader.result?.toString();
-        if (result) resolve(result);
-        else reject(new Error("Failed to read file"));
+      const result = reader.result?.toString();
+      if (result) resolve(result);
+      else reject(new Error("Failed to read file"));
     };
     reader.onerror = reject;
   });
@@ -41,19 +41,19 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 // Helper: Base64 to File
 const base64ToFile = (dataurl: string, filename: string, mimeType: string): File => {
-    try {
-        const arr = dataurl.split(',');
-        const bstr = atob(arr.length > 1 ? arr[1] : arr[0]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while(n--){
-            u8arr[n] = bstr.charCodeAt(n);
-        }
-        return new File([u8arr], filename, {type: mimeType});
-    } catch (e) {
-        console.error("Error reconstructing file:", e);
-        return new File([""], filename, {type: mimeType});
+  try {
+    const arr = dataurl.split(',');
+    const bstr = atob(arr.length > 1 ? arr[1] : arr[0]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
     }
+    return new File([u8arr], filename, { type: mimeType });
+  } catch (e) {
+    console.error("Error reconstructing file:", e);
+    return new File([""], filename, { type: mimeType });
+  }
 };
 
 interface UploadQueueProviderProps {
@@ -133,19 +133,19 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
   const addToQueue = async (files: File[], type: UploadType) => {
     const newItemsPromises = files.map(async (file) => {
-        const base64Full = await fileToBase64(file);
-        return {
-            id: Math.random().toString(36).substr(2, 9),
-            file,
-            uploadType: type,
-            fileName: file.name,
-            mimeType: file.type,
-            base64Data: base64Full,
-            status: 'QUEUED' as const,
-            progress: 0,
-            timestamp: Date.now(),
-            notificationDismissed: false
-        };
+      const base64Full = await fileToBase64(file);
+      return {
+        id: Math.random().toString(36).substr(2, 9),
+        file,
+        uploadType: type,
+        fileName: file.name,
+        mimeType: file.type,
+        base64Data: base64Full,
+        status: 'QUEUED' as const,
+        progress: 0,
+        timestamp: Date.now(),
+        notificationDismissed: false
+      };
     });
 
     const newItems = await Promise.all(newItemsPromises);
@@ -233,22 +233,22 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         );
         setQueue(prev => prev.map(item =>
           (item.status === 'COMPLETED' || item.status === 'ERROR')
-          ? { ...item, notificationDismissed: true }
-          : item
+            ? { ...item, notificationDismissed: true }
+            : item
         ));
       } catch (error) {
         // Silently update local state on error
         setQueue(prev => prev.map(item =>
           (item.status === 'COMPLETED' || item.status === 'ERROR')
-          ? { ...item, notificationDismissed: true }
-          : item
+            ? { ...item, notificationDismissed: true }
+            : item
         ));
       }
     } else {
       setQueue(prev => prev.map(item =>
         (item.status === 'COMPLETED' || item.status === 'ERROR')
-        ? { ...item, notificationDismissed: true }
-        : item
+          ? { ...item, notificationDismissed: true }
+          : item
       ));
     }
   };
@@ -305,79 +305,79 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
       // CRITICAL: Choose parser based on uploadType
       if (item.uploadType === 'INVOICE') {
-          const data = await analyzeInvoiceImage(base64ForApi, item.mimeType, suppliers);
+        const data = await analyzeInvoiceImage(base64ForApi, item.mimeType, suppliers);
 
-          // If AI matched a supplier, find the supplier ID
-          let matchedSupplierId: string | undefined = undefined;
-          if (data.matchedSupplierId) {
-            const supplier = suppliers.find(s =>
-              s.name.toLowerCase() === data.matchedSupplierId.toLowerCase() ||
-              s.nif === data.issuerNif
-            );
-            if (supplier) {
-              matchedSupplierId = supplier.id;
-            }
+        // If AI matched a supplier, find the supplier ID
+        let matchedSupplierId: string | undefined = undefined;
+        if (data.matchedSupplierId) {
+          const supplier = suppliers.find(s =>
+            s.name.toLowerCase() === data.matchedSupplierId.toLowerCase() ||
+            s.nif === data.issuerNif
+          );
+          if (supplier) {
+            matchedSupplierId = supplier.id;
           }
+        }
 
-          const resultInvoice: Invoice = {
-            id: Math.random().toString(36).substr(2, 9),
-            ...data,
-            supplierId: matchedSupplierId,
-            status: 'PENDING',
-            history: [{ date: new Date().toISOString(), action: 'Analyzed via Gemini', user: 'System' }]
+        const resultInvoice: Invoice = {
+          id: Math.random().toString(36).substr(2, 9),
+          ...data,
+          supplierId: matchedSupplierId,
+          status: 'PENDING',
+          history: [{ date: new Date().toISOString(), action: 'Analyzed via Gemini', user: 'System' }]
+        };
+
+        const completedItem = {
+          ...item,
+          status: 'COMPLETED' as const,
+          progress: 100,
+          result: resultInvoice,
+          notificationDismissed: false
+        };
+        await updateQueueItem(completedItem);
+
+      } else if (item.uploadType === 'BANK_STATEMENT') {
+        // Detect file type
+        const isXlsx = item.mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+          item.mimeType === 'application/vnd.ms-excel' ||
+          item.fileName.toLowerCase().endsWith('.xlsx') ||
+          item.fileName.toLowerCase().endsWith('.xls');
+
+        if (isXlsx) {
+          // XLSX files need manual column mapping - mark as ready for mapping
+          const completedItem = {
+            ...item,
+            status: 'COMPLETED' as const,
+            progress: 100,
+            needsMapping: true, // Flag to show mapping UI
+            notificationDismissed: false
           };
+          await updateQueueItem(completedItem);
+        } else {
+          // Use AI for PDF/images
+          const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
+
+          // Add IDs to transactions
+          const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
+            id: Math.random().toString(36).substr(2, 9),
+            ...t,
+            status: 'PENDING' as const
+          }));
 
           const completedItem = {
             ...item,
             status: 'COMPLETED' as const,
             progress: 100,
-            result: resultInvoice,
+            bankResult: enrichedTransactions,
             notificationDismissed: false
           };
           await updateQueueItem(completedItem);
-
-      } else if (item.uploadType === 'BANK_STATEMENT') {
-          // Detect file type
-          const isXlsx = item.mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-                         item.mimeType === 'application/vnd.ms-excel' ||
-                         item.fileName.toLowerCase().endsWith('.xlsx') ||
-                         item.fileName.toLowerCase().endsWith('.xls');
-
-          if (isXlsx) {
-            // XLSX files need manual column mapping - mark as ready for mapping
-            const completedItem = {
-              ...item,
-              status: 'COMPLETED' as const,
-              progress: 100,
-              needsMapping: true, // Flag to show mapping UI
-              notificationDismissed: false
-            };
-            await updateQueueItem(completedItem);
-          } else {
-            // Use AI for PDF/images
-            const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
-
-            // Add IDs to transactions
-            const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
-                id: Math.random().toString(36).substr(2, 9),
-                ...t,
-                status: 'PENDING' as const
-            }));
-
-            const completedItem = {
-              ...item,
-              status: 'COMPLETED' as const,
-              progress: 100,
-              bankResult: enrichedTransactions,
-              notificationDismissed: false
-            };
-            await updateQueueItem(completedItem);
-          }
+        }
       }
 
       clearInterval(progressInterval);
 
-    } catch (err) {
+    } catch (err: any) {
       clearInterval(progressInterval);
       console.error(err);
 
@@ -385,7 +385,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         ...item,
         status: 'ERROR' as const,
         progress: 0,
-        error: 'Error en análisis IA.',
+        error: err.message || 'Error en análisis IA.',
         notificationDismissed: false
       };
       await updateQueueItem(errorItem);

@@ -13,7 +13,14 @@ export const analyzeInvoiceImage = async (
   existingSuppliers: Supplier[] = []
 ): Promise<any> => {
   try {
-    const model = 'gemini-2.5-flash';
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("Gemini Service: API Key is missing");
+      throw new Error("API Key de Gemini no configurada. Revisa tu archivo .env");
+    }
+
+    const modelName = 'gemini-2.5-flash';
+    console.log(`Gemini Service: Starting analysis with model ${modelName}`);
 
     // Crear lista de cuentas contables para el prompt
     const accountsList = ACCOUNT_PLAN.map(acc => `${acc.code} - ${acc.name}`).join('\n      ');
@@ -88,7 +95,7 @@ export const analyzeInvoiceImage = async (
     `;
 
     const response = await ai.models.generateContent({
-      model: model,
+      model: modelName,
       contents: {
         parts: [
           { inlineData: { mimeType: mimeType, data: base64Data } },
@@ -125,8 +132,20 @@ export const analyzeInvoiceImage = async (
     if (!text) throw new Error("No response from Gemini");
     return JSON.parse(text);
 
-  } catch (error) {
-    console.error("Error parsing invoice:", error);
+  } catch (error: any) {
+    console.error("Gemini Service Error (Invoice):", error);
+
+    // Mejorar el mensaje de error para el usuario
+    if (error.message?.includes('API key')) {
+      throw new Error("Error de autenticación: API Key inválida o no encontrada.");
+    }
+    if (error.status === 429 || error.message?.includes('quota')) {
+      throw new Error("Cuota excedida: Has superado el límite de uso de la API de Gemini.");
+    }
+    if (error.status === 404 || error.message?.includes('not found')) {
+      throw new Error(`Modelo no encontrado: Asegúrate de tener acceso al modelo gemini-2.5-flash.`);
+    }
+
     throw error;
   }
 };
@@ -134,8 +153,13 @@ export const analyzeInvoiceImage = async (
 // NEW: Bank Statement Parser
 export const analyzeBankStatement = async (base64Data: string, mimeType: string): Promise<any[]> => {
   try {
-    const model = 'gemini-2.5-flash';
-    
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("API Key de Gemini no configurada.");
+    }
+
+    const modelName = 'gemini-2.5-flash';
+
     const prompt = `
       Analiza este Extracto Bancario (PDF o Imagen), probablemente de BBVA Empresas o similar.
       
@@ -157,7 +181,7 @@ export const analyzeBankStatement = async (base64Data: string, mimeType: string)
     `;
 
     const response = await ai.models.generateContent({
-      model: model,
+      model: modelName,
       contents: {
         parts: [
           { inlineData: { mimeType: mimeType, data: base64Data } },
@@ -184,8 +208,16 @@ export const analyzeBankStatement = async (base64Data: string, mimeType: string)
     if (!text) throw new Error("No response from Gemini");
     return JSON.parse(text);
 
-  } catch (error) {
-    console.error("Error parsing bank statement:", error);
+  } catch (error: any) {
+    console.error("Gemini Service Error (Bank):", error);
+
+    if (error.message?.includes('API key')) {
+      throw new Error("Error de autenticación: API Key inválida o no encontrada.");
+    }
+    if (error.status === 429 || error.message?.includes('quota')) {
+      throw new Error("Cuota excedida: Has superado el límite de uso de la API de Gemini.");
+    }
+
     throw error;
   }
 };
