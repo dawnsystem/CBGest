@@ -34,10 +34,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load notifications on mount (from Appwrite or localStorage)
+  // Load notifications on mount and when user changes (from Appwrite or localStorage)
   useEffect(() => {
     const loadNotifications = async () => {
-      if (isUsingAppwrite()) {
+      setIsLoading(true);
+
+      if (isUsingAppwrite() && user) {
         // Wait for Appwrite to be initialized before loading
         if (!isAppwriteInitialized()) {
           // Silently wait for initialization without logging
@@ -59,7 +61,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           // Silently handle errors - getNotifications already logs unexpected errors
           setNotifications([]);
         }
-      } else {
+      } else if (!isUsingAppwrite()) {
         // Load from localStorage
         const saved = localStorage.getItem('gestcb_notifications');
         if (saved) {
@@ -71,12 +73,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             setNotifications([]);
           }
         }
+      } else {
+        // Using Appwrite but no user - clear notifications
+        setNotifications([]);
       }
       setIsLoading(false);
     };
 
     loadNotifications();
-  }, []);
+  }, [user]); // Re-load when user changes
 
   // Save notifications (to Appwrite or localStorage) - only in localStorage mode
   useEffect(() => {
