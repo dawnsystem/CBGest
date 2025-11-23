@@ -9,6 +9,97 @@ let storageInstance: Storage | null = null;
 
 let currentConfig: AppwriteConfig | null = null;
 
+// Connection state tracking
+let connectionHealthy: boolean = false;
+let lastConnectionCheck: number = 0;
+const CONNECTION_CHECK_INTERVAL = 30000; // 30 seconds
+
+// Error callbacks for UI feedback
+type ErrorCallback = (error: string, operation: string) => void;
+type SuccessCallback = (operation: string) => void;
+let onErrorCallback: ErrorCallback | null = null;
+let onSuccessCallback: SuccessCallback | null = null;
+
+/**
+ * Set callbacks for error/success notifications
+ */
+export const setNotificationCallbacks = (
+  onError: ErrorCallback,
+  onSuccess?: SuccessCallback
+) => {
+  onErrorCallback = onError;
+  onSuccessCallback = onSuccess || null;
+};
+
+/**
+ * Notify error to UI
+ */
+const notifyError = (error: string, operation: string) => {
+  console.error(`❌ [${operation}]`, error);
+  if (onErrorCallback) {
+    onErrorCallback(error, operation);
+  }
+};
+
+/**
+ * Notify success to UI (optional)
+ */
+const notifySuccess = (operation: string) => {
+  if (onSuccessCallback) {
+    onSuccessCallback(operation);
+  }
+};
+
+/**
+ * Retry operation with exponential backoff
+ */
+const withRetry = async <T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxRetries: number = 3
+): Promise<T> => {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await operation();
+      if (attempt > 0) {
+        console.log(`✅ [${operationName}] Succeeded after ${attempt} retries`);
+      }
+      return result;
+    } catch (error: any) {
+      lastError = error;
+
+      // Don't retry on certain errors
+      const nonRetryableCodes = [401, 403, 404, 409];
+      if (nonRetryableCodes.includes(error?.code)) {
+        throw error;
+      }
+
+      // Retry on network/server errors
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+        console.warn(`⚠️ [${operationName}] Attempt ${attempt + 1} failed, retrying in ${delay/1000}s...`, error.message);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError;
+};
+
+/**
+ * Get connection health status
+ */
+export const getConnectionHealth = (): boolean => connectionHealthy;
+
+/**
+ * Set connection health status
+ */
+export const setConnectionHealth = (healthy: boolean) => {
+  connectionHealthy = healthy;
+};
+
 /**
  * Initialize Appwrite client with configuration
  */
@@ -38,23 +129,156 @@ export const isAppwriteInitialized = (): boolean => {
 };
 
 /**
- * Test connection to Appwrite
+ * Test connection to Appwrite - comprehensive check
  */
 export const testConnection = async (): Promise<boolean> => {
   try {
-    if (!accountInstance) {
-      throw new Error('Appwrite not initialized');
+    if (!accountInstance || !databasesInstance || !currentConfig) {
+      console.error('❌ Appwrite not initialized');
+      connectionHealthy = false;
+      return false;
     }
-    // Try to get account (this will work even without session)
-    await accountInstance.get().catch(() => {
-      // If not authenticated, that's OK - connection still works
-      return true;
+
+    // Try to get account (validates auth)
+    await accountInstance.get().catch((error) => {
+      // 401 is expected if not logged in - connection still works
+      if (error?.code !== 401) {
+        throw error;
+      }
     });
+
+    connectionHealthy = true;
+    lastConnectionCheck = Date.now();
+    console.log('✅ Appwrite connection test successful');
     return true;
-  } catch (error) {
-    console.error('Connection test failed:', error);
+  } catch (error: any) {
+    console.error('❌ Connection test failed:', error?.message || error);
+    connectionHealthy = false;
     return false;
   }
+};
+
+/**
+ * Verify that required collections exist
+ * Returns object with collection status
+ */
+export const verifyCollections = async (): Promise<{
+  success: boolean;
+  collections: Record<string, boolean>;
+  errors: string[];
+}> => {
+  const result = {
+    success: true,
+    collections: {} as Record<string, boolean>,
+    errors: [] as string[]
+  };
+
+  if (!databasesInstance || !currentConfig) {
+    result.success = false;
+    result.errors.push('Appwrite no inicializado');
+    return result;
+  }
+
+  const collectionsToCheck = [
+    { id: currentConfig.invoicesCollectionId, name: 'Facturas' },
+    { id: currentConfig.entriesCollectionId, name: 'Asientos' },
+    { id: currentConfig.transactionsCollectionId, name: 'Transacciones' },
+    { id: currentConfig.settingsCollectionId, name: 'Configuración' },
+    { id: currentConfig.suppliersCollectionId, name: 'Proveedores' },
+  ];
+
+  for (const col of collectionsToCheck) {
+    try {
+      // Try to list documents (limit 1) to verify collection exists and is accessible
+      await databasesInstance.listDocuments(
+        currentConfig.databaseId,
+        col.id,
+        [Query.limit(1)]
+      );
+      result.collections[col.name] = true;
+      console.log(`✅ Colección '${col.name}' accesible`);
+    } catch (error: any) {
+      result.collections[col.name] = false;
+      result.success = false;
+
+      if (error?.code === 404) {
+        result.errors.push(`Colección '${col.name}' no existe. Ejecuta el script de setup.`);
+      } else if (error?.code === 401) {
+        result.errors.push(`Sin permisos para acceder a '${col.name}'. Verifica la autenticación.`);
+      } else {
+        result.errors.push(`Error en '${col.name}': ${error?.message || 'Error desconocido'}`);
+      }
+      console.error(`❌ Colección '${col.name}':`, error?.message);
+    }
+  }
+
+  return result;
+};
+
+/**
+ * Full health check - connection + collections
+ */
+export const performHealthCheck = async (): Promise<{
+  connected: boolean;
+  authenticated: boolean;
+  collectionsReady: boolean;
+  errors: string[];
+}> => {
+  const result = {
+    connected: false,
+    authenticated: false,
+    collectionsReady: false,
+    errors: [] as string[]
+  };
+
+  // Check initialization
+  if (!clientInstance || !accountInstance || !databasesInstance || !currentConfig) {
+    result.errors.push('Appwrite no está inicializado');
+    return result;
+  }
+
+  // Check connection
+  try {
+    const connectionOk = await testConnection();
+    result.connected = connectionOk;
+    if (!connectionOk) {
+      result.errors.push('No se puede conectar con Appwrite');
+      return result;
+    }
+  } catch (error: any) {
+    result.errors.push(`Error de conexión: ${error?.message}`);
+    return result;
+  }
+
+  // Check authentication
+  try {
+    const user = await accountInstance.get();
+    result.authenticated = !!user;
+    if (!user) {
+      result.errors.push('Usuario no autenticado');
+    }
+  } catch (error: any) {
+    if (error?.code === 401) {
+      result.errors.push('Sesión expirada o no autenticado');
+    } else {
+      result.errors.push(`Error de autenticación: ${error?.message}`);
+    }
+    return result;
+  }
+
+  // Check collections
+  try {
+    const colCheck = await verifyCollections();
+    result.collectionsReady = colCheck.success;
+    if (!colCheck.success) {
+      result.errors.push(...colCheck.errors);
+    }
+  } catch (error: any) {
+    result.errors.push(`Error verificando colecciones: ${error?.message}`);
+  }
+
+  connectionHealthy = result.connected && result.authenticated && result.collectionsReady;
+  return result;
 };
 
 /**
@@ -209,11 +433,14 @@ export const databaseService = {
         history: history ? JSON.stringify(history) : undefined
       };
 
-      const doc = await databases.createDocument(
-        config.databaseId,
-        config.invoicesCollectionId,
-        invoice.id || ID.unique(),
-        invoiceData
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.invoicesCollectionId,
+          invoice.id || ID.unique(),
+          invoiceData
+        ),
+        'createInvoice'
       );
 
       // Parse history back to array when returning and map appwriteId
@@ -225,10 +452,14 @@ export const databaseService = {
         history: doc.history ? JSON.parse(doc.history as string) : []
       };
 
+      notifySuccess('Factura guardada');
+      connectionHealthy = true;
       return parsedDoc as unknown as Invoice;
     } catch (error: any) {
-      console.error('Create invoice error:', error);
-      throw new Error(error.message || 'Error al crear factura');
+      const errorMsg = error.message || 'Error al crear factura';
+      notifyError(errorMsg, 'createInvoice');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -239,12 +470,16 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.invoicesCollectionId,
-        [Query.orderDesc('date'), Query.limit(1000)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.invoicesCollectionId,
+          [Query.orderDesc('date'), Query.limit(1000)]
+        ),
+        'getInvoices'
       );
 
+      connectionHealthy = true;
       // Parse history from JSON string back to array and map appwriteId for each invoice
       return response.documents.map((doc: any) => ({
         ...doc,
@@ -255,8 +490,10 @@ export const databaseService = {
           : (doc.history || [])
       })) as unknown as Invoice[];
     } catch (error: any) {
-      console.error('Get invoices error:', error);
-      throw new Error(error.message || 'Error al obtener facturas');
+      const errorMsg = error.message || 'Error al obtener facturas';
+      notifyError(errorMsg, 'getInvoices');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -275,11 +512,14 @@ export const databaseService = {
         history: history ? JSON.stringify(history) : undefined
       };
 
-      const doc = await databases.updateDocument(
-        config.databaseId,
-        config.invoicesCollectionId,
-        invoice.id,
-        invoiceData
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.invoicesCollectionId,
+          invoice.id,
+          invoiceData
+        ),
+        'updateInvoice'
       );
 
       // Parse history back to array when returning and map appwriteId
@@ -291,10 +531,14 @@ export const databaseService = {
         history: doc.history ? JSON.parse(doc.history as string) : []
       };
 
+      notifySuccess('Factura actualizada');
+      connectionHealthy = true;
       return parsedDoc as unknown as Invoice;
     } catch (error: any) {
-      console.error('Update invoice error:', error);
-      throw new Error(error.message || 'Error al actualizar factura');
+      const errorMsg = error.message || 'Error al actualizar factura';
+      notifyError(errorMsg, 'updateInvoice');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -305,14 +549,21 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      await databases.deleteDocument(
-        config.databaseId,
-        config.invoicesCollectionId,
-        id
+      await withRetry(
+        () => databases.deleteDocument(
+          config.databaseId,
+          config.invoicesCollectionId,
+          id
+        ),
+        'deleteInvoice'
       );
+      notifySuccess('Factura eliminada');
+      connectionHealthy = true;
     } catch (error: any) {
-      console.error('Delete invoice error:', error);
-      throw new Error(error.message || 'Error al eliminar factura');
+      const errorMsg = error.message || 'Error al eliminar factura';
+      notifyError(errorMsg, 'deleteInvoice');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -326,13 +577,17 @@ export const databaseService = {
       // Remove fields that shouldn't be sent to Appwrite
       const { referenceDoc, id, appwriteId, ...entryData } = entry;
 
-      const doc = await databases.createDocument(
-        config.databaseId,
-        config.entriesCollectionId,
-        id || ID.unique(),
-        entryData
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.entriesCollectionId,
+          id || ID.unique(),
+          entryData
+        ),
+        'createEntry'
       );
 
+      connectionHealthy = true;
       // Return with appwriteId mapped from $id
       return {
         ...doc,
@@ -341,8 +596,10 @@ export const databaseService = {
         appwriteId: doc.$id
       } as unknown as AccountingEntry;
     } catch (error: any) {
-      console.error('Create entry error:', error);
-      throw new Error(error.message || 'Error al crear asiento');
+      const errorMsg = error.message || 'Error al crear asiento';
+      notifyError(errorMsg, 'createEntry');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -353,12 +610,16 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.entriesCollectionId,
-        [Query.orderDesc('date'), Query.limit(1000)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.entriesCollectionId,
+          [Query.orderDesc('date'), Query.limit(1000)]
+        ),
+        'getEntries'
       );
 
+      connectionHealthy = true;
       // Map $id to appwriteId for each entry
       return response.documents.map((doc: any) => ({
         ...doc,
@@ -366,8 +627,10 @@ export const databaseService = {
         appwriteId: doc.$id
       })) as unknown as AccountingEntry[];
     } catch (error: any) {
-      console.error('Get entries error:', error);
-      throw new Error(error.message || 'Error al obtener asientos');
+      const errorMsg = error.message || 'Error al obtener asientos';
+      notifyError(errorMsg, 'getEntries');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -386,13 +649,17 @@ export const databaseService = {
         throw new Error('Cannot update entry without ID');
       }
 
-      const doc = await databases.updateDocument(
-        config.databaseId,
-        config.entriesCollectionId,
-        docId,
-        entryData
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.entriesCollectionId,
+          docId,
+          entryData
+        ),
+        'updateEntry'
       );
 
+      connectionHealthy = true;
       // Return with appwriteId mapped from $id
       return {
         ...doc,
@@ -401,8 +668,10 @@ export const databaseService = {
         appwriteId: doc.$id
       } as unknown as AccountingEntry;
     } catch (error: any) {
-      console.error('Update entry error:', error);
-      throw new Error(error.message || 'Error al actualizar asiento');
+      const errorMsg = error.message || 'Error al actualizar asiento';
+      notifyError(errorMsg, 'updateEntry');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -413,14 +682,20 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      await databases.deleteDocument(
-        config.databaseId,
-        config.entriesCollectionId,
-        id
+      await withRetry(
+        () => databases.deleteDocument(
+          config.databaseId,
+          config.entriesCollectionId,
+          id
+        ),
+        'deleteEntry'
       );
+      connectionHealthy = true;
     } catch (error: any) {
-      console.error('Delete entry error:', error);
-      throw new Error(error.message || 'Error al eliminar asiento');
+      const errorMsg = error.message || 'Error al eliminar asiento';
+      notifyError(errorMsg, 'deleteEntry');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -434,13 +709,17 @@ export const databaseService = {
       // Remove fields that shouldn't be sent to Appwrite
       const { id, appwriteId, ...transactionData } = transaction;
 
-      const doc = await databases.createDocument(
-        config.databaseId,
-        config.transactionsCollectionId,
-        id || ID.unique(),
-        transactionData
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.transactionsCollectionId,
+          id || ID.unique(),
+          transactionData
+        ),
+        'createTransaction'
       );
 
+      connectionHealthy = true;
       // Return with appwriteId mapped from $id
       return {
         ...doc,
@@ -448,8 +727,10 @@ export const databaseService = {
         appwriteId: doc.$id
       } as unknown as BankTransaction;
     } catch (error: any) {
-      console.error('Create transaction error:', error);
-      throw new Error(error.message || 'Error al crear transacción');
+      const errorMsg = error.message || 'Error al crear transacción';
+      notifyError(errorMsg, 'createTransaction');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -460,12 +741,16 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.transactionsCollectionId,
-        [Query.orderDesc('date'), Query.limit(1000)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.transactionsCollectionId,
+          [Query.orderDesc('date'), Query.limit(1000)]
+        ),
+        'getTransactions'
       );
 
+      connectionHealthy = true;
       // Map $id to appwriteId for each transaction
       return response.documents.map((doc: any) => ({
         ...doc,
@@ -473,8 +758,10 @@ export const databaseService = {
         appwriteId: doc.$id
       })) as unknown as BankTransaction[];
     } catch (error: any) {
-      console.error('Get transactions error:', error);
-      throw new Error(error.message || 'Error al obtener transacciones');
+      const errorMsg = error.message || 'Error al obtener transacciones';
+      notifyError(errorMsg, 'getTransactions');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -493,13 +780,17 @@ export const databaseService = {
         throw new Error('Cannot update transaction without ID');
       }
 
-      const doc = await databases.updateDocument(
-        config.databaseId,
-        config.transactionsCollectionId,
-        docId,
-        transactionData
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.transactionsCollectionId,
+          docId,
+          transactionData
+        ),
+        'updateTransaction'
       );
 
+      connectionHealthy = true;
       // Return with appwriteId mapped from $id
       return {
         ...doc,
@@ -507,8 +798,10 @@ export const databaseService = {
         appwriteId: doc.$id
       } as unknown as BankTransaction;
     } catch (error: any) {
-      console.error('Update transaction error:', error);
-      throw new Error(error.message || 'Error al actualizar transacción');
+      const errorMsg = error.message || 'Error al actualizar transacción';
+      notifyError(errorMsg, 'updateTransaction');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 
@@ -520,10 +813,13 @@ export const databaseService = {
 
     try {
       // Try to get existing settings document
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.settingsCollectionId,
-        [Query.limit(1)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.settingsCollectionId,
+          [Query.limit(1)]
+        ),
+        'getSettingsForSave'
       );
 
       // Remove dataConfig field before saving (it's not in Appwrite schema)
@@ -536,11 +832,14 @@ export const databaseService = {
 
       if (response.documents.length > 0) {
         // Update existing
-        const doc = await databases.updateDocument(
-          config.databaseId,
-          config.settingsCollectionId,
-          response.documents[0].$id,
-          settingsToSave
+        const doc = await withRetry(
+          () => databases.updateDocument(
+            config.databaseId,
+            config.settingsCollectionId,
+            response.documents[0].$id,
+            settingsToSave
+          ),
+          'updateSettings'
         );
         // Parse partners back to array when returning
         const parsedDoc = {
@@ -548,14 +847,18 @@ export const databaseService = {
           partners: JSON.parse((doc as any).partners || '[]'),
           dataConfig
         };
+        connectionHealthy = true;
         return parsedDoc as unknown as AppSettings;
       } else {
         // Create new
-        const doc = await databases.createDocument(
-          config.databaseId,
-          config.settingsCollectionId,
-          ID.unique(),
-          settingsToSave
+        const doc = await withRetry(
+          () => databases.createDocument(
+            config.databaseId,
+            config.settingsCollectionId,
+            ID.unique(),
+            settingsToSave
+          ),
+          'createSettings'
         );
         // Parse partners back to array when returning
         const parsedDoc = {
@@ -563,11 +866,14 @@ export const databaseService = {
           partners: JSON.parse((doc as any).partners || '[]'),
           dataConfig
         };
+        connectionHealthy = true;
         return parsedDoc as unknown as AppSettings;
       }
     } catch (error: any) {
-      console.error('Save settings error:', error);
-      throw new Error(error.message || 'Error al guardar configuración');
+      const errorMsg = error.message || 'Error al guardar configuración';
+      notifyError(errorMsg, 'saveSettings');
+      connectionHealthy = false;
+      throw new Error(errorMsg);
     }
   },
 

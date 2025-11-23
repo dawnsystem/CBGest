@@ -12,6 +12,7 @@ import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
 import * as appwriteService from './services/appwriteService';
 import { APPWRITE_CONFIG } from './config/appwrite';
+import { AlertTriangle, CheckCircle, RefreshCw, XCircle } from 'lucide-react';
 
 // AUTH Integration
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -118,6 +119,30 @@ const MainLayout: React.FC = () => {
   const [isLocalFileMode, setIsLocalFileMode] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
+  // --- CONNECTION HEALTH STATE ---
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectionChecked, setConnectionChecked] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+
+  // --- SETUP ERROR NOTIFICATION CALLBACKS ---
+  useEffect(() => {
+      // Configure error callbacks for Appwrite service
+      appwriteService.setNotificationCallbacks(
+          (error: string, operation: string) => {
+              console.error(`🔴 Error en ${operation}:`, error);
+              setConnectionError(`Error: ${error}`);
+              // Auto-clear error after 10 seconds
+              setTimeout(() => setConnectionError(null), 10000);
+          },
+          (operation: string) => {
+              // Success callback - clear any existing error
+              if (connectionError) {
+                  setConnectionError(null);
+              }
+          }
+      );
+  }, [connectionError]);
+
   // --- SYNC SETTINGS FROM LOCALSTORAGE ---
   useEffect(() => {
       // Re-read settings from LS in case Login changed them
@@ -153,7 +178,42 @@ const MainLayout: React.FC = () => {
                   uploadsCollectionId: APPWRITE_CONFIG.collections.uploads,
                   suppliersCollectionId: APPWRITE_CONFIG.collections.suppliers
               });
-              
+
+              // PERFORM HEALTH CHECK FIRST
+              console.log('🔍 Verificando conexión con Appwrite...');
+              setIsReconnecting(true);
+              try {
+                  const healthResult = await appwriteService.performHealthCheck();
+                  setConnectionChecked(true);
+                  setIsReconnecting(false);
+
+                  if (!healthResult.connected) {
+                      setConnectionError('No se puede conectar con el servidor. Verifica tu conexión a internet.');
+                      console.error('❌ Health check failed:', healthResult.errors);
+                      return;
+                  }
+
+                  if (!healthResult.authenticated) {
+                      setConnectionError('Sesión no válida. Por favor, inicia sesión de nuevo.');
+                      console.error('❌ Not authenticated:', healthResult.errors);
+                      return;
+                  }
+
+                  if (!healthResult.collectionsReady) {
+                      setConnectionError(`Configuración incompleta: ${healthResult.errors.join(', ')}`);
+                      console.error('❌ Collections not ready:', healthResult.errors);
+                      // Continue anyway - might be first run
+                  }
+
+                  console.log('✅ Conexión verificada correctamente');
+                  setConnectionError(null);
+              } catch (healthError: any) {
+                  console.error('❌ Health check error:', healthError);
+                  setConnectionError(`Error de conexión: ${healthError.message}`);
+                  setIsReconnecting(false);
+                  // Continue anyway to try loading data
+              }
+
               // 1. Initial Fetch
               try {
                 const remoteSettings = await appwriteService.syncSettings(freshSettings);
@@ -174,10 +234,13 @@ const MainLayout: React.FC = () => {
                 } catch (supplierError) {
                   console.warn("Failed to load suppliers:", supplierError);
                 }
-              } catch (e) {
-                  console.warn("Initial sync failed (maybe first run):", e);
+                console.log('✅ Datos cargados desde Appwrite correctamente');
+                setConnectionError(null);
+              } catch (e: any) {
+                  console.warn("Initial sync failed:", e);
+                  setConnectionError(`Error al cargar datos: ${e.message || 'Error desconocido'}`);
               }
-              
+
               // 2. REALTIME SUBSCRIPTION
               const unsubscribe = appwriteService.subscribeToChanges((payload) => {
                   if (payload.events.some((e:string) => e.includes('.create') || e.includes('.update'))) {
@@ -638,12 +701,30 @@ const MainLayout: React.FC = () => {
 
   // Determine connection health
   const connectionHealth: 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED' = (() => {
-    // For Appwrite: check if configured and user is logged in
+    // For Appwrite: check real connection health
     if (settings.dataConfig?.type === 'APPWRITE') {
+      // If currently reconnecting, show that state
+      if (isReconnecting) {
+        return 'RECONNECTING';
+      }
+
+      // If there's a connection error, show disconnected
+      if (connectionError) {
+        return 'DISCONNECTED';
+      }
+
+      // If we haven't checked yet and user exists, show reconnecting
+      if (!connectionChecked && user) {
+        return 'RECONNECTING';
+      }
+
+      // Check if properly configured
       if (!settings.dataConfig.appwriteProjectId || !settings.dataConfig.appwriteDatabaseId || !settings.dataConfig.appwriteBucketId) {
         return 'DISCONNECTED'; // Not configured
       }
-      return user ? 'CONNECTED' : 'DISCONNECTED'; // Connected if user session exists
+
+      // Use the real connection health from appwriteService
+      return user && appwriteService.getConnectionHealth() ? 'CONNECTED' : 'DISCONNECTED';
     }
 
     // For Local File Mode: always connected if file is loaded
@@ -670,6 +751,36 @@ const MainLayout: React.FC = () => {
           />
           <div className="flex-1 ml-0 md:ml-64 transition-all duration-200">
             <Header isLocalFileMode={isLocalFileMode} />
+            {/* Connection Error Banner */}
+            {connectionError && (
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 mx-4 mt-4 rounded-r-lg animate-fade-in">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-red-800">Problema de conexión</h4>
+                    <p className="text-red-700 text-sm mt-1">{connectionError}</p>
+                    <p className="text-red-600 text-xs mt-2">
+                      Los datos se guardarán localmente. Se intentará sincronizar cuando se restaure la conexión.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setConnectionError(null)}
+                    className="text-red-400 hover:text-red-600"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* Reconnecting Indicator */}
+            {isReconnecting && (
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mx-4 mt-4 rounded-r-lg animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <RefreshCw className="w-5 h-5 text-blue-500 animate-spin" />
+                  <span className="text-blue-700">Verificando conexión con Appwrite...</span>
+                </div>
+              </div>
+            )}
             <main className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8 relative">
               <Suspense fallback={<PageLoader />}>
               <Routes>
