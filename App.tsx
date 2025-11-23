@@ -123,6 +123,7 @@ const MainLayout: React.FC = () => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [connectionChecked, setConnectionChecked] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true); // Track if initial data load is complete
 
   // --- SETUP ERROR NOTIFICATION CALLBACKS ---
   useEffect(() => {
@@ -158,10 +159,14 @@ const MainLayout: React.FC = () => {
 
   // --- DATA LAYER INITIALIZATION & REALTIME ---
   useEffect(() => {
-      if (!user) return;
+      if (!user) {
+          setIsDataLoading(false);
+          return;
+      }
 
       const initDataLayer = async () => {
           const freshSettings = loadState<AppSettings>('gestcb_settings', settings);
+          setIsDataLoading(true);
 
           if (freshSettings.dataConfig?.type === 'APPWRITE') {
               // USE HARDCODED APPWRITE CONFIG
@@ -190,12 +195,14 @@ const MainLayout: React.FC = () => {
                   if (!healthResult.connected) {
                       setConnectionError('No se puede conectar con el servidor. Verifica tu conexión a internet.');
                       console.error('❌ Health check failed:', healthResult.errors);
+                      setIsDataLoading(false);
                       return;
                   }
 
                   if (!healthResult.authenticated) {
                       setConnectionError('Sesión no válida. Por favor, inicia sesión de nuevo.');
                       console.error('❌ Not authenticated:', healthResult.errors);
+                      setIsDataLoading(false);
                       return;
                   }
 
@@ -214,31 +221,44 @@ const MainLayout: React.FC = () => {
                   // Continue anyway to try loading data
               }
 
-              // 1. Initial Fetch
+              // 1. Initial Fetch - Load ALL data from Appwrite
               try {
+                console.log('📥 Cargando datos desde Appwrite...');
+
+                // Sync settings first
                 const remoteSettings = await appwriteService.syncSettings(freshSettings);
                 if (remoteSettings) {
-                    // Ensure merged correctly
-                    setSettings({
+                    const mergedSettings = {
                         ...remoteSettings,
-                        partners: remoteSettings.partners || defaultSettings.partners
-                    });
+                        partners: remoteSettings.partners || defaultSettings.partners,
+                        dataConfig: freshSettings.dataConfig // Keep local dataConfig
+                    };
+                    setSettings(mergedSettings);
+                    // Also update localStorage with merged settings
+                    localStorage.setItem('gestcb_settings', JSON.stringify(mergedSettings));
                 }
-                setInvoices(await appwriteService.fetchInvoices());
-                setAccountingEntries(await appwriteService.fetchEntries());
-                setBankTransactions(await appwriteService.fetchTransactions());
-                // Load suppliers from Appwrite
-                try {
-                  const remoteSuppliers = await appwriteService.fetchSuppliers();
-                  setSuppliers(remoteSuppliers);
-                } catch (supplierError) {
-                  console.warn("Failed to load suppliers:", supplierError);
-                }
-                console.log('✅ Datos cargados desde Appwrite correctamente');
+
+                // Load all data in parallel for better performance
+                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers] = await Promise.all([
+                    appwriteService.fetchInvoices(),
+                    appwriteService.fetchEntries(),
+                    appwriteService.fetchTransactions(),
+                    appwriteService.fetchSuppliers().catch(() => []) // Don't fail if suppliers fail
+                ]);
+
+                // Update state with remote data
+                setInvoices(remoteInvoices);
+                setAccountingEntries(remoteEntries);
+                setBankTransactions(remoteTransactions);
+                setSuppliers(remoteSuppliers);
+
+                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores`);
                 setConnectionError(null);
               } catch (e: any) {
                   console.warn("Initial sync failed:", e);
                   setConnectionError(`Error al cargar datos: ${e.message || 'Error desconocido'}`);
+              } finally {
+                  setIsDataLoading(false);
               }
 
               // 2. REALTIME SUBSCRIPTION
@@ -252,6 +272,9 @@ const MainLayout: React.FC = () => {
               return () => {
                   unsubscribe();
               };
+          } else {
+              // Not using Appwrite - data is already loaded from localStorage
+              setIsDataLoading(false);
           }
       };
       initDataLayer();
@@ -297,10 +320,20 @@ const MainLayout: React.FC = () => {
 
 
   // --- HANDLERS ---
-  const handleUpdateSettings = (newSettings: AppSettings) => {
+  const handleUpdateSettings = async (newSettings: AppSettings) => {
       setSettings(newSettings);
-      // Settings are auto-saved to localStorage via useEffect
-      // If using Appwrite, optionally sync to cloud (not required for basic operation)
+      // Always save settings to localStorage (for mode detection on reload)
+      localStorage.setItem('gestcb_settings', JSON.stringify(newSettings));
+
+      // If using Appwrite, sync settings to cloud
+      if (newSettings.dataConfig?.type === 'APPWRITE') {
+          try {
+              await appwriteService.saveSettings(newSettings);
+              console.log('✅ Settings sincronizados con Appwrite');
+          } catch (error) {
+              console.error('Error syncing settings to Appwrite:', error);
+          }
+      }
   };
 
   const handleAddInvoice = async (invoice: Invoice) => {
@@ -692,6 +725,16 @@ const MainLayout: React.FC = () => {
 
   if (!user && settings.dataConfig?.type === 'APPWRITE') {
       return <Login />;
+  }
+
+  // Show loading state while fetching data from Appwrite
+  if (isDataLoading && settings.dataConfig?.type === 'APPWRITE') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
+        <div className="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+        <p className="text-slate-600">Cargando datos desde Appwrite...</p>
+      </div>
+    );
   }
 
   // Determine connection status and health

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier, AppSettings } from '../types';
 import { analyzeInvoiceImage, analyzeBankStatement, parseXlsxBankStatement } from '../services/geminiService';
 import { databaseService } from '../services/appwriteService';
+import { useAuth } from './AuthContext';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
 
@@ -62,14 +63,15 @@ interface UploadQueueProviderProps {
 }
 
 export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ children, suppliers = [] }) => {
+  const { user } = useAuth();
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // 1. Hydrate from Appwrite or LocalStorage
+  // 1. Hydrate from Appwrite or LocalStorage - reload when user changes
   useEffect(() => {
     const loadQueue = async () => {
-      if (isUsingAppwrite()) {
+      if (isUsingAppwrite() && user) {
         try {
           const loadedItems = await databaseService.getUploadQueue();
           // Reconstruct File objects from base64Data
@@ -85,7 +87,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           // Silently handle errors - getUploadQueue already logs unexpected errors
           setQueue([]);
         }
-      } else {
+      } else if (!isUsingAppwrite()) {
         // Load from localStorage
         const savedQueue = localStorage.getItem('gestcb_upload_queue');
         if (savedQueue) {
@@ -104,12 +106,15 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
             localStorage.removeItem('gestcb_upload_queue');
           }
         }
+      } else {
+        // Using Appwrite but no user - clear queue
+        setQueue([]);
       }
       setIsHydrated(true);
     };
 
     loadQueue();
-  }, []);
+  }, [user]); // Re-load when user changes
 
   // 2. Persist to LocalStorage (only in LOCAL_STORAGE mode)
   useEffect(() => {
