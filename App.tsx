@@ -104,10 +104,12 @@ const MainLayout: React.FC = () => {
   // Initialize settings with Appwrite config PRE-FILLED to avoid setup loops
   const [settings, setSettings] = useState<AppSettings>(() => loadState('gestcb_settings', defaultSettings));
 
-  const [invoices, setInvoices] = useState<Invoice[]>(() => loadState('gestcb_invoices', []));
-  const [accountingEntries, setAccountingEntries] = useState<AccountingEntry[]>(() => loadState('gestcb_entries', []));
-  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>(() => loadState('gestcb_bank_transactions', []));
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => loadState('gestcb_suppliers', []));
+  // Initialize with empty arrays - data will be loaded from Appwrite or localStorage in useEffect
+  // This prevents stale localStorage data from being shown when using Appwrite
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [accountingEntries, setAccountingEntries] = useState<AccountingEntry[]>([]);
+  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   // UI States
   const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<string>>(new Set());
@@ -273,7 +275,23 @@ const MainLayout: React.FC = () => {
                   unsubscribe();
               };
           } else {
-              // Not using Appwrite - data is already loaded from localStorage
+              // Not using Appwrite - load data from localStorage
+              console.log('📂 Cargando datos desde localStorage...');
+              try {
+                const localInvoices = loadState<Invoice[]>('gestcb_invoices', []);
+                const localEntries = loadState<AccountingEntry[]>('gestcb_entries', []);
+                const localTransactions = loadState<BankTransaction[]>('gestcb_bank_transactions', []);
+                const localSuppliers = loadState<Supplier[]>('gestcb_suppliers', []);
+
+                setInvoices(localInvoices);
+                setAccountingEntries(localEntries);
+                setBankTransactions(localTransactions);
+                setSuppliers(localSuppliers);
+
+                console.log(`✅ Datos cargados desde localStorage: ${localInvoices.length} facturas, ${localEntries.length} asientos`);
+              } catch (error) {
+                console.error('Error loading from localStorage:', error);
+              }
               setIsDataLoading(false);
           }
       };
@@ -490,8 +508,15 @@ const MainLayout: React.FC = () => {
       const invoice = invoices.find(i => i.id === id);
       setInvoices(prev => prev.filter(i => i.id !== id));
 
-      if (settings.dataConfig?.type === 'APPWRITE' && invoice?.appwriteId) {
-          await appwriteService.deleteInvoice(invoice.appwriteId);
+      // Use id directly - in Appwrite mode, id comes from $id
+      if (settings.dataConfig?.type === 'APPWRITE' && invoice) {
+          try {
+              const docId = invoice.appwriteId || invoice.id;
+              await appwriteService.deleteInvoice(docId);
+              console.log('✅ Factura eliminada de Appwrite:', docId);
+          } catch (error) {
+              console.error('Error deleting invoice from Appwrite:', error);
+          }
       }
 
       // Create notification
@@ -556,8 +581,15 @@ const MainLayout: React.FC = () => {
       const entry = accountingEntries.find(e => e.id === id);
       setAccountingEntries(prev => prev.filter(e => e.id !== id));
 
-      if (settings.dataConfig?.type === 'APPWRITE' && entry?.appwriteId) {
-          await appwriteService.deleteEntry(entry.appwriteId);
+      // Use id directly - in Appwrite mode, id comes from $id
+      if (settings.dataConfig?.type === 'APPWRITE' && entry) {
+          try {
+              const docId = entry.appwriteId || entry.id;
+              await appwriteService.deleteEntry(docId);
+              console.log('✅ Asiento eliminado de Appwrite:', docId);
+          } catch (error) {
+              console.error('Error deleting entry from Appwrite:', error);
+          }
       }
 
       // Create notification
@@ -576,7 +608,23 @@ const MainLayout: React.FC = () => {
   const handleAddBankTransactions = async (txs: BankTransaction[]) => {
       setBankTransactions(prev => [...prev, ...txs]);
       if (settings.dataConfig?.type === 'APPWRITE') {
-          txs.forEach(tx => appwriteService.createTransaction(tx));
+          try {
+              // Save all transactions to Appwrite with proper await
+              const savedTransactions = await Promise.all(
+                  txs.map(tx => appwriteService.createTransaction(tx))
+              );
+              // Update state with saved transactions (includes appwriteId)
+              setBankTransactions(prev =>
+                  prev.map(t => {
+                      const saved = savedTransactions.find(s => s.id === t.id);
+                      return saved || t;
+                  })
+              );
+              console.log(`✅ ${savedTransactions.length} transacciones guardadas en Appwrite`);
+          } catch (error) {
+              console.error('Error saving transactions to Appwrite:', error);
+              // Data remains in local state
+          }
       }
   };
 
@@ -649,9 +697,16 @@ const MainLayout: React.FC = () => {
   const handleUpdateBankTransaction = async (transaction: BankTransaction) => {
     setBankTransactions(prev => prev.map(t => t.id === transaction.id ? transaction : t));
 
-    if (settings.dataConfig?.type === 'APPWRITE' && transaction.appwriteId) {
+    // Use id directly - in Appwrite mode, id comes from $id
+    if (settings.dataConfig?.type === 'APPWRITE') {
       try {
-        await appwriteService.databaseService.updateTransaction(transaction);
+        // Ensure we have the document ID for Appwrite
+        const transactionToUpdate = {
+          ...transaction,
+          appwriteId: transaction.appwriteId || transaction.id
+        };
+        await appwriteService.databaseService.updateTransaction(transactionToUpdate);
+        console.log('✅ Transacción actualizada en Appwrite:', transactionToUpdate.appwriteId);
       } catch (error) {
         console.error('Error updating transaction in Appwrite:', error);
       }
@@ -663,15 +718,33 @@ const MainLayout: React.FC = () => {
       setSuppliers(prev => [supplier, ...prev]);
 
       if (settings.dataConfig?.type === 'APPWRITE') {
-          await appwriteService.createSupplier(supplier);
+          try {
+              const savedSupplier = await appwriteService.createSupplier(supplier);
+              // Update with Appwrite ID
+              setSuppliers(prev => prev.map(s => s.id === supplier.id ? savedSupplier : s));
+              console.log('✅ Proveedor guardado en Appwrite:', savedSupplier.id);
+          } catch (error) {
+              console.error('Error saving supplier to Appwrite:', error);
+          }
       }
   };
 
   const handleUpdateSupplier = async (supplier: Supplier) => {
       setSuppliers(prev => prev.map(s => s.id === supplier.id ? supplier : s));
 
-      if (settings.dataConfig?.type === 'APPWRITE' && supplier.appwriteId) {
-          await appwriteService.updateSupplier(supplier);
+      // Use id directly - in Appwrite mode, id comes from $id
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              // Ensure we have the document ID for Appwrite
+              const supplierToUpdate = {
+                  ...supplier,
+                  appwriteId: supplier.appwriteId || supplier.id
+              };
+              await appwriteService.updateSupplier(supplierToUpdate);
+              console.log('✅ Proveedor actualizado en Appwrite:', supplierToUpdate.appwriteId);
+          } catch (error) {
+              console.error('Error updating supplier in Appwrite:', error);
+          }
       }
   };
 
@@ -679,8 +752,15 @@ const MainLayout: React.FC = () => {
       const supplier = suppliers.find(s => s.id === id);
       setSuppliers(prev => prev.filter(s => s.id !== id));
 
-      if (settings.dataConfig?.type === 'APPWRITE' && supplier?.appwriteId) {
-          await appwriteService.deleteSupplier(supplier.appwriteId);
+      // Use id directly - in Appwrite mode, id comes from $id
+      if (settings.dataConfig?.type === 'APPWRITE' && supplier) {
+          try {
+              const docId = supplier.appwriteId || supplier.id;
+              await appwriteService.deleteSupplier(docId);
+              console.log('✅ Proveedor eliminado de Appwrite:', docId);
+          } catch (error) {
+              console.error('Error deleting supplier from Appwrite:', error);
+          }
       }
   };
 
