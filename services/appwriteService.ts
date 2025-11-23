@@ -424,8 +424,9 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      // Remove File object from invoice before saving (not JSON serializable)
-      const { file, history, ...restInvoiceData } = invoice;
+      // Remove File object and id fields from invoice before saving
+      // id and appwriteId are managed by Appwrite ($id), not as document attributes
+      const { file, history, id, appwriteId, ...restInvoiceData } = invoice;
 
       // Serialize history array to JSON string (Appwrite doesn't support arrays of objects)
       const invoiceData = {
@@ -504,7 +505,8 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      const { file, history, ...restInvoiceData } = invoice;
+      // Remove id and appwriteId - these are managed by Appwrite ($id)
+      const { file, history, id, appwriteId, ...restInvoiceData } = invoice;
 
       // Serialize history array to JSON string
       const invoiceData = {
