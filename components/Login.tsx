@@ -36,7 +36,10 @@ export const Login: React.FC = () => {
     let settings = {};
     try {
       settings = savedSettingsStr ? JSON.parse(savedSettingsStr) : {};
-    } catch(e) {}
+    } catch {
+      // Invalid JSON in localStorage, use empty settings
+      settings = {};
+    }
 
     const newSettings = {
       ...settings,

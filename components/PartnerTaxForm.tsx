@@ -113,13 +113,15 @@ export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave,
   // Count filled optional sections
   const getSectionBadge = (section: string): string | undefined => {
     switch (section) {
-      case 'dependents':
+      case 'dependents': {
         const totalDependents = info.childrenUnder3 + info.childrenFrom3To25 + info.childrenWithDisability +
                                info.ascendantsOver65 + info.ascendantsOver75 + info.ascendantsWithDisability;
         return totalDependents > 0 ? `${totalDependents}` : undefined;
-      case 'deductions':
+      }
+      case 'deductions': {
         const hasDeductions = info.deductibleExpenses > 0 || info.pensionContributions > 0;
         return hasDeductions ? '✓' : undefined;
+      }
       default:
         return undefined;
     }

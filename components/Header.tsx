@@ -72,7 +72,9 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
     return 'text-slate-600 bg-slate-50';
   };
 
-  const formatTimestamp = (timestamp: number) => {
+  // useCallback ensures this function is stable across renders
+  // Date.now() is called when the function is invoked (not during render definition)
+  const formatTimestamp = React.useCallback((timestamp: number) => {
     const now = Date.now();
     const diff = now - timestamp;
     const minutes = Math.floor(diff / 60000);
@@ -83,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
     if (minutes < 60) return `Hace ${minutes}m`;
     if (hours < 24) return `Hace ${hours}h`;
     return `Hace ${days}d`;
-  };
+  }, []);
 
   return (
     <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
