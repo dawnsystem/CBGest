@@ -171,6 +171,10 @@ const MainLayout: React.FC = () => {
   }, [user]); // Re-sync when user changes
 
   // --- DATA LAYER INITIALIZATION & REALTIME ---
+  // NOTE: This effect intentionally only depends on `user` to avoid infinite loops.
+  // It uses refs (settingsRef, defaultSettingsRef) to access current settings without
+  // triggering re-runs when settings change. The effect reads fresh settings from
+  // localStorage via loadState() instead of relying on React state.
   useEffect(() => {
       if (!user) {
           setIsDataLoading(false);
@@ -178,7 +182,8 @@ const MainLayout: React.FC = () => {
       }
 
       const initDataLayer = async () => {
-          const freshSettings = loadState<AppSettings>('gestcb_settings', settings);
+          // Use ref to get current settings as fallback, avoiding dependency issues
+          const freshSettings = loadState<AppSettings>('gestcb_settings', settingsRef.current);
           setIsDataLoading(true);
 
           if (freshSettings.dataConfig?.type === 'APPWRITE') {
@@ -232,7 +237,8 @@ const MainLayout: React.FC = () => {
                 if (remoteSettings) {
                     const mergedSettings = {
                         ...remoteSettings,
-                        partners: remoteSettings.partners || defaultSettings.partners,
+                        // Use ref to access default partners, avoiding dependency issues
+                        partners: remoteSettings.partners || defaultSettingsRef.current.partners,
                         dataConfig: freshSettings.dataConfig // Keep local dataConfig
                     };
                     setSettings(mergedSettings);

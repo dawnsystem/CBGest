@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, FileText, PlusCircle, BookOpen, MoreHorizontal, Settings, Building2, Scale, X } from 'lucide-react';
 
@@ -27,10 +27,9 @@ export const MobileNavigation: React.FC = () => {
     };
   }, [showMoreMenu]);
 
-  // Close menu when route changes
-  useEffect(() => {
-    setShowMoreMenu(false);
-  }, [location.pathname]);
+  // Close menu handler - called when clicking menu links
+  // Using useCallback to ensure stable reference for event handlers
+  const closeMenu = useCallback(() => setShowMoreMenu(false), []);
 
   return (
     <>
@@ -48,6 +47,7 @@ export const MobileNavigation: React.FC = () => {
           <div className="p-2 space-y-1">
             <Link
               to="/suppliers"
+              onClick={closeMenu}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive('/suppliers') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-slate-50'
               }`}
@@ -57,6 +57,7 @@ export const MobileNavigation: React.FC = () => {
             </Link>
             <Link
               to="/reconciliation"
+              onClick={closeMenu}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive('/reconciliation') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-slate-50'
               }`}
@@ -66,6 +67,7 @@ export const MobileNavigation: React.FC = () => {
             </Link>
             <Link
               to="/settings"
+              onClick={closeMenu}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive('/settings') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-slate-50'
               }`}
