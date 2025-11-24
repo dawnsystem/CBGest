@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Check } from 'lucide-react';
 import { ACCOUNT_PLAN, AccountOption } from '../utils/accountingPlan';
 
@@ -11,28 +11,30 @@ interface AccountSelectorProps {
 
 export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChange, className }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(value);
+  // Track if user is actively typing to distinguish between external value changes and user input
+  const [localSearchTerm, setLocalSearchTerm] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const prevValueRef = useRef(value);
 
-  // Sync internal state when external value changes
-  useEffect(() => {
-    if (value !== prevValueRef.current) {
-      setSearchTerm(value);
-      prevValueRef.current = value;
-    }
-  }, [value]);
+  // Use local value when user is typing, otherwise use prop value
+  // This avoids the need for useEffect + setState synchronization that causes render cascades
+  const searchTerm = localSearchTerm ?? value;
+
+  // Reset local state when dropdown closes (user finished editing)
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    setLocalSearchTerm(null); // Reset to use prop value
+  }, []);
 
   // Close on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        handleClose();
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [wrapperRef]);
+  }, [handleClose]);
 
   const filteredAccounts = ACCOUNT_PLAN.filter(account => {
     const term = searchTerm.toLowerCase();
@@ -41,19 +43,19 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChang
            `${account.code} - ${account.name}`.toLowerCase().includes(term);
   });
 
-  const handleSelect = (account: AccountOption) => {
+  const handleSelect = useCallback((account: AccountOption) => {
     const fullValue = `${account.code} - ${account.name}`;
-    setSearchTerm(fullValue);
+    setLocalSearchTerm(null); // Reset local state to use prop value
     onChange(fullValue);
     setIsOpen(false);
-  };
+  }, [onChange]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = e.target.value;
-      setSearchTerm(newValue);
-      setIsOpen(true);
-      onChange(newValue); // Propagate manual typing immediately
-  };
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setLocalSearchTerm(newValue); // Track user's input locally
+    setIsOpen(true);
+    onChange(newValue); // Propagate manual typing immediately
+  }, [onChange]);
 
   return (
     <div className={`relative ${className}`} ref={wrapperRef}>

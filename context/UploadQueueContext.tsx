@@ -163,7 +163,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         );
         setQueue(prev => [...prev, ...savedItems]);
       } catch (error) {
-        // Silently fallback to local state
+        // Fallback to local state but log warning for debugging
+        console.warn('Error añadiendo elementos a la cola en Appwrite, usando estado local:', error);
         setQueue(prev => [...prev, ...newItems]);
       }
     } else {
@@ -177,7 +178,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         await databaseService.deleteUploadItem(id);
         setQueue(prev => prev.filter(item => item.id !== id));
       } catch (error) {
-        // Silently update local state on error
+        // Fallback to local state but log warning for debugging
+        console.warn('Error eliminando elemento de la cola en Appwrite, usando estado local:', error);
         setQueue(prev => prev.filter(item => item.id !== id));
       }
     } else {
@@ -202,7 +204,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         await databaseService.updateUploadItem(updatedItem);
         setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
       } catch (error) {
-        // Silently update local state on error
+        // Fallback to local state but log warning for debugging
+        console.warn('Error reintentando elemento en Appwrite, usando estado local:', error);
         setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
       }
     } else {
@@ -216,7 +219,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         await databaseService.deleteCompletedUploads();
         setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
       } catch (error) {
-        // Silently update local state on error
+        // Fallback to local state but log warning for debugging
+        console.warn('Error limpiando elementos completados en Appwrite, usando estado local:', error);
         setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
       }
     } else {
@@ -242,7 +246,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
             : item
         ));
       } catch (error) {
-        // Silently update local state on error
+        // Fallback to local state but log warning for debugging
+        console.warn('Error actualizando notificaciones en Appwrite, usando estado local:', error);
         setQueue(prev => prev.map(item =>
           (item.status === 'COMPLETED' || item.status === 'ERROR')
             ? { ...item, notificationDismissed: true }
@@ -275,7 +280,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       try {
         await databaseService.updateUploadItem(updatedItem);
       } catch (error) {
-        // Silently continue with local state update on error
+        // Log warning but continue - local state is already updated
+        console.warn('Error actualizando elemento de cola en Appwrite:', error);
       }
     }
   };
@@ -287,15 +293,24 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     const analyzingItem = { ...item, status: 'ANALYZING' as const, progress: 10 };
     await updateQueueItem(analyzingItem);
 
+    // Track pending progress updates to avoid race conditions
+    let isProgressUpdatePending = false;
+
     const progressInterval = setInterval(() => {
       setQueue(prev => prev.map(i => {
         if (i.id === item.id && i.status === 'ANALYZING' && i.progress < 90) {
           const updatedProgress = { ...i, progress: i.progress + (Math.random() * 10) };
-          // Fire and forget progress updates to Appwrite
-          if (isUsingAppwrite()) {
-            databaseService.updateUploadItem(updatedProgress).catch(() => {
-              // Silently ignore progress update errors
-            });
+          // Update Appwrite only if no pending update (debounce to avoid race conditions)
+          if (isUsingAppwrite() && !isProgressUpdatePending) {
+            isProgressUpdatePending = true;
+            databaseService.updateUploadItem(updatedProgress)
+              .catch((error) => {
+                // Log warning but don't block progress - this is non-critical
+                console.warn('Error actualizando progreso en Appwrite:', error);
+              })
+              .finally(() => {
+                isProgressUpdatePending = false;
+              });
           }
           return updatedProgress;
         }

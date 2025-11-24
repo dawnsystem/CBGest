@@ -112,7 +112,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const savedNotif = await databaseService.createNotification(newNotification);
         setNotifications(prev => [savedNotif, ...prev]);
       } catch (error) {
-        // Silently fallback to local state
+        // Fallback to local state but log warning for debugging
+        console.warn('Error guardando notificación en Appwrite, usando estado local:', error);
         setNotifications(prev => [newNotification, ...prev]);
       }
     } else {
@@ -132,7 +133,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           );
         }
       } catch (error) {
-        // Silently update local state on error
+        // Fallback to local state but log warning for debugging
+        console.warn('Error actualizando notificación en Appwrite, usando estado local:', error);
         setNotifications(prev =>
           prev.map(notif => notif.id === id ? { ...notif, read: true } : notif)
         );
@@ -158,7 +160,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           prev.map(notif => ({ ...notif, read: true }))
         );
       } catch (error) {
-        // Silently update local state on error
+        // Fallback to local state but log warning for debugging
+        console.warn('Error actualizando notificaciones en Appwrite, usando estado local:', error);
         setNotifications(prev =>
           prev.map(notif => ({ ...notif, read: true }))
         );
@@ -176,7 +179,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         await databaseService.deleteNotification(id);
         setNotifications(prev => prev.filter(notif => notif.id !== id));
       } catch (error) {
-        // Silently update local state on error
+        // Fallback to local state but log warning for debugging
+        console.warn('Error eliminando notificación en Appwrite, usando estado local:', error);
         setNotifications(prev => prev.filter(notif => notif.id !== id));
       }
     } else {
@@ -190,7 +194,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         await databaseService.deleteAllNotifications();
         setNotifications([]);
       } catch (error) {
-        // Silently update local state on error
+        // Fallback to local state but log warning for debugging
+        console.warn('Error eliminando notificaciones en Appwrite, usando estado local:', error);
         setNotifications([]);
       }
     } else {
