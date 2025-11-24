@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy, useCallback } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { MobileNavigation } from './components/MobileNavigation';
@@ -7,12 +7,11 @@ import { Header } from './components/Header';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
 import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier } from './types';
-import { Eye, Trash } from 'lucide-react';
+import { Eye, Trash, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
 import * as appwriteService from './services/appwriteService';
 import { APPWRITE_CONFIG } from './config/appwrite';
-import { AlertTriangle, CheckCircle, RefreshCw, XCircle } from 'lucide-react';
 
 // AUTH Integration
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -112,7 +111,6 @@ const MainLayout: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   // UI States
-  const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<string>>(new Set());
   const [viewingDoc, setViewingDoc] = useState<{file: File, title?: string} | null>(null);
 
   // --- FILE SYSTEM STATE ---
@@ -127,34 +125,47 @@ const MainLayout: React.FC = () => {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true); // Track if initial data load is complete
 
+  // Helper to show error to user with auto-clear
+  const showError = useCallback((message: string, autoClearMs = 10000) => {
+    setConnectionError(message);
+    if (autoClearMs > 0) {
+      setTimeout(() => setConnectionError(null), autoClearMs);
+    }
+  }, []);
+
   // --- SETUP ERROR NOTIFICATION CALLBACKS ---
   useEffect(() => {
       // Configure error callbacks for Appwrite service
       appwriteService.setNotificationCallbacks(
           (error: string, operation: string) => {
               console.error(`🔴 Error en ${operation}:`, error);
-              setConnectionError(`Error: ${error}`);
-              // Auto-clear error after 10 seconds
-              setTimeout(() => setConnectionError(null), 10000);
+              showError(`Error en ${operation}: ${error}`);
           },
-          (operation: string) => {
+          () => {
               // Success callback - clear any existing error
-              if (connectionError) {
-                  setConnectionError(null);
-              }
+              setConnectionError(null);
           }
       );
-  }, [connectionError]);
+  }, [showError]);
 
   // --- SYNC SETTINGS FROM LOCALSTORAGE ---
+  // Use refs to access current values without adding them as dependencies
+  const settingsRef = useRef(settings);
+  const defaultSettingsRef = useRef(defaultSettings);
+
+  // Keep refs in sync
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
   useEffect(() => {
       // Re-read settings from LS in case Login changed them
-      const freshSettings = loadState<AppSettings>('gestcb_settings', settings);
+      const freshSettings = loadState<AppSettings>('gestcb_settings', settingsRef.current);
 
       // Double check arrays exist in freshSettings
-      if (!freshSettings.partners) freshSettings.partners = defaultSettings.partners;
+      if (!freshSettings.partners) freshSettings.partners = defaultSettingsRef.current.partners;
 
-      if(JSON.stringify(freshSettings.dataConfig) !== JSON.stringify(settings.dataConfig)) {
+      if(JSON.stringify(freshSettings.dataConfig) !== JSON.stringify(settingsRef.current.dataConfig)) {
           setSettings(freshSettings);
       }
   }, [user]); // Re-sync when user changes
@@ -171,20 +182,9 @@ const MainLayout: React.FC = () => {
           setIsDataLoading(true);
 
           if (freshSettings.dataConfig?.type === 'APPWRITE') {
-              // USE HARDCODED APPWRITE CONFIG
-              appwriteService.initializeAppwrite({
-                  projectId: APPWRITE_CONFIG.projectId,
-                  endpoint: APPWRITE_CONFIG.endpoint,
-                  databaseId: APPWRITE_CONFIG.databaseId,
-                  storageBucketId: APPWRITE_CONFIG.bucketId,
-                  invoicesCollectionId: APPWRITE_CONFIG.collections.invoices,
-                  entriesCollectionId: APPWRITE_CONFIG.collections.entries,
-                  transactionsCollectionId: APPWRITE_CONFIG.collections.transactions,
-                  settingsCollectionId: APPWRITE_CONFIG.collections.settings,
-                  notificationsCollectionId: APPWRITE_CONFIG.collections.notifications,
-                  uploadsCollectionId: APPWRITE_CONFIG.collections.uploads,
-                  suppliersCollectionId: APPWRITE_CONFIG.collections.suppliers
-              });
+              // NOTE: Appwrite is already initialized in AuthContext.tsx
+              // No need to call initializeAppwrite again here - it's a singleton pattern
+              // This prevents the "double initialization" anti-pattern
 
               // PERFORM HEALTH CHECK FIRST
               console.log('🔍 Verificando conexión con Appwrite...');
@@ -318,14 +318,27 @@ const MainLayout: React.FC = () => {
 
   // Encrypted File Auto-Save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Store fileHandle and encryptionKey in refs to avoid adding them as dependencies
+  const fileHandleRef = useRef(fileHandle);
+  const encryptionKeyRef = useRef(encryptionKey);
+
+  // Keep refs in sync
   useEffect(() => {
-      if (isLocalFileMode && fileHandle && encryptionKey) {
+    fileHandleRef.current = fileHandle;
+  }, [fileHandle]);
+
+  useEffect(() => {
+    encryptionKeyRef.current = encryptionKey;
+  }, [encryptionKey]);
+
+  useEffect(() => {
+      if (isLocalFileMode && fileHandleRef.current && encryptionKeyRef.current) {
           if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
           saveTimeoutRef.current = setTimeout(async () => {
               const fullData = { invoices, entries: accountingEntries, transactions: bankTransactions, settings };
               try {
-                  const encryptedBlob = await encryptData(JSON.stringify(fullData), encryptionKey);
-                  const writable = await (fileHandle as any).createWritable();
+                  const encryptedBlob = await encryptData(JSON.stringify(fullData), encryptionKeyRef.current!);
+                  const writable = await (fileHandleRef.current as any).createWritable();
                   await writable.write(encryptedBlob);
                   await writable.close();
                   setLastSaved(new Date());
@@ -355,14 +368,13 @@ const MainLayout: React.FC = () => {
   };
 
   const handleAddInvoice = async (invoice: Invoice) => {
-      // Update state immediately for optimistic UI
-      setInvoices(prev => [invoice, ...prev]);
-
       // IMPORTANT: Save original status BEFORE calling Appwrite
       // This ensures we use the correct status for creating accounting entries
-      // even if Appwrite's response doesn't include the status field
       const originalStatus = invoice.status;
       const originalInvoice = { ...invoice };
+
+      // Update state immediately for optimistic UI
+      setInvoices(prev => [invoice, ...prev]);
 
       if (settings.dataConfig?.type === 'APPWRITE') {
           try {
@@ -373,9 +385,17 @@ const MainLayout: React.FC = () => {
                   status: savedInv.status || originalStatus
               };
               setInvoices(prev => prev.map(i => i.id === invoice.id ? mergedInvoice : i));
-          } catch (error) {
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the invoice from local state since it wasn't saved
+              setInvoices(prev => prev.filter(i => i.id !== invoice.id));
+
+              // Show error to user
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al guardar factura: ${errorMessage}. Los cambios no se han guardado.`);
               console.error('Error saving invoice to Appwrite:', error);
-              // Invoice is already in local state, continue with entry creation
+
+              // Don't continue with entry creation since invoice wasn't saved
+              return;
           }
       }
 
@@ -473,10 +493,23 @@ const MainLayout: React.FC = () => {
   
   const handleUpdateInvoice = async (invoice: Invoice) => {
       const oldInvoice = invoices.find(i => i.id === invoice.id);
+
+      // Optimistic update
       setInvoices(prev => prev.map(i => i.id === invoice.id ? invoice : i));
 
       if (settings.dataConfig?.type === 'APPWRITE') {
-          await appwriteService.updateInvoice(invoice);
+          try {
+              await appwriteService.updateInvoice(invoice);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the original invoice
+              if (oldInvoice) {
+                  setInvoices(prev => prev.map(i => i.id === invoice.id ? oldInvoice : i));
+              }
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al actualizar factura: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error updating invoice in Appwrite:', error);
+              return;
+          }
       }
 
       // Create notification
@@ -506,6 +539,8 @@ const MainLayout: React.FC = () => {
 
   const handleDeleteInvoice = async (id: string) => {
       const invoice = invoices.find(i => i.id === id);
+
+      // Optimistic delete
       setInvoices(prev => prev.filter(i => i.id !== id));
 
       // Use id directly - in Appwrite mode, id comes from $id
@@ -514,8 +549,13 @@ const MainLayout: React.FC = () => {
               const docId = invoice.appwriteId || invoice.id;
               await appwriteService.deleteInvoice(docId);
               console.log('✅ Factura eliminada de Appwrite:', docId);
-          } catch (error) {
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the deleted invoice
+              setInvoices(prev => [invoice, ...prev]);
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al eliminar factura: ${errorMessage}. La factura no se ha eliminado.`);
               console.error('Error deleting invoice from Appwrite:', error);
+              return;
           }
       }
 
@@ -539,10 +579,21 @@ const MainLayout: React.FC = () => {
   };
 
   const handleAddEntry = async (entry: AccountingEntry) => {
+      // Optimistic add
       setAccountingEntries(prev => [entry, ...prev]);
+
       if (settings.dataConfig?.type === 'APPWRITE') {
-          const saved = await appwriteService.createEntry(entry);
-          setAccountingEntries(prev => prev.map(e => e.id === entry.id ? saved : e));
+          try {
+              const saved = await appwriteService.createEntry(entry);
+              setAccountingEntries(prev => prev.map(e => e.id === entry.id ? saved : e));
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the entry from local state
+              setAccountingEntries(prev => prev.filter(e => e.id !== entry.id));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al crear asiento: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error creating entry in Appwrite:', error);
+              return;
+          }
       }
 
       // Create notification (only for manual entries, not auto-generated from invoices)
@@ -559,9 +610,24 @@ const MainLayout: React.FC = () => {
   };
 
   const handleUpdateEntry = async (entry: AccountingEntry) => {
+      const oldEntry = accountingEntries.find(e => e.id === entry.id);
+
+      // Optimistic update
       setAccountingEntries(prev => prev.map(e => e.id === entry.id ? entry : e));
+
       if (settings.dataConfig?.type === 'APPWRITE') {
-          await appwriteService.updateEntry(entry);
+          try {
+              await appwriteService.updateEntry(entry);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the original entry
+              if (oldEntry) {
+                  setAccountingEntries(prev => prev.map(e => e.id === entry.id ? oldEntry : e));
+              }
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al actualizar asiento: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error updating entry in Appwrite:', error);
+              return;
+          }
       }
 
       // Create notification
@@ -579,6 +645,8 @@ const MainLayout: React.FC = () => {
 
   const handleDeleteEntry = async (id: string) => {
       const entry = accountingEntries.find(e => e.id === id);
+
+      // Optimistic delete
       setAccountingEntries(prev => prev.filter(e => e.id !== id));
 
       // Use id directly - in Appwrite mode, id comes from $id
@@ -587,8 +655,13 @@ const MainLayout: React.FC = () => {
               const docId = entry.appwriteId || entry.id;
               await appwriteService.deleteEntry(docId);
               console.log('✅ Asiento eliminado de Appwrite:', docId);
-          } catch (error) {
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the deleted entry
+              setAccountingEntries(prev => [entry, ...prev]);
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al eliminar asiento: ${errorMessage}. El asiento no se ha eliminado.`);
               console.error('Error deleting entry from Appwrite:', error);
+              return;
           }
       }
 
@@ -606,7 +679,11 @@ const MainLayout: React.FC = () => {
   };
 
   const handleAddBankTransactions = async (txs: BankTransaction[]) => {
+      const txIds = txs.map(tx => tx.id);
+
+      // Optimistic add
       setBankTransactions(prev => [...prev, ...txs]);
+
       if (settings.dataConfig?.type === 'APPWRITE') {
           try {
               // Save all transactions to Appwrite with proper await
@@ -621,9 +698,12 @@ const MainLayout: React.FC = () => {
                   })
               );
               console.log(`✅ ${savedTransactions.length} transacciones guardadas en Appwrite`);
-          } catch (error) {
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the transactions from local state
+              setBankTransactions(prev => prev.filter(t => !txIds.includes(t.id)));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al guardar transacciones bancarias: ${errorMessage}. Los cambios no se han guardado.`);
               console.error('Error saving transactions to Appwrite:', error);
-              // Data remains in local state
           }
       }
   };
@@ -715,6 +795,7 @@ const MainLayout: React.FC = () => {
 
   // Supplier Handlers
   const handleAddSupplier = async (supplier: Supplier) => {
+      // Optimistic add
       setSuppliers(prev => [supplier, ...prev]);
 
       if (settings.dataConfig?.type === 'APPWRITE') {
@@ -723,13 +804,20 @@ const MainLayout: React.FC = () => {
               // Update with Appwrite ID
               setSuppliers(prev => prev.map(s => s.id === supplier.id ? savedSupplier : s));
               console.log('✅ Proveedor guardado en Appwrite:', savedSupplier.id);
-          } catch (error) {
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the supplier from local state
+              setSuppliers(prev => prev.filter(s => s.id !== supplier.id));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al crear proveedor: ${errorMessage}. Los cambios no se han guardado.`);
               console.error('Error saving supplier to Appwrite:', error);
           }
       }
   };
 
   const handleUpdateSupplier = async (supplier: Supplier) => {
+      const oldSupplier = suppliers.find(s => s.id === supplier.id);
+
+      // Optimistic update
       setSuppliers(prev => prev.map(s => s.id === supplier.id ? supplier : s));
 
       // Use id directly - in Appwrite mode, id comes from $id
@@ -742,7 +830,13 @@ const MainLayout: React.FC = () => {
               };
               await appwriteService.updateSupplier(supplierToUpdate);
               console.log('✅ Proveedor actualizado en Appwrite:', supplierToUpdate.appwriteId);
-          } catch (error) {
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the original supplier
+              if (oldSupplier) {
+                  setSuppliers(prev => prev.map(s => s.id === supplier.id ? oldSupplier : s));
+              }
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al actualizar proveedor: ${errorMessage}. Los cambios no se han guardado.`);
               console.error('Error updating supplier in Appwrite:', error);
           }
       }
@@ -750,6 +844,8 @@ const MainLayout: React.FC = () => {
 
   const handleDeleteSupplier = async (id: string) => {
       const supplier = suppliers.find(s => s.id === id);
+
+      // Optimistic delete
       setSuppliers(prev => prev.filter(s => s.id !== id));
 
       // Use id directly - in Appwrite mode, id comes from $id
@@ -758,7 +854,11 @@ const MainLayout: React.FC = () => {
               const docId = supplier.appwriteId || supplier.id;
               await appwriteService.deleteSupplier(docId);
               console.log('✅ Proveedor eliminado de Appwrite:', docId);
-          } catch (error) {
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the deleted supplier
+              setSuppliers(prev => [supplier, ...prev]);
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al eliminar proveedor: ${errorMessage}. El proveedor no se ha eliminado.`);
               console.error('Error deleting supplier from Appwrite:', error);
           }
       }

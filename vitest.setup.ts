@@ -61,7 +61,7 @@ Object.defineProperty(window, 'sessionStorage', {
 
 // Mock File API
 if (typeof global.File === 'undefined') {
-  // @ts-ignore - Mock for testing environment
+  // @ts-expect-error - Mock for testing environment
   global.File = class MockFile {
     name: string;
     size: number;
@@ -79,7 +79,7 @@ if (typeof global.File === 'undefined') {
 
 // Mock FileReader API
 if (typeof global.FileReader === 'undefined') {
-  // @ts-ignore - Mock for testing environment
+  // @ts-expect-error - Mock for testing environment
   global.FileReader = class MockFileReader {
     result: string | ArrayBuffer | null = null;
     error: Error | null = null;
@@ -136,7 +136,7 @@ if (typeof global.FileReader === 'undefined') {
 
 // Mock Blob API (if needed)
 if (typeof global.Blob === 'undefined') {
-  // @ts-ignore - Mock for testing environment
+  // @ts-expect-error - Mock for testing environment
   global.Blob = class MockBlob {
     size: number;
     type: string;
@@ -164,13 +164,7 @@ if (typeof global.TextEncoder === 'undefined') {
   global.TextDecoder = TextDecoder;
 }
 
-// Mock setInterval and clearInterval (should already exist in Node, but just in case)
-if (typeof global.setInterval === 'undefined') {
-  // @ts-ignore
-  global.setInterval = setInterval;
-  // @ts-ignore
-  global.clearInterval = clearInterval;
-}
+// Note: setInterval and clearInterval are already available in Node.js - no mock needed
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {

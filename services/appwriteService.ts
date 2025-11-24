@@ -11,8 +11,6 @@ let currentConfig: AppwriteConfig | null = null;
 
 // Connection state tracking
 let connectionHealthy: boolean = false;
-let lastConnectionCheck: number = 0;
-const CONNECTION_CHECK_INTERVAL = 30000; // 30 seconds
 
 // Error callbacks for UI feedback
 type ErrorCallback = (error: string, operation: string) => void;
@@ -148,7 +146,6 @@ export const testConnection = async (): Promise<boolean> => {
     });
 
     connectionHealthy = true;
-    lastConnectionCheck = Date.now();
     console.log('✅ Appwrite connection test successful');
     return true;
   } catch (error: any) {

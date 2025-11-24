@@ -237,7 +237,8 @@ const parseDateValue = (value: any): string => {
   const dateStr = String(value).trim();
 
   // DD/MM/YYYY or DD-MM-YYYY
-  const ddmmyyyy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  // Note: Inside character class [], / doesn't need escaping, - at end doesn't need escaping
+  const ddmmyyyy = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (ddmmyyyy) {
     return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`;
   }

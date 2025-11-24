@@ -1,10 +1,40 @@
 
 import React, { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
-import { TrendingUp, TrendingDown, Wallet, AlertCircle, Calculator, FileText, Euro } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { TrendingUp, TrendingDown, Wallet, AlertCircle, Calculator, FileText, LucideIcon } from 'lucide-react';
 import { Invoice, AppSettings, Partner, PartnerTaxInfo, DisabilityLevel } from '../types';
 import { PartnerTaxForm } from './PartnerTaxForm';
 import { useNavigate } from 'react-router-dom';
+
+// StatCard component moved OUTSIDE of Dashboard to prevent recreation on each render
+// This is critical for performance - components defined inside render functions lose their state on every render
+interface StatCardProps {
+  title: string;
+  amount: number;
+  type: 'positive' | 'negative' | 'neutral';
+  icon: LucideIcon;
+  isRental?: boolean;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ title, amount, type, icon: Icon, isRental = false }) => (
+  <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+    <div className="flex items-center justify-between mb-3 md:mb-4">
+      <span className="text-slate-500 text-xs md:text-sm font-medium uppercase tracking-wider">{title}</span>
+      <div className={`p-1.5 md:p-2 rounded-lg ${
+        type === 'positive' ? 'bg-emerald-100 text-emerald-600' :
+        type === 'negative' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'
+      }`}>
+        <Icon className="w-4 h-4 md:w-5 md:h-5" />
+      </div>
+    </div>
+    <div className="flex items-end gap-2">
+      <h3 className="text-lg md:text-2xl font-bold text-slate-900">{amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</h3>
+    </div>
+    <p className="text-[10px] md:text-xs text-slate-400 mt-2">
+        {isRental && title.includes('Neto') ? 'Rendimiento Inmobiliario (YTD)' : 'Acumulado Año Actual'}
+    </p>
+  </div>
+);
 
 interface DashboardProps {
   invoices: Invoice[];
@@ -249,27 +279,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
     return { mandatory: false, reason: 'Bajo límites de declaración' };
   };
 
-  // --- UI COMPONENTS ---
-
-  const StatCard = ({ title, amount, type, icon: Icon }: any) => (
-    <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-3 md:mb-4">
-        <span className="text-slate-500 text-xs md:text-sm font-medium uppercase tracking-wider">{title}</span>
-        <div className={`p-1.5 md:p-2 rounded-lg ${
-          type === 'positive' ? 'bg-emerald-100 text-emerald-600' :
-          type === 'negative' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'
-        }`}>
-          <Icon className="w-4 h-4 md:w-5 md:h-5" />
-        </div>
-      </div>
-      <div className="flex items-end gap-2">
-        <h3 className="text-lg md:text-2xl font-bold text-slate-900">{amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</h3>
-      </div>
-      <p className="text-[10px] md:text-xs text-slate-400 mt-2">
-          {isRental && title.includes('Neto') ? 'Rendimiento Inmobiliario (YTD)' : 'Acumulado Año Actual'}
-      </p>
-    </div>
-  );
+  // --- EVENT HANDLERS ---
 
   const handleSavePartnerTaxInfo = (id: string, info: any) => {
       if (!onUpdateSettings) {
@@ -316,9 +326,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, onUpda
 
       {/* 1. KEY METRICS (REAL DATA) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="Ingresos Rentas" amount={totalIncome} type="positive" icon={TrendingUp} />
-        <StatCard title="Gastos Deducibles" amount={totalExpense} type="negative" icon={TrendingDown} />
-        <StatCard title="Resultado Neto" amount={netResult} type="neutral" icon={Wallet} />
+        <StatCard title="Ingresos Rentas" amount={totalIncome} type="positive" icon={TrendingUp} isRental={isRental} />
+        <StatCard title="Gastos Deducibles" amount={totalExpense} type="negative" icon={TrendingDown} isRental={isRental} />
+        <StatCard title="Resultado Neto" amount={netResult} type="neutral" icon={Wallet} isRental={isRental} />
       </div>
 
       {/* 2. CHARTS (REAL DATA) */}
