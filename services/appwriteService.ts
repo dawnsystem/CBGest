@@ -109,6 +109,85 @@ const withRetry = async <T>(
 };
 
 // ============================================================================
+// AUDIT FIELDS HANDLING
+// ============================================================================
+
+/** Lista de campos de auditoría opcionales */
+const AUDIT_FIELDS = ['createdBy', 'createdByName', 'createdAt'];
+
+/** Track si los campos de auditoría están soportados (null = no se sabe aún) */
+let auditFieldsSupported: boolean | null = null;
+
+/**
+ * Elimina los campos de auditoría de un objeto si no están soportados en Appwrite
+ * @param data Objeto con posibles campos de auditoría
+ * @returns Objeto sin campos de auditoría si no están soportados
+ */
+const stripAuditFieldsIfNeeded = <T extends Record<string, unknown>>(data: T): T => {
+  if (auditFieldsSupported === false) {
+    const cleanData = { ...data };
+    for (const field of AUDIT_FIELDS) {
+      delete cleanData[field];
+    }
+    return cleanData;
+  }
+  return data;
+};
+
+/**
+ * Detecta si un error es debido a campos de auditoría no soportados
+ */
+const isUnknownAttributeError = (error: any): boolean => {
+  const message = error?.message || '';
+  return message.includes('Unknown attribute') &&
+         AUDIT_FIELDS.some(field => message.includes(field));
+};
+
+/**
+ * Wrapper para operaciones de creación que maneja campos de auditoría opcionales
+ * Si Appwrite no tiene los atributos de auditoría, reintenta sin ellos
+ */
+const withAuditFieldsFallback = async <T>(
+  operation: (data: any) => Promise<T>,
+  data: Record<string, unknown>,
+  operationName: string
+): Promise<T> => {
+  // Si ya sabemos que no están soportados, limpiar antes
+  const cleanData = stripAuditFieldsIfNeeded(data);
+
+  try {
+    const result = await operation(cleanData);
+    // Si llegamos aquí y no habíamos probado aún, asumimos que están soportados
+    if (auditFieldsSupported === null && AUDIT_FIELDS.some(f => f in data)) {
+      auditFieldsSupported = true;
+      console.log('[AuditFields] Campos de auditoría soportados en Appwrite ✓');
+    }
+    return result;
+  } catch (error: any) {
+    // Si es error de atributo desconocido y tenemos campos de auditoría
+    if (isUnknownAttributeError(error) && auditFieldsSupported !== false) {
+      console.warn(`[${operationName}] Campos de auditoría no soportados - reintentando sin ellos`);
+      console.warn('[AuditFields] Para habilitar auditoría, añade estos atributos a tus colecciones:');
+      console.warn('  - createdBy (string, opcional)');
+      console.warn('  - createdByName (string, opcional)');
+      console.warn('  - createdAt (string, opcional)');
+
+      // Marcar como no soportados para futuras operaciones
+      auditFieldsSupported = false;
+
+      // Limpiar y reintentar
+      const dataWithoutAudit: Record<string, unknown> = { ...data };
+      for (const field of AUDIT_FIELDS) {
+        delete dataWithoutAudit[field];
+      }
+
+      return await operation(dataWithoutAudit);
+    }
+    throw error;
+  }
+};
+
+// ============================================================================
 // BACKWARDS COMPATIBILITY - initializeAppwrite (now a no-op)
 // ============================================================================
 
@@ -261,14 +340,19 @@ export const databaseService = {
         ...restInvoiceData,
         history: history ? JSON.stringify(history) : undefined
       };
+      const docId = invoice.id || ID.unique();
 
-      const doc = await withRetry(
-        () => databases.createDocument(
-          config.databaseId,
-          config.collections.invoices,
-          invoice.id || ID.unique(),
-          invoiceData
+      const doc = await withAuditFieldsFallback(
+        (data) => withRetry(
+          () => databases.createDocument(
+            config.databaseId,
+            config.collections.invoices,
+            docId,
+            data
+          ),
+          'createInvoice'
         ),
+        invoiceData as Record<string, unknown>,
         'createInvoice'
       );
 
@@ -324,13 +408,17 @@ export const databaseService = {
         history: history ? JSON.stringify(history) : undefined
       };
 
-      const doc = await withRetry(
-        () => databases.updateDocument(
-          config.databaseId,
-          config.collections.invoices,
-          invoice.id,
-          invoiceData
+      const doc = await withAuditFieldsFallback(
+        (data) => withRetry(
+          () => databases.updateDocument(
+            config.databaseId,
+            config.collections.invoices,
+            invoice.id,
+            data
+          ),
+          'updateInvoice'
         ),
+        invoiceData as Record<string, unknown>,
         'updateInvoice'
       );
 
@@ -370,14 +458,19 @@ export const databaseService = {
   async createEntry(entry: AccountingEntry): Promise<AccountingEntry> {
     try {
       const { referenceDoc, id, appwriteId, ...entryData } = entry;
+      const docId = id || ID.unique();
 
-      const doc = await withRetry(
-        () => databases.createDocument(
-          config.databaseId,
-          config.collections.entries,
-          id || ID.unique(),
-          entryData
+      const doc = await withAuditFieldsFallback(
+        (data) => withRetry(
+          () => databases.createDocument(
+            config.databaseId,
+            config.collections.entries,
+            docId,
+            data
+          ),
+          'createEntry'
         ),
+        entryData as Record<string, unknown>,
         'createEntry'
       );
 
@@ -419,8 +512,12 @@ export const databaseService = {
       const { referenceDoc, id, appwriteId, ...entryData } = entry;
       const docId = appwriteId || id;
 
-      const doc = await withRetry(
-        () => databases.updateDocument(config.databaseId, config.collections.entries, docId, entryData),
+      const doc = await withAuditFieldsFallback(
+        (data) => withRetry(
+          () => databases.updateDocument(config.databaseId, config.collections.entries, docId, data),
+          'updateEntry'
+        ),
+        entryData as Record<string, unknown>,
         'updateEntry'
       );
 
@@ -451,14 +548,19 @@ export const databaseService = {
   async createTransaction(transaction: BankTransaction): Promise<BankTransaction> {
     try {
       const { id, appwriteId, ...transactionData } = transaction;
+      const docId = id || ID.unique();
 
-      const doc = await withRetry(
-        () => databases.createDocument(
-          config.databaseId,
-          config.collections.transactions,
-          id || ID.unique(),
-          transactionData
+      const doc = await withAuditFieldsFallback(
+        (data) => withRetry(
+          () => databases.createDocument(
+            config.databaseId,
+            config.collections.transactions,
+            docId,
+            data
+          ),
+          'createTransaction'
         ),
+        transactionData as Record<string, unknown>,
         'createTransaction'
       );
 
@@ -500,8 +602,12 @@ export const databaseService = {
       const { id, appwriteId, ...transactionData } = transaction;
       const docId = appwriteId || id;
 
-      const doc = await withRetry(
-        () => databases.updateDocument(config.databaseId, config.collections.transactions, docId, transactionData),
+      const doc = await withAuditFieldsFallback(
+        (data) => withRetry(
+          () => databases.updateDocument(config.databaseId, config.collections.transactions, docId, data),
+          'updateTransaction'
+        ),
+        transactionData as Record<string, unknown>,
         'updateTransaction'
       );
 
@@ -592,12 +698,17 @@ export const databaseService = {
   async createSupplier(supplier: Supplier): Promise<Supplier> {
     try {
       const { id, appwriteId, ...supplierData } = supplier;
+      const docId = id || ID.unique();
 
-      const doc = await databases.createDocument(
-        config.databaseId,
-        config.collections.suppliers,
-        id || ID.unique(),
-        supplierData
+      const doc = await withAuditFieldsFallback(
+        (data) => databases.createDocument(
+          config.databaseId,
+          config.collections.suppliers,
+          docId,
+          data
+        ),
+        supplierData as Record<string, unknown>,
+        'createSupplier'
       );
 
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Supplier;
@@ -631,11 +742,15 @@ export const databaseService = {
       const { id, appwriteId, ...supplierData } = supplier;
       const docId = appwriteId || id;
 
-      const doc = await databases.updateDocument(
-        config.databaseId,
-        config.collections.suppliers,
-        docId,
-        supplierData
+      const doc = await withAuditFieldsFallback(
+        (data) => databases.updateDocument(
+          config.databaseId,
+          config.collections.suppliers,
+          docId,
+          data
+        ),
+        supplierData as Record<string, unknown>,
+        'updateSupplier'
       );
 
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Supplier;
