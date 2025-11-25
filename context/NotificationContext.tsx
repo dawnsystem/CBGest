@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Notification, NotificationContextType, AppSettings } from '../types';
+import { Notification, NotificationContextType } from '../types';
 import { useAuth } from './AuthContext';
 import { isAppwriteInitialized } from '../services/appwriteService';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
@@ -18,82 +18,46 @@ interface NotificationProviderProps {
   children: ReactNode;
 }
 
-// Helper to check if using Appwrite
-const isUsingAppwrite = (): boolean => {
-  try {
-    const saved = localStorage.getItem('gestcb_settings');
-    if (!saved) return false;
-    const settings: AppSettings = JSON.parse(saved);
-    return settings.dataConfig?.type === 'APPWRITE' && !!settings.dataConfig.appwriteProjectId;
-  } catch {
-    return false;
-  }
-};
-
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load notifications on mount and when user changes (from Appwrite or localStorage)
+  // Load notifications from Appwrite on mount and when user changes
   useEffect(() => {
     const loadNotifications = async () => {
       setIsLoading(true);
 
-      if (isUsingAppwrite() && user) {
-        // Wait for Appwrite to be initialized before loading
-        if (!isAppwriteInitialized()) {
-          // Silently wait for initialization without logging
-          setTimeout(() => {
-            if (isAppwriteInitialized()) {
-              loadNotifications();
-            } else {
-              // Appwrite not initialized after waiting, use empty state
-              setIsLoading(false);
-            }
-          }, 500);
-          return;
-        }
+      if (!user) {
+        setNotifications([]);
+        setIsLoading(false);
+        return;
+      }
 
-        try {
-          const loadedNotifications = await protectedDatabase.getNotifications();
-          setNotifications(loadedNotifications);
-        } catch (error: any) {
-          // Silently handle errors - getNotifications already logs unexpected errors
-          setNotifications([]);
-        }
-      } else if (!isUsingAppwrite()) {
-        // Load from localStorage
-        const saved = localStorage.getItem('gestcb_notifications');
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            setNotifications(parsed);
-          } catch (error) {
-            console.error('Error loading notifications from localStorage:', error);
-            setNotifications([]);
+      // Wait for Appwrite to be initialized before loading
+      if (!isAppwriteInitialized()) {
+        setTimeout(() => {
+          if (isAppwriteInitialized()) {
+            loadNotifications();
+          } else {
+            setIsLoading(false);
           }
-        }
-      } else {
-        // Using Appwrite but no user - clear notifications
+        }, 500);
+        return;
+      }
+
+      try {
+        const loadedNotifications = await protectedDatabase.getNotifications();
+        setNotifications(loadedNotifications);
+      } catch (error) {
+        console.error('Error cargando notificaciones:', error);
         setNotifications([]);
       }
       setIsLoading(false);
     };
 
     loadNotifications();
-  }, [user]); // Re-load when user changes
-
-  // Save notifications (to Appwrite or localStorage) - only in localStorage mode
-  useEffect(() => {
-    if (isLoading) return; // Don't save during initial load
-
-    if (!isUsingAppwrite()) {
-      // Only save to localStorage in LOCAL_STORAGE mode
-      localStorage.setItem('gestcb_notifications', JSON.stringify(notifications));
-    }
-    // In Appwrite mode, individual operations handle persistence
-  }, [notifications, isLoading]);
+  }, [user]);
 
   const addNotification = async (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     // Don't create notification for own actions
@@ -108,95 +72,36 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       read: false
     };
 
-    if (isUsingAppwrite()) {
-      try {
-        const savedNotif = await protectedDatabase.createNotification(newNotification);
-        setNotifications(prev => [savedNotif, ...prev]);
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error guardando notificación en Appwrite, usando estado local:', error);
-        setNotifications(prev => [newNotification, ...prev]);
-      }
-    } else {
-      setNotifications(prev => [newNotification, ...prev]);
-    }
+    const savedNotif = await protectedDatabase.createNotification(newNotification);
+    setNotifications(prev => [savedNotif, ...prev]);
   };
 
   const markAsRead = async (id: string) => {
-    if (isUsingAppwrite()) {
-      try {
-        const notif = notifications.find(n => n.id === id);
-        if (notif) {
-          const updated = { ...notif, read: true };
-          await protectedDatabase.updateNotification(updated);
-          setNotifications(prev =>
-            prev.map(n => n.id === id ? updated : n)
-          );
-        }
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error actualizando notificación en Appwrite, usando estado local:', error);
-        setNotifications(prev =>
-          prev.map(notif => notif.id === id ? { ...notif, read: true } : notif)
-        );
-      }
-    } else {
+    const notif = notifications.find(n => n.id === id);
+    if (notif) {
+      const updated = { ...notif, read: true };
+      await protectedDatabase.updateNotification(updated);
       setNotifications(prev =>
-        prev.map(notif => notif.id === id ? { ...notif, read: true } : notif)
+        prev.map(n => n.id === id ? updated : n)
       );
     }
   };
 
   const markAllAsRead = async () => {
-    if (isUsingAppwrite()) {
-      try {
-        // Use dedicated markAllNotificationsRead for efficiency
-        await protectedDatabase.markAllNotificationsRead();
-        setNotifications(prev =>
-          prev.map(notif => ({ ...notif, read: true }))
-        );
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error actualizando notificaciones en Appwrite, usando estado local:', error);
-        setNotifications(prev =>
-          prev.map(notif => ({ ...notif, read: true }))
-        );
-      }
-    } else {
-      setNotifications(prev =>
-        prev.map(notif => ({ ...notif, read: true }))
-      );
-    }
+    await protectedDatabase.markAllNotificationsRead();
+    setNotifications(prev =>
+      prev.map(notif => ({ ...notif, read: true }))
+    );
   };
 
   const deleteNotification = async (id: string) => {
-    if (isUsingAppwrite()) {
-      try {
-        await protectedDatabase.deleteNotification(id);
-        setNotifications(prev => prev.filter(notif => notif.id !== id));
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error eliminando notificación en Appwrite, usando estado local:', error);
-        setNotifications(prev => prev.filter(notif => notif.id !== id));
-      }
-    } else {
-      setNotifications(prev => prev.filter(notif => notif.id !== id));
-    }
+    await protectedDatabase.deleteNotification(id);
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
   };
 
   const clearAll = async () => {
-    if (isUsingAppwrite()) {
-      try {
-        await protectedDatabase.deleteAllNotifications();
-        setNotifications([]);
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error eliminando notificaciones en Appwrite, usando estado local:', error);
-        setNotifications([]);
-      }
-    } else {
-      setNotifications([]);
-    }
+    await protectedDatabase.deleteAllNotifications();
+    setNotifications([]);
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;

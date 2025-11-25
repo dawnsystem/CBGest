@@ -1,12 +1,12 @@
 /**
- * @fileoverview Servicio de base de datos con rate limiting, caché y offline support
- * @description Wrapper sobre los servicios existentes de Appwrite con todas las protecciones integradas
+ * @fileoverview Servicio de base de datos con rate limiting y caché
+ * @description Wrapper sobre los servicios de Appwrite. Requiere conexión - no hay modo offline.
  */
 
 import { rateLimiter } from './rateLimiter';
 import { cache, CACHE_TTLS } from './cache';
 import { offlineQueue } from './offlineQueue';
-import { databaseService, isAppwriteInitialized } from '../../services/appwriteService';
+import { databaseService } from '../../services/appwriteService';
 import { APPWRITE_CONFIG } from '../../config/appwrite';
 import type {
   Invoice,
@@ -29,33 +29,46 @@ interface QueryOptions {
 }
 
 interface MutationOptions {
-  /** Permitir operación offline */
-  allowOffline?: boolean;
   /** Prioridad de la petición */
   priority?: 'high' | 'normal' | 'low';
 }
 
 // Debounce tracking para updates frecuentes
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const pendingPromises = new Map<string, { resolve: (value: unknown) => void; reject: (error: unknown) => void }[]>();
 const DEBOUNCE_DELAY = 2000; // 2 segundos para progress updates
 
 /**
  * Ejecuta una función con debounce por clave
+ * Agrupa múltiples llamadas en una sola ejecución
  */
 function debounced<T>(key: string, fn: () => Promise<T>, delay: number = DEBOUNCE_DELAY): Promise<T> {
   return new Promise((resolve, reject) => {
+    // Añadir a la lista de promesas pendientes
+    if (!pendingPromises.has(key)) {
+      pendingPromises.set(key, []);
+    }
+    pendingPromises.get(key)!.push({ resolve: resolve as (value: unknown) => void, reject });
+
+    // Cancelar timer existente
     const existingTimer = debounceTimers.get(key);
     if (existingTimer) {
       clearTimeout(existingTimer);
     }
 
+    // Crear nuevo timer
     const timer = setTimeout(async () => {
       debounceTimers.delete(key);
+      const callbacks = pendingPromises.get(key) || [];
+      pendingPromises.delete(key);
+
       try {
         const result = await fn();
-        resolve(result);
+        // Resolver todas las promesas pendientes con el mismo resultado
+        callbacks.forEach(cb => cb.resolve(result));
       } catch (error) {
-        reject(error);
+        // Rechazar todas las promesas pendientes
+        callbacks.forEach(cb => cb.reject(error));
       }
     }, delay);
 
@@ -65,67 +78,7 @@ function debounced<T>(key: string, fn: () => Promise<T>, delay: number = DEBOUNC
 
 class ProtectedDatabaseService {
   constructor() {
-    this.setupOfflineSync();
-  }
-
-  /**
-   * Configura la sincronización de operaciones offline
-   */
-  private setupOfflineSync(): void {
-    offlineQueue.registerSyncCallback(async (operation) => {
-      const { type, collection, documentId, data } = operation;
-
-      switch (type) {
-        case 'create':
-          if (collection === 'invoices' && data) {
-            await databaseService.createInvoice(data as unknown as Invoice);
-          } else if (collection === 'entries' && data) {
-            await databaseService.createEntry(data as unknown as AccountingEntry);
-          } else if (collection === 'transactions' && data) {
-            await databaseService.createTransaction(data as unknown as BankTransaction);
-          } else if (collection === 'suppliers' && data) {
-            await databaseService.createSupplier(data as unknown as Supplier);
-          } else if (collection === 'uploads' && data) {
-            await databaseService.createUploadItem(data as unknown as QueueItem);
-          } else if (collection === 'notifications' && data) {
-            await databaseService.createNotification(data as unknown as Notification);
-          }
-          break;
-
-        case 'update':
-          if (!documentId) throw new Error('documentId requerido para update');
-          if (collection === 'invoices' && data) {
-            await databaseService.updateInvoice(data as unknown as Invoice);
-          } else if (collection === 'entries' && data) {
-            await databaseService.updateEntry(data as unknown as AccountingEntry);
-          } else if (collection === 'transactions' && data) {
-            await databaseService.updateTransaction(data as unknown as BankTransaction);
-          } else if (collection === 'suppliers' && data) {
-            await databaseService.updateSupplier(data as unknown as Supplier);
-          } else if (collection === 'uploads' && data) {
-            await databaseService.updateUploadItem(data as unknown as QueueItem);
-          } else if (collection === 'notifications' && data) {
-            await databaseService.updateNotification(data as unknown as Notification);
-          }
-          break;
-
-        case 'delete':
-          if (!documentId) throw new Error('documentId requerido para delete');
-          if (collection === 'invoices') {
-            await databaseService.deleteInvoice(documentId);
-          } else if (collection === 'entries') {
-            await databaseService.deleteEntry(documentId);
-          } else if (collection === 'suppliers') {
-            await databaseService.deleteSupplier(documentId);
-          } else if (collection === 'uploads') {
-            await databaseService.deleteUploadItem(documentId);
-          } else if (collection === 'notifications') {
-            await databaseService.deleteNotification(documentId);
-          }
-          // Note: transactions don't have a delete method in databaseService
-          break;
-      }
-    });
+    // No hay sincronización offline - la app requiere conexión
   }
 
   // ============================================================================
@@ -145,16 +98,6 @@ class ProtectedDatabaseService {
       }
     }
 
-    // Si estamos offline, devolver caché stale
-    if (!offlineQueue.online) {
-      const stale = cache.getStale<Invoice[]>(cacheKey);
-      if (stale) {
-        console.log('[ProtectedDB] Offline - usando caché stale para invoices');
-        return stale;
-      }
-      throw new Error('Sin conexión y sin datos en caché');
-    }
-
     // Hacer petición con rate limiter
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.getInvoices();
@@ -167,13 +110,7 @@ class ProtectedDatabaseService {
   }
 
   async createInvoice(invoice: Invoice, options: MutationOptions = {}): Promise<Invoice> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('create', 'invoices', invoice.id, invoice as unknown as Record<string, unknown>);
-      cache.invalidateCollection('invoices');
-      return invoice;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.createInvoice(invoice);
@@ -184,13 +121,7 @@ class ProtectedDatabaseService {
   }
 
   async updateInvoice(invoice: Invoice, options: MutationOptions = {}): Promise<Invoice> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('update', 'invoices', invoice.id, invoice as unknown as Record<string, unknown>);
-      cache.invalidateCollection('invoices');
-      return invoice;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.updateInvoice(invoice);
@@ -201,13 +132,7 @@ class ProtectedDatabaseService {
   }
 
   async deleteInvoice(id: string, options: MutationOptions = {}): Promise<void> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('delete', 'invoices', id);
-      cache.invalidateCollection('invoices');
-      return;
-    }
+    const { priority = 'normal' } = options;
 
     await rateLimiter.enqueue(async () => {
       await databaseService.deleteInvoice(id);
@@ -232,12 +157,6 @@ class ProtectedDatabaseService {
       }
     }
 
-    if (!offlineQueue.online) {
-      const stale = cache.getStale<AccountingEntry[]>(cacheKey);
-      if (stale) return stale;
-      throw new Error('Sin conexión y sin datos en caché');
-    }
-
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.getEntries();
     }, priority);
@@ -247,13 +166,7 @@ class ProtectedDatabaseService {
   }
 
   async createEntry(entry: AccountingEntry, options: MutationOptions = {}): Promise<AccountingEntry> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('create', 'entries', entry.id, entry as unknown as Record<string, unknown>);
-      cache.invalidateCollection('entries');
-      return entry;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.createEntry(entry);
@@ -264,13 +177,7 @@ class ProtectedDatabaseService {
   }
 
   async updateEntry(entry: AccountingEntry, options: MutationOptions = {}): Promise<AccountingEntry> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('update', 'entries', entry.id, entry as unknown as Record<string, unknown>);
-      cache.invalidateCollection('entries');
-      return entry;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.updateEntry(entry);
@@ -281,13 +188,7 @@ class ProtectedDatabaseService {
   }
 
   async deleteEntry(id: string, options: MutationOptions = {}): Promise<void> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('delete', 'entries', id);
-      cache.invalidateCollection('entries');
-      return;
-    }
+    const { priority = 'normal' } = options;
 
     await rateLimiter.enqueue(async () => {
       await databaseService.deleteEntry(id);
@@ -312,12 +213,6 @@ class ProtectedDatabaseService {
       }
     }
 
-    if (!offlineQueue.online) {
-      const stale = cache.getStale<BankTransaction[]>(cacheKey);
-      if (stale) return stale;
-      throw new Error('Sin conexión y sin datos en caché');
-    }
-
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.getTransactions();
     }, priority);
@@ -327,13 +222,7 @@ class ProtectedDatabaseService {
   }
 
   async createTransaction(tx: BankTransaction, options: MutationOptions = {}): Promise<BankTransaction> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('create', 'transactions', tx.id, tx as unknown as Record<string, unknown>);
-      cache.invalidateCollection('transactions');
-      return tx;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.createTransaction(tx);
@@ -344,13 +233,7 @@ class ProtectedDatabaseService {
   }
 
   async updateTransaction(tx: BankTransaction, options: MutationOptions = {}): Promise<BankTransaction> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('update', 'transactions', tx.id, tx as unknown as Record<string, unknown>);
-      cache.invalidateCollection('transactions');
-      return tx;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.updateTransaction(tx);
@@ -360,8 +243,6 @@ class ProtectedDatabaseService {
     return result;
   }
 
-  // Note: Transaction deletion is not supported by databaseService
-  // Transactions are typically managed as part of bank reconciliation and should not be deleted directly
   async deleteTransaction(_id: string, _options: MutationOptions = {}): Promise<void> {
     console.warn('[ProtectedDB] deleteTransaction not supported - transactions cannot be deleted');
     throw new Error('Eliminar transacciones no está soportado');
@@ -383,12 +264,6 @@ class ProtectedDatabaseService {
       }
     }
 
-    if (!offlineQueue.online) {
-      const stale = cache.getStale<Supplier[]>(cacheKey);
-      if (stale) return stale;
-      throw new Error('Sin conexión y sin datos en caché');
-    }
-
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.getSuppliers();
     }, priority);
@@ -398,13 +273,7 @@ class ProtectedDatabaseService {
   }
 
   async createSupplier(supplier: Supplier, options: MutationOptions = {}): Promise<Supplier> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('create', 'suppliers', supplier.id, supplier as unknown as Record<string, unknown>);
-      cache.invalidateCollection('suppliers');
-      return supplier;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.createSupplier(supplier);
@@ -415,13 +284,7 @@ class ProtectedDatabaseService {
   }
 
   async updateSupplier(supplier: Supplier, options: MutationOptions = {}): Promise<Supplier> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('update', 'suppliers', supplier.id, supplier as unknown as Record<string, unknown>);
-      cache.invalidateCollection('suppliers');
-      return supplier;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.updateSupplier(supplier);
@@ -432,13 +295,7 @@ class ProtectedDatabaseService {
   }
 
   async deleteSupplier(id: string, options: MutationOptions = {}): Promise<void> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('delete', 'suppliers', id);
-      cache.invalidateCollection('suppliers');
-      return;
-    }
+    const { priority = 'normal' } = options;
 
     await rateLimiter.enqueue(async () => {
       await databaseService.deleteSupplier(id);
@@ -461,12 +318,6 @@ class ProtectedDatabaseService {
         console.log('[ProtectedDB] Cache hit para settings');
         return cached;
       }
-    }
-
-    if (!offlineQueue.online) {
-      const stale = cache.getStale<AppSettings>(cacheKey);
-      if (stale) return stale;
-      return null;
     }
 
     const result = await rateLimiter.enqueue(async () => {
@@ -506,12 +357,6 @@ class ProtectedDatabaseService {
       }
     }
 
-    if (!offlineQueue.online) {
-      const stale = cache.getStale<QueueItem[]>(cacheKey);
-      if (stale) return stale;
-      return [];
-    }
-
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.getUploadQueue();
     }, priority);
@@ -521,13 +366,7 @@ class ProtectedDatabaseService {
   }
 
   async createUploadItem(item: QueueItem, options: MutationOptions = {}): Promise<QueueItem> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('create', 'uploads', item.id, item as unknown as Record<string, unknown>);
-      cache.invalidateCollection('uploads');
-      return item;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.createUploadItem(item);
@@ -542,12 +381,7 @@ class ProtectedDatabaseService {
    * Los updates de progreso se agrupan cada 2 segundos
    */
   async updateUploadItem(item: QueueItem, options: MutationOptions = {}): Promise<QueueItem> {
-    const { allowOffline = true, priority = 'low' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('update', 'uploads', item.id, item as unknown as Record<string, unknown>);
-      return item;
-    }
+    const { priority = 'low' } = options;
 
     // DEBOUNCE: Agrupa actualizaciones por item.id
     // Esto es crítico para evitar rate limiting durante análisis de facturas
@@ -560,13 +394,7 @@ class ProtectedDatabaseService {
   }
 
   async deleteUploadItem(id: string, options: MutationOptions = {}): Promise<void> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('delete', 'uploads', id);
-      cache.invalidateCollection('uploads');
-      return;
-    }
+    const { priority = 'normal' } = options;
 
     await rateLimiter.enqueue(async () => {
       await databaseService.deleteUploadItem(id);
@@ -599,12 +427,6 @@ class ProtectedDatabaseService {
       }
     }
 
-    if (!offlineQueue.online) {
-      const stale = cache.getStale<Notification[]>(cacheKey);
-      if (stale) return stale;
-      return [];
-    }
-
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.getNotifications();
     }, priority);
@@ -614,13 +436,7 @@ class ProtectedDatabaseService {
   }
 
   async createNotification(notification: Notification, options: MutationOptions = {}): Promise<Notification> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('create', 'notifications', notification.id, notification as unknown as Record<string, unknown>);
-      cache.invalidateCollection('notifications');
-      return notification;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.createNotification(notification);
@@ -631,12 +447,7 @@ class ProtectedDatabaseService {
   }
 
   async updateNotification(notification: Notification, options: MutationOptions = {}): Promise<Notification> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('update', 'notifications', notification.id, notification as unknown as Record<string, unknown>);
-      return notification;
-    }
+    const { priority = 'normal' } = options;
 
     const result = await rateLimiter.enqueue(async () => {
       return await databaseService.updateNotification(notification);
@@ -646,13 +457,7 @@ class ProtectedDatabaseService {
   }
 
   async deleteNotification(id: string, options: MutationOptions = {}): Promise<void> {
-    const { allowOffline = true, priority = 'normal' } = options;
-
-    if (!offlineQueue.online && allowOffline) {
-      offlineQueue.add('delete', 'notifications', id);
-      cache.invalidateCollection('notifications');
-      return;
-    }
+    const { priority = 'normal' } = options;
 
     await rateLimiter.enqueue(async () => {
       await databaseService.deleteNotification(id);
@@ -662,11 +467,9 @@ class ProtectedDatabaseService {
   }
 
   async markAllNotificationsRead(): Promise<void> {
-    // Fetch all notifications and update unread ones
     const notifications = await this.getNotifications();
     const unreadNotifs = notifications.filter(n => !n.read);
 
-    // Update each unread notification with rate limiting
     for (const notif of unreadNotifs) {
       await rateLimiter.enqueue(async () => {
         await databaseService.updateNotification({ ...notif, read: true });
@@ -689,7 +492,7 @@ class ProtectedDatabaseService {
   // ============================================================================
 
   /**
-   * Fuerza sincronización de operaciones pendientes
+   * Fuerza sincronización de operaciones pendientes (no-op - no hay modo offline)
    */
   async forceSync(): Promise<{ success: number; failed: number }> {
     return offlineQueue.sync();
@@ -710,14 +513,14 @@ class ProtectedDatabaseService {
   }
 
   /**
-   * Verifica si está online
+   * Verifica si está online (siempre true - la app requiere conexión)
    */
   get isOnline(): boolean {
-    return offlineQueue.online;
+    return true;
   }
 
   /**
-   * Suscribe a cambios de estado de conexión
+   * Suscribe a cambios de estado de conexión (siempre notifica online)
    */
   onOnlineStatusChange(callback: (isOnline: boolean) => void): () => void {
     return offlineQueue.onOnlineStatusChange(callback);

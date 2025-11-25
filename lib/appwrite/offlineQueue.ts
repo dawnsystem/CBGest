@@ -1,6 +1,6 @@
 /**
- * @fileoverview Cola de operaciones pendientes para sincronización offline
- * @description Persiste operaciones fallidas y las reintenta cuando hay conexión
+ * @fileoverview Stub de offline queue - funcionalidad offline eliminada
+ * @description La app ahora es completamente online. Sin conexión a Appwrite, no funciona.
  */
 
 type OperationType = 'create' | 'update' | 'delete';
@@ -16,244 +16,93 @@ interface PendingOperation {
   lastError?: string;
 }
 
-interface OfflineQueueConfig {
-  storageKey: string;
-  maxRetries: number;
-  syncInterval: number;
-}
-
-const DEFAULT_OFFLINE_CONFIG: OfflineQueueConfig = {
-  storageKey: 'cbgest_offline_queue',
-  maxRetries: 5,
-  syncInterval: 30000, // 30 segundos
-};
-
 type SyncCallback = (operation: PendingOperation) => Promise<void>;
 type OnlineStatusCallback = (isOnline: boolean) => void;
 
+/**
+ * OfflineQueue stub - la funcionalidad offline ha sido eliminada.
+ * La app requiere conexión a Appwrite para funcionar.
+ */
 class OfflineQueue {
-  private queue: PendingOperation[] = [];
-  private config: OfflineQueueConfig;
-  private syncCallback: SyncCallback | null = null;
-  private syncIntervalId: ReturnType<typeof setInterval> | null = null;
-  private _isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-  private isSyncing = false;
   private onlineStatusCallbacks: OnlineStatusCallback[] = [];
 
-  constructor(config: Partial<OfflineQueueConfig> = {}) {
-    this.config = { ...DEFAULT_OFFLINE_CONFIG, ...config };
-    this.loadFromStorage();
-    this.setupNetworkListeners();
+  constructor() {
+    // No setup needed - always online mode
   }
 
   /**
-   * Configura los listeners de conectividad
-   */
-  private setupNetworkListeners(): void {
-    if (typeof window === 'undefined') return;
-
-    window.addEventListener('online', () => {
-      console.log('[OfflineQueue] Conexión restaurada. Iniciando sincronización...');
-      this._isOnline = true;
-      this.notifyOnlineStatus(true);
-      this.sync();
-    });
-
-    window.addEventListener('offline', () => {
-      console.log('[OfflineQueue] Conexión perdida. Las operaciones se encolarán.');
-      this._isOnline = false;
-      this.notifyOnlineStatus(false);
-    });
-  }
-
-  /**
-   * Suscribe a cambios de estado de conexión
+   * Suscribe a cambios de estado de conexión (siempre online)
    */
   onOnlineStatusChange(callback: OnlineStatusCallback): () => void {
     this.onlineStatusCallbacks.push(callback);
+    // Immediately notify that we're online
+    callback(true);
     return () => {
       this.onlineStatusCallbacks = this.onlineStatusCallbacks.filter(cb => cb !== callback);
     };
   }
 
-  private notifyOnlineStatus(isOnline: boolean): void {
-    this.onlineStatusCallbacks.forEach(cb => cb(isOnline));
-  }
-
   /**
-   * Registra el callback para sincronizar operaciones
+   * Registra el callback para sincronizar operaciones (no-op)
    */
-  registerSyncCallback(callback: SyncCallback): void {
-    this.syncCallback = callback;
-    this.startAutoSync();
+  registerSyncCallback(_callback: SyncCallback): void {
+    // No-op: no hay operaciones offline que sincronizar
   }
 
   /**
-   * Inicia la sincronización automática periódica
-   */
-  private startAutoSync(): void {
-    if (this.syncIntervalId) return;
-
-    this.syncIntervalId = setInterval(() => {
-      if (this._isOnline && this.queue.length > 0) {
-        this.sync();
-      }
-    }, this.config.syncInterval);
-  }
-
-  /**
-   * Detiene la sincronización automática
+   * Detiene la sincronización automática (no-op)
    */
   stopAutoSync(): void {
-    if (this.syncIntervalId) {
-      clearInterval(this.syncIntervalId);
-      this.syncIntervalId = null;
-    }
+    // No-op
   }
 
   /**
-   * Añade una operación a la cola
+   * Añade una operación a la cola - DESHABILITADO
+   * @throws Error siempre - no se permite modo offline
    */
   add(
-    type: OperationType,
-    collection: string,
-    documentId?: string,
-    data?: Record<string, unknown>
+    _type: OperationType,
+    _collection: string,
+    _documentId?: string,
+    _data?: Record<string, unknown>
   ): string {
-    const operation: PendingOperation = {
-      id: crypto.randomUUID(),
-      type,
-      collection,
-      documentId,
-      data,
-      timestamp: Date.now(),
-      retries: 0,
-    };
-
-    this.queue.push(operation);
-    this.saveToStorage();
-
-    console.log(`[OfflineQueue] Operación encolada: ${type} en ${collection}`);
-
-    // Intentar sincronizar inmediatamente si hay conexión
-    if (this._isOnline) {
-      this.sync();
-    }
-
-    return operation.id;
+    throw new Error('Modo offline deshabilitado. Se requiere conexión a Appwrite.');
   }
 
   /**
-   * Sincroniza las operaciones pendientes
+   * Sincroniza las operaciones pendientes (no hay ninguna)
    */
   async sync(): Promise<{ success: number; failed: number }> {
-    if (!this.syncCallback || this.isSyncing || this.queue.length === 0) {
-      return { success: 0, failed: 0 };
-    }
-
-    this.isSyncing = true;
-    let success = 0;
-    let failed = 0;
-
-    console.log(`[OfflineQueue] Sincronizando ${this.queue.length} operaciones...`);
-
-    // Procesar en orden FIFO
-    const operationsToProcess = [...this.queue];
-
-    for (const operation of operationsToProcess) {
-      try {
-        await this.syncCallback(operation);
-        this.removeOperation(operation.id);
-        success++;
-        console.log(`[OfflineQueue] ✓ Operación ${operation.id} sincronizada`);
-      } catch (error) {
-        operation.retries++;
-        operation.lastError = error instanceof Error ? error.message : 'Error desconocido';
-
-        if (operation.retries >= this.config.maxRetries) {
-          console.error(`[OfflineQueue] ✗ Operación ${operation.id} fallida tras ${operation.retries} intentos. Eliminando.`);
-          this.removeOperation(operation.id);
-          failed++;
-        } else {
-          console.warn(`[OfflineQueue] Reintento ${operation.retries}/${this.config.maxRetries} para ${operation.id}`);
-        }
-      }
-    }
-
-    this.saveToStorage();
-    this.isSyncing = false;
-
-    console.log(`[OfflineQueue] Sincronización completada: ${success} éxitos, ${failed} fallos`);
-
-    return { success, failed };
+    return { success: 0, failed: 0 };
   }
 
   /**
-   * Elimina una operación de la cola
+   * Verifica si hay operaciones pendientes (nunca hay)
    */
-  private removeOperation(id: string): void {
-    this.queue = this.queue.filter(op => op.id !== id);
+  hasPendingOperations(_collection: string, _documentId?: string): boolean {
+    return false;
   }
 
   /**
-   * Verifica si hay operaciones pendientes para un documento
-   */
-  hasPendingOperations(collection: string, documentId?: string): boolean {
-    return this.queue.some(op =>
-      op.collection === collection &&
-      (!documentId || op.documentId === documentId)
-    );
-  }
-
-  /**
-   * Obtiene operaciones pendientes
+   * Obtiene operaciones pendientes (lista vacía)
    */
   getPendingOperations(): PendingOperation[] {
-    return [...this.queue];
+    return [];
   }
 
   /**
-   * Guarda la cola en localStorage
-   */
-  private saveToStorage(): void {
-    try {
-      localStorage.setItem(this.config.storageKey, JSON.stringify(this.queue));
-    } catch (error) {
-      console.error('[OfflineQueue] Error guardando cola:', error);
-    }
-  }
-
-  /**
-   * Carga la cola desde localStorage
-   */
-  private loadFromStorage(): void {
-    if (typeof localStorage === 'undefined') return;
-
-    try {
-      const stored = localStorage.getItem(this.config.storageKey);
-      if (stored) {
-        this.queue = JSON.parse(stored);
-        console.log(`[OfflineQueue] Cargadas ${this.queue.length} operaciones pendientes`);
-      }
-    } catch (error) {
-      console.error('[OfflineQueue] Error cargando cola:', error);
-      this.queue = [];
-    }
-  }
-
-  /**
-   * Limpia la cola
+   * Limpia la cola (no-op)
    */
   clear(): void {
-    this.queue = [];
-    this.saveToStorage();
+    // No-op
   }
 
   /**
-   * Estado de la conexión
+   * Estado de la conexión - siempre online
+   * La app requiere conexión para funcionar
    */
   get online(): boolean {
-    return this._isOnline;
+    return true;
   }
 
   /**
@@ -261,12 +110,10 @@ class OfflineQueue {
    */
   getStats() {
     return {
-      pendingOperations: this.queue.length,
-      isOnline: this._isOnline,
-      isSyncing: this.isSyncing,
-      oldestOperation: this.queue.length > 0
-        ? new Date(this.queue[0].timestamp).toISOString()
-        : null,
+      pendingOperations: 0,
+      isOnline: true,
+      isSyncing: false,
+      oldestOperation: null,
     };
   }
 }

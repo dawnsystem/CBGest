@@ -1,6 +1,6 @@
 /**
- * @fileoverview Sistema de caché en memoria y localStorage para Appwrite
- * @description Reduce llamadas redundantes y permite funcionamiento offline
+ * @fileoverview Sistema de caché en memoria para Appwrite
+ * @description Reduce llamadas redundantes a la API. Solo memoria, sin persistencia en localStorage.
  */
 
 interface CacheEntry<T> {
@@ -12,18 +12,12 @@ interface CacheEntry<T> {
 interface CacheConfig {
   /** TTL por defecto en milisegundos */
   defaultTTL: number;
-  /** Prefijo para claves en localStorage */
-  storagePrefix: string;
-  /** Usar localStorage además de memoria */
-  persistToStorage: boolean;
   /** Máximo de entradas en caché */
   maxEntries: number;
 }
 
 const DEFAULT_CACHE_CONFIG: CacheConfig = {
   defaultTTL: 5 * 60 * 1000, // 5 minutos
-  storagePrefix: 'cbgest_cache_',
-  persistToStorage: true,
   maxEntries: 500,
 };
 
@@ -45,7 +39,6 @@ class AppwriteCache {
 
   constructor(config: Partial<CacheConfig> = {}) {
     this.config = { ...DEFAULT_CACHE_CONFIG, ...config };
-    this.loadFromStorage();
   }
 
   /**
@@ -76,7 +69,7 @@ class AppwriteCache {
   }
 
   /**
-   * Obtiene un valor aunque esté expirado (para modo offline)
+   * Obtiene un valor aunque esté expirado (solo para compatibilidad, no recomendado)
    */
   getStale<T>(collection: string, documentId?: string, queries?: string[]): T | null {
     const key = this.generateKey(collection, documentId, queries);
@@ -85,7 +78,7 @@ class AppwriteCache {
   }
 
   /**
-   * Guarda un valor en caché
+   * Guarda un valor en caché (solo memoria)
    */
   set<T>(
     collection: string,
@@ -107,10 +100,6 @@ class AppwriteCache {
     }
 
     this.memoryCache.set(key, entry as CacheEntry<unknown>);
-
-    if (this.config.persistToStorage) {
-      this.debouncedSaveToStorage();
-    }
   }
 
   /**
@@ -119,10 +108,6 @@ class AppwriteCache {
   delete(collection: string, documentId?: string, queries?: string[]): void {
     const key = this.generateKey(collection, documentId, queries);
     this.memoryCache.delete(key);
-
-    if (this.config.persistToStorage) {
-      this.debouncedSaveToStorage();
-    }
   }
 
   /**
@@ -139,10 +124,6 @@ class AppwriteCache {
 
     keysToDelete.forEach(key => this.memoryCache.delete(key));
     console.log(`[Cache] Invalidada colección ${collection}: ${keysToDelete.length} entradas eliminadas`);
-
-    if (this.config.persistToStorage) {
-      this.debouncedSaveToStorage();
-    }
   }
 
   /**
@@ -150,13 +131,6 @@ class AppwriteCache {
    */
   clear(): void {
     this.memoryCache.clear();
-    if (this.config.persistToStorage) {
-      try {
-        localStorage.removeItem(this.config.storagePrefix + 'data');
-      } catch {
-        // Ignore storage errors
-      }
-    }
   }
 
   /**
@@ -178,67 +152,14 @@ class AppwriteCache {
     }
   }
 
-  // Debounce para guardar en storage
-  private saveTimeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  private debouncedSaveToStorage(): void {
-    if (this.saveTimeoutId) {
-      clearTimeout(this.saveTimeoutId);
-    }
-    this.saveTimeoutId = setTimeout(() => {
-      this.saveToStorage();
-    }, 1000);
-  }
-
   /**
-   * Guarda el caché en localStorage
-   */
-  private saveToStorage(): void {
-    try {
-      const data: Record<string, CacheEntry<unknown>> = {};
-      this.memoryCache.forEach((value, key) => {
-        data[key] = value;
-      });
-      localStorage.setItem(
-        this.config.storagePrefix + 'data',
-        JSON.stringify(data)
-      );
-    } catch (error) {
-      console.warn('[Cache] Error guardando en localStorage:', error);
-    }
-  }
-
-  /**
-   * Carga el caché desde localStorage
-   */
-  private loadFromStorage(): void {
-    if (!this.config.persistToStorage) return;
-
-    try {
-      const stored = localStorage.getItem(this.config.storagePrefix + 'data');
-      if (!stored) return;
-
-      const data = JSON.parse(stored) as Record<string, CacheEntry<unknown>>;
-      const now = Date.now();
-
-      Object.entries(data).forEach(([key, entry]) => {
-        // Cargar todas las entradas, incluso expiradas (para modo offline)
-        this.memoryCache.set(key, entry);
-      });
-
-      console.log(`[Cache] Cargadas ${this.memoryCache.size} entradas desde localStorage`);
-    } catch (error) {
-      console.warn('[Cache] Error cargando desde localStorage:', error);
-    }
-  }
-
-  /**
-   * Verifica si una colección tiene datos en caché (válidos o stale)
+   * Verifica si una colección tiene datos en caché (válidos)
    */
   hasData(collection: string): boolean {
     let found = false;
-    this.memoryCache.forEach((_, key) => {
-      if (key.startsWith(collection + ':') || key === collection) {
+    const now = Date.now();
+    this.memoryCache.forEach((entry, key) => {
+      if ((key.startsWith(collection + ':') || key === collection) && entry.expiresAt > now) {
         found = true;
       }
     });

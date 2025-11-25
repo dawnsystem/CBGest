@@ -301,23 +301,10 @@ const MainLayout: React.FC = () => {
                   unsubscribe();
               };
           } else {
-              // Not using Appwrite - load data from localStorage
-              console.log('📂 Cargando datos desde localStorage...');
-              try {
-                const localInvoices = loadState<Invoice[]>('gestcb_invoices', []);
-                const localEntries = loadState<AccountingEntry[]>('gestcb_entries', []);
-                const localTransactions = loadState<BankTransaction[]>('gestcb_bank_transactions', []);
-                const localSuppliers = loadState<Supplier[]>('gestcb_suppliers', []);
-
-                setInvoices(localInvoices);
-                setAccountingEntries(localEntries);
-                setBankTransactions(localTransactions);
-                setSuppliers(localSuppliers);
-
-                console.log(`✅ Datos cargados desde localStorage: ${localInvoices.length} facturas, ${localEntries.length} asientos`);
-              } catch (error) {
-                console.error('Error loading from localStorage:', error);
-              }
+              // Mode is not APPWRITE - this should not happen in normal usage
+              // The app requires Appwrite to function
+              console.error('❌ La aplicación requiere configuración de Appwrite');
+              setConnectionError('La aplicación requiere conexión a Appwrite. Configura tu proyecto de Appwrite en Ajustes.');
               setIsDataLoading(false);
           }
       };
@@ -325,22 +312,14 @@ const MainLayout: React.FC = () => {
   }, [user]); // Depend on user to re-init on login
 
   // --- PERSISTENCE EFFECTS ---
+  // Settings are saved to localStorage for initial load detection
+  // All data is stored in Appwrite - no local storage of invoices, entries, etc.
   useEffect(() => {
       if (!isLocalFileMode) {
-        // Only use localStorage if NOT using Appwrite
-        // When Appwrite is active, everything is stored in Appwrite collections
-        if (settings.dataConfig?.type !== 'APPWRITE') {
-          // Save everything to localStorage for LOCAL_STORAGE mode
-          localStorage.setItem('gestcb_settings', JSON.stringify(settings));
-          localStorage.setItem('gestcb_invoices', JSON.stringify(invoices));
-          localStorage.setItem('gestcb_entries', JSON.stringify(accountingEntries));
-          localStorage.setItem('gestcb_bank_transactions', JSON.stringify(bankTransactions));
-          localStorage.setItem('gestcb_suppliers', JSON.stringify(suppliers));
-        }
-        // If Appwrite is active, settings are auto-saved via syncSettings in initDataLayer
-        // and data (invoices, entries, etc.) are saved via their respective service calls
+        // Only save settings to localStorage (for mode detection on reload)
+        localStorage.setItem('gestcb_settings', JSON.stringify(settings));
       }
-  }, [settings, invoices, accountingEntries, bankTransactions, suppliers, isLocalFileMode]);
+  }, [settings, isLocalFileMode]);
 
   // Encrypted File Auto-Save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1011,7 +990,7 @@ const MainLayout: React.FC = () => {
                     <h4 className="font-semibold text-red-800">Problema de conexión</h4>
                     <p className="text-red-700 text-sm mt-1">{connectionError}</p>
                     <p className="text-red-600 text-xs mt-2">
-                      Los datos se guardarán localmente. Se intentará sincronizar cuando se restaure la conexión.
+                      La aplicación requiere conexión a Appwrite para funcionar. Verifica tu conexión e inténtalo de nuevo.
                     </p>
                   </div>
                   <button
