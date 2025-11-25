@@ -15,9 +15,11 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   ReactNode,
 } from 'react';
 import { authService, setAuthCallbacks, AuthState } from '../services/authService';
+import { cache } from '../lib/appwrite/cache';
 import type { AppUser } from '../types';
 
 // ============================================================================
@@ -109,8 +111,14 @@ export const useAuthState = (): AuthState => {
 /** Timeout de inactividad: 15 minutos */
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
 
+/** Intervalo de verificación de sesión: 5 minutos */
+const SESSION_REFRESH_INTERVAL = 5 * 60 * 1000;
+
 /** Eventos que indican actividad del usuario */
 const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+
+/** Keys de localStorage que NO se deben borrar en logout (configuración de UI) */
+const PROTECTED_STORAGE_KEYS = ['gestcb_settings'];
 
 // ============================================================================
 // PROVIDER
@@ -231,6 +239,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [user]);
 
   // ============================================================================
+  // SESSION REFRESH PROACTIVO (cada 5 min)
+  // ============================================================================
+
+  useEffect(() => {
+    if (!user || !sessionReady) return;
+
+    const refreshInterval = setInterval(async () => {
+      console.log('[AuthContext] Verificación proactiva de sesión...');
+      try {
+        const isValid = await authService.verifySession();
+        if (!isValid) {
+          console.log('[AuthContext] Sesión inválida detectada en verificación proactiva');
+          setUser(null);
+          setAuthState('SESSION_EXPIRED');
+          setSessionReady(false);
+          setLastError('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
+        } else {
+          console.log('[AuthContext] Sesión válida confirmada');
+        }
+      } catch (error) {
+        console.error('[AuthContext] Error en verificación de sesión:', error);
+        // No cerrar sesión por error de red - podría ser temporal
+      }
+    }, SESSION_REFRESH_INTERVAL);
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [user, sessionReady]);
+
+  // ============================================================================
   // FUNCIONES DE AUTENTICACIÓN
   // ============================================================================
 
@@ -241,6 +280,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAuthState('AUTHENTICATING');
     setLastError(null);
     setSessionReady(false);
+
+    // Limpiar caché de usuario anterior antes de login
+    console.log('[AuthContext] Limpiando caché antes de login...');
+    cache.clear();
 
     const result = await authService.login(email, password);
 
@@ -289,6 +332,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAuthState('AUTHENTICATING');
 
     await authService.logout();
+
+    // Limpiar caché de datos
+    console.log('[AuthContext] Limpiando caché en logout...');
+    cache.clear();
+
+    // Limpiar localStorage selectivamente (mantener settings de UI)
+    console.log('[AuthContext] Limpiando localStorage selectivamente...');
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !PROTECTED_STORAGE_KEYS.includes(key)) {
+        // Solo eliminar keys que parecen ser datos de la app (no de terceros)
+        if (key.startsWith('gestcb_') || key.startsWith('appwrite') || key.startsWith('cookieFallback')) {
+          keysToRemove.push(key);
+        }
+      }
+    }
+    keysToRemove.forEach(key => {
+      console.log('[AuthContext] Eliminando localStorage key:', key);
+      localStorage.removeItem(key);
+    });
 
     setUser(null);
     setAuthState('UNAUTHENTICATED');

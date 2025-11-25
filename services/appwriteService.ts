@@ -7,6 +7,7 @@
 
 import { Query, ID } from 'appwrite';
 import { client, account, databases, storage, config } from '../lib/appwrite/client';
+import { authService } from './authService';
 import type {
   Invoice,
   AccountingEntry,
@@ -84,6 +85,13 @@ const withRetry = async <T>(
       return result;
     } catch (error: any) {
       lastError = error;
+
+      // GLOBAL 401 HANDLER: Notificar sesión expirada
+      if (error?.code === 401) {
+        console.warn(`[${operationName}] Error 401 detectado - notificando sesión expirada`);
+        authService.handleUnauthorizedError();
+        throw error;
+      }
 
       if (nonRetryableCodes.includes(error?.code)) {
         throw error;

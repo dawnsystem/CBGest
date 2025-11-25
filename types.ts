@@ -47,6 +47,11 @@ export interface Invoice {
   // Cloud fields
   appwriteId?: string; // Document ID in Cloud
   appwriteFileId?: string; // Attachment ID in Storage
+
+  // Audit fields
+  createdBy?: string; // User ID who created this
+  createdByName?: string; // User name who created this
+  createdAt?: string; // ISO timestamp
 }
 
 // Asiento Contable REAL y EDITABLE
@@ -59,15 +64,20 @@ export interface AccountingEntry {
   debit: number;
   credit: number;
   invoiceId?: string; // Enlace opcional a factura origen
-  
+
   referenceDoc?: File; // Runtime only
   fileData?: string; // Base64 for persistence
   fileType?: string; // MIME type
-  
+
   appwriteId?: string; // Document ID
   appwriteFileId?: string; // Attachment ID
 
   reconciled: boolean; // ¿Conciliado con banco?
+
+  // Audit fields
+  createdBy?: string; // User ID who created this
+  createdByName?: string; // User name who created this
+  createdAt?: string; // ISO timestamp
 }
 
 export interface BankTransaction {
@@ -79,8 +89,13 @@ export interface BankTransaction {
   balance?: number;
   reconciledWithEntryId?: string; // ID del asiento con el que se casó
   status: 'PENDING' | 'MATCHED';
-  
+
   appwriteId?: string;
+
+  // Audit fields
+  createdBy?: string; // User ID who created this
+  createdByName?: string; // User name who created this
+  createdAt?: string; // ISO timestamp
 }
 
 // --- TAX INFO FOR PARTNERS ---
@@ -149,6 +164,10 @@ export interface Supplier {
 
   // Cloud fields
   appwriteId?: string;
+
+  // Audit fields
+  createdBy?: string; // User ID who created this
+  createdByName?: string; // User name who created this
 }
 
 // Data Source Types
