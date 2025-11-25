@@ -320,6 +320,46 @@ const MainLayout: React.FC = () => {
       initDataLayer();
   }, [user, sessionReady]); // Depend on user AND sessionReady to re-init on login
 
+  // --- HEALTH CHECK PERIÓDICO (cada 5 min) ---
+  // Verifica conexión con Appwrite cuando hay usuario autenticado
+  useEffect(() => {
+    if (!user || !sessionReady || settings.dataConfig?.type !== 'APPWRITE') {
+      return;
+    }
+
+    const HEALTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos
+
+    const performPeriodicHealthCheck = async () => {
+      console.log('[App] Ejecutando health check periódico...');
+      try {
+        const healthResult = await appwriteService.performHealthCheck();
+
+        if (!healthResult.connected) {
+          console.warn('[App] Health check: conexión perdida');
+          setConnectionError('Se ha perdido la conexión con el servidor.');
+        } else if (!healthResult.authenticated) {
+          console.warn('[App] Health check: sesión no válida');
+          // El AuthContext manejará esto via el global 401 handler
+        } else {
+          // Conexión OK - limpiar errores si los había
+          if (connectionError) {
+            console.log('[App] Health check: conexión recuperada');
+            setConnectionError(null);
+          }
+        }
+      } catch (error) {
+        console.error('[App] Health check periódico error:', error);
+        // No mostrar error por un fallo puntual del health check
+      }
+    };
+
+    const healthCheckInterval = setInterval(performPeriodicHealthCheck, HEALTH_CHECK_INTERVAL);
+
+    return () => {
+      clearInterval(healthCheckInterval);
+    };
+  }, [user, sessionReady, settings.dataConfig?.type, connectionError]);
+
   // --- PERSISTENCE EFFECTS ---
   // Settings are saved to localStorage for initial load detection
   // All data is stored in Appwrite - no local storage of invoices, entries, etc.
