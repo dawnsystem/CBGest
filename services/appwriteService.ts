@@ -1167,9 +1167,9 @@ export const databaseService = {
     const { databases, config } = getInstances();
 
     try {
-      // Remove File object before saving (not JSON serializable)
-      // Also remove result/bankResult objects as they're complex nested types
-      const { file, result, bankResult, ...itemData } = item;
+      // Remove File object, id, and complex objects before saving
+      // id is managed by Appwrite ($id), not as a document attribute
+      const { file, result, bankResult, id, ...itemData } = item;
 
       // Ensure progress is an integer (Appwrite requires integer type)
       const dataToSave = {
@@ -1180,14 +1180,11 @@ export const databaseService = {
         bankResult: bankResult ? JSON.stringify(bankResult) : undefined
       };
 
-      // Remove id field as it shouldn't be sent to Appwrite
-      const { id, ...dataToSaveWithoutId } = dataToSave;
-
       const doc = await databases.createDocument(
         config.databaseId,
         config.uploadsCollectionId,
-        item.id || ID.unique(),
-        dataToSaveWithoutId
+        id || ID.unique(),
+        dataToSave
       );
 
       // Return with id mapped from $id
