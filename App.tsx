@@ -20,6 +20,9 @@ import { Login } from './components/Login';
 // NOTIFICATIONS Integration
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 
+// CONNECTION STATUS
+import { ConnectionBanner } from './components/ConnectionStatus';
+
 // Lazy-loaded components for code splitting
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
 const InvoiceUploader = lazy(() => import('./components/InvoiceUploader').then(m => ({ default: m.InvoiceUploader })));
@@ -269,11 +272,28 @@ const MainLayout: React.FC = () => {
                   setIsDataLoading(false);
               }
 
-              // 2. REALTIME SUBSCRIPTION
+              // 2. REALTIME SUBSCRIPTION - OPTIMIZED
+              // Instead of fetching all data on every change (which causes rate limiting),
+              // we invalidate the cache and let the next user action trigger a fresh fetch
               const unsubscribe = appwriteService.subscribeToChanges((payload) => {
-                  if (payload.events.some((e:string) => e.includes('.create') || e.includes('.update'))) {
-                      appwriteService.fetchInvoices().then(setInvoices);
-                      appwriteService.fetchEntries().then(setAccountingEntries);
+                  if (payload.events.some((e:string) => e.includes('.create') || e.includes('.update') || e.includes('.delete'))) {
+                      // Import cache dynamically to avoid circular deps
+                      import('./lib/appwrite/cache').then(({ cache }) => {
+                          console.log('[Realtime] Change detected, invalidating cache...');
+                          // Invalidate relevant collections based on event
+                          if (payload.events.some((e:string) => e.includes('invoices'))) {
+                              cache.invalidateCollection('invoices');
+                          }
+                          if (payload.events.some((e:string) => e.includes('entries'))) {
+                              cache.invalidateCollection('entries');
+                          }
+                          if (payload.events.some((e:string) => e.includes('transactions'))) {
+                              cache.invalidateCollection('transactions');
+                          }
+                          if (payload.events.some((e:string) => e.includes('suppliers'))) {
+                              cache.invalidateCollection('suppliers');
+                          }
+                      });
                   }
               });
 
@@ -980,6 +1000,8 @@ const MainLayout: React.FC = () => {
           />
           <div className="flex-1 ml-0 md:ml-64 transition-all duration-200">
             <Header isLocalFileMode={isLocalFileMode} />
+            {/* Offline/Sync Status Banner */}
+            <ConnectionBanner />
             {/* Connection Error Banner */}
             {connectionError && (
               <div className="bg-red-50 border-l-4 border-red-500 p-4 mx-4 mt-4 rounded-r-lg animate-fade-in">
