@@ -419,6 +419,66 @@ export const authService = {
     const code = getErrorCode(error);
     return !NON_RETRYABLE_CODES.includes(code || 0);
   },
+
+  // ==========================================================================
+  // VERIFICACIÓN DE EMAIL (Opcional)
+  // ==========================================================================
+
+  /**
+   * Envía email de verificación al usuario actual.
+   *
+   * @param verificationUrl - URL donde el usuario confirma (debe incluir userId y secret)
+   * @returns true si se envió correctamente
+   *
+   * @example
+   * // La URL recibirá parámetros: ?userId=xxx&secret=yyy
+   * await authService.sendEmailVerification('https://miapp.com/verify-email');
+   */
+  async sendEmailVerification(verificationUrl: string): Promise<boolean> {
+    try {
+      console.log('[AuthService] Enviando email de verificación...');
+      await account.createVerification(verificationUrl);
+      console.log('[AuthService] Email de verificación enviado');
+      return true;
+    } catch (error) {
+      console.error('[AuthService] SendEmailVerification error:', getErrorMessage(error));
+      return false;
+    }
+  },
+
+  /**
+   * Confirma la verificación de email con los parámetros recibidos.
+   *
+   * @param userId - ID del usuario (del parámetro URL)
+   * @param secret - Secret de verificación (del parámetro URL)
+   * @returns true si se verificó correctamente
+   */
+  async confirmEmailVerification(userId: string, secret: string): Promise<boolean> {
+    try {
+      console.log('[AuthService] Confirmando verificación de email...');
+      await account.updateVerification(userId, secret);
+      console.log('[AuthService] Email verificado correctamente');
+      return true;
+    } catch (error) {
+      console.error('[AuthService] ConfirmEmailVerification error:', getErrorMessage(error));
+      return false;
+    }
+  },
+
+  /**
+   * Verifica si el usuario actual tiene el email verificado.
+   *
+   * @returns true si el email está verificado, false si no
+   */
+  async isEmailVerified(): Promise<boolean> {
+    try {
+      const user = await account.get();
+      return user.emailVerification;
+    } catch (error) {
+      console.error('[AuthService] IsEmailVerified error:', getErrorMessage(error));
+      return false;
+    }
+  },
 };
 
 export default authService;
