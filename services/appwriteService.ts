@@ -256,7 +256,13 @@ export const databaseService = {
   // --- INVOICES ---
   async createInvoice(invoice: Invoice): Promise<Invoice> {
     try {
-      const { file, history, id, appwriteId, ...restInvoiceData } = invoice;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        file, history, id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...restInvoiceData
+      } = invoice as any;
       const invoiceData = {
         ...restInvoiceData,
         history: history ? JSON.stringify(history) : undefined
@@ -318,7 +324,13 @@ export const databaseService = {
 
   async updateInvoice(invoice: Invoice): Promise<Invoice> {
     try {
-      const { file, history, id, appwriteId, ...restInvoiceData } = invoice;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        file, history, id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...restInvoiceData
+      } = invoice as any;
       const invoiceData = {
         ...restInvoiceData,
         history: history ? JSON.stringify(history) : undefined
@@ -369,7 +381,13 @@ export const databaseService = {
   // --- ENTRIES ---
   async createEntry(entry: AccountingEntry): Promise<AccountingEntry> {
     try {
-      const { referenceDoc, id, appwriteId, ...entryData } = entry;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        referenceDoc, id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...entryData
+      } = entry as any;
 
       const doc = await withRetry(
         () => databases.createDocument(
@@ -416,7 +434,13 @@ export const databaseService = {
 
   async updateEntry(entry: AccountingEntry): Promise<AccountingEntry> {
     try {
-      const { referenceDoc, id, appwriteId, ...entryData } = entry;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        referenceDoc, id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...entryData
+      } = entry as any;
       const docId = appwriteId || id;
 
       const doc = await withRetry(
@@ -450,7 +474,13 @@ export const databaseService = {
   // --- TRANSACTIONS ---
   async createTransaction(transaction: BankTransaction): Promise<BankTransaction> {
     try {
-      const { id, appwriteId, ...transactionData } = transaction;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...transactionData
+      } = transaction as any;
 
       const doc = await withRetry(
         () => databases.createDocument(
@@ -497,7 +527,13 @@ export const databaseService = {
 
   async updateTransaction(transaction: BankTransaction): Promise<BankTransaction> {
     try {
-      const { id, appwriteId, ...transactionData } = transaction;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...transactionData
+      } = transaction as any;
       const docId = appwriteId || id;
 
       const doc = await withRetry(
@@ -591,7 +627,13 @@ export const databaseService = {
   // --- SUPPLIERS ---
   async createSupplier(supplier: Supplier): Promise<Supplier> {
     try {
-      const { id, appwriteId, ...supplierData } = supplier;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...supplierData
+      } = supplier as any;
 
       const doc = await databases.createDocument(
         config.databaseId,
@@ -628,7 +670,13 @@ export const databaseService = {
 
   async updateSupplier(supplier: Supplier): Promise<Supplier> {
     try {
-      const { id, appwriteId, ...supplierData } = supplier;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...supplierData
+      } = supplier as any;
       const docId = appwriteId || id;
 
       const doc = await databases.updateDocument(
@@ -657,7 +705,13 @@ export const databaseService = {
   // --- NOTIFICATIONS ---
   async createNotification(notification: Notification): Promise<Notification> {
     try {
-      const { id, appwriteId, ...notificationData } = notification;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...notificationData
+      } = notification as any;
 
       const doc = await databases.createDocument(
         config.databaseId,
@@ -697,7 +751,13 @@ export const databaseService = {
 
   async updateNotification(notification: Notification): Promise<Notification> {
     try {
-      const { id, appwriteId, ...notificationData } = notification;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        id, appwriteId,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...notificationData
+      } = notification as any;
       const docId = appwriteId || id;
 
       const doc = await databases.updateDocument(
@@ -745,7 +805,13 @@ export const databaseService = {
   // --- UPLOAD QUEUE ---
   async createUploadItem(item: QueueItem): Promise<QueueItem> {
     try {
-      const { file, result, bankResult, id, ...itemData } = item;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        file, result, bankResult, id,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...itemData
+      } = item as any;
 
       const dataToSave = {
         ...itemData,
@@ -793,7 +859,13 @@ export const databaseService = {
 
   async updateUploadItem(item: QueueItem): Promise<QueueItem> {
     try {
-      const { file, result, bankResult, id, ...itemData } = item;
+      // Excluir campos que Appwrite gestiona automáticamente
+      const {
+        file, result, bankResult, id,
+        createdAt, updatedAt,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...itemData
+      } = item as any;
 
       const dataToSave = {
         ...itemData,

@@ -159,8 +159,10 @@ export interface Supplier {
   phone?: string;
   category?: string; // Business category
   notes?: string;
-  createdAt: string; // ISO date
-  updatedAt: string; // ISO date
+  // Timestamps - gestionados por Appwrite automáticamente ($createdAt, $updatedAt)
+  // Opcionales porque no los enviamos al crear/actualizar
+  createdAt?: string; // ISO date
+  updatedAt?: string; // ISO date
 
   // Cloud fields
   appwriteId?: string;
