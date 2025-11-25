@@ -343,8 +343,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && !PROTECTED_STORAGE_KEYS.includes(key)) {
-        // Solo eliminar keys que parecen ser datos de la app (no de terceros)
-        if (key.startsWith('gestcb_') || key.startsWith('appwrite') || key.startsWith('cookieFallback')) {
+        // Eliminar keys de la app y dependencias (Appwrite, Statsig analytics)
+        if (
+          key.startsWith('gestcb_') ||
+          key.startsWith('appwrite') ||
+          key.startsWith('cookieFallback') ||
+          key.startsWith('statsig.')
+        ) {
           keysToRemove.push(key);
         }
       }
