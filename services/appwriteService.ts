@@ -1180,14 +1180,11 @@ export const databaseService = {
         bankResult: bankResult ? JSON.stringify(bankResult) : undefined
       };
 
-      // Remove id field as it shouldn't be sent to Appwrite
-      const { id, ...dataToSaveWithoutId } = dataToSave;
-
       const doc = await databases.createDocument(
         config.databaseId,
         config.uploadsCollectionId,
         item.id || ID.unique(),
-        dataToSaveWithoutId
+        dataToSave
       );
 
       // Return with id mapped from $id
