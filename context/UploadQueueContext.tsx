@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier, AppSettings } from '../types';
 import { analyzeInvoiceImage, analyzeBankStatement, parseXlsxBankStatement } from '../services/geminiService';
-import { databaseService } from '../services/appwriteService';
+import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
 import { useAuth } from './AuthContext';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
@@ -73,7 +73,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     const loadQueue = async () => {
       if (isUsingAppwrite() && user) {
         try {
-          const loadedItems = await databaseService.getUploadQueue();
+          const loadedItems = await protectedDatabase.getUploadQueue();
           // Reconstruct File objects from base64Data
           const rehydratedItems: QueueItem[] = loadedItems.map((item: any) => {
             let file = item.file;
@@ -157,9 +157,9 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
     if (isUsingAppwrite()) {
       try {
-        // Create items in Appwrite
+        // Create items in Appwrite using protectedDatabase (rate limited)
         const savedItems = await Promise.all(
-          newItems.map(item => databaseService.createUploadItem(item))
+          newItems.map(item => protectedDatabase.createUploadItem(item))
         );
         setQueue(prev => [...prev, ...savedItems]);
       } catch (error) {
@@ -175,7 +175,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   const removeFromQueue = async (id: string) => {
     if (isUsingAppwrite()) {
       try {
-        await databaseService.deleteUploadItem(id);
+        await protectedDatabase.deleteUploadItem(id);
         setQueue(prev => prev.filter(item => item.id !== id));
       } catch (error) {
         // Fallback to local state but log warning for debugging
@@ -201,7 +201,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
     if (isUsingAppwrite()) {
       try {
-        await databaseService.updateUploadItem(updatedItem);
+        await protectedDatabase.updateUploadItem(updatedItem);
         setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
       } catch (error) {
         // Fallback to local state but log warning for debugging
@@ -216,7 +216,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   const clearCompleted = async () => {
     if (isUsingAppwrite()) {
       try {
-        await databaseService.deleteCompletedUploads();
+        await protectedDatabase.deleteCompletedUploads();
         setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
       } catch (error) {
         // Fallback to local state but log warning for debugging
@@ -235,9 +235,10 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
     if (isUsingAppwrite()) {
       try {
+        // Use protectedDatabase with rate limiting - updates are debounced
         await Promise.all(
           itemsToDismiss.map(item =>
-            databaseService.updateUploadItem({ ...item, notificationDismissed: true })
+            protectedDatabase.updateUploadItem({ ...item, notificationDismissed: true })
           )
         );
         setQueue(prev => prev.map(item =>
@@ -273,12 +274,14 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   }, [queue, processingId]);
 
   // Helper to update queue item both locally and in Appwrite
+  // Uses protectedDatabase which has built-in debounce (2 seconds) for progress updates
   const updateQueueItem = async (updatedItem: QueueItem) => {
     setQueue(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i));
 
     if (isUsingAppwrite()) {
       try {
-        await databaseService.updateUploadItem(updatedItem);
+        // protectedDatabase.updateUploadItem has built-in debounce to prevent rate limiting
+        await protectedDatabase.updateUploadItem(updatedItem);
       } catch (error) {
         // Log warning but continue - local state is already updated
         console.warn('Error actualizando elemento de cola en Appwrite:', error);
@@ -293,30 +296,25 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     const analyzingItem = { ...item, status: 'ANALYZING' as const, progress: 10 };
     await updateQueueItem(analyzingItem);
 
-    // Track pending progress updates to avoid race conditions
-    let isProgressUpdatePending = false;
-
+    // OPTIMIZED: Progress updates now use protectedDatabase with built-in 2-second debounce
+    // This prevents rate limiting by grouping rapid updates into single API calls
     const progressInterval = setInterval(() => {
       setQueue(prev => prev.map(i => {
         if (i.id === item.id && i.status === 'ANALYZING' && i.progress < 90) {
           const updatedProgress = { ...i, progress: i.progress + (Math.random() * 10) };
-          // Update Appwrite only if no pending update (debounce to avoid race conditions)
-          if (isUsingAppwrite() && !isProgressUpdatePending) {
-            isProgressUpdatePending = true;
-            databaseService.updateUploadItem(updatedProgress)
+          // protectedDatabase has built-in debounce - safe to call frequently
+          if (isUsingAppwrite()) {
+            protectedDatabase.updateUploadItem(updatedProgress)
               .catch((error) => {
                 // Log warning but don't block progress - this is non-critical
                 console.warn('Error actualizando progreso en Appwrite:', error);
-              })
-              .finally(() => {
-                isProgressUpdatePending = false;
               });
           }
           return updatedProgress;
         }
         return i;
       }));
-    }, 500);
+    }, 1000); // Increased from 500ms to 1000ms for additional rate limit protection
 
     try {
       let base64ForApi = item.base64Data || '';
