@@ -1,13 +1,58 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2025-11-21 10:10:00 UTC*
+*Última actualización: 2025-11-25 13:30:00 UTC*
 
 ---
 
 ## 📊 Panel de Control Ejecutivo
 
 ### 🚧 Tarea en Progreso (WIP)
-Estado actual: **A la espera de nuevas directivas del Director.**
+
+- **Identificador de Tarea:** `TSK-039`
+- **Objetivo Principal:** Refactorización completa del sistema de autenticación y conexión con Appwrite
+- **Estado Detallado:** Fases 1-2 COMPLETADAS. Fase 3 en progreso: Verificación y testing.
+- **Próximo Micro-Paso Planificado:** Testing manual del flujo completo de login y verificar permisos de suppliers
+
+#### 📋 Plan de Revisión Completa (8 Capas)
+
+**Fase 1: Fundamentos (CRÍTICA)** - ✅ COMPLETADA
+- [x] 1.1 Crear `lib/appwrite/client.ts` - Singleton del cliente Appwrite
+- [x] 1.2 Crear `services/authService.ts` - Servicio de autenticación separado
+- [x] 1.3 Refactorizar `context/AuthContext.tsx` - State machine con sessionReady
+- [x] 1.4 Simplificar `components/Login.tsx` - Eliminada inicialización duplicada
+
+**Fase 2: Integración (ALTA)** - ✅ COMPLETADA
+- [x] 2.1 Refactorizar `services/appwriteService.ts` - Usa nuevo client.ts
+- [x] 2.2 Crear `hooks/useSessionReady.ts` - Re-export desde AuthContext
+- [x] 2.3 Modificar `App.tsx` - Espera sessionReady antes de health check
+- [x] 2.4 Actualizar `lib/appwrite/protectedDatabase.ts` - Sin cambios necesarios
+
+**Fase 3: Verificación (MEDIA)** - 🔄 EN PROGRESO
+- [ ] 3.1 Verificar permisos de suppliers en Appwrite Console
+- [x] 3.2 Build de producción exitoso
+- [ ] 3.3 Testing manual de flujo completo
+
+**Fase 4: Polish (BAJA)** - ⏳ PENDIENTE
+- [ ] 4.1 Mejorar mensajes de error
+- [ ] 4.2 Añadir logging para debugging
+- [ ] 4.3 Documentar cambios
+
+#### 🎯 Problema Original
+Errores 401 (Unauthorized) en la consola del navegador después de login:
+- `GET /v1/account 401` al verificar usuario
+- `GET /v1/databases/.../collections/suppliers/documents 401` al acceder a colecciones
+- Race condition entre inicialización de Appwrite y operaciones de autenticación
+- Múltiple inicialización del cliente en `AuthContext.tsx` y `Login.tsx`
+
+#### 🏗️ Arquitectura Nueva (8 Capas)
+1. **CAPA DE AUTENTICACIÓN Y SESIÓN** - Rediseño completo con state machine
+2. **CAPA DE VERIFICACIÓN DE CONEXIÓN** - Health check diferido post-sessionReady
+3. **CAPA DE DATOS (App.tsx)** - Carga condicionada a sesión estable
+4. **CAPA DE BASE DE DATOS PROTEGIDA** - Rate limiter y cache optimizados
+5. **CAPA DE PERMISOS APPWRITE** - Verificación de permisos por colección
+6. **CAPA DE NOTIFICACIONES** - Sistema de feedback al usuario
+7. **CAPA DE UI/UX** - Estados de carga y error mejorados
+8. **CAPA DE CONFIGURACIÓN** - Configuración inmutable
 
 ### ✅ Historial de Implementaciones Completadas
 *   **[2025-11-21] - `FIX-038` - CI/CD Pipeline Corrections:** Corrección de workflows de GitHub Actions, mocks completos de APIs del navegador para tests, fix crítico de sintaxis en AuthModal.tsx, documentación de configuración GitHub.
