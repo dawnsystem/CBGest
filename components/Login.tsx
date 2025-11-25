@@ -1,178 +1,194 @@
+/**
+ * @fileoverview Componente de Login
+ * @description Formulario de inicio de sesión y registro.
+ *              Solo maneja UI - la lógica de auth está en AuthContext.
+ */
 
-import React, { useState, useEffect } from 'react';
-import { initializeAppwrite, authService } from '../services/appwriteService';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Loader2, ShieldCheck, ArrowRight, AlertTriangle } from 'lucide-react';
-import { APPWRITE_CONFIG } from '../config/appwrite';
 
 export const Login: React.FC = () => {
-  const auth = useAuth();
+  const { login, register, lastError, clearError } = useAuth();
+
+  // Estado del formulario
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
 
-  // Initialize Appwrite on mount with fixed configuration
-  useEffect(() => {
-    // Initialize Appwrite with hardcoded configuration
-    initializeAppwrite({
-      projectId: APPWRITE_CONFIG.projectId,
-      endpoint: APPWRITE_CONFIG.endpoint,
-      databaseId: APPWRITE_CONFIG.databaseId,
-      storageBucketId: APPWRITE_CONFIG.bucketId,
-      invoicesCollectionId: APPWRITE_CONFIG.collections.invoices,
-      entriesCollectionId: APPWRITE_CONFIG.collections.entries,
-      transactionsCollectionId: APPWRITE_CONFIG.collections.transactions,
-      settingsCollectionId: APPWRITE_CONFIG.collections.settings,
-      notificationsCollectionId: APPWRITE_CONFIG.collections.notifications,
-      uploadsCollectionId: APPWRITE_CONFIG.collections.uploads,
-      suppliersCollectionId: APPWRITE_CONFIG.collections.suppliers
-    });
+  // Combinar error local con error del contexto
+  const displayError = localError || lastError;
 
-    // Save config to localStorage for other components
-    const savedSettingsStr = localStorage.getItem('gestcb_settings');
-    let settings = {};
-    try {
-      settings = savedSettingsStr ? JSON.parse(savedSettingsStr) : {};
-    } catch {
-      // Invalid JSON in localStorage, use empty settings
-      settings = {};
-    }
-
-    const newSettings = {
-      ...settings,
-      dataConfig: {
-        ...(settings as any).dataConfig,
-        type: 'APPWRITE',
-        appwriteProjectId: APPWRITE_CONFIG.projectId,
-        appwriteEndpoint: APPWRITE_CONFIG.endpoint,
-        appwriteDatabaseId: APPWRITE_CONFIG.databaseId,
-        appwriteBucketId: APPWRITE_CONFIG.bucketId
-      }
-    };
-    localStorage.setItem('gestcb_settings', JSON.stringify(newSettings));
-  }, []);
-
+  /**
+   * Manejar envío del formulario
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setLocalError('');
+    clearError();
 
     try {
       if (isRegister) {
-        await auth.register(email, password, name);
+        await register(email, password, name);
       } else {
-        await auth.login(email, password);
+        await login(email, password);
       }
-      // Auth context will automatically update with the new user
-    } catch (err: any) {
-      console.error(err);
-      if (err.message === "Failed to fetch") {
-          setError("No se pudo conectar al servidor. Verifica tu conexión a internet.");
-      } else if (err.message === "RATELIMIT" || (err.message && err.message.includes("Rate limit"))) {
-          setError("Has superado el límite de intentos. Espera unos minutos antes de probar.");
-      } else {
-          setError(err.message || "Error de autenticación. Verifica tus credenciales.");
+      // Auth context actualizará automáticamente con el nuevo usuario
+    } catch (err: unknown) {
+      console.error('[Login] Error:', err);
+
+      // El error ya está en lastError del contexto, pero podemos añadir más contexto
+      if (err instanceof Error) {
+        if (err.message === 'Failed to fetch') {
+          setLocalError('No se pudo conectar al servidor. Verifica tu conexión a internet.');
+        }
       }
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Cambiar entre login y registro
+   */
+  const toggleMode = () => {
+    setIsRegister(!isRegister);
+    setLocalError('');
+    clearError();
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative">
-
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative z-10">
+        {/* Header */}
         <div className="bg-blue-600 p-8 text-center">
-           <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-             <ShieldCheck className="w-8 h-8 text-white" />
-           </div>
-           <h1 className="text-2xl font-bold text-white tracking-tight">CBGest</h1>
-           <p className="text-blue-100 text-sm mt-2">Contabilidad y Gestión para Comunidades de Bienes</p>
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+            <ShieldCheck className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">CBGest</h1>
+          <p className="text-blue-100 text-sm mt-2">
+            Contabilidad y Gestión para Comunidades de Bienes
+          </p>
         </div>
 
+        {/* Formulario */}
         <div className="p-8">
           <h2 className="text-xl font-bold text-slate-900 mb-6 text-center">
             {isRegister ? 'Crear Cuenta Gestor' : 'Iniciar Sesión'}
           </h2>
 
-          {error ? (
+          {/* Error */}
+          {displayError && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4 border border-red-100 flex gap-2 items-start">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
+              <span>{displayError}</span>
             </div>
-          ) : null}
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Campo Nombre (solo registro) */}
             {isRegister && (
               <div>
-                <label htmlFor="name-input" className="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
+                <label
+                  htmlFor="name-input"
+                  className="block text-sm font-medium text-slate-700 mb-1"
+                >
+                  Nombre Completo
+                </label>
                 <input
                   id="name-input"
                   name="name"
                   type="text"
                   required
-                  className="w-full border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
+                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                   placeholder="Ej: Juan Pérez"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   autoComplete="name"
+                  disabled={loading}
                 />
               </div>
             )}
 
+            {/* Campo Email */}
             <div>
-              <label htmlFor="email-input" className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+              <label
+                htmlFor="email-input"
+                className="block text-sm font-medium text-slate-700 mb-1"
+              >
+                Correo Electrónico
+              </label>
               <input
                 id="email-input"
                 name="email"
                 type="email"
                 required
-                className="w-full border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
+                className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                 placeholder="admin@comunidad.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 autoComplete="email"
+                disabled={loading}
               />
             </div>
 
+            {/* Campo Contraseña */}
             <div>
-              <label htmlFor="password-input" className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+              <label
+                htmlFor="password-input"
+                className="block text-sm font-medium text-slate-700 mb-1"
+              >
+                Contraseña
+              </label>
               <input
                 id="password-input"
                 name="password"
                 type="password"
                 required
                 minLength={8}
-                className="w-full border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
+                className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                autoComplete={isRegister ? "new-password" : "current-password"}
+                autoComplete={isRegister ? 'new-password' : 'current-password'}
+                disabled={loading}
               />
+              {isRegister && (
+                <p className="text-xs text-slate-500 mt-1">Mínimo 8 caracteres</p>
+              )}
             </div>
 
-            <button 
-              type="submit" 
+            {/* Botón Submit */}
+            <button
+              type="submit"
               disabled={loading}
-              className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
                 <>
-                   {isRegister ? 'Registrarse' : 'Entrar'} <ArrowRight className="w-4 h-4" />
+                  {isRegister ? 'Registrarse' : 'Entrar'}
+                  <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
+          {/* Toggle Login/Register */}
           <div className="mt-6 text-center">
             <button
-              onClick={() => setIsRegister(!isRegister)}
+              onClick={toggleMode}
               className="text-sm text-blue-600 hover:underline font-medium"
+              disabled={loading}
             >
-              {isRegister ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate gratis'}
+              {isRegister
+                ? '¿Ya tienes cuenta? Inicia sesión'
+                : '¿No tienes cuenta? Regístrate gratis'}
             </button>
           </div>
         </div>
@@ -180,3 +196,5 @@ export const Login: React.FC = () => {
     </div>
   );
 };
+
+export default Login;

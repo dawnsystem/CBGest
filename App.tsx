@@ -14,7 +14,7 @@ import * as appwriteService from './services/appwriteService';
 import { APPWRITE_CONFIG } from './config/appwrite';
 
 // AUTH Integration
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth, useSessionReady } from './context/AuthContext';
 import { Login } from './components/Login';
 
 // NOTIFICATIONS Integration
@@ -84,6 +84,7 @@ const loadState = <T,>(key: string, fallback: T): T => {
 
 const MainLayout: React.FC = () => {
   const { user, loading } = useAuth();
+  const sessionReady = useSessionReady();
   const { addNotification } = useNotifications();
   // --- STATE ---
   
@@ -174,13 +175,22 @@ const MainLayout: React.FC = () => {
   }, [user]); // Re-sync when user changes
 
   // --- DATA LAYER INITIALIZATION & REALTIME ---
-  // NOTE: This effect intentionally only depends on `user` to avoid infinite loops.
+  // NOTE: This effect depends on `user` AND `sessionReady` to ensure:
+  // 1. User is authenticated
+  // 2. Session has stabilized after login (avoids 401 race conditions)
   // It uses refs (settingsRef, defaultSettingsRef) to access current settings without
-  // triggering re-runs when settings change. The effect reads fresh settings from
-  // localStorage via loadState() instead of relying on React state.
+  // triggering re-runs when settings change.
   useEffect(() => {
       if (!user) {
           setIsDataLoading(false);
+          return;
+      }
+
+      // CRITICAL: Wait for session to be ready before making any Appwrite calls
+      // This prevents 401 errors that occur when trying to access the API
+      // before the session cookie/localStorage is fully synchronized
+      if (!sessionReady) {
+          console.log('[App] Waiting for session to be ready...');
           return;
       }
 
@@ -190,12 +200,11 @@ const MainLayout: React.FC = () => {
           setIsDataLoading(true);
 
           if (freshSettings.dataConfig?.type === 'APPWRITE') {
-              // NOTE: Appwrite is already initialized in AuthContext.tsx
-              // No need to call initializeAppwrite again here - it's a singleton pattern
-              // This prevents the "double initialization" anti-pattern
+              // NOTE: Appwrite client is already initialized via lib/appwrite/client.ts
+              // Authentication is handled by AuthContext and authService
 
-              // PERFORM HEALTH CHECK FIRST
-              console.log('🔍 Verificando conexión con Appwrite...');
+              // PERFORM HEALTH CHECK - Now safe because sessionReady is true
+              console.log('[App] Session ready, performing health check...');
               setIsReconnecting(true);
               try {
                   const healthResult = await appwriteService.performHealthCheck();
@@ -309,7 +318,7 @@ const MainLayout: React.FC = () => {
           }
       };
       initDataLayer();
-  }, [user]); // Depend on user to re-init on login
+  }, [user, sessionReady]); // Depend on user AND sessionReady to re-init on login
 
   // --- PERSISTENCE EFFECTS ---
   // Settings are saved to localStorage for initial load detection
