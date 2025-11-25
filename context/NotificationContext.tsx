@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Notification, NotificationContextType, AppSettings } from '../types';
 import { useAuth } from './AuthContext';
-import { databaseService, isAppwriteInitialized } from '../services/appwriteService';
+import { isAppwriteInitialized } from '../services/appwriteService';
+import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -55,7 +56,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         }
 
         try {
-          const loadedNotifications = await databaseService.getNotifications();
+          const loadedNotifications = await protectedDatabase.getNotifications();
           setNotifications(loadedNotifications);
         } catch (error: any) {
           // Silently handle errors - getNotifications already logs unexpected errors
@@ -109,7 +110,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     if (isUsingAppwrite()) {
       try {
-        const savedNotif = await databaseService.createNotification(newNotification);
+        const savedNotif = await protectedDatabase.createNotification(newNotification);
         setNotifications(prev => [savedNotif, ...prev]);
       } catch (error) {
         // Fallback to local state but log warning for debugging
@@ -127,7 +128,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const notif = notifications.find(n => n.id === id);
         if (notif) {
           const updated = { ...notif, read: true };
-          await databaseService.updateNotification(updated);
+          await protectedDatabase.updateNotification(updated);
           setNotifications(prev =>
             prev.map(n => n.id === id ? updated : n)
           );
@@ -149,13 +150,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const markAllAsRead = async () => {
     if (isUsingAppwrite()) {
       try {
-        // Update all unread notifications
-        const unreadNotifs = notifications.filter(n => !n.read);
-        await Promise.all(
-          unreadNotifs.map(notif =>
-            databaseService.updateNotification({ ...notif, read: true })
-          )
-        );
+        // Use dedicated markAllNotificationsRead for efficiency
+        await protectedDatabase.markAllNotificationsRead();
         setNotifications(prev =>
           prev.map(notif => ({ ...notif, read: true }))
         );
@@ -176,7 +172,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const deleteNotification = async (id: string) => {
     if (isUsingAppwrite()) {
       try {
-        await databaseService.deleteNotification(id);
+        await protectedDatabase.deleteNotification(id);
         setNotifications(prev => prev.filter(notif => notif.id !== id));
       } catch (error) {
         // Fallback to local state but log warning for debugging
@@ -191,7 +187,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const clearAll = async () => {
     if (isUsingAppwrite()) {
       try {
-        await databaseService.deleteAllNotifications();
+        await protectedDatabase.deleteAllNotifications();
         setNotifications([]);
       } catch (error) {
         // Fallback to local state but log warning for debugging
