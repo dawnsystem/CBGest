@@ -425,23 +425,31 @@ const MainLayout: React.FC = () => {
       // IMPORTANT: Save original status BEFORE calling Appwrite
       // This ensures we use the correct status for creating accounting entries
       const originalStatus = invoice.status;
-      const originalInvoice = { ...invoice };
+
+      // Add audit fields
+      const invoiceWithAudit: Invoice = {
+          ...invoice,
+          createdBy: user?.$id,
+          createdByName: user?.name,
+          createdAt: new Date().toISOString()
+      };
+      const originalInvoice = { ...invoiceWithAudit };
 
       // Update state immediately for optimistic UI
-      setInvoices(prev => [invoice, ...prev]);
+      setInvoices(prev => [invoiceWithAudit, ...prev]);
 
       if (settings.dataConfig?.type === 'APPWRITE') {
           try {
-              const savedInv = await appwriteService.createInvoice(invoice);
+              const savedInv = await appwriteService.createInvoice(invoiceWithAudit);
               // Update with real ID from server, but preserve original status if missing
               const mergedInvoice = {
                   ...savedInv,
                   status: savedInv.status || originalStatus
               };
-              setInvoices(prev => prev.map(i => i.id === invoice.id ? mergedInvoice : i));
+              setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? mergedInvoice : i));
           } catch (error: unknown) {
               // ROLLBACK: Remove the invoice from local state since it wasn't saved
-              setInvoices(prev => prev.filter(i => i.id !== invoice.id));
+              setInvoices(prev => prev.filter(i => i.id !== invoiceWithAudit.id));
 
               // Show error to user
               const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
@@ -458,32 +466,34 @@ const MainLayout: React.FC = () => {
         addNotification({
           type: 'INVOICE_CREATED',
           title: 'Nueva factura creada',
-          message: `${invoice.type === 'INCOME' ? 'Ingreso' : 'Gasto'} de ${invoice.issuerName} por ${invoice.totalAmount.toFixed(2)}€`,
+          message: `${invoiceWithAudit.type === 'INCOME' ? 'Ingreso' : 'Gasto'} de ${invoiceWithAudit.issuerName} por ${invoiceWithAudit.totalAmount.toFixed(2)}€`,
           userId: user.$id,
           userName: user.name,
-          relatedId: invoice.id
+          relatedId: invoiceWithAudit.id
         });
       }
 
       // AUTO-CREATE SUPPLIER if invoice is being processed and supplier doesn't exist
-      if ((originalStatus === 'PROCESSED' || originalStatus === 'PAID') && invoice.issuerNif && invoice.issuerName) {
+      if ((originalStatus === 'PROCESSED' || originalStatus === 'PAID') && invoiceWithAudit.issuerNif && invoiceWithAudit.issuerName) {
           // Check if supplier already exists by NIF
           const existingSupplier = suppliers.find(s =>
-              s.nif.toUpperCase().replace(/\s/g, '') === invoice.issuerNif.toUpperCase().replace(/\s/g, '')
+              s.nif.toUpperCase().replace(/\s/g, '') === invoiceWithAudit.issuerNif.toUpperCase().replace(/\s/g, '')
           );
 
           if (!existingSupplier) {
               const now = new Date().toISOString();
               const newSupplier: Supplier = {
                   id: `SUP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                  name: invoice.issuerName,
-                  nif: invoice.issuerNif.toUpperCase(),
-                  nifType: detectNifType(invoice.issuerNif),
-                  address: invoice.issuerAddress,
-                  city: invoice.issuerCity,
-                  postalCode: invoice.issuerPostalCode,
+                  name: invoiceWithAudit.issuerName,
+                  nif: invoiceWithAudit.issuerNif.toUpperCase(),
+                  nifType: detectNifType(invoiceWithAudit.issuerNif),
+                  address: invoiceWithAudit.issuerAddress,
+                  city: invoiceWithAudit.issuerCity,
+                  postalCode: invoiceWithAudit.issuerPostalCode,
                   createdAt: now,
-                  updatedAt: now
+                  updatedAt: now,
+                  createdBy: user?.$id,
+                  createdByName: user?.name
               };
 
               console.log("Auto-creating supplier from invoice:", newSupplier.name, newSupplier.nif);
@@ -491,11 +501,11 @@ const MainLayout: React.FC = () => {
 
               // Update invoice with supplier reference
               const updatedInvoice = { ...originalInvoice, supplierId: newSupplier.id };
-              setInvoices(prev => prev.map(i => i.id === invoice.id ? updatedInvoice : i));
-          } else if (!invoice.supplierId) {
+              setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? updatedInvoice : i));
+          } else if (!invoiceWithAudit.supplierId) {
               // Link invoice to existing supplier if not already linked
               const updatedInvoice = { ...originalInvoice, supplierId: existingSupplier.id };
-              setInvoices(prev => prev.map(i => i.id === invoice.id ? updatedInvoice : i));
+              setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? updatedInvoice : i));
               console.log("Linked invoice to existing supplier:", existingSupplier.name);
           }
       }
@@ -539,7 +549,11 @@ const MainLayout: React.FC = () => {
         fileData: inv.fileData,
         fileType: inv.fileType,
         appwriteFileId: inv.appwriteFileId, // Important for Cloud
-        reconciled: false
+        reconciled: false,
+        // Audit fields - inherited from invoice or current user
+        createdBy: inv.createdBy || user?.$id,
+        createdByName: inv.createdByName || user?.name,
+        createdAt: new Date().toISOString()
     };
 
     handleAddEntry(newEntry);
@@ -633,16 +647,24 @@ const MainLayout: React.FC = () => {
   };
 
   const handleAddEntry = async (entry: AccountingEntry) => {
+      // Add audit fields if not already present
+      const entryWithAudit: AccountingEntry = {
+          ...entry,
+          createdBy: entry.createdBy || user?.$id,
+          createdByName: entry.createdByName || user?.name,
+          createdAt: entry.createdAt || new Date().toISOString()
+      };
+
       // Optimistic add
-      setAccountingEntries(prev => [entry, ...prev]);
+      setAccountingEntries(prev => [entryWithAudit, ...prev]);
 
       if (settings.dataConfig?.type === 'APPWRITE') {
           try {
-              const saved = await appwriteService.createEntry(entry);
-              setAccountingEntries(prev => prev.map(e => e.id === entry.id ? saved : e));
+              const saved = await appwriteService.createEntry(entryWithAudit);
+              setAccountingEntries(prev => prev.map(e => e.id === entryWithAudit.id ? saved : e));
           } catch (error: unknown) {
               // ROLLBACK: Remove the entry from local state
-              setAccountingEntries(prev => prev.filter(e => e.id !== entry.id));
+              setAccountingEntries(prev => prev.filter(e => e.id !== entryWithAudit.id));
               const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
               showError(`Error al crear asiento: ${errorMessage}. Los cambios no se han guardado.`);
               console.error('Error creating entry in Appwrite:', error);
@@ -733,16 +755,23 @@ const MainLayout: React.FC = () => {
   };
 
   const handleAddBankTransactions = async (txs: BankTransaction[]) => {
-      const txIds = txs.map(tx => tx.id);
+      // Add audit fields to all transactions
+      const txsWithAudit: BankTransaction[] = txs.map(tx => ({
+          ...tx,
+          createdBy: user?.$id,
+          createdByName: user?.name,
+          createdAt: new Date().toISOString()
+      }));
+      const txIds = txsWithAudit.map(tx => tx.id);
 
       // Optimistic add
-      setBankTransactions(prev => [...prev, ...txs]);
+      setBankTransactions(prev => [...prev, ...txsWithAudit]);
 
       if (settings.dataConfig?.type === 'APPWRITE') {
           try {
               // Save all transactions to Appwrite with proper await
               const savedTransactions = await Promise.all(
-                  txs.map(tx => appwriteService.createTransaction(tx))
+                  txsWithAudit.map(tx => appwriteService.createTransaction(tx))
               );
               // Update state with saved transactions (includes appwriteId)
               setBankTransactions(prev =>
@@ -849,18 +878,25 @@ const MainLayout: React.FC = () => {
 
   // Supplier Handlers
   const handleAddSupplier = async (supplier: Supplier) => {
+      // Add audit fields if not already present
+      const supplierWithAudit: Supplier = {
+          ...supplier,
+          createdBy: supplier.createdBy || user?.$id,
+          createdByName: supplier.createdByName || user?.name
+      };
+
       // Optimistic add
-      setSuppliers(prev => [supplier, ...prev]);
+      setSuppliers(prev => [supplierWithAudit, ...prev]);
 
       if (settings.dataConfig?.type === 'APPWRITE') {
           try {
-              const savedSupplier = await appwriteService.createSupplier(supplier);
+              const savedSupplier = await appwriteService.createSupplier(supplierWithAudit);
               // Update with Appwrite ID
-              setSuppliers(prev => prev.map(s => s.id === supplier.id ? savedSupplier : s));
+              setSuppliers(prev => prev.map(s => s.id === supplierWithAudit.id ? savedSupplier : s));
               console.log('✅ Proveedor guardado en Appwrite:', savedSupplier.id);
           } catch (error: unknown) {
               // ROLLBACK: Remove the supplier from local state
-              setSuppliers(prev => prev.filter(s => s.id !== supplier.id));
+              setSuppliers(prev => prev.filter(s => s.id !== supplierWithAudit.id));
               const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
               showError(`Error al crear proveedor: ${errorMessage}. Los cambios no se han guardado.`);
               console.error('Error saving supplier to Appwrite:', error);
