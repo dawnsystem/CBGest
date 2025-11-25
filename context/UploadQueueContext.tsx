@@ -1,22 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier, AppSettings } from '../types';
-import { analyzeInvoiceImage, analyzeBankStatement, parseXlsxBankStatement } from '../services/geminiService';
+import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier } from '../types';
+import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
 import { useAuth } from './AuthContext';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
-
-// Helper to check if using Appwrite
-const isUsingAppwrite = (): boolean => {
-  try {
-    const saved = localStorage.getItem('gestcb_settings');
-    if (!saved) return false;
-    const settings: AppSettings = JSON.parse(saved);
-    return settings.dataConfig?.type === 'APPWRITE' && !!settings.dataConfig.appwriteProjectId;
-  } catch {
-    return false;
-  }
-};
 
 export const useUploadQueue = () => {
   const context = useContext(UploadQueueContext);
@@ -68,73 +56,35 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // 1. Hydrate from Appwrite or LocalStorage - reload when user changes
+  // Load queue from Appwrite on mount and when user changes
   useEffect(() => {
     const loadQueue = async () => {
-      if (isUsingAppwrite() && user) {
-        try {
-          const loadedItems = await protectedDatabase.getUploadQueue();
-          // Reconstruct File objects from base64Data
-          const rehydratedItems: QueueItem[] = loadedItems.map((item: any) => {
-            let file = item.file;
-            if (item.base64Data) {
-              file = base64ToFile(item.base64Data, item.fileName, item.mimeType);
-            }
-            return { ...item, file };
-          });
-          setQueue(rehydratedItems);
-        } catch (error) {
-          // Silently handle errors - getUploadQueue already logs unexpected errors
-          setQueue([]);
-        }
-      } else if (!isUsingAppwrite()) {
-        // Load from localStorage
-        const savedQueue = localStorage.getItem('gestcb_upload_queue');
-        if (savedQueue) {
-          try {
-            const parsedItems = JSON.parse(savedQueue);
-            const rehydratedItems: QueueItem[] = parsedItems.map((item: any) => {
-              let file = item.file;
-              if (item.base64Data) {
-                file = base64ToFile(item.base64Data, item.fileName, item.mimeType);
-              }
-              return { ...item, file };
-            });
-            setQueue(rehydratedItems);
-          } catch (e) {
-            console.error("Failed to hydrate queue from localStorage:", e);
-            localStorage.removeItem('gestcb_upload_queue');
+      if (!user) {
+        setQueue([]);
+        setIsHydrated(true);
+        return;
+      }
+
+      try {
+        const loadedItems = await protectedDatabase.getUploadQueue();
+        // Reconstruct File objects from base64Data
+        const rehydratedItems: QueueItem[] = loadedItems.map((item: QueueItem) => {
+          let file = item.file;
+          if (item.base64Data) {
+            file = base64ToFile(item.base64Data, item.fileName, item.mimeType);
           }
-        }
-      } else {
-        // Using Appwrite but no user - clear queue
+          return { ...item, file };
+        });
+        setQueue(rehydratedItems);
+      } catch (error) {
+        console.error('Error cargando cola de subidas:', error);
         setQueue([]);
       }
       setIsHydrated(true);
     };
 
     loadQueue();
-  }, [user]); // Re-load when user changes
-
-  // 2. Persist to LocalStorage (only in LOCAL_STORAGE mode)
-  useEffect(() => {
-    if (!isHydrated) return;
-
-    if (!isUsingAppwrite()) {
-      // Only save to localStorage in LOCAL_STORAGE mode
-      try {
-        const serializedQueue = queue.map(item => {
-          const { file, ...rest } = item;
-          return rest; // file is reconstructed from base64Data
-        });
-        localStorage.setItem('gestcb_upload_queue', JSON.stringify(serializedQueue));
-      } catch (e) {
-        console.warn("Storage quota exceeded.");
-      }
-    }
-    // In Appwrite mode, individual operations handle persistence
-  }, [queue, isHydrated]);
-
+  }, [user]);
 
   const addToQueue = async (files: File[], type: UploadType) => {
     const newItemsPromises = files.map(async (file) => {
@@ -155,36 +105,16 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
     const newItems = await Promise.all(newItemsPromises);
 
-    if (isUsingAppwrite()) {
-      try {
-        // Create items in Appwrite using protectedDatabase (rate limited)
-        const savedItems = await Promise.all(
-          newItems.map(item => protectedDatabase.createUploadItem(item))
-        );
-        setQueue(prev => [...prev, ...savedItems]);
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error añadiendo elementos a la cola en Appwrite, usando estado local:', error);
-        setQueue(prev => [...prev, ...newItems]);
-      }
-    } else {
-      setQueue(prev => [...prev, ...newItems]);
-    }
+    // Create items in Appwrite - no fallback to local state
+    const savedItems = await Promise.all(
+      newItems.map(item => protectedDatabase.createUploadItem(item))
+    );
+    setQueue(prev => [...prev, ...savedItems]);
   };
 
   const removeFromQueue = async (id: string) => {
-    if (isUsingAppwrite()) {
-      try {
-        await protectedDatabase.deleteUploadItem(id);
-        setQueue(prev => prev.filter(item => item.id !== id));
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error eliminando elemento de la cola en Appwrite, usando estado local:', error);
-        setQueue(prev => prev.filter(item => item.id !== id));
-      }
-    } else {
-      setQueue(prev => prev.filter(item => item.id !== id));
-    }
+    await protectedDatabase.deleteUploadItem(id);
+    setQueue(prev => prev.filter(item => item.id !== id));
   };
 
   const retryItem = async (id: string) => {
@@ -199,33 +129,13 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       notificationDismissed: false
     };
 
-    if (isUsingAppwrite()) {
-      try {
-        await protectedDatabase.updateUploadItem(updatedItem);
-        setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error reintentando elemento en Appwrite, usando estado local:', error);
-        setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
-      }
-    } else {
-      setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
-    }
+    await protectedDatabase.updateUploadItem(updatedItem);
+    setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
   };
 
   const clearCompleted = async () => {
-    if (isUsingAppwrite()) {
-      try {
-        await protectedDatabase.deleteCompletedUploads();
-        setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error limpiando elementos completados en Appwrite, usando estado local:', error);
-        setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
-      }
-    } else {
-      setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
-    }
+    await protectedDatabase.deleteCompletedUploads();
+    setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
   };
 
   const dismissNotifications = async () => {
@@ -233,88 +143,51 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       item => (item.status === 'COMPLETED' || item.status === 'ERROR') && !item.notificationDismissed
     );
 
-    if (isUsingAppwrite()) {
-      try {
-        // Use protectedDatabase with rate limiting - updates are debounced
-        await Promise.all(
-          itemsToDismiss.map(item =>
-            protectedDatabase.updateUploadItem({ ...item, notificationDismissed: true })
-          )
-        );
-        setQueue(prev => prev.map(item =>
-          (item.status === 'COMPLETED' || item.status === 'ERROR')
-            ? { ...item, notificationDismissed: true }
-            : item
-        ));
-      } catch (error) {
-        // Fallback to local state but log warning for debugging
-        console.warn('Error actualizando notificaciones en Appwrite, usando estado local:', error);
-        setQueue(prev => prev.map(item =>
-          (item.status === 'COMPLETED' || item.status === 'ERROR')
-            ? { ...item, notificationDismissed: true }
-            : item
-        ));
-      }
-    } else {
-      setQueue(prev => prev.map(item =>
-        (item.status === 'COMPLETED' || item.status === 'ERROR')
-          ? { ...item, notificationDismissed: true }
-          : item
-      ));
-    }
+    // Update in Appwrite - debounced to avoid rate limiting
+    await Promise.all(
+      itemsToDismiss.map(item =>
+        protectedDatabase.updateUploadItem({ ...item, notificationDismissed: true })
+      )
+    );
+    setQueue(prev => prev.map(item =>
+      (item.status === 'COMPLETED' || item.status === 'ERROR')
+        ? { ...item, notificationDismissed: true }
+        : item
+    ));
   };
 
   // Processing Logic
   useEffect(() => {
     if (processingId) return;
+    if (!isHydrated) return;
     const nextItem = queue.find(item => item.status === 'QUEUED');
     if (!nextItem) return;
 
     processItem(nextItem);
-  }, [queue, processingId]);
-
-  // Helper to update queue item both locally and in Appwrite
-  // Uses protectedDatabase which has built-in debounce (2 seconds) for progress updates
-  const updateQueueItem = async (updatedItem: QueueItem) => {
-    setQueue(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i));
-
-    if (isUsingAppwrite()) {
-      try {
-        // protectedDatabase.updateUploadItem has built-in debounce to prevent rate limiting
-        await protectedDatabase.updateUploadItem(updatedItem);
-      } catch (error) {
-        // Log warning but continue - local state is already updated
-        console.warn('Error actualizando elemento de cola en Appwrite:', error);
-      }
-    }
-  };
+  }, [queue, processingId, isHydrated]);
 
   const processItem = async (item: QueueItem) => {
     setProcessingId(item.id);
 
-    // Update to ANALYZING status
+    // Update to ANALYZING status - save to Appwrite
     const analyzingItem = { ...item, status: 'ANALYZING' as const, progress: 10 };
-    await updateQueueItem(analyzingItem);
+    try {
+      await protectedDatabase.updateUploadItem(analyzingItem);
+    } catch (error) {
+      console.error('Error actualizando estado a ANALYZING:', error);
+    }
+    setQueue(prev => prev.map(i => i.id === item.id ? analyzingItem : i));
 
-    // OPTIMIZED: Progress updates now use protectedDatabase with built-in 2-second debounce
-    // This prevents rate limiting by grouping rapid updates into single API calls
+    // OPTIMIZED: Only update progress locally to avoid rate limiting
+    // We only save to Appwrite at the start (ANALYZING) and end (COMPLETED/ERROR)
     const progressInterval = setInterval(() => {
       setQueue(prev => prev.map(i => {
         if (i.id === item.id && i.status === 'ANALYZING' && i.progress < 90) {
-          const updatedProgress = { ...i, progress: i.progress + (Math.random() * 10) };
-          // protectedDatabase has built-in debounce - safe to call frequently
-          if (isUsingAppwrite()) {
-            protectedDatabase.updateUploadItem(updatedProgress)
-              .catch((error) => {
-                // Log warning but don't block progress - this is non-critical
-                console.warn('Error actualizando progreso en Appwrite:', error);
-              });
-          }
-          return updatedProgress;
+          return { ...i, progress: i.progress + (Math.random() * 10) };
         }
         return i;
       }));
-    }, 1000); // Increased from 500ms to 1000ms for additional rate limit protection
+    }, 500);
 
     try {
       let base64ForApi = item.base64Data || '';
@@ -345,6 +218,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           history: [{ date: new Date().toISOString(), action: 'Analyzed via Gemini', user: 'System' }]
         };
 
+        clearInterval(progressInterval);
+
         const completedItem = {
           ...item,
           status: 'COMPLETED' as const,
@@ -352,7 +227,10 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           result: resultInvoice,
           notificationDismissed: false
         };
-        await updateQueueItem(completedItem);
+
+        // Save final state to Appwrite
+        await protectedDatabase.updateUploadItem(completedItem);
+        setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
 
       } else if (item.uploadType === 'BANK_STATEMENT') {
         // Detect file type
@@ -360,6 +238,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           item.mimeType === 'application/vnd.ms-excel' ||
           item.fileName.toLowerCase().endsWith('.xlsx') ||
           item.fileName.toLowerCase().endsWith('.xls');
+
+        clearInterval(progressInterval);
 
         if (isXlsx) {
           // XLSX files need manual column mapping - mark as ready for mapping
@@ -370,7 +250,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
             needsMapping: true, // Flag to show mapping UI
             notificationDismissed: false
           };
-          await updateQueueItem(completedItem);
+          await protectedDatabase.updateUploadItem(completedItem);
+          setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
         } else {
           // Use AI for PDF/images
           const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
@@ -389,24 +270,31 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
             bankResult: enrichedTransactions,
             notificationDismissed: false
           };
-          await updateQueueItem(completedItem);
+          await protectedDatabase.updateUploadItem(completedItem);
+          setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
         }
       }
 
-      clearInterval(progressInterval);
-
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearInterval(progressInterval);
       console.error(err);
 
+      const errorMessage = err instanceof Error ? err.message : 'Error en análisis IA.';
       const errorItem = {
         ...item,
         status: 'ERROR' as const,
         progress: 0,
-        error: err.message || 'Error en análisis IA.',
+        error: errorMessage,
         notificationDismissed: false
       };
-      await updateQueueItem(errorItem);
+
+      // Save error state to Appwrite
+      try {
+        await protectedDatabase.updateUploadItem(errorItem);
+      } catch (saveError) {
+        console.error('Error guardando estado de error:', saveError);
+      }
+      setQueue(prev => prev.map(i => i.id === item.id ? errorItem : i));
     } finally {
       setProcessingId(null);
     }
