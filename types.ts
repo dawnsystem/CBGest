@@ -5,6 +5,9 @@ export enum UserRole {
   GESTOR = "GESTOR"
 }
 
+// --- COMMON TYPES (used across multiple interfaces) ---
+export type NifType = 'NIF' | 'CIF' | 'NIE' | 'DNI' | 'PASAPORTE';
+
 export interface AppwriteUser {
   $id: string;
   name: string;
@@ -25,6 +28,7 @@ export interface Invoice {
   date: string; // YYYY-MM-DD
   issuerName: string;
   issuerNif: string;
+  issuerNifType?: NifType; // Type of NIF (NIF, CIF, NIE, etc.) - consistent with Supplier
   issuerAddress?: string; // Domicilio fiscal del emisor
   issuerCity?: string; // Ciudad del emisor
   issuerPostalCode?: string; // Código postal del emisor
@@ -130,10 +134,16 @@ export interface PartnerTaxInfo {
   // --- Deducciones y Reducciones ---
   deductibleExpenses: number; // Gastos deducibles personales (SS, sindicatos)
   pensionContributions: number; // Aportaciones planes de pensiones (máx 1.500€)
+}
 
-  // Legacy fields for backward compatibility
-  childrenCount?: number; // Deprecated: usar childrenUnder3 + childrenFrom3To25
-  disability?: boolean; // Deprecated: usar disabilityLevel
+/**
+ * Legacy tax info interface for backward compatibility during migrations.
+ * Do NOT use in new code - use PartnerTaxInfo instead.
+ * @deprecated Only for migration purposes
+ */
+export interface LegacyPartnerTaxInfo extends Partial<PartnerTaxInfo> {
+  childrenCount?: number;
+  disability?: boolean;
 }
 
 export interface Partner {
@@ -145,8 +155,6 @@ export interface Partner {
 }
 
 // --- SUPPLIER/PROVIDER TYPES ---
-export type NifType = 'NIF' | 'CIF' | 'NIE' | 'DNI' | 'PASAPORTE';
-
 export interface Supplier {
   id: string;
   name: string;

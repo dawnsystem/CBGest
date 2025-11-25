@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Supplier, NifType } from '../types';
-import { Plus, Search, Edit2, Trash2, Save, X, Building2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Save, X, Building2, AlertCircle } from 'lucide-react';
+import { isValidNIF, normalizeNif, detectNifType } from '../utils/validators';
+import { generateId } from '../utils/defaults';
 
 interface SuppliersProps {
   suppliers: Supplier[];
@@ -30,13 +32,29 @@ export const Suppliers: React.FC<SuppliersProps> = ({
     notes: ''
   });
 
+  const [nifError, setNifError] = useState<string | null>(null);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setNifError(null);
 
     if (!formData.name || !formData.nif) {
       alert('El nombre y el NIF/CIF son obligatorios');
       return;
     }
+
+    // Normalize and validate NIF
+    const normalizedNif = normalizeNif(formData.nif);
+
+    // Validate NIF format (except for PASAPORTE which has no standard format)
+    if (formData.nifType !== 'PASAPORTE' && !isValidNIF(normalizedNif)) {
+      setNifError(`El ${formData.nifType} introducido no es válido. Verifica el formato.`);
+      return;
+    }
+
+    // Auto-detect NIF type if it doesn't match
+    const detectedType = detectNifType(normalizedNif);
+    const finalNifType = formData.nifType === 'PASAPORTE' ? 'PASAPORTE' : detectedType;
 
     const now = new Date().toISOString();
 
@@ -47,16 +65,18 @@ export const Suppliers: React.FC<SuppliersProps> = ({
         onUpdateSupplier({
           ...supplierToUpdate,
           ...formData as Supplier,
+          nif: normalizedNif,
+          nifType: finalNifType,
           updatedAt: now
         });
       }
     } else {
       // Create new supplier
       const newSupplier: Supplier = {
-        id: `supplier-${Date.now()}`,
+        id: generateId(),
         name: formData.name!,
-        nif: formData.nif!,
-        nifType: formData.nifType || 'CIF',
+        nif: normalizedNif,
+        nifType: finalNifType,
         address: formData.address,
         city: formData.city,
         postalCode: formData.postalCode,
@@ -224,12 +244,23 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                   name="nif"
                   type="text"
                   value={formData.nif}
-                  onChange={(e) => setFormData({ ...formData, nif: e.target.value.toUpperCase() })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  onChange={(e) => {
+                    setFormData({ ...formData, nif: e.target.value.toUpperCase() });
+                    setNifError(null); // Clear error on change
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${
+                    nifError ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-slate-300 focus:border-blue-500'
+                  }`}
                   placeholder="A12345678"
                   required
                   autoComplete="off"
                 />
+                {nifError && (
+                  <div className="flex items-center gap-1 mt-1 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>{nifError}</span>
+                  </div>
+                )}
               </div>
 
               {/* Address */}

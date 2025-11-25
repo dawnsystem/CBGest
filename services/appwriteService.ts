@@ -1,8 +1,19 @@
 /**
  * @fileoverview Servicios de Appwrite para CBGest
  * @description Servicios de base de datos, almacenamiento y realtime.
- *              La autenticación está en authService.ts separado.
- *              Las instancias del cliente están en lib/appwrite/client.ts
+ *
+ * ARCHITECTURE NOTE:
+ * This file provides low-level Appwrite API operations with retry logic.
+ * For application code, USE protectedDatabase from lib/appwrite/protectedDatabase.ts
+ * which adds rate limiting and caching on top of these services.
+ *
+ * Layer hierarchy:
+ * 1. lib/appwrite/client.ts - Appwrite SDK client instances
+ * 2. services/appwriteService.ts - CRUD operations with retry (THIS FILE)
+ * 3. lib/appwrite/protectedDatabase.ts - Rate limiting, caching, debounce
+ *
+ * Components should import from protectedDatabase, not directly from here.
+ * Auth operations are in authService.ts.
  */
 
 import { Query, ID } from 'appwrite';

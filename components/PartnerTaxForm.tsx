@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Partner, PartnerTaxInfo, DisabilityLevel } from '../types';
+import { Partner, PartnerTaxInfo, LegacyPartnerTaxInfo, DisabilityLevel } from '../types';
 import { X, Save, Calculator, HelpCircle, ChevronDown, ChevronUp, User, Wallet, Users, Heart, PiggyBank } from 'lucide-react';
 
 interface PartnerTaxFormProps {
@@ -51,7 +51,8 @@ const FormSection: React.FC<{
 const currentYear = new Date().getFullYear();
 
 // Migrate old data format to new format
-const migrateOldTaxInfo = (oldInfo: Partial<PartnerTaxInfo>): PartnerTaxInfo => {
+// Uses LegacyPartnerTaxInfo to handle deprecated fields (childrenCount, disability)
+const migrateOldTaxInfo = (oldInfo: LegacyPartnerTaxInfo): PartnerTaxInfo => {
   return {
     // Datos personales
     birthYear: oldInfo.birthYear || 1980,
