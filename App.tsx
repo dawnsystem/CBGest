@@ -10,6 +10,7 @@ import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier } from
 import { Eye, Trash, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
+import { generateId } from './utils/defaults';
 import * as appwriteService from './services/appwriteService';
 import { APPWRITE_CONFIG } from './config/appwrite';
 
@@ -483,7 +484,7 @@ const MainLayout: React.FC = () => {
           if (!existingSupplier) {
               const now = new Date().toISOString();
               const newSupplier: Supplier = {
-                  id: `SUP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  id: generateId(),
                   name: invoiceWithAudit.issuerName,
                   nif: invoiceWithAudit.issuerNif.toUpperCase(),
                   nifType: detectNifType(invoiceWithAudit.issuerNif),

@@ -4,6 +4,7 @@ import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus
 import { useUploadQueue } from '../context/UploadQueueContext';
 import { Invoice, AppSettings, QueueItem, UploadType, BankTransaction } from '../types';
 import { isValidNIF } from '../utils/validators';
+import { generateId } from '../utils/defaults';
 import { AccountSelector } from './AccountSelector';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 import { XlsxColumnMapper } from './XlsxColumnMapper';
@@ -138,7 +139,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
     // Add IDs and status to transactions
     const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
-      id: Math.random().toString(36).substr(2, 9),
+      id: generateId(),
       ...t,
       status: 'PENDING' as const
     }));
