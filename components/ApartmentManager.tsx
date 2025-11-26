@@ -40,8 +40,21 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name) {
+    // Validate name (required and not just whitespace)
+    const trimmedName = formData.name?.trim();
+    if (!trimmedName) {
       alert('El nombre del apartamento es obligatorio');
+      return;
+    }
+
+    // Validate numeric fields if provided
+    if (formData.surfaceArea !== undefined && (isNaN(formData.surfaceArea) || formData.surfaceArea <= 0)) {
+      alert('La superficie debe ser mayor a 0');
+      return;
+    }
+
+    if (formData.maxOccupancy !== undefined && (isNaN(formData.maxOccupancy) || formData.maxOccupancy < 1 || formData.maxOccupancy > 50)) {
+      alert('La capacidad máxima debe estar entre 1 y 50 personas');
       return;
     }
 
@@ -62,8 +75,8 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
       // Create new apartment
       const newApartment: Apartment = {
         id: generateId(),
-        name: formData.name,
-        code: formData.code || undefined,
+        name: trimmedName,
+        code: formData.code?.trim() || undefined,
         address: formData.address || undefined,
         cadastralRef: formData.cadastralRef || undefined,
         surfaceArea: formData.surfaceArea || undefined,
@@ -111,10 +124,11 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
   };
 
   const filteredApartments = apartments.filter(apartment => {
-    const matchesSearch =
-      apartment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      apartment.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      apartment.address?.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm ||
+      apartment.name?.toLowerCase().includes(searchLower) ||
+      apartment.code?.toLowerCase().includes(searchLower) ||
+      apartment.address?.toLowerCase().includes(searchLower);
 
     const matchesActive = showInactive || apartment.isActive;
 
@@ -167,7 +181,11 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
             </button>
           )}
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setFormData(emptyFormData);
+              setEditingId(null);
+              setShowForm(true);
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
@@ -285,8 +303,16 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
-                    value={formData.surfaceArea || ''}
-                    onChange={(e) => setFormData({ ...formData, surfaceArea: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    value={formData.surfaceArea ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '') {
+                        setFormData({ ...formData, surfaceArea: undefined });
+                      } else {
+                        const parsed = parseFloat(value);
+                        setFormData({ ...formData, surfaceArea: !isNaN(parsed) && parsed >= 0 ? parsed : undefined });
+                      }
+                    }}
                     placeholder="50"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -301,8 +327,16 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
                       type="number"
                       min="1"
                       max="50"
-                      value={formData.maxOccupancy || ''}
-                      onChange={(e) => setFormData({ ...formData, maxOccupancy: e.target.value ? parseInt(e.target.value) : undefined })}
+                      value={formData.maxOccupancy ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') {
+                          setFormData({ ...formData, maxOccupancy: undefined });
+                        } else {
+                          const parsed = parseInt(value, 10);
+                          setFormData({ ...formData, maxOccupancy: !isNaN(parsed) && parsed >= 1 && parsed <= 50 ? parsed : undefined });
+                        }
+                      }}
                       placeholder="4"
                       className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
@@ -375,7 +409,11 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
           </p>
           {!searchTerm && (
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => {
+                setFormData(emptyFormData);
+                setEditingId(null);
+                setShowForm(true);
+              }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="w-5 h-5" />
