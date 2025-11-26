@@ -30,7 +30,8 @@ import type {
   QueueItem,
   Apartment,
   RecurringExpense,
-  AIMatchHistory
+  AIMatchHistory,
+  Reservation
 } from '../types';
 
 // Re-export authService from the new location for backwards compatibility
@@ -1258,6 +1259,112 @@ export const databaseService = {
       console.error('Find match by bank concept error:', error);
       return null;
     }
+  },
+
+  // --- RESERVATIONS ---
+  async getReservations(): Promise<Reservation[]> {
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.collections.reservations,
+        [Query.orderDesc('checkIn'), Query.limit(5000)]
+      );
+
+      return response.documents.map((doc: any) => {
+        const {
+          $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+          ...reservationData
+        } = doc;
+        return { ...reservationData, id: $id, appwriteId: $id } as Reservation;
+      });
+    } catch (error: any) {
+      if (error?.code === 404) return [];
+      notifyError(error.message, 'getReservations');
+      throw error;
+    }
+  },
+
+  async createReservation(reservation: Reservation): Promise<Reservation> {
+    try {
+      const {
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        appwriteId, file, ...reservationData
+      } = reservation as any;
+
+      const savedDoc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.reservations,
+          ID.unique(),
+          reservationData
+        ),
+        'createReservation'
+      );
+
+      connectionHealthy = true;
+      return { ...reservationData, id: savedDoc.$id, appwriteId: savedDoc.$id } as Reservation;
+    } catch (error: any) {
+      notifyError(error.message, 'createReservation');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async createReservations(reservations: Reservation[]): Promise<Reservation[]> {
+    const results: Reservation[] = [];
+
+    for (const reservation of reservations) {
+      try {
+        const saved = await this.createReservation(reservation);
+        results.push(saved);
+      } catch (error) {
+        console.error('Error creating reservation:', reservation.id, error);
+        // Continue with other reservations
+      }
+    }
+
+    return results;
+  },
+
+  async updateReservation(reservation: Reservation): Promise<Reservation> {
+    try {
+      const docId = reservation.appwriteId || reservation.id;
+      const {
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        appwriteId, file, id, ...reservationData
+      } = reservation as any;
+
+      const updatedDoc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.collections.reservations,
+          docId,
+          reservationData
+        ),
+        'updateReservation'
+      );
+
+      connectionHealthy = true;
+      return { ...reservationData, id: updatedDoc.$id, appwriteId: updatedDoc.$id } as Reservation;
+    } catch (error: any) {
+      notifyError(error.message, 'updateReservation');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async deleteReservation(id: string): Promise<void> {
+    try {
+      await withRetry(
+        () => databases.deleteDocument(config.databaseId, config.collections.reservations, id),
+        'deleteReservation'
+      );
+      connectionHealthy = true;
+    } catch (error: any) {
+      notifyError(error.message, 'deleteReservation');
+      connectionHealthy = false;
+      throw error;
+    }
   }
 };
 
@@ -1454,6 +1561,13 @@ export const createAIMatchHistory = (match: AIMatchHistory) => databaseService.c
 export const updateAIMatchHistory = (match: AIMatchHistory) => databaseService.updateAIMatchHistory(match);
 export const deleteAIMatchHistory = (id: string) => databaseService.deleteAIMatchHistory(id);
 export const findMatchByBankConcept = (concept: string) => databaseService.findMatchByBankConcept(concept);
+
+// --- RESERVATIONS (NEW) ---
+export const fetchReservations = () => databaseService.getReservations();
+export const createReservation = (reservation: Reservation) => databaseService.createReservation(reservation);
+export const createReservations = (reservations: Reservation[]) => databaseService.createReservations(reservations);
+export const updateReservation = (reservation: Reservation) => databaseService.updateReservation(reservation);
+export const deleteReservation = (id: string) => databaseService.deleteReservation(id);
 
 export default {
   initialize: initializeAppwrite,

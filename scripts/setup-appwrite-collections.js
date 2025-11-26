@@ -3,8 +3,7 @@
 /**
  * Script to automatically create Appwrite collections for CBGest
  *
- * This script creates the 'notifications' and 'uploads' collections
- * with all required attributes, indexes, and permissions.
+ * This script creates all required collections with attributes, indexes, and permissions.
  *
  * Usage:
  *   node scripts/setup-appwrite-collections.js
@@ -115,6 +114,19 @@ async function createAttribute(collectionId, attributeConfig) {
         );
         break;
 
+      case 'float':
+        result = await databases.createFloatAttribute(
+          CONFIG.databaseId,
+          collectionId,
+          key,
+          config.required,
+          config.min,
+          config.max,
+          config.default,
+          config.array || false
+        );
+        break;
+
       case 'boolean':
         result = await databases.createBooleanAttribute(
           CONFIG.databaseId,
@@ -201,7 +213,6 @@ async function setupNotificationsCollection() {
 
   for (const attr of attributes) {
     await createAttribute(collectionId, attr);
-    // Small delay between attributes to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 
@@ -213,24 +224,9 @@ async function setupNotificationsCollection() {
   console.log('\n📇 Creating indexes...');
 
   const indexes = [
-    {
-      key: 'timestamp_index',
-      type: 'key',
-      attributes: ['timestamp'],
-      orders: ['DESC']
-    },
-    {
-      key: 'userId_index',
-      type: 'key',
-      attributes: ['userId'],
-      orders: ['ASC']
-    },
-    {
-      key: 'read_index',
-      type: 'key',
-      attributes: ['read'],
-      orders: ['ASC']
-    }
+    { key: 'timestamp_index', type: 'key', attributes: ['timestamp'], orders: ['DESC'] },
+    { key: 'userId_index', type: 'key', attributes: ['userId'], orders: ['ASC'] },
+    { key: 'read_index', type: 'key', attributes: ['read'], orders: ['ASC'] }
   ];
 
   for (const index of indexes) {
@@ -249,13 +245,9 @@ async function setupUploadsCollection() {
 
   const collectionId = 'uploads';
 
-  // Create collection
   await createCollection(collectionId, 'Upload Queue');
-
-  // Wait a bit for collection to be ready
   await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // Create attributes
   console.log('\n📋 Creating attributes...');
 
   const attributes = [
@@ -275,36 +267,18 @@ async function setupUploadsCollection() {
 
   for (const attr of attributes) {
     await createAttribute(collectionId, attr);
-    // Small delay between attributes to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  // Wait for attributes to be ready
   console.log('\n⏳ Waiting for attributes to be ready...');
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Create indexes
   console.log('\n📇 Creating indexes...');
 
   const indexes = [
-    {
-      key: 'timestamp_index',
-      type: 'key',
-      attributes: ['timestamp'],
-      orders: ['DESC']
-    },
-    {
-      key: 'status_index',
-      type: 'key',
-      attributes: ['status'],
-      orders: ['ASC']
-    },
-    {
-      key: 'uploadType_index',
-      type: 'key',
-      attributes: ['uploadType'],
-      orders: ['ASC']
-    }
+    { key: 'timestamp_index', type: 'key', attributes: ['timestamp'], orders: ['DESC'] },
+    { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+    { key: 'uploadType_index', type: 'key', attributes: ['uploadType'], orders: ['ASC'] }
   ];
 
   for (const index of indexes) {
@@ -313,6 +287,237 @@ async function setupUploadsCollection() {
   }
 
   console.log('\n✅ Uploads collection setup complete!\n');
+}
+
+/**
+ * Setup apartments collection
+ */
+async function setupApartmentsCollection() {
+  console.log('\n=== Setting up APARTMENTS collection ===\n');
+
+  const collectionId = 'apartments';
+
+  await createCollection(collectionId, 'Apartamentos');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'id', size: 255, required: true },
+    { type: 'string', key: 'name', size: 255, required: true },
+    { type: 'string', key: 'code', size: 50, required: false },
+    { type: 'string', key: 'address', size: 500, required: false },
+    { type: 'string', key: 'cadastralRef', size: 100, required: false },
+    { type: 'float', key: 'surfaceArea', required: false, min: 0, max: 10000 },
+    { type: 'integer', key: 'maxOccupancy', required: false, min: 1, max: 100 },
+    { type: 'string', key: 'licenseNumber', size: 100, required: false },
+    { type: 'string', key: 'notes', size: 2000, required: false },
+    { type: 'boolean', key: 'isActive', required: true, default: true },
+    { type: 'string', key: 'createdAt', size: 50, required: false },
+    { type: 'string', key: 'updatedAt', size: 50, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'name_index', type: 'key', attributes: ['name'], orders: ['ASC'] },
+    { key: 'code_index', type: 'key', attributes: ['code'], orders: ['ASC'] },
+    { key: 'isActive_index', type: 'key', attributes: ['isActive'], orders: ['ASC'] }
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Apartments collection setup complete!\n');
+}
+
+/**
+ * Setup recurring_expenses collection
+ */
+async function setupRecurringExpensesCollection() {
+  console.log('\n=== Setting up RECURRING_EXPENSES collection ===\n');
+
+  const collectionId = 'recurring_expenses';
+
+  await createCollection(collectionId, 'Gastos Recurrentes');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'id', size: 255, required: true },
+    { type: 'string', key: 'name', size: 255, required: true },
+    { type: 'string', key: 'description', size: 1000, required: false },
+    { type: 'float', key: 'estimatedAmount', required: true, min: 0, max: 999999999 },
+    { type: 'string', key: 'frequency', size: 50, required: true }, // MONTHLY, BIMONTHLY, QUARTERLY, SEMIANNUAL, ANNUAL
+    { type: 'string', key: 'category', size: 255, required: false },
+    { type: 'string', key: 'apartmentId', size: 255, required: false },
+    { type: 'string', key: 'supplierId', size: 255, required: false },
+    { type: 'integer', key: 'dayOfMonth', required: false, min: 1, max: 31 },
+    { type: 'string', key: 'startDate', size: 50, required: false },
+    { type: 'string', key: 'endDate', size: 50, required: false },
+    { type: 'boolean', key: 'isDeductible', required: true, default: true },
+    { type: 'boolean', key: 'isActive', required: true, default: true },
+    { type: 'string', key: 'notes', size: 2000, required: false },
+    { type: 'string', key: 'createdAt', size: 50, required: false },
+    { type: 'string', key: 'updatedAt', size: 50, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'name_index', type: 'key', attributes: ['name'], orders: ['ASC'] },
+    { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
+    { key: 'frequency_index', type: 'key', attributes: ['frequency'], orders: ['ASC'] },
+    { key: 'isActive_index', type: 'key', attributes: ['isActive'], orders: ['ASC'] }
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Recurring Expenses collection setup complete!\n');
+}
+
+/**
+ * Setup ai_match_history collection
+ */
+async function setupAIMatchHistoryCollection() {
+  console.log('\n=== Setting up AI_MATCH_HISTORY collection ===\n');
+
+  const collectionId = 'ai_match_history';
+
+  await createCollection(collectionId, 'Historial Matches IA');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'id', size: 255, required: true },
+    // Bank transaction info
+    { type: 'string', key: 'bankConcept', size: 500, required: true },
+    { type: 'string', key: 'normalizedConcept', size: 500, required: false },
+    { type: 'float', key: 'amount', required: true, min: -999999999, max: 999999999 },
+    // Match result
+    { type: 'string', key: 'matchType', size: 50, required: true }, // INVOICE, SUPPLIER, RECURRING, PLATFORM
+    { type: 'string', key: 'matchedInvoiceId', size: 255, required: false },
+    { type: 'string', key: 'matchedSupplierId', size: 255, required: false },
+    { type: 'string', key: 'matchedSupplierName', size: 255, required: false },
+    { type: 'string', key: 'matchedCategory', size: 255, required: false },
+    { type: 'string', key: 'matchedPlatform', size: 50, required: false },
+    // Feedback
+    { type: 'boolean', key: 'wasAiSuggestion', required: true, default: true },
+    { type: 'boolean', key: 'userConfirmed', required: true, default: false },
+    { type: 'integer', key: 'usageCount', required: true, min: 0, max: 999999, default: 1 },
+    // Metadata
+    { type: 'string', key: 'createdAt', size: 50, required: false },
+    { type: 'string', key: 'lastUsedAt', size: 50, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'bankConcept_index', type: 'fulltext', attributes: ['bankConcept'], orders: ['ASC'] },
+    { key: 'matchType_index', type: 'key', attributes: ['matchType'], orders: ['ASC'] },
+    { key: 'usageCount_index', type: 'key', attributes: ['usageCount'], orders: ['DESC'] },
+    { key: 'userConfirmed_index', type: 'key', attributes: ['userConfirmed'], orders: ['ASC'] }
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ AI Match History collection setup complete!\n');
+}
+
+/**
+ * Setup reservations collection
+ */
+async function setupReservationsCollection() {
+  console.log('\n=== Setting up RESERVATIONS collection ===\n');
+
+  const collectionId = 'reservations';
+
+  await createCollection(collectionId, 'Reservas');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'id', size: 255, required: true },
+    // Core booking data
+    { type: 'string', key: 'apartmentId', size: 255, required: false },
+    { type: 'string', key: 'apartmentName', size: 255, required: true },
+    { type: 'string', key: 'checkIn', size: 50, required: true }, // ISO date
+    { type: 'string', key: 'checkOut', size: 50, required: true }, // ISO date
+    { type: 'integer', key: 'nights', required: true, min: 1, max: 365 },
+    // Financial data
+    { type: 'float', key: 'pricePerNight', required: true, min: 0, max: 99999 },
+    { type: 'float', key: 'totalAmount', required: true, min: 0, max: 999999 },
+    { type: 'float', key: 'paidAmount', required: true, min: 0, max: 999999, default: 0 },
+    // Booking reference
+    { type: 'string', key: 'channel', size: 50, required: true }, // Booking, Airbnb, Direct, Agoda, Vrbo, Other
+    { type: 'string', key: 'reservationNumber', size: 100, required: true },
+    { type: 'string', key: 'status', size: 50, required: true }, // New, Confirmed, Paid, PaidCC, Cancelled, Completed
+    // Minimal guest info (GDPR compliant)
+    { type: 'string', key: 'guestInitials', size: 20, required: false },
+    // Metadata
+    { type: 'string', key: 'importedAt', size: 50, required: false },
+    { type: 'string', key: 'notes', size: 2000, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'checkIn_index', type: 'key', attributes: ['checkIn'], orders: ['DESC'] },
+    { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
+    { key: 'channel_index', type: 'key', attributes: ['channel'], orders: ['ASC'] },
+    { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+    { key: 'reservationNumber_index', type: 'key', attributes: ['reservationNumber'], orders: ['ASC'] }
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Reservations collection setup complete!\n');
 }
 
 /**
@@ -326,11 +531,26 @@ async function main() {
   console.log(`🗄️  Database: ${CONFIG.databaseId}`);
 
   try {
+    // Original collections
     await setupNotificationsCollection();
     await setupUploadsCollection();
 
+    // NEW collections for CBGest improvements
+    await setupApartmentsCollection();
+    await setupRecurringExpensesCollection();
+    await setupAIMatchHistoryCollection();
+    await setupReservationsCollection();
+
     console.log('');
     console.log('🎉 All collections have been set up successfully!');
+    console.log('');
+    console.log('Collections created:');
+    console.log('  - notifications');
+    console.log('  - uploads');
+    console.log('  - apartments');
+    console.log('  - recurring_expenses');
+    console.log('  - ai_match_history');
+    console.log('  - reservations');
     console.log('');
     console.log('Next steps:');
     console.log('  1. Verify the collections in Appwrite Console');
