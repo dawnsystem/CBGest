@@ -2,10 +2,11 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus, Landmark, ShieldAlert, FileSpreadsheet } from 'lucide-react';
 import { useUploadQueue } from '../context/UploadQueueContext';
-import { Invoice, AppSettings, QueueItem, UploadType, BankTransaction } from '../types';
+import { Invoice, AppSettings, QueueItem, UploadType, BankTransaction, Apartment } from '../types';
 import { isValidNIF } from '../utils/validators';
 import { generateId } from '../utils/defaults';
 import { AccountSelector } from './AccountSelector';
+import { ApartmentSelector } from './ApartmentSelector';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 import { XlsxColumnMapper } from './XlsxColumnMapper';
 
@@ -13,19 +14,21 @@ interface InvoiceUploaderProps {
   onInvoiceAdded: (invoice: Invoice) => void;
   onBankTransactionsAdded: (transactions: BankTransaction[]) => void;
   settings: AppSettings;
+  apartments: Apartment[];
 }
 
-export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, onBankTransactionsAdded, settings }) => {
+export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, onBankTransactionsAdded, settings, apartments }) => {
   const { queue, addToQueue, removeFromQueue, retryItem } = useUploadQueue();
   const [isDragging, setIsDragging] = useState(false);
   const [uploadType, setUploadType] = useState<UploadType>('INVOICE');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Review States
   const [reviewItem, setReviewItem] = useState<QueueItem | null>(null);
   const [preview, setPreview] = useState<Invoice | null>(null);
   const [nifError, setNifError] = useState<boolean>(false);
   const [forceAcceptNif, setForceAcceptNif] = useState(false); // User override
+  const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null); // Apartment assignment
 
   // XLSX Mapping State
   const [mappingItem, setMappingItem] = useState<QueueItem | null>(null);
@@ -73,6 +76,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
         setPreview(initialPreview);
         setNifError(initialPreview.issuerNif ? !isValidNIF(initialPreview.issuerNif) : false);
         setForceAcceptNif(false); // Reset override
+        setSelectedApartmentId(null); // Reset apartment selection
 
     } else if (item.uploadType === 'BANK_STATEMENT') {
         // Check if XLSX needs mapping
@@ -116,6 +120,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
       const finalInvoice: Invoice = {
         ...preview,
+        apartmentId: selectedApartmentId || undefined,
         status: markAsProcessed ? 'PROCESSED' : 'PENDING',
         file: reviewItem.file,
         fileData: reviewItem.base64Data,
@@ -286,9 +291,21 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                     {preview.category ? '✨ Detectada' : ''}
                  </span>
               </label>
-              <AccountSelector 
-                value={preview.category || ''} 
-                onChange={(val) => handleFieldChange('category', val)} 
+              <AccountSelector
+                value={preview.category || ''}
+                onChange={(val) => handleFieldChange('category', val)}
+              />
+            </div>
+
+            {/* Apartment Selector */}
+            <div>
+              <ApartmentSelector
+                apartments={apartments}
+                selectedApartmentId={selectedApartmentId}
+                onSelect={setSelectedApartmentId}
+                includeCommon={true}
+                label="Asignar a Apartamento"
+                size="md"
               />
             </div>
 

@@ -27,7 +27,11 @@ import type {
   AppUser,
   Supplier,
   Notification,
-  QueueItem
+  QueueItem,
+  Apartment,
+  RecurringExpense,
+  AIMatchHistory,
+  Reservation
 } from '../types';
 
 // Re-export authService from the new location for backwards compatibility
@@ -925,6 +929,442 @@ export const databaseService = {
       console.error('Delete completed uploads error:', error);
       throw error;
     }
+  },
+
+  // --- APARTMENTS (NEW) ---
+  async createApartment(apartment: Apartment): Promise<Apartment> {
+    try {
+      const {
+        id, appwriteId,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...apartmentData
+      } = apartment as any;
+
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.apartments,
+          id || ID.unique(),
+          {
+            ...apartmentData,
+            createdAt: apartmentData.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ),
+        'createApartment'
+      );
+
+      connectionHealthy = true;
+      return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Apartment;
+    } catch (error: any) {
+      notifyError(error.message, 'createApartment');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async getApartments(): Promise<Apartment[]> {
+    try {
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.apartments,
+          [Query.orderAsc('name'), Query.limit(100)]
+        ),
+        'getApartments'
+      );
+
+      connectionHealthy = true;
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      })) as unknown as Apartment[];
+    } catch (error: any) {
+      if (error?.code === 404) return []; // Collection doesn't exist yet
+      notifyError(error.message, 'getApartments');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async updateApartment(apartment: Apartment): Promise<Apartment> {
+    try {
+      const {
+        id, appwriteId,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...apartmentData
+      } = apartment as any;
+      const docId = appwriteId || id;
+
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.collections.apartments,
+          docId,
+          {
+            ...apartmentData,
+            updatedAt: new Date().toISOString()
+          }
+        ),
+        'updateApartment'
+      );
+
+      connectionHealthy = true;
+      return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Apartment;
+    } catch (error: any) {
+      notifyError(error.message, 'updateApartment');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async deleteApartment(id: string): Promise<void> {
+    try {
+      await withRetry(
+        () => databases.deleteDocument(config.databaseId, config.collections.apartments, id),
+        'deleteApartment'
+      );
+      connectionHealthy = true;
+    } catch (error: any) {
+      notifyError(error.message, 'deleteApartment');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  // --- RECURRING EXPENSES (NEW) ---
+  async createRecurringExpense(expense: RecurringExpense): Promise<RecurringExpense> {
+    try {
+      const {
+        id, appwriteId,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...expenseData
+      } = expense as any;
+
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.recurringExpenses,
+          id || ID.unique(),
+          {
+            ...expenseData,
+            createdAt: expenseData.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ),
+        'createRecurringExpense'
+      );
+
+      connectionHealthy = true;
+      return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as RecurringExpense;
+    } catch (error: any) {
+      notifyError(error.message, 'createRecurringExpense');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async getRecurringExpenses(): Promise<RecurringExpense[]> {
+    try {
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.recurringExpenses,
+          [Query.orderAsc('name'), Query.limit(500)]
+        ),
+        'getRecurringExpenses'
+      );
+
+      connectionHealthy = true;
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      })) as unknown as RecurringExpense[];
+    } catch (error: any) {
+      if (error?.code === 404) return []; // Collection doesn't exist yet
+      notifyError(error.message, 'getRecurringExpenses');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async updateRecurringExpense(expense: RecurringExpense): Promise<RecurringExpense> {
+    try {
+      const {
+        id, appwriteId,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...expenseData
+      } = expense as any;
+      const docId = appwriteId || id;
+
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.collections.recurringExpenses,
+          docId,
+          {
+            ...expenseData,
+            updatedAt: new Date().toISOString()
+          }
+        ),
+        'updateRecurringExpense'
+      );
+
+      connectionHealthy = true;
+      return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as RecurringExpense;
+    } catch (error: any) {
+      notifyError(error.message, 'updateRecurringExpense');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async deleteRecurringExpense(id: string): Promise<void> {
+    try {
+      await withRetry(
+        () => databases.deleteDocument(config.databaseId, config.collections.recurringExpenses, id),
+        'deleteRecurringExpense'
+      );
+      connectionHealthy = true;
+    } catch (error: any) {
+      notifyError(error.message, 'deleteRecurringExpense');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  // --- AI MATCH HISTORY (NEW) ---
+  async createAIMatchHistory(match: AIMatchHistory): Promise<AIMatchHistory> {
+    try {
+      const {
+        id, appwriteId,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...matchData
+      } = match as any;
+
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.aiMatchHistory,
+          id || ID.unique(),
+          {
+            ...matchData,
+            createdAt: matchData.createdAt || new Date().toISOString(),
+            lastUsedAt: matchData.lastUsedAt || new Date().toISOString()
+          }
+        ),
+        'createAIMatchHistory'
+      );
+
+      connectionHealthy = true;
+      return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as AIMatchHistory;
+    } catch (error: any) {
+      notifyError(error.message, 'createAIMatchHistory');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async getAIMatchHistory(): Promise<AIMatchHistory[]> {
+    try {
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.aiMatchHistory,
+          [Query.orderDesc('usageCount'), Query.limit(1000)]
+        ),
+        'getAIMatchHistory'
+      );
+
+      connectionHealthy = true;
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      })) as unknown as AIMatchHistory[];
+    } catch (error: any) {
+      if (error?.code === 404) return []; // Collection doesn't exist yet
+      notifyError(error.message, 'getAIMatchHistory');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async updateAIMatchHistory(match: AIMatchHistory): Promise<AIMatchHistory> {
+    try {
+      const {
+        id, appwriteId,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...matchData
+      } = match as any;
+      const docId = appwriteId || id;
+
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.collections.aiMatchHistory,
+          docId,
+          {
+            ...matchData,
+            lastUsedAt: new Date().toISOString()
+          }
+        ),
+        'updateAIMatchHistory'
+      );
+
+      connectionHealthy = true;
+      return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as AIMatchHistory;
+    } catch (error: any) {
+      notifyError(error.message, 'updateAIMatchHistory');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async deleteAIMatchHistory(id: string): Promise<void> {
+    try {
+      await withRetry(
+        () => databases.deleteDocument(config.databaseId, config.collections.aiMatchHistory, id),
+        'deleteAIMatchHistory'
+      );
+      connectionHealthy = true;
+    } catch (error: any) {
+      notifyError(error.message, 'deleteAIMatchHistory');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async findMatchByBankConcept(concept: string): Promise<AIMatchHistory | null> {
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.collections.aiMatchHistory,
+        [
+          Query.search('bankConcept', concept),
+          Query.orderDesc('usageCount'),
+          Query.limit(1)
+        ]
+      );
+
+      if (response.documents.length > 0) {
+        const doc = response.documents[0] as any;
+        return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as AIMatchHistory;
+      }
+      return null;
+    } catch (error: any) {
+      if (error?.code === 404) return null;
+      console.error('Find match by bank concept error:', error);
+      return null;
+    }
+  },
+
+  // --- RESERVATIONS ---
+  async getReservations(): Promise<Reservation[]> {
+    try {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.collections.reservations,
+        [Query.orderDesc('checkIn'), Query.limit(5000)]
+      );
+
+      return response.documents.map((doc: any) => {
+        const {
+          $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+          ...reservationData
+        } = doc;
+        return { ...reservationData, id: $id, appwriteId: $id } as Reservation;
+      });
+    } catch (error: any) {
+      if (error?.code === 404) return [];
+      notifyError(error.message, 'getReservations');
+      throw error;
+    }
+  },
+
+  async createReservation(reservation: Reservation): Promise<Reservation> {
+    try {
+      const {
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        appwriteId, file, ...reservationData
+      } = reservation as any;
+
+      const savedDoc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.reservations,
+          ID.unique(),
+          reservationData
+        ),
+        'createReservation'
+      );
+
+      connectionHealthy = true;
+      return { ...reservationData, id: savedDoc.$id, appwriteId: savedDoc.$id } as Reservation;
+    } catch (error: any) {
+      notifyError(error.message, 'createReservation');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async createReservations(reservations: Reservation[]): Promise<Reservation[]> {
+    const results: Reservation[] = [];
+
+    for (const reservation of reservations) {
+      try {
+        const saved = await this.createReservation(reservation);
+        results.push(saved);
+      } catch (error) {
+        console.error('Error creating reservation:', reservation.id, error);
+        // Continue with other reservations
+      }
+    }
+
+    return results;
+  },
+
+  async updateReservation(reservation: Reservation): Promise<Reservation> {
+    try {
+      const docId = reservation.appwriteId || reservation.id;
+      const {
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        appwriteId, file, id, ...reservationData
+      } = reservation as any;
+
+      const updatedDoc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.collections.reservations,
+          docId,
+          reservationData
+        ),
+        'updateReservation'
+      );
+
+      connectionHealthy = true;
+      return { ...reservationData, id: updatedDoc.$id, appwriteId: updatedDoc.$id } as Reservation;
+    } catch (error: any) {
+      notifyError(error.message, 'updateReservation');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async deleteReservation(id: string): Promise<void> {
+    try {
+      await withRetry(
+        () => databases.deleteDocument(config.databaseId, config.collections.reservations, id),
+        'deleteReservation'
+      );
+      connectionHealthy = true;
+    } catch (error: any) {
+      notifyError(error.message, 'deleteReservation');
+      connectionHealthy = false;
+      throw error;
+    }
   }
 };
 
@@ -1102,6 +1542,32 @@ export const fetchSuppliers = () => databaseService.getSuppliers();
 export const createSupplier = (supplier: Supplier) => databaseService.createSupplier(supplier);
 export const updateSupplier = (supplier: Supplier) => databaseService.updateSupplier(supplier);
 export const deleteSupplier = (id: string) => databaseService.deleteSupplier(id);
+
+// --- APARTMENTS (NEW) ---
+export const fetchApartments = () => databaseService.getApartments();
+export const createApartment = (apartment: Apartment) => databaseService.createApartment(apartment);
+export const updateApartment = (apartment: Apartment) => databaseService.updateApartment(apartment);
+export const deleteApartment = (id: string) => databaseService.deleteApartment(id);
+
+// --- RECURRING EXPENSES (NEW) ---
+export const fetchRecurringExpenses = () => databaseService.getRecurringExpenses();
+export const createRecurringExpense = (expense: RecurringExpense) => databaseService.createRecurringExpense(expense);
+export const updateRecurringExpense = (expense: RecurringExpense) => databaseService.updateRecurringExpense(expense);
+export const deleteRecurringExpense = (id: string) => databaseService.deleteRecurringExpense(id);
+
+// --- AI MATCH HISTORY (NEW) ---
+export const fetchAIMatchHistory = () => databaseService.getAIMatchHistory();
+export const createAIMatchHistory = (match: AIMatchHistory) => databaseService.createAIMatchHistory(match);
+export const updateAIMatchHistory = (match: AIMatchHistory) => databaseService.updateAIMatchHistory(match);
+export const deleteAIMatchHistory = (id: string) => databaseService.deleteAIMatchHistory(id);
+export const findMatchByBankConcept = (concept: string) => databaseService.findMatchByBankConcept(concept);
+
+// --- RESERVATIONS (NEW) ---
+export const fetchReservations = () => databaseService.getReservations();
+export const createReservation = (reservation: Reservation) => databaseService.createReservation(reservation);
+export const createReservations = (reservations: Reservation[]) => databaseService.createReservations(reservations);
+export const updateReservation = (reservation: Reservation) => databaseService.updateReservation(reservation);
+export const deleteReservation = (id: string) => databaseService.deleteReservation(id);
 
 export default {
   initialize: initializeAppwrite,

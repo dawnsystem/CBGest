@@ -6,7 +6,7 @@ import { MobileNavigation } from './components/MobileNavigation';
 import { Header } from './components/Header';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
-import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier } from './types';
+import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment, RecurringExpense, Reservation } from './types';
 import { Eye, Trash, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
@@ -32,6 +32,9 @@ const AccountingBooks = lazy(() => import('./components/AccountingBooks').then(m
 const BankReconciliation = lazy(() => import('./components/BankReconciliation').then(m => ({ default: m.BankReconciliation })));
 const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const Suppliers = lazy(() => import('./components/Suppliers').then(m => ({ default: m.Suppliers })));
+const ApartmentManager = lazy(() => import('./components/ApartmentManager').then(m => ({ default: m.ApartmentManager })));
+const RecurringExpenseManager = lazy(() => import('./components/RecurringExpenseManager').then(m => ({ default: m.RecurringExpenseManager })));
+const ReservationManager = lazy(() => import('./components/ReservationManager').then(m => ({ default: m.ReservationManager })));
 const DocumentViewer = lazy(() => import('./components/DocumentViewer').then(m => ({ default: m.DocumentViewer })));
 
 // Loading fallback component
@@ -114,6 +117,9 @@ const MainLayout: React.FC = () => {
   const [accountingEntries, setAccountingEntries] = useState<AccountingEntry[]>([]);
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
 
   // UI States
   const [viewingDoc, setViewingDoc] = useState<{file: File, title?: string} | null>(null);
@@ -260,11 +266,14 @@ const MainLayout: React.FC = () => {
                 }
 
                 // Load all data in parallel for better performance
-                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers] = await Promise.all([
+                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses, remoteReservations] = await Promise.all([
                     appwriteService.fetchInvoices(),
                     appwriteService.fetchEntries(),
                     appwriteService.fetchTransactions(),
-                    appwriteService.fetchSuppliers().catch(() => []) // Don't fail if suppliers fail
+                    appwriteService.fetchSuppliers().catch(() => []), // Don't fail if suppliers fail
+                    appwriteService.fetchApartments().catch(() => []), // Don't fail if apartments fail
+                    appwriteService.fetchRecurringExpenses().catch(() => []), // Don't fail if recurring expenses fail
+                    appwriteService.fetchReservations().catch(() => []) // Don't fail if reservations fail
                 ]);
 
                 // Update state with remote data
@@ -272,8 +281,11 @@ const MainLayout: React.FC = () => {
                 setAccountingEntries(remoteEntries);
                 setBankTransactions(remoteTransactions);
                 setSuppliers(remoteSuppliers);
+                setApartments(remoteApartments);
+                setRecurringExpenses(remoteRecurringExpenses);
+                setReservations(remoteReservations);
 
-                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores`);
+                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos, ${remoteRecurringExpenses.length} gastos recurrentes, ${remoteReservations.length} reservas`);
                 setConnectionError(null);
               } catch (e: any) {
                   console.warn("Initial sync failed:", e);
@@ -999,6 +1011,247 @@ const MainLayout: React.FC = () => {
       }
   };
 
+  // Apartment Handlers
+  const handleAddApartment = async (apartment: Apartment) => {
+      // Optimistic add
+      setApartments(prev => [apartment, ...prev]);
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const savedApartment = await appwriteService.createApartment(apartment);
+              // Update with Appwrite ID
+              setApartments(prev => prev.map(a => a.id === apartment.id ? savedApartment : a));
+              console.log('✅ Apartamento guardado en Appwrite:', savedApartment.id);
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the apartment from local state
+              setApartments(prev => prev.filter(a => a.id !== apartment.id));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al crear apartamento: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error saving apartment to Appwrite:', error);
+          }
+      }
+  };
+
+  const handleUpdateApartment = async (apartment: Apartment) => {
+      const oldApartment = apartments.find(a => a.id === apartment.id);
+
+      // Optimistic update
+      setApartments(prev => prev.map(a => a.id === apartment.id ? apartment : a));
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const apartmentToUpdate = {
+                  ...apartment,
+                  appwriteId: apartment.appwriteId || apartment.id
+              };
+              await appwriteService.updateApartment(apartmentToUpdate);
+              console.log('✅ Apartamento actualizado en Appwrite:', apartmentToUpdate.appwriteId);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the original apartment
+              if (oldApartment) {
+                  setApartments(prev => prev.map(a => a.id === apartment.id ? oldApartment : a));
+              }
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al actualizar apartamento: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error updating apartment in Appwrite:', error);
+          }
+      }
+  };
+
+  const handleDeleteApartment = async (id: string) => {
+      const apartment = apartments.find(a => a.id === id);
+
+      // Optimistic delete
+      setApartments(prev => prev.filter(a => a.id !== id));
+
+      if (settings.dataConfig?.type === 'APPWRITE' && apartment) {
+          try {
+              const docId = apartment.appwriteId || apartment.id;
+              await appwriteService.deleteApartment(docId);
+              console.log('✅ Apartamento eliminado de Appwrite:', docId);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the deleted apartment
+              setApartments(prev => [apartment, ...prev]);
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al eliminar apartamento: ${errorMessage}. El apartamento no se ha eliminado.`);
+              console.error('Error deleting apartment from Appwrite:', error);
+          }
+      }
+  };
+
+  // --- RECURRING EXPENSE HANDLERS ---
+  const handleAddRecurringExpense = async (expense: RecurringExpense) => {
+      // Optimistic add
+      setRecurringExpenses(prev => [expense, ...prev]);
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const savedExpense = await appwriteService.createRecurringExpense(expense);
+              // Update with Appwrite ID
+              setRecurringExpenses(prev => prev.map(e => e.id === expense.id ? savedExpense : e));
+              console.log('✅ Gasto recurrente guardado en Appwrite:', savedExpense.id);
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the expense from local state
+              setRecurringExpenses(prev => prev.filter(e => e.id !== expense.id));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al crear gasto recurrente: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error saving recurring expense to Appwrite:', error);
+          }
+      }
+  };
+
+  const handleUpdateRecurringExpense = async (expense: RecurringExpense) => {
+      const oldExpense = recurringExpenses.find(e => e.id === expense.id);
+
+      // Optimistic update
+      setRecurringExpenses(prev => prev.map(e => e.id === expense.id ? expense : e));
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const expenseToUpdate = {
+                  ...expense,
+                  appwriteId: expense.appwriteId || expense.id
+              };
+              await appwriteService.updateRecurringExpense(expenseToUpdate);
+              console.log('✅ Gasto recurrente actualizado en Appwrite:', expense.id);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore old expense
+              if (oldExpense) {
+                  setRecurringExpenses(prev => prev.map(e => e.id === expense.id ? oldExpense : e));
+              }
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al actualizar gasto recurrente: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error updating recurring expense in Appwrite:', error);
+          }
+      }
+  };
+
+  const handleDeleteRecurringExpense = async (id: string) => {
+      const expense = recurringExpenses.find(e => e.id === id);
+
+      // Optimistic delete
+      setRecurringExpenses(prev => prev.filter(e => e.id !== id));
+
+      if (settings.dataConfig?.type === 'APPWRITE' && expense) {
+          try {
+              const docId = expense.appwriteId || expense.id;
+              await appwriteService.deleteRecurringExpense(docId);
+              console.log('✅ Gasto recurrente eliminado de Appwrite:', docId);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the deleted expense
+              setRecurringExpenses(prev => [expense, ...prev]);
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al eliminar gasto recurrente: ${errorMessage}. El gasto no se ha eliminado.`);
+              console.error('Error deleting recurring expense from Appwrite:', error);
+          }
+      }
+  };
+
+  // --- RESERVATION HANDLERS ---
+  const handleAddReservations = async (newReservations: Omit<Reservation, 'id'>[]) => {
+      // Generate IDs and add to state
+      const reservationsWithIds: Reservation[] = newReservations.map(r => ({
+          ...r,
+          id: generateId()
+      }));
+
+      // Optimistic add
+      setReservations(prev => [...reservationsWithIds, ...prev]);
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const savedReservations = await appwriteService.createReservations(reservationsWithIds);
+              // Update state with saved reservations (includes appwriteId)
+              setReservations(prev => {
+                  const savedIds = new Set(savedReservations.map(s => s.id));
+                  return prev.map(r => {
+                      const saved = savedReservations.find(s => s.id === r.id);
+                      return saved || r;
+                  });
+              });
+              console.log(`✅ ${savedReservations.length} reservas guardadas en Appwrite`);
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the reservations from local state
+              const newIds = new Set(reservationsWithIds.map(r => r.id));
+              setReservations(prev => prev.filter(r => !newIds.has(r.id)));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al guardar reservas: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error saving reservations to Appwrite:', error);
+          }
+      }
+  };
+
+  const handleUpdateReservation = async (id: string, data: Partial<Reservation>) => {
+      const oldReservation = reservations.find(r => r.id === id);
+      if (!oldReservation) return;
+
+      const updatedReservation = { ...oldReservation, ...data };
+
+      // Optimistic update
+      setReservations(prev => prev.map(r => r.id === id ? updatedReservation : r));
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              await appwriteService.updateReservation(updatedReservation);
+              console.log('✅ Reserva actualizada en Appwrite:', id);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the original reservation
+              setReservations(prev => prev.map(r => r.id === id ? oldReservation : r));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al actualizar reserva: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error updating reservation in Appwrite:', error);
+          }
+      }
+  };
+
+  const handleDeleteReservation = async (id: string) => {
+      const reservation = reservations.find(r => r.id === id);
+
+      // Optimistic delete
+      setReservations(prev => prev.filter(r => r.id !== id));
+
+      if (settings.dataConfig?.type === 'APPWRITE' && reservation) {
+          try {
+              const docId = reservation.appwriteId || reservation.id;
+              await appwriteService.deleteReservation(docId);
+              console.log('✅ Reserva eliminada de Appwrite:', docId);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the deleted reservation
+              setReservations(prev => [reservation, ...prev]);
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al eliminar reserva: ${errorMessage}. La reserva no se ha eliminado.`);
+              console.error('Error deleting reservation from Appwrite:', error);
+          }
+      }
+  };
+
+  const handleLinkApartmentToReservation = async (reservationId: string, apartmentId: string) => {
+      const reservation = reservations.find(r => r.id === reservationId);
+      if (!reservation) return;
+
+      const updatedReservation = { ...reservation, apartmentId };
+
+      // Optimistic update
+      setReservations(prev => prev.map(r =>
+          r.id === reservationId ? updatedReservation : r
+      ));
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              await appwriteService.updateReservation(updatedReservation);
+              console.log('✅ Reserva vinculada a apartamento en Appwrite:', reservationId, '->', apartmentId);
+          } catch (error: unknown) {
+              // ROLLBACK
+              setReservations(prev => prev.map(r =>
+                  r.id === reservationId ? reservation : r
+              ));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al vincular reserva: ${errorMessage}`);
+              console.error('Error linking reservation to apartment:', error);
+          }
+      }
+  };
+
   // Legacy File Handlers
   const handleCloneToFile = async (password: string) => {
       try {
@@ -1144,13 +1397,14 @@ const MainLayout: React.FC = () => {
             <main className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8 relative">
               <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={<Dashboard invoices={invoices} settings={settings} onUpdateSettings={setSettings} />} />
+                <Route path="/" element={<Dashboard invoices={invoices} settings={settings} apartments={apartments} recurringExpenses={recurringExpenses} reservations={reservations} onUpdateSettings={setSettings} />} />
                 <Route path="/invoices" element={
                   <div className="p-4 md:p-8 animate-fade-in">
                     <InvoiceUploader
                         onInvoiceAdded={handleAddInvoice}
                         onBankTransactionsAdded={handleAddBankTransactions}
                         settings={settings}
+                        apartments={apartments}
                     />
                     <div className="mt-12">
                       <h3 className="text-lg font-semibold text-slate-900 mb-4">Últimas Facturas</h3>
@@ -1284,6 +1538,34 @@ const MainLayout: React.FC = () => {
                         onDeleteSupplier={handleDeleteSupplier}
                     />
                 } />
+                <Route path="/apartments" element={
+                    <ApartmentManager
+                        apartments={apartments}
+                        onAddApartment={handleAddApartment}
+                        onUpdateApartment={handleUpdateApartment}
+                        onDeleteApartment={handleDeleteApartment}
+                    />
+                } />
+                <Route path="/recurring" element={
+                    <RecurringExpenseManager
+                        expenses={recurringExpenses}
+                        apartments={apartments}
+                        suppliers={suppliers}
+                        onAddExpense={handleAddRecurringExpense}
+                        onUpdateExpense={handleUpdateRecurringExpense}
+                        onDeleteExpense={handleDeleteRecurringExpense}
+                    />
+                } />
+                <Route path="/reservations" element={
+                    <ReservationManager
+                        reservations={reservations}
+                        apartments={apartments}
+                        onAddReservations={handleAddReservations}
+                        onUpdateReservation={handleUpdateReservation}
+                        onDeleteReservation={handleDeleteReservation}
+                        onLinkApartment={handleLinkApartmentToReservation}
+                    />
+                } />
                 <Route path="/books" element={
                     <AccountingBooks
                         entries={accountingEntries}
@@ -1297,6 +1579,9 @@ const MainLayout: React.FC = () => {
                     <BankReconciliation
                         transactions={bankTransactions}
                         entries={accountingEntries}
+                        invoices={invoices}
+                        suppliers={suppliers}
+                        recurringExpenses={recurringExpenses}
                         onReconcile={handleReconcileTransaction}
                         onCreateEntryFromTransaction={handleCreateEntryFromTransaction}
                     />

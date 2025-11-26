@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { BankTransaction, AccountingEntry } from '../types';
-import { ArrowRightLeft, Check, AlertCircle, Plus, BookOpen, Building2 } from 'lucide-react';
+import { BankTransaction, AccountingEntry, Invoice, Supplier, RecurringExpense, AIMatchSuggestion } from '../types';
+import { ArrowRightLeft, Check, AlertCircle, Plus, BookOpen, Building2, Sparkles, Zap, TrendingUp, FileText, RefreshCw } from 'lucide-react';
+import { generateMatchSuggestions, detectPlatform, categorizeTransaction } from '../utils/aiMatching';
 
 // Bank account codes (cuentas de tesorería PGC)
 const BANK_ACCOUNT_PREFIXES = ['570', '571', '572', '573', '574', '575', '576', '577'];
@@ -26,6 +27,9 @@ interface BankMovement {
 interface BankReconciliationProps {
   transactions: BankTransaction[];
   entries: AccountingEntry[];
+  invoices: Invoice[];
+  suppliers: Supplier[];
+  recurringExpenses: RecurringExpense[];
   /**
    * Called when reconciling a movement with an entry.
    * @param sourceId - ID of the source movement (transaction ID if IMPORTED, bank entry ID if ACCOUNTING)
@@ -39,6 +43,9 @@ interface BankReconciliationProps {
 export const BankReconciliation: React.FC<BankReconciliationProps> = ({
   transactions,
   entries,
+  invoices,
+  suppliers,
+  recurringExpenses,
   onReconcile,
   onCreateEntryFromTransaction
 }) => {
@@ -103,6 +110,36 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
       const entryAmount = entry.debit > 0 ? entry.debit : entry.credit;
       return Math.abs(movementAmountAbs - entryAmount) < 0.05; // 5 cent tolerance
     });
+  };
+
+  // Get AI suggestions for a movement
+  const getAISuggestions = (movement: BankMovement): AIMatchSuggestion[] => {
+    if (movement.source !== 'IMPORTED' || !movement.originalTransaction) {
+      return [];
+    }
+    return generateMatchSuggestions(
+      movement.originalTransaction,
+      invoices,
+      suppliers,
+      recurringExpenses
+    );
+  };
+
+  // Get confidence color
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 80) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    if (confidence >= 60) return 'bg-blue-100 text-blue-700 border-blue-200';
+    if (confidence >= 40) return 'bg-amber-100 text-amber-700 border-amber-200';
+    return 'bg-slate-100 text-slate-600 border-slate-200';
+  };
+
+  // Get suggestion icon
+  const getSuggestionIcon = (suggestion: AIMatchSuggestion) => {
+    if (suggestion.platform) return <Zap className="w-3.5 h-3.5" />;
+    if (suggestion.invoiceId) return <FileText className="w-3.5 h-3.5" />;
+    if (suggestion.supplierId) return <Building2 className="w-3.5 h-3.5" />;
+    if (suggestion.category) return <RefreshCw className="w-3.5 h-3.5" />;
+    return <Sparkles className="w-3.5 h-3.5" />;
   };
 
   // Handle reconciliation based on movement source
@@ -196,13 +233,41 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
 
                         {/* Action Panel when selected */}
                         {selectedMovement === movement.id && movement.source === 'IMPORTED' && (
-                           <div className="mt-3 pt-3 border-t border-indigo-200 flex justify-end">
-                               <button
-                                 onClick={(e) => { e.stopPropagation(); handleCreateEntry(movement); }}
-                                 className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 flex items-center gap-1"
-                               >
-                                  <Plus className="w-3 h-3" /> Crear Asiento
-                               </button>
+                           <div className="mt-3 pt-3 border-t border-indigo-200 space-y-3">
+                               {/* AI Suggestions */}
+                               {(() => {
+                                 const suggestions = getAISuggestions(movement);
+                                 if (suggestions.length === 0) return null;
+                                 return (
+                                   <div className="space-y-1.5">
+                                     <div className="flex items-center gap-1 text-xs text-purple-600 font-medium">
+                                       <Sparkles className="w-3 h-3" />
+                                       <span>Sugerencias IA</span>
+                                     </div>
+                                     {suggestions.slice(0, 3).map((suggestion, idx) => (
+                                       <div
+                                         key={idx}
+                                         className={`flex items-center gap-2 px-2 py-1.5 rounded border text-xs ${getConfidenceColor(suggestion.confidence)}`}
+                                       >
+                                         {getSuggestionIcon(suggestion)}
+                                         <span className="flex-1 truncate">
+                                           {suggestion.platform || suggestion.invoiceName || suggestion.supplierName || suggestion.category}
+                                         </span>
+                                         <span className="font-bold">{suggestion.confidence}%</span>
+                                       </div>
+                                     ))}
+                                   </div>
+                                 );
+                               })()}
+
+                               <div className="flex justify-end">
+                                 <button
+                                   onClick={(e) => { e.stopPropagation(); handleCreateEntry(movement); }}
+                                   className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 flex items-center gap-1"
+                                 >
+                                    <Plus className="w-3 h-3" /> Crear Asiento
+                                 </button>
+                               </div>
                            </div>
                         )}
                     </div>

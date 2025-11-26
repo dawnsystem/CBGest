@@ -21,6 +21,7 @@ export const APPWRITE_CONFIG = {
     // NEW collections for CBGest improvements
     apartments: 'apartments',
     recurringExpenses: 'recurring_expenses',
-    aiMatchHistory: 'ai_match_history'
+    aiMatchHistory: 'ai_match_history',
+    reservations: 'reservations'
   }
 } as const;
