@@ -6,7 +6,7 @@ import { MobileNavigation } from './components/MobileNavigation';
 import { Header } from './components/Header';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
-import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier } from './types';
+import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment } from './types';
 import { Eye, Trash, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
@@ -32,6 +32,7 @@ const AccountingBooks = lazy(() => import('./components/AccountingBooks').then(m
 const BankReconciliation = lazy(() => import('./components/BankReconciliation').then(m => ({ default: m.BankReconciliation })));
 const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const Suppliers = lazy(() => import('./components/Suppliers').then(m => ({ default: m.Suppliers })));
+const ApartmentManager = lazy(() => import('./components/ApartmentManager').then(m => ({ default: m.ApartmentManager })));
 const DocumentViewer = lazy(() => import('./components/DocumentViewer').then(m => ({ default: m.DocumentViewer })));
 
 // Loading fallback component
@@ -114,6 +115,7 @@ const MainLayout: React.FC = () => {
   const [accountingEntries, setAccountingEntries] = useState<AccountingEntry[]>([]);
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [apartments, setApartments] = useState<Apartment[]>([]);
 
   // UI States
   const [viewingDoc, setViewingDoc] = useState<{file: File, title?: string} | null>(null);
@@ -260,11 +262,12 @@ const MainLayout: React.FC = () => {
                 }
 
                 // Load all data in parallel for better performance
-                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers] = await Promise.all([
+                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments] = await Promise.all([
                     appwriteService.fetchInvoices(),
                     appwriteService.fetchEntries(),
                     appwriteService.fetchTransactions(),
-                    appwriteService.fetchSuppliers().catch(() => []) // Don't fail if suppliers fail
+                    appwriteService.fetchSuppliers().catch(() => []), // Don't fail if suppliers fail
+                    appwriteService.fetchApartments().catch(() => []) // Don't fail if apartments fail
                 ]);
 
                 // Update state with remote data
@@ -272,8 +275,9 @@ const MainLayout: React.FC = () => {
                 setAccountingEntries(remoteEntries);
                 setBankTransactions(remoteTransactions);
                 setSuppliers(remoteSuppliers);
+                setApartments(remoteApartments);
 
-                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores`);
+                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos`);
                 setConnectionError(null);
               } catch (e: any) {
                   console.warn("Initial sync failed:", e);
@@ -999,6 +1003,74 @@ const MainLayout: React.FC = () => {
       }
   };
 
+  // Apartment Handlers
+  const handleAddApartment = async (apartment: Apartment) => {
+      // Optimistic add
+      setApartments(prev => [apartment, ...prev]);
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const savedApartment = await appwriteService.createApartment(apartment);
+              // Update with Appwrite ID
+              setApartments(prev => prev.map(a => a.id === apartment.id ? savedApartment : a));
+              console.log('✅ Apartamento guardado en Appwrite:', savedApartment.id);
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the apartment from local state
+              setApartments(prev => prev.filter(a => a.id !== apartment.id));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al crear apartamento: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error saving apartment to Appwrite:', error);
+          }
+      }
+  };
+
+  const handleUpdateApartment = async (apartment: Apartment) => {
+      const oldApartment = apartments.find(a => a.id === apartment.id);
+
+      // Optimistic update
+      setApartments(prev => prev.map(a => a.id === apartment.id ? apartment : a));
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const apartmentToUpdate = {
+                  ...apartment,
+                  appwriteId: apartment.appwriteId || apartment.id
+              };
+              await appwriteService.updateApartment(apartmentToUpdate);
+              console.log('✅ Apartamento actualizado en Appwrite:', apartmentToUpdate.appwriteId);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the original apartment
+              if (oldApartment) {
+                  setApartments(prev => prev.map(a => a.id === apartment.id ? oldApartment : a));
+              }
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al actualizar apartamento: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error updating apartment in Appwrite:', error);
+          }
+      }
+  };
+
+  const handleDeleteApartment = async (id: string) => {
+      const apartment = apartments.find(a => a.id === id);
+
+      // Optimistic delete
+      setApartments(prev => prev.filter(a => a.id !== id));
+
+      if (settings.dataConfig?.type === 'APPWRITE' && apartment) {
+          try {
+              const docId = apartment.appwriteId || apartment.id;
+              await appwriteService.deleteApartment(docId);
+              console.log('✅ Apartamento eliminado de Appwrite:', docId);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the deleted apartment
+              setApartments(prev => [apartment, ...prev]);
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al eliminar apartamento: ${errorMessage}. El apartamento no se ha eliminado.`);
+              console.error('Error deleting apartment from Appwrite:', error);
+          }
+      }
+  };
+
   // Legacy File Handlers
   const handleCloneToFile = async (password: string) => {
       try {
@@ -1151,6 +1223,7 @@ const MainLayout: React.FC = () => {
                         onInvoiceAdded={handleAddInvoice}
                         onBankTransactionsAdded={handleAddBankTransactions}
                         settings={settings}
+                        apartments={apartments}
                     />
                     <div className="mt-12">
                       <h3 className="text-lg font-semibold text-slate-900 mb-4">Últimas Facturas</h3>
@@ -1282,6 +1355,14 @@ const MainLayout: React.FC = () => {
                         onAddSupplier={handleAddSupplier}
                         onUpdateSupplier={handleUpdateSupplier}
                         onDeleteSupplier={handleDeleteSupplier}
+                    />
+                } />
+                <Route path="/apartments" element={
+                    <ApartmentManager
+                        apartments={apartments}
+                        onAddApartment={handleAddApartment}
+                        onUpdateApartment={handleUpdateApartment}
+                        onDeleteApartment={handleDeleteApartment}
                     />
                 } />
                 <Route path="/books" element={

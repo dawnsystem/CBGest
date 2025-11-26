@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, FileText, BookOpen, PieChart, Settings, FileCheck, Scale, Cloud, HardDrive, Wifi, Building2 } from 'lucide-react';
+import { LayoutDashboard, FileText, BookOpen, PieChart, Settings, FileCheck, Scale, Cloud, HardDrive, Wifi, Building2, Home } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
@@ -36,6 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus, connectionHe
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: FileText, label: 'Facturas', path: '/invoices' },
     { icon: Building2, label: 'Proveedores', path: '/suppliers' },
+    { icon: Home, label: 'Apartamentos', path: '/apartments' },
     { icon: BookOpen, label: 'Libros Contables', path: '/books' },
     { icon: Scale, label: 'Conciliación Banco', path: '/reconciliation' },
     { icon: FileCheck, label: 'Modelos Fiscales', path: '/taxes' },
