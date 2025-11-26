@@ -10,6 +10,7 @@ import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier } from
 import { Eye, Trash, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
+import { generateId } from './utils/defaults';
 import * as appwriteService from './services/appwriteService';
 import { APPWRITE_CONFIG } from './config/appwrite';
 
@@ -483,7 +484,7 @@ const MainLayout: React.FC = () => {
           if (!existingSupplier) {
               const now = new Date().toISOString();
               const newSupplier: Supplier = {
-                  id: `SUP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  id: generateId(),
                   name: invoiceWithAudit.issuerName,
                   nif: invoiceWithAudit.issuerNif.toUpperCase(),
                   nifType: detectNifType(invoiceWithAudit.issuerNif),
@@ -815,45 +816,89 @@ const MainLayout: React.FC = () => {
      alert("Asiento creado. Ve a 'Libros Contables' para editar la cuenta si es necesario.");
   };
 
-  // NEW: Reconcile a bank transaction with an accounting entry
-  const handleReconcileTransaction = async (transactionId: string, entryId: string) => {
-    // Find the transaction and entry
-    const transaction = bankTransactions.find(t => t.id === transactionId);
-    const entry = accountingEntries.find(e => e.id === entryId);
-
-    if (!transaction || !entry) {
-      console.error('Transaction or entry not found for reconciliation');
+  // Reconcile a movement (imported transaction or accounting entry) with another entry
+  const handleReconcileTransaction = async (
+    sourceId: string,
+    matchedEntryId: string,
+    sourceType: 'IMPORTED' | 'ACCOUNTING'
+  ) => {
+    const matchedEntry = accountingEntries.find(e => e.id === matchedEntryId);
+    if (!matchedEntry) {
+      console.error('Matched entry not found for reconciliation');
       return;
     }
 
-    // Update the bank transaction
-    const updatedTransaction: BankTransaction = {
-      ...transaction,
-      status: 'MATCHED',
-      reconciledWithEntryId: entryId
-    };
-    await handleUpdateBankTransaction(updatedTransaction);
+    if (sourceType === 'IMPORTED') {
+      // Source is an imported bank transaction
+      const transaction = bankTransactions.find(t => t.id === sourceId);
+      if (!transaction) {
+        console.error('Transaction not found for reconciliation');
+        return;
+      }
 
-    // Update the accounting entry
-    const updatedEntry: AccountingEntry = {
-      ...entry,
-      reconciled: true
-    };
-    await handleUpdateEntry(updatedEntry);
+      // Update the bank transaction
+      const updatedTransaction: BankTransaction = {
+        ...transaction,
+        status: 'MATCHED',
+        reconciledWithEntryId: matchedEntryId
+      };
+      await handleUpdateBankTransaction(updatedTransaction);
 
-    // Create notification
-    if (user) {
-      addNotification({
-        type: 'ENTRY_UPDATED',
-        title: 'Conciliación realizada',
-        message: `Transacción "${transaction.concept}" conciliada con asiento "${entry.concept}"`,
-        userId: user.$id,
-        userName: user.name,
-        relatedId: entryId
-      });
+      // Update the matched entry
+      const updatedEntry: AccountingEntry = {
+        ...matchedEntry,
+        reconciled: true
+      };
+      await handleUpdateEntry(updatedEntry);
+
+      // Create notification
+      if (user) {
+        addNotification({
+          type: 'ENTRY_UPDATED',
+          title: 'Conciliación realizada',
+          message: `Transacción "${transaction.concept}" conciliada con asiento "${matchedEntry.concept}"`,
+          userId: user.$id,
+          userName: user.name,
+          relatedId: matchedEntryId
+        });
+      }
+
+      console.log('✅ Reconciliation completed (IMPORTED):', sourceId, '<->', matchedEntryId);
+    } else {
+      // Source is an accounting entry with a bank account (57X)
+      const bankEntry = accountingEntries.find(e => e.id === sourceId);
+      if (!bankEntry) {
+        console.error('Bank entry not found for reconciliation');
+        return;
+      }
+
+      // Mark both entries as reconciled
+      const updatedBankEntry: AccountingEntry = {
+        ...bankEntry,
+        reconciled: true
+      };
+      await handleUpdateEntry(updatedBankEntry);
+
+      const updatedMatchedEntry: AccountingEntry = {
+        ...matchedEntry,
+        reconciled: true
+      };
+      await handleUpdateEntry(updatedMatchedEntry);
+
+      // Create notification
+      if (user) {
+        addNotification({
+          type: 'ENTRY_UPDATED',
+          title: 'Conciliación realizada',
+          message: `Asiento bancario "${bankEntry.concept}" conciliado con "${matchedEntry.concept}"`,
+          userId: user.$id,
+          userName: user.name,
+          relatedId: matchedEntryId
+        });
+      }
+
+      console.log('✅ Reconciliation completed (ACCOUNTING):', sourceId, '<->', matchedEntryId);
     }
-
-    console.log('✅ Reconciliation completed:', transactionId, '<->', entryId);
   };
 
   // NEW: Update Bank Transaction

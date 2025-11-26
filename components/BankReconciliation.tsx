@@ -26,7 +26,13 @@ interface BankMovement {
 interface BankReconciliationProps {
   transactions: BankTransaction[];
   entries: AccountingEntry[];
-  onReconcile: (transactionId: string, entryId: string) => void;
+  /**
+   * Called when reconciling a movement with an entry.
+   * @param sourceId - ID of the source movement (transaction ID if IMPORTED, bank entry ID if ACCOUNTING)
+   * @param matchedEntryId - ID of the entry being matched
+   * @param sourceType - Whether the source is an imported transaction or an accounting entry
+   */
+  onReconcile: (sourceId: string, matchedEntryId: string, sourceType: 'IMPORTED' | 'ACCOUNTING') => void;
   onCreateEntryFromTransaction: (transaction: BankTransaction) => void;
 }
 
@@ -105,10 +111,10 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
     if (!movement) return;
 
     if (movement.source === 'IMPORTED' && movement.originalTransaction) {
-      onReconcile(movement.originalTransaction.id, entryId);
+      onReconcile(movement.originalTransaction.id, entryId, 'IMPORTED');
     } else if (movement.source === 'ACCOUNTING' && movement.originalEntry) {
       // For accounting-sourced movements, reconcile the bank entry with the matched entry
-      onReconcile(movement.originalEntry.id, entryId);
+      onReconcile(movement.originalEntry.id, entryId, 'ACCOUNTING');
     }
     setSelectedMovement(null);
   };

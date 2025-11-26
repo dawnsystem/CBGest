@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Notification, NotificationContextType } from '../types';
 import { useAuth } from './AuthContext';
-import { isAppwriteInitialized } from '../services/appwriteService';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
+import { generateId } from '../utils/defaults';
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -34,18 +34,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         return;
       }
 
-      // Wait for Appwrite to be initialized before loading
-      if (!isAppwriteInitialized()) {
-        setTimeout(() => {
-          if (isAppwriteInitialized()) {
-            loadNotifications();
-          } else {
-            setIsLoading(false);
-          }
-        }, 500);
-        return;
-      }
-
       try {
         const loadedNotifications = await protectedDatabase.getNotifications();
         setNotifications(loadedNotifications);
@@ -67,13 +55,19 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     const newNotification: Notification = {
       ...notification,
-      id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateId(),
       timestamp: Date.now(),
       read: false
     };
 
-    const savedNotif = await protectedDatabase.createNotification(newNotification);
-    setNotifications(prev => [savedNotif, ...prev]);
+    try {
+      const savedNotif = await protectedDatabase.createNotification(newNotification);
+      setNotifications(prev => [savedNotif, ...prev]);
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      // Still add locally for UX even if remote save fails
+      setNotifications(prev => [newNotification, ...prev]);
+    }
   };
 
   const markAsRead = async (id: string) => {

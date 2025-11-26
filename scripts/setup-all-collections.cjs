@@ -339,6 +339,9 @@ async function setupInvoicesCollection() {
     { type: 'string', key: 'fileData', size: 10000000, required: false },
     { type: 'string', key: 'fileType', size: 100, required: false },
     { type: 'string', key: 'appwriteFileId', size: 100, required: false },
+
+    // Apartment tracking (NEW - for per-property expense tracking)
+    { type: 'string', key: 'apartmentId', size: 100, required: false },
   ];
 
   for (const attr of attributes) {
@@ -355,6 +358,7 @@ async function setupInvoicesCollection() {
     { key: 'date_index', type: 'key', attributes: ['date'], orders: ['DESC'] },
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
     { key: 'type_index', type: 'key', attributes: ['type'], orders: ['ASC'] },
+    { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -436,6 +440,14 @@ async function setupTransactionsCollection() {
     { type: 'float', key: 'balance', required: false, min: -999999999, max: 999999999 },
     { type: 'string', key: 'reconciledWithEntryId', size: 100, required: false },
     { type: 'enum', key: 'status', elements: ['PENDING', 'MATCHED'], required: true },
+
+    // Platform detection (NEW - for Airbnb, Booking, etc.)
+    { type: 'string', key: 'platformDetected', size: 50, required: false },
+    { type: 'float', key: 'grossAmount', required: false, min: -999999999, max: 999999999 },
+
+    // AI matching suggestions (NEW - for intelligent reconciliation)
+    { type: 'string', key: 'aiMatchSuggestion', size: 5000, required: false },
+    { type: 'string', key: 'reconciledWithInvoiceId', size: 100, required: false },
   ];
 
   for (const attr of attributes) {
@@ -451,6 +463,7 @@ async function setupTransactionsCollection() {
   const indexes = [
     { key: 'date_index', type: 'key', attributes: ['date'], orders: ['DESC'] },
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+    { key: 'platformDetected_index', type: 'key', attributes: ['platformDetected'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -638,6 +651,168 @@ async function setupUploadsCollection() {
 }
 
 /**
+ * APARTMENTS Collection (NEW - for per-property tracking)
+ */
+async function setupApartmentsCollection() {
+  console.log('\n=== Setting up APARTMENTS collection ===\n');
+  const collectionId = 'apartments';
+
+  await createCollection(collectionId, 'Apartments');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'name', size: 200, required: true },
+    { type: 'string', key: 'code', size: 20, required: false }, // e.g., "APT-01", "1A"
+    { type: 'string', key: 'address', size: 500, required: false },
+    { type: 'string', key: 'cadastralRef', size: 50, required: false }, // Referencia catastral
+    { type: 'float', key: 'surfaceArea', required: false, min: 0, max: 99999 }, // m²
+    { type: 'integer', key: 'maxOccupancy', required: false, min: 1, max: 50 },
+    { type: 'string', key: 'licenseNumber', size: 100, required: false }, // Licencia turística
+    { type: 'string', key: 'notes', size: 2000, required: false },
+    { type: 'boolean', key: 'isActive', required: false, default: true },
+    { type: 'string', key: 'createdAt', size: 50, required: false },
+    { type: 'string', key: 'updatedAt', size: 50, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'name_index', type: 'key', attributes: ['name'], orders: ['ASC'] },
+    { key: 'isActive_index', type: 'key', attributes: ['isActive'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Apartments collection setup complete!\n');
+}
+
+/**
+ * RECURRING_EXPENSES Collection (NEW - for expense projections)
+ */
+async function setupRecurringExpensesCollection() {
+  console.log('\n=== Setting up RECURRING_EXPENSES collection ===\n');
+  const collectionId = 'recurring_expenses';
+
+  await createCollection(collectionId, 'Recurring Expenses');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'name', size: 200, required: true }, // e.g., "Electricidad", "Comunidad"
+    { type: 'string', key: 'description', size: 1000, required: false },
+    { type: 'float', key: 'estimatedAmount', required: true, min: 0, max: 999999999 },
+    { type: 'enum', key: 'frequency', elements: ['MONTHLY', 'BIMONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL'], required: true },
+    { type: 'string', key: 'category', size: 200, required: false }, // PGC code or custom category
+    { type: 'string', key: 'apartmentId', size: 100, required: false }, // null = common expense
+    { type: 'string', key: 'supplierId', size: 100, required: false },
+    { type: 'integer', key: 'dayOfMonth', required: false, min: 1, max: 31 }, // Expected day
+    { type: 'string', key: 'startDate', size: 20, required: false }, // When this expense starts
+    { type: 'string', key: 'endDate', size: 20, required: false }, // Optional end date
+    { type: 'boolean', key: 'isDeductible', required: false, default: true },
+    { type: 'boolean', key: 'isActive', required: false, default: true },
+    { type: 'string', key: 'notes', size: 2000, required: false },
+    { type: 'string', key: 'createdAt', size: 50, required: false },
+    { type: 'string', key: 'updatedAt', size: 50, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'frequency_index', type: 'key', attributes: ['frequency'], orders: ['ASC'] },
+    { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
+    { key: 'isActive_index', type: 'key', attributes: ['isActive'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Recurring Expenses collection setup complete!\n');
+}
+
+/**
+ * AI_MATCH_HISTORY Collection (NEW - for AI learning from user matches)
+ */
+async function setupAiMatchHistoryCollection() {
+  console.log('\n=== Setting up AI_MATCH_HISTORY collection ===\n');
+  const collectionId = 'ai_match_history';
+
+  await createCollection(collectionId, 'AI Match History');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    // Bank transaction info (patterns to learn)
+    { type: 'string', key: 'bankConcept', size: 500, required: true }, // Original bank concept
+    { type: 'string', key: 'normalizedConcept', size: 500, required: false }, // Cleaned/normalized
+    { type: 'float', key: 'amount', required: true, min: -999999999, max: 999999999 },
+
+    // What it was matched to
+    { type: 'enum', key: 'matchType', elements: ['INVOICE', 'SUPPLIER', 'CATEGORY', 'PLATFORM'], required: true },
+    { type: 'string', key: 'matchedInvoiceId', size: 100, required: false },
+    { type: 'string', key: 'matchedSupplierId', size: 100, required: false },
+    { type: 'string', key: 'matchedSupplierName', size: 500, required: false },
+    { type: 'string', key: 'matchedCategory', size: 200, required: false },
+    { type: 'string', key: 'matchedPlatform', size: 50, required: false }, // Airbnb, Booking, etc.
+
+    // Confidence and feedback
+    { type: 'boolean', key: 'wasAiSuggestion', required: false, default: false },
+    { type: 'boolean', key: 'userConfirmed', required: false, default: true },
+    { type: 'integer', key: 'usageCount', required: false, min: 0, max: 999999, default: 1 }, // How many times this pattern matched
+
+    // Metadata
+    { type: 'string', key: 'createdAt', size: 50, required: false },
+    { type: 'string', key: 'lastUsedAt', size: 50, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'matchType_index', type: 'key', attributes: ['matchType'], orders: ['ASC'] },
+    { key: 'usageCount_index', type: 'key', attributes: ['usageCount'], orders: ['DESC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ AI Match History collection setup complete!\n');
+}
+
+/**
  * Main execution
  */
 async function main() {
@@ -648,7 +823,7 @@ async function main() {
   console.log(`🗄️  Database: ${CONFIG.databaseId}`);
 
   try {
-    // Setup all collections
+    // Setup all collections (existing)
     await setupInvoicesCollection();
     await setupEntriesCollection();
     await setupTransactionsCollection();
@@ -657,21 +832,30 @@ async function main() {
     await setupNotificationsCollection();
     await setupUploadsCollection();
 
+    // Setup NEW collections (added for CBGest improvements)
+    await setupApartmentsCollection();
+    await setupRecurringExpensesCollection();
+    await setupAiMatchHistoryCollection();
+
     console.log('');
     console.log('🎉 ALL collections have been set up successfully!');
     console.log('');
     console.log('Collections configured:');
-    console.log('  ✅ invoices');
+    console.log('  ✅ invoices (+ apartmentId field)');
     console.log('  ✅ entries');
-    console.log('  ✅ transactions');
+    console.log('  ✅ transactions (+ platformDetected, grossAmount, aiMatchSuggestion fields)');
     console.log('  ✅ settings');
     console.log('  ✅ suppliers');
     console.log('  ✅ notifications');
     console.log('  ✅ uploads');
+    console.log('  ✅ apartments (NEW)');
+    console.log('  ✅ recurring_expenses (NEW)');
+    console.log('  ✅ ai_match_history (NEW)');
     console.log('');
     console.log('Next steps:');
     console.log('  1. Verify the collections in Appwrite Console');
-    console.log('  2. Run your application - data should now be saved correctly');
+    console.log('  2. Update config/appwrite.ts with new collection IDs');
+    console.log('  3. Run your application - data should now be saved correctly');
     console.log('');
   } catch (error) {
     console.error('');

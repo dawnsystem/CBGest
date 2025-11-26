@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, Users, Building, Info, Plus, Trash2, Database, Cloud, HardDrive, Download, Upload, CheckCircle, FilePlus, FileInput, Lock, LogOut, Check, Clock, ShieldCheck, Wifi, AlertTriangle, HelpCircle } from 'lucide-react';
 import { AppSettings, Partner, DataSourceType } from '../types';
 import { APPWRITE_CONFIG } from '../config/appwrite';
+import { createDefaultDataSourceConfig, generateId } from '../utils/defaults';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -28,17 +29,19 @@ export const Settings: React.FC<SettingsProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'PARTNERS' | 'DATA'>('GENERAL');
   
-  // Ensure partners is initialized correctly even if settings.partners is missing
+  // Ensure partners and dataConfig are initialized correctly
   const [formData, setFormData] = useState<AppSettings>({
       ...settings,
-      partners: settings.partners || []
+      partners: settings.partners || [],
+      dataConfig: settings.dataConfig || createDefaultDataSourceConfig()
   });
-  
+
   // Sync with incoming settings props changes
   useEffect(() => {
       setFormData(prev => ({
           ...settings,
-          partners: settings.partners || prev.partners || []
+          partners: settings.partners || prev.partners || [],
+          dataConfig: settings.dataConfig || prev.dataConfig || createDefaultDataSourceConfig()
       }));
   }, [settings]);
 
@@ -64,7 +67,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const addPartner = () => {
     const newPartner: Partner = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: generateId(),
       name: 'Nuevo Comunero',
       nif: '',
       participation: 0

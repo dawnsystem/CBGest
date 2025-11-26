@@ -3,6 +3,7 @@ import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction
 import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
 import { useAuth } from './AuthContext';
+import { generateId } from '../utils/defaults';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
 
@@ -90,7 +91,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     const newItemsPromises = files.map(async (file) => {
       const base64Full = await fileToBase64(file);
       return {
-        id: Math.random().toString(36).substr(2, 9),
+        id: generateId(),
         file,
         uploadType: type,
         fileName: file.name,
@@ -211,7 +212,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         }
 
         const resultInvoice: Invoice = {
-          id: Math.random().toString(36).substr(2, 9),
+          id: generateId(),
           ...data,
           supplierId: matchedSupplierId,
           status: 'PENDING',
@@ -258,7 +259,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
           // Add IDs to transactions
           const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
-            id: Math.random().toString(36).substr(2, 9),
+            id: generateId(),
             ...t,
             status: 'PENDING' as const
           }));
