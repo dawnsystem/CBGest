@@ -276,6 +276,41 @@ export interface AIMatchSuggestion {
   reason: string; // Why this match was suggested
 }
 
+// --- RESERVATION TYPES (for income tracking per apartment) ---
+export type ReservationChannel = 'Booking' | 'Airbnb' | 'Direct' | 'Agoda' | 'Vrbo' | 'Other';
+export type ReservationStatus = 'New' | 'Confirmed' | 'Paid' | 'PaidCC' | 'Cancelled' | 'Completed';
+
+export interface Reservation {
+  id: string;
+
+  // Core booking data
+  apartmentId?: string;        // Linked apartment ID
+  apartmentName: string;       // Original name from import (for matching)
+  checkIn: string;             // ISO date string
+  checkOut: string;            // ISO date string
+  nights: number;
+
+  // Financial data
+  pricePerNight: number;
+  totalAmount: number;
+  paidAmount: number;          // Amount already paid
+
+  // Booking reference
+  channel: ReservationChannel;
+  reservationNumber: string;   // External booking reference
+  status: ReservationStatus;
+
+  // Minimal guest info (no personal data for GDPR)
+  guestInitials?: string;      // Just initials like "J.S."
+
+  // Metadata
+  importedAt?: string;
+  notes?: string;
+
+  // Cloud fields
+  appwriteId?: string;
+}
+
 // Data Source Types
 export type DataSourceType = 'LOCAL_STORAGE' | 'LOCAL_FILE' | 'APPWRITE' | 'SUPABASE' | 'FIREBASE';
 

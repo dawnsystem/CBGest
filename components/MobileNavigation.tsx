@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, PlusCircle, BookOpen, MoreHorizontal, Settings, Building2, Scale, X } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, BookOpen, MoreHorizontal, Settings, Building2, Scale, X, CalendarCheck } from 'lucide-react';
 
 export const MobileNavigation: React.FC = () => {
   const location = useLocation();
@@ -8,7 +8,7 @@ export const MobileNavigation: React.FC = () => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) => location.pathname === path;
-  const isMoreActive = ['/settings', '/suppliers', '/reconciliation'].includes(location.pathname);
+  const isMoreActive = ['/settings', '/suppliers', '/reconciliation', '/reservations'].includes(location.pathname);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -54,6 +54,16 @@ export const MobileNavigation: React.FC = () => {
             >
               <Building2 className="w-5 h-5" />
               <span className="text-sm font-medium">Proveedores</span>
+            </Link>
+            <Link
+              to="/reservations"
+              onClick={closeMenu}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive('/reservations') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <CalendarCheck className="w-5 h-5" />
+              <span className="text-sm font-medium">Reservas</span>
             </Link>
             <Link
               to="/reconciliation"

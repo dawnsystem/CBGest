@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Award, Home, ArrowUpRight, ArrowDownRight, Minus, Filter } from 'lucide-react';
-import { Invoice, Apartment, RecurringExpense } from '../types';
+import { Invoice, Apartment, RecurringExpense, Reservation } from '../types';
 
 interface ProfitabilityByApartmentProps {
   invoices: Invoice[];
   apartments: Apartment[];
   recurringExpenses: RecurringExpense[];
+  reservations?: Reservation[]; // Optional - for accurate income per apartment
 }
 
 type PeriodFilter = 'month' | 'quarter' | 'year' | 'all';
@@ -17,6 +18,8 @@ interface ApartmentMetrics {
   name: string;
   code: string;
   income: number;
+  incomeFromReservations: number; // Income from reservations
+  incomeFromInvoices: number; // Income from INCOME invoices
   expenses: number;
   recurringExpenses: number;
   totalExpenses: number;
@@ -24,6 +27,8 @@ interface ApartmentMetrics {
   profitMargin: number;
   invoiceCount: number;
   expenseCount: number;
+  reservationCount: number;
+  nights: number; // Total nights from reservations
 }
 
 const COLORS = {
@@ -37,10 +42,43 @@ const COLORS = {
 export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> = ({
   invoices,
   apartments,
-  recurringExpenses
+  recurringExpenses,
+  reservations = []
 }) => {
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('year');
   const [sortBy, setSortBy] = useState<'profit' | 'income' | 'margin'>('profit');
+
+  // Filter reservations by period
+  const filteredReservations = useMemo(() => {
+    if (!reservations || reservations.length === 0) return [];
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentQuarter = Math.floor(currentMonth / 3);
+
+    return reservations.filter(res => {
+      // Exclude cancelled reservations
+      if (res.status === 'Cancelled') return false;
+
+      const resDate = new Date(res.checkIn);
+      const resYear = resDate.getFullYear();
+      const resMonth = resDate.getMonth();
+      const resQuarter = Math.floor(resMonth / 3);
+
+      switch (periodFilter) {
+        case 'month':
+          return resYear === currentYear && resMonth === currentMonth;
+        case 'quarter':
+          return resYear === currentYear && resQuarter === currentQuarter;
+        case 'year':
+          return resYear === currentYear;
+        case 'all':
+        default:
+          return true;
+      }
+    });
+  }, [reservations, periodFilter]);
 
   // Filter invoices by period
   const filteredInvoices = useMemo(() => {
@@ -81,15 +119,19 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
         apartment: apt,
         apartmentId: apt.id,
         name: apt.name,
-        code: apt.code,
+        code: apt.code || apt.name.substring(0, 3).toUpperCase(),
         income: 0,
+        incomeFromReservations: 0,
+        incomeFromInvoices: 0,
         expenses: 0,
         recurringExpenses: 0,
         totalExpenses: 0,
         netProfit: 0,
         profitMargin: 0,
         invoiceCount: 0,
-        expenseCount: 0
+        expenseCount: 0,
+        reservationCount: 0,
+        nights: 0
       });
     });
 
@@ -100,13 +142,35 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
       name: 'Comunitario',
       code: 'COM',
       income: 0,
+      incomeFromReservations: 0,
+      incomeFromInvoices: 0,
       expenses: 0,
       recurringExpenses: 0,
       totalExpenses: 0,
       netProfit: 0,
       profitMargin: 0,
       invoiceCount: 0,
-      expenseCount: 0
+      expenseCount: 0,
+      reservationCount: 0,
+      nights: 0
+    });
+
+    // Process reservations first (most accurate income source)
+    filteredReservations.forEach(res => {
+      const key = res.apartmentId || 'common';
+      const metrics = metricsMap.get(key);
+
+      if (metrics) {
+        metrics.incomeFromReservations += res.totalAmount;
+        metrics.reservationCount++;
+        metrics.nights += res.nights;
+      } else {
+        // Apartment was deleted, add to common
+        const common = metricsMap.get('common')!;
+        common.incomeFromReservations += res.totalAmount;
+        common.reservationCount++;
+        common.nights += res.nights;
+      }
     });
 
     // Process invoices
@@ -116,7 +180,7 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
 
       if (metrics) {
         if (inv.type === 'INCOME') {
-          metrics.income += inv.totalAmount;
+          metrics.incomeFromInvoices += inv.totalAmount;
           metrics.invoiceCount++;
         } else {
           metrics.expenses += inv.totalAmount;
@@ -126,11 +190,20 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
         // Apartment was deleted, add to common
         const common = metricsMap.get('common')!;
         if (inv.type === 'INCOME') {
-          common.income += inv.totalAmount;
+          common.incomeFromInvoices += inv.totalAmount;
         } else {
           common.expenses += inv.totalAmount;
         }
       }
+    });
+
+    // Use reservation income if available, otherwise fall back to invoice income
+    metricsMap.forEach(metrics => {
+      // If we have reservations, use that as the primary income source
+      // This is more accurate because Airbnb/Booking payments come as consolidated bank transfers
+      metrics.income = metrics.incomeFromReservations > 0
+        ? metrics.incomeFromReservations
+        : metrics.incomeFromInvoices;
     });
 
     // Add recurring expenses (annualized based on period)
@@ -176,7 +249,7 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
     }
 
     return result;
-  }, [filteredInvoices, apartments, recurringExpenses, periodFilter, sortBy]);
+  }, [filteredInvoices, filteredReservations, apartments, recurringExpenses, periodFilter, sortBy]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -405,7 +478,12 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
                 <div>
                   <p className="text-sm font-medium text-slate-900">{metrics.name}</p>
                   <p className="text-xs text-slate-500">
-                    {metrics.invoiceCount} ingresos • {metrics.expenseCount} gastos
+                    {metrics.reservationCount > 0 ? (
+                      <>{metrics.reservationCount} reservas • {metrics.nights} noches • </>
+                    ) : (
+                      <>{metrics.invoiceCount} ingresos • </>
+                    )}
+                    {metrics.expenseCount} gastos
                   </p>
                 </div>
               </div>

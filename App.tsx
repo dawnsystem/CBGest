@@ -6,7 +6,7 @@ import { MobileNavigation } from './components/MobileNavigation';
 import { Header } from './components/Header';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
-import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment, RecurringExpense } from './types';
+import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment, RecurringExpense, Reservation } from './types';
 import { Eye, Trash, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
@@ -34,6 +34,7 @@ const Settings = lazy(() => import('./components/Settings').then(m => ({ default
 const Suppliers = lazy(() => import('./components/Suppliers').then(m => ({ default: m.Suppliers })));
 const ApartmentManager = lazy(() => import('./components/ApartmentManager').then(m => ({ default: m.ApartmentManager })));
 const RecurringExpenseManager = lazy(() => import('./components/RecurringExpenseManager').then(m => ({ default: m.RecurringExpenseManager })));
+const ReservationManager = lazy(() => import('./components/ReservationManager').then(m => ({ default: m.ReservationManager })));
 const DocumentViewer = lazy(() => import('./components/DocumentViewer').then(m => ({ default: m.DocumentViewer })));
 
 // Loading fallback component
@@ -118,6 +119,7 @@ const MainLayout: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
 
   // UI States
   const [viewingDoc, setViewingDoc] = useState<{file: File, title?: string} | null>(null);
@@ -1143,6 +1145,49 @@ const MainLayout: React.FC = () => {
       }
   };
 
+  // --- RESERVATION HANDLERS ---
+  const handleAddReservations = async (newReservations: Omit<Reservation, 'id'>[]) => {
+      // Generate IDs and add to state
+      const reservationsWithIds: Reservation[] = newReservations.map(r => ({
+          ...r,
+          id: generateId()
+      }));
+
+      // Optimistic add
+      setReservations(prev => [...reservationsWithIds, ...prev]);
+
+      // TODO: Add Appwrite integration when collection is created
+      // For now, reservations are stored in local state only
+      console.log(`✅ ${reservationsWithIds.length} reservas añadidas`);
+  };
+
+  const handleUpdateReservation = async (id: string, data: Partial<Reservation>) => {
+      const oldReservation = reservations.find(r => r.id === id);
+
+      // Optimistic update
+      setReservations(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
+
+      // TODO: Add Appwrite integration when collection is created
+      console.log('✅ Reserva actualizada:', id);
+  };
+
+  const handleDeleteReservation = async (id: string) => {
+      const reservation = reservations.find(r => r.id === id);
+
+      // Optimistic delete
+      setReservations(prev => prev.filter(r => r.id !== id));
+
+      // TODO: Add Appwrite integration when collection is created
+      console.log('✅ Reserva eliminada:', id);
+  };
+
+  const handleLinkApartmentToReservation = (reservationId: string, apartmentId: string) => {
+      setReservations(prev => prev.map(r =>
+          r.id === reservationId ? { ...r, apartmentId } : r
+      ));
+      console.log('✅ Reserva vinculada a apartamento:', reservationId, '->', apartmentId);
+  };
+
   // Legacy File Handlers
   const handleCloneToFile = async (password: string) => {
       try {
@@ -1288,7 +1333,7 @@ const MainLayout: React.FC = () => {
             <main className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8 relative">
               <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={<Dashboard invoices={invoices} settings={settings} apartments={apartments} recurringExpenses={recurringExpenses} onUpdateSettings={setSettings} />} />
+                <Route path="/" element={<Dashboard invoices={invoices} settings={settings} apartments={apartments} recurringExpenses={recurringExpenses} reservations={reservations} onUpdateSettings={setSettings} />} />
                 <Route path="/invoices" element={
                   <div className="p-4 md:p-8 animate-fade-in">
                     <InvoiceUploader
@@ -1445,6 +1490,16 @@ const MainLayout: React.FC = () => {
                         onAddExpense={handleAddRecurringExpense}
                         onUpdateExpense={handleUpdateRecurringExpense}
                         onDeleteExpense={handleDeleteRecurringExpense}
+                    />
+                } />
+                <Route path="/reservations" element={
+                    <ReservationManager
+                        reservations={reservations}
+                        apartments={apartments}
+                        onAddReservations={handleAddReservations}
+                        onUpdateReservation={handleUpdateReservation}
+                        onDeleteReservation={handleDeleteReservation}
+                        onLinkApartment={handleLinkApartmentToReservation}
                     />
                 } />
                 <Route path="/books" element={

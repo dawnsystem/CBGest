@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Wallet, AlertCircle, Calculator, FileText, LucideIcon } from 'lucide-react';
-import { Invoice, AppSettings, Partner, PartnerTaxInfo, DisabilityLevel, Apartment, RecurringExpense } from '../types';
+import { Invoice, AppSettings, Partner, PartnerTaxInfo, DisabilityLevel, Apartment, RecurringExpense, Reservation } from '../types';
 import { PartnerTaxForm } from './PartnerTaxForm';
 import { ExpensesByApartment } from './ExpensesByApartment';
 import { ExpenseProjections } from './ExpenseProjections';
@@ -44,10 +44,11 @@ interface DashboardProps {
   settings: AppSettings;
   apartments: Apartment[];
   recurringExpenses: RecurringExpense[];
+  reservations?: Reservation[];
   onUpdateSettings?: (settings: AppSettings) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartments, recurringExpenses, onUpdateSettings }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartments, recurringExpenses, reservations = [], onUpdateSettings }) => {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -459,7 +460,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
       <ExpenseProjections recurringExpenses={recurringExpenses} apartments={apartments} />
 
       {/* 5. PROFITABILITY BY APARTMENT */}
-      <ProfitabilityByApartment invoices={invoices} apartments={apartments} recurringExpenses={recurringExpenses} />
+      <ProfitabilityByApartment invoices={invoices} apartments={apartments} recurringExpenses={recurringExpenses} reservations={reservations} />
 
       <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 flex items-start gap-3">
         <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
