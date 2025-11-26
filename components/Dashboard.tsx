@@ -6,6 +6,7 @@ import { Invoice, AppSettings, Partner, PartnerTaxInfo, DisabilityLevel, Apartme
 import { PartnerTaxForm } from './PartnerTaxForm';
 import { ExpensesByApartment } from './ExpensesByApartment';
 import { ExpenseProjections } from './ExpenseProjections';
+import { ProfitabilityByApartment } from './ProfitabilityByApartment';
 import { useNavigate } from 'react-router-dom';
 
 // StatCard component moved OUTSIDE of Dashboard to prevent recreation on each render
@@ -456,6 +457,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
 
       {/* 4. EXPENSE PROJECTIONS */}
       <ExpenseProjections recurringExpenses={recurringExpenses} apartments={apartments} />
+
+      {/* 5. PROFITABILITY BY APARTMENT */}
+      <ProfitabilityByApartment invoices={invoices} apartments={apartments} recurringExpenses={recurringExpenses} />
 
       <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 flex items-start gap-3">
         <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
