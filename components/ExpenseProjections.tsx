@@ -85,7 +85,9 @@ const getMonthName = (month: number, short: boolean = false): string => {
   const months = short
     ? ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
     : ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  return months[month];
+  // Ensure month index is within bounds
+  const safeMonth = Math.max(0, Math.min(11, month));
+  return months[safeMonth];
 };
 
 export const ExpenseProjections: React.FC<ExpenseProjectionsProps> = ({
@@ -136,8 +138,17 @@ export const ExpenseProjections: React.FC<ExpenseProjectionsProps> = ({
 
   // Calculate totals
   const totals = useMemo(() => {
+    if (projectionData.length === 0) {
+      return {
+        totalProjected: 0,
+        avgMonthly: 0,
+        maxMonth: null,
+        minMonth: null
+      };
+    }
+
     const totalProjected = projectionData.reduce((sum, m) => sum + m.total, 0);
-    const avgMonthly = totalProjected / period;
+    const avgMonthly = period > 0 ? totalProjected / period : 0;
     const maxMonth = projectionData.reduce((max, m) => m.total > max.total ? m : max, projectionData[0]);
     const minMonth = projectionData.reduce((min, m) => m.total < min.total ? m : min, projectionData[0]);
 
@@ -163,15 +174,27 @@ export const ExpenseProjections: React.FC<ExpenseProjectionsProps> = ({
   const nextBigExpense = useMemo(() => {
     const upcoming: Array<{ expense: RecurringExpense; date: Date; amount: number }> = [];
     const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
 
     for (const expense of recurringExpenses) {
       if (!expense.isActive) continue;
 
       const day = expense.dayOfMonth || 15;
-      let nextDate = new Date(now.getFullYear(), now.getMonth(), day);
+
+      // Clamp day to valid range for the current month
+      const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const clampedDay = Math.min(day, daysInCurrentMonth);
+
+      let nextDate = new Date(currentYear, currentMonth, clampedDay);
 
       if (nextDate <= now) {
-        nextDate.setMonth(nextDate.getMonth() + 1);
+        // Move to next month and clamp day again
+        const nextMonth = (currentMonth + 1) % 12;
+        const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+        const daysInNextMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
+        const clampedNextDay = Math.min(day, daysInNextMonth);
+        nextDate = new Date(nextYear, nextMonth, clampedNextDay);
       }
 
       upcoming.push({
@@ -257,19 +280,19 @@ export const ExpenseProjections: React.FC<ExpenseProjectionsProps> = ({
         <div className="bg-rose-50 p-3 rounded-lg border border-rose-100">
           <p className="text-xs text-rose-600 mb-1">Mes Más Alto</p>
           <p className="text-sm font-bold text-rose-900">
-            {totals.maxMonth?.fullDate}
+            {totals.maxMonth?.fullDate || '-'}
           </p>
           <p className="text-xs text-rose-700">
-            {totals.maxMonth?.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            {totals.maxMonth?.total?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-'}
           </p>
         </div>
         <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
           <p className="text-xs text-emerald-600 mb-1">Mes Más Bajo</p>
           <p className="text-sm font-bold text-emerald-900">
-            {totals.minMonth?.fullDate}
+            {totals.minMonth?.fullDate || '-'}
           </p>
           <p className="text-xs text-emerald-700">
-            {totals.minMonth?.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            {totals.minMonth?.total?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) || '-'}
           </p>
         </div>
       </div>
