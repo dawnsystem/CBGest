@@ -17,6 +17,10 @@ export const APPWRITE_CONFIG = {
     settings: 'settings',
     notifications: 'notifications',
     uploads: 'uploads',
-    suppliers: 'suppliers'
+    suppliers: 'suppliers',
+    // NEW collections for CBGest improvements
+    apartments: 'apartments',
+    recurringExpenses: 'recurring_expenses',
+    aiMatchHistory: 'ai_match_history'
   }
 } as const;
