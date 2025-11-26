@@ -137,10 +137,16 @@ export const findMatchingInvoices = (
   invoices: Invoice[],
   dateToleranceDays: number = 7
 ): Array<{ invoice: Invoice; confidence: number; reason: string }> => {
+  // Validate inputs
+  if (!Array.isArray(invoices) || invoices.length === 0) return [];
+
   const matches: Array<{ invoice: Invoice; confidence: number; reason: string }> = [];
   const txAmount = Math.abs(transaction.amount);
   const txDate = new Date(transaction.date);
-  const txConcept = normalizeConcept(transaction.concept);
+  const txConcept = normalizeConcept(transaction.concept || '');
+
+  // Validate transaction date
+  const isTxDateValid = !isNaN(txDate.getTime());
 
   for (const invoice of invoices) {
     // Skip already reconciled invoices
@@ -152,7 +158,9 @@ export const findMatchingInvoices = (
     // Amount matching (most important)
     const invAmount = invoice.totalAmount;
     const amountDiff = Math.abs(txAmount - invAmount);
-    const amountPercent = amountDiff / Math.max(txAmount, invAmount);
+    // Prevent division by zero - if both amounts are 0, consider them equal
+    const maxAmount = Math.max(txAmount, invAmount);
+    const amountPercent = maxAmount > 0 ? amountDiff / maxAmount : (amountDiff === 0 ? 0 : 1);
 
     if (amountDiff < 0.05) {
       confidence += 50;
@@ -165,19 +173,23 @@ export const findMatchingInvoices = (
       reasons.push('Importe similar');
     }
 
-    // Date proximity
-    const invDate = new Date(invoice.date);
-    const daysDiff = Math.abs((txDate.getTime() - invDate.getTime()) / (1000 * 60 * 60 * 24));
+    // Date proximity (only if dates are valid)
+    if (isTxDateValid && invoice.date) {
+      const invDate = new Date(invoice.date);
+      if (!isNaN(invDate.getTime())) {
+        const daysDiff = Math.abs((txDate.getTime() - invDate.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (daysDiff <= 3) {
-      confidence += 25;
-      reasons.push('Fecha cercana');
-    } else if (daysDiff <= dateToleranceDays) {
-      confidence += 15;
-      reasons.push('Fecha próxima');
-    } else if (daysDiff <= 30) {
-      confidence += 5;
-      reasons.push('Mismo mes');
+        if (daysDiff <= 3) {
+          confidence += 25;
+          reasons.push('Fecha cercana');
+        } else if (daysDiff <= dateToleranceDays) {
+          confidence += 15;
+          reasons.push('Fecha próxima');
+        } else if (daysDiff <= 30) {
+          confidence += 5;
+          reasons.push('Mismo mes');
+        }
+      }
     }
 
     // Supplier name matching
@@ -213,8 +225,11 @@ export const findMatchingSuppliers = (
   transaction: BankTransaction,
   suppliers: Supplier[]
 ): Array<{ supplier: Supplier; confidence: number; reason: string }> => {
+  // Validate inputs
+  if (!Array.isArray(suppliers) || suppliers.length === 0) return [];
+
   const matches: Array<{ supplier: Supplier; confidence: number; reason: string }> = [];
-  const txConcept = transaction.concept;
+  const txConcept = transaction.concept || '';
 
   // First check for utility patterns
   const detectedUtility = detectUtility(txConcept);
@@ -265,11 +280,15 @@ export const findMatchingRecurringExpenses = (
   transaction: BankTransaction,
   recurringExpenses: RecurringExpense[]
 ): Array<{ expense: RecurringExpense; confidence: number; reason: string }> => {
+  // Validate inputs
+  if (!Array.isArray(recurringExpenses) || recurringExpenses.length === 0) return [];
+
   const matches: Array<{ expense: RecurringExpense; confidence: number; reason: string }> = [];
   const txAmount = Math.abs(transaction.amount);
-  const txConcept = transaction.concept;
+  const txConcept = transaction.concept || '';
   const txDate = new Date(transaction.date);
-  const txDay = txDate.getDate();
+  const isTxDateValid = !isNaN(txDate.getTime());
+  const txDay = isTxDateValid ? txDate.getDate() : 0;
 
   for (const expense of recurringExpenses) {
     if (!expense.isActive) continue;
@@ -277,23 +296,27 @@ export const findMatchingRecurringExpenses = (
     let confidence = 0;
     const reasons: string[] = [];
 
-    // Amount matching
-    const amountDiff = Math.abs(txAmount - expense.estimatedAmount);
-    const amountPercent = amountDiff / Math.max(txAmount, expense.estimatedAmount);
+    // Amount matching - skip if estimatedAmount is invalid
+    if (expense.estimatedAmount > 0) {
+      const amountDiff = Math.abs(txAmount - expense.estimatedAmount);
+      // Prevent division by zero
+      const maxAmount = Math.max(txAmount, expense.estimatedAmount);
+      const amountPercent = maxAmount > 0 ? amountDiff / maxAmount : (amountDiff === 0 ? 0 : 1);
 
-    if (amountPercent < 0.01) {
-      confidence += 40;
-      reasons.push('Importe exacto');
-    } else if (amountPercent < 0.10) {
-      confidence += 25;
-      reasons.push('Importe similar');
-    } else if (amountPercent < 0.20) {
-      confidence += 10;
-      reasons.push('Importe aprox.');
+      if (amountPercent < 0.01) {
+        confidence += 40;
+        reasons.push('Importe exacto');
+      } else if (amountPercent < 0.10) {
+        confidence += 25;
+        reasons.push('Importe similar');
+      } else if (amountPercent < 0.20) {
+        confidence += 10;
+        reasons.push('Importe aprox.');
+      }
     }
 
     // Name/concept matching
-    const nameSimilarity = calculateSimilarity(txConcept, expense.name);
+    const nameSimilarity = calculateSimilarity(txConcept, expense.name || '');
     if (nameSimilarity > 60) {
       confidence += 35;
       reasons.push(`Coincide: ${expense.name}`);
@@ -302,9 +325,13 @@ export const findMatchingRecurringExpenses = (
       reasons.push('Concepto similar');
     }
 
-    // Day of month matching (for recurring payments)
-    if (expense.dayOfMonth) {
-      const dayDiff = Math.abs(txDay - expense.dayOfMonth);
+    // Day of month matching (for recurring payments) - only if date is valid
+    if (isTxDateValid && expense.dayOfMonth && expense.dayOfMonth >= 1 && expense.dayOfMonth <= 31) {
+      let dayDiff = Math.abs(txDay - expense.dayOfMonth);
+      // Handle month wrapping (e.g., day 1 vs day 30 should be ~2 days apart, not 29)
+      if (dayDiff > 15) {
+        dayDiff = Math.min(dayDiff, 31 - dayDiff);
+      }
       if (dayDiff <= 2) {
         confidence += 15;
         reasons.push('Día esperado');
@@ -316,7 +343,7 @@ export const findMatchingRecurringExpenses = (
 
     // Utility pattern matching
     const detectedUtility = detectUtility(txConcept);
-    if (detectedUtility && expense.name.toLowerCase().includes(detectedUtility.toLowerCase())) {
+    if (detectedUtility && expense.name && expense.name.toLowerCase().includes(detectedUtility.toLowerCase())) {
       confidence += 20;
       reasons.push(`Suministro: ${detectedUtility}`);
     }
