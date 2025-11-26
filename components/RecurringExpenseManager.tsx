@@ -49,27 +49,33 @@ const getNextPaymentDate = (expense: RecurringExpense): Date | null => {
   const today = new Date();
   const dayOfMonth = expense.dayOfMonth || 1;
 
-  let nextDate = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
+  // Clamp day to valid range for the target month
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const clampedDay = Math.min(dayOfMonth, daysInMonth);
+
+  let nextDate = new Date(year, month, clampedDay);
 
   // If day has passed this month, move to next occurrence
   if (nextDate <= today) {
-    switch (expense.frequency) {
-      case 'MONTHLY':
-        nextDate.setMonth(nextDate.getMonth() + 1);
-        break;
-      case 'BIMONTHLY':
-        nextDate.setMonth(nextDate.getMonth() + 2);
-        break;
-      case 'QUARTERLY':
-        nextDate.setMonth(nextDate.getMonth() + 3);
-        break;
-      case 'SEMIANNUAL':
-        nextDate.setMonth(nextDate.getMonth() + 6);
-        break;
-      case 'ANNUAL':
-        nextDate.setFullYear(nextDate.getFullYear() + 1);
-        break;
-    }
+    const monthsToAdd: Record<ExpenseFrequency, number> = {
+      MONTHLY: 1,
+      BIMONTHLY: 2,
+      QUARTERLY: 3,
+      SEMIANNUAL: 6,
+      ANNUAL: 12
+    };
+
+    const newMonth = month + monthsToAdd[expense.frequency];
+    const newYear = year + Math.floor(newMonth / 12);
+    const adjustedMonth = newMonth % 12;
+
+    // Clamp day for the new target month
+    const daysInNewMonth = new Date(newYear, adjustedMonth + 1, 0).getDate();
+    const newClampedDay = Math.min(dayOfMonth, daysInNewMonth);
+
+    nextDate = new Date(newYear, adjustedMonth, newClampedDay);
   }
 
   return nextDate;
@@ -107,10 +113,12 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
 
   // Filter and sort expenses
   const filteredExpenses = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase();
     return expenses
       .filter(exp => {
-        const matchesSearch = exp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             (exp.description?.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesSearch = !searchTerm ||
+                             exp.name?.toLowerCase().includes(searchLower) ||
+                             exp.description?.toLowerCase().includes(searchLower);
         const matchesApartment = !filterApartment ||
                                  (filterApartment === 'common' && !exp.apartmentId) ||
                                  exp.apartmentId === filterApartment;
@@ -120,7 +128,7 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
       .sort((a, b) => {
         // Sort by active first, then by name
         if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
-        return a.name.localeCompare(b.name);
+        return (a.name || '').localeCompare(b.name || '');
       });
   }, [expenses, searchTerm, filterApartment, showInactive]);
 
@@ -166,23 +174,42 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.estimatedAmount) return;
+
+    const trimmedName = formData.name?.trim();
+    const amount = formData.estimatedAmount;
+
+    // Validate required fields
+    if (!trimmedName) {
+      alert('El nombre del gasto es obligatorio');
+      return;
+    }
+    if (amount === undefined || isNaN(amount) || amount <= 0) {
+      alert('El importe debe ser un número mayor que 0');
+      return;
+    }
+
+    // Validate dayOfMonth
+    const dayOfMonth = formData.dayOfMonth;
+    if (dayOfMonth !== undefined && (isNaN(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31)) {
+      alert('El día del mes debe estar entre 1 y 31');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const expenseData: RecurringExpense = {
         id: editingExpense?.id || generateId(),
-        name: formData.name!,
-        description: formData.description,
-        estimatedAmount: formData.estimatedAmount!,
+        name: trimmedName,
+        description: formData.description?.trim(),
+        estimatedAmount: amount,
         frequency: formData.frequency as ExpenseFrequency,
         category: formData.category,
         apartmentId: formData.apartmentId || undefined,
         supplierId: formData.supplierId || undefined,
-        dayOfMonth: formData.dayOfMonth,
+        dayOfMonth: dayOfMonth || 1,
         isDeductible: formData.isDeductible ?? true,
         isActive: formData.isActive ?? true,
-        notes: formData.notes,
+        notes: formData.notes?.trim(),
         appwriteId: editingExpense?.appwriteId
       };
 
@@ -201,7 +228,12 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
 
   const handleDelete = async (id: string) => {
     if (window.confirm('¿Estás seguro de eliminar este gasto recurrente?')) {
-      await onDeleteExpense(id);
+      try {
+        await onDeleteExpense(id);
+      } catch (error) {
+        console.error('Error deleting expense:', error);
+        alert('Error al eliminar el gasto. Por favor, inténtalo de nuevo.');
+      }
     }
   };
 
@@ -498,8 +530,16 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
                     type="number"
                     step="0.01"
                     min="0"
-                    value={formData.estimatedAmount || ''}
-                    onChange={(e) => setFormData({ ...formData, estimatedAmount: parseFloat(e.target.value) || 0 })}
+                    value={formData.estimatedAmount ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '') {
+                        setFormData({ ...formData, estimatedAmount: undefined });
+                      } else {
+                        const parsed = parseFloat(value);
+                        setFormData({ ...formData, estimatedAmount: !isNaN(parsed) && parsed >= 0 ? parsed : undefined });
+                      }
+                    }}
                     placeholder="0.00"
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
                     required
@@ -530,8 +570,17 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
                   type="number"
                   min="1"
                   max="31"
-                  value={formData.dayOfMonth || 1}
-                  onChange={(e) => setFormData({ ...formData, dayOfMonth: parseInt(e.target.value) || 1 })}
+                  value={formData.dayOfMonth ?? 1}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setFormData({ ...formData, dayOfMonth: 1 });
+                    } else {
+                      const parsed = parseInt(value, 10);
+                      const validDay = !isNaN(parsed) && parsed >= 1 && parsed <= 31 ? parsed : 1;
+                      setFormData({ ...formData, dayOfMonth: validDay });
+                    }
+                  }}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
                 />
                 <p className="text-xs text-slate-400 mt-1">Día esperado de cargo/pago</p>
