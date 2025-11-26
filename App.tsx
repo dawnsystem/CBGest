@@ -266,13 +266,14 @@ const MainLayout: React.FC = () => {
                 }
 
                 // Load all data in parallel for better performance
-                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses] = await Promise.all([
+                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses, remoteReservations] = await Promise.all([
                     appwriteService.fetchInvoices(),
                     appwriteService.fetchEntries(),
                     appwriteService.fetchTransactions(),
                     appwriteService.fetchSuppliers().catch(() => []), // Don't fail if suppliers fail
                     appwriteService.fetchApartments().catch(() => []), // Don't fail if apartments fail
-                    appwriteService.fetchRecurringExpenses().catch(() => []) // Don't fail if recurring expenses fail
+                    appwriteService.fetchRecurringExpenses().catch(() => []), // Don't fail if recurring expenses fail
+                    appwriteService.fetchReservations().catch(() => []) // Don't fail if reservations fail
                 ]);
 
                 // Update state with remote data
@@ -282,8 +283,9 @@ const MainLayout: React.FC = () => {
                 setSuppliers(remoteSuppliers);
                 setApartments(remoteApartments);
                 setRecurringExpenses(remoteRecurringExpenses);
+                setReservations(remoteReservations);
 
-                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos, ${remoteRecurringExpenses.length} gastos recurrentes`);
+                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos, ${remoteRecurringExpenses.length} gastos recurrentes, ${remoteReservations.length} reservas`);
                 setConnectionError(null);
               } catch (e: any) {
                   console.warn("Initial sync failed:", e);
@@ -1156,19 +1158,50 @@ const MainLayout: React.FC = () => {
       // Optimistic add
       setReservations(prev => [...reservationsWithIds, ...prev]);
 
-      // TODO: Add Appwrite integration when collection is created
-      // For now, reservations are stored in local state only
-      console.log(`✅ ${reservationsWithIds.length} reservas añadidas`);
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const savedReservations = await appwriteService.createReservations(reservationsWithIds);
+              // Update state with saved reservations (includes appwriteId)
+              setReservations(prev => {
+                  const savedIds = new Set(savedReservations.map(s => s.id));
+                  return prev.map(r => {
+                      const saved = savedReservations.find(s => s.id === r.id);
+                      return saved || r;
+                  });
+              });
+              console.log(`✅ ${savedReservations.length} reservas guardadas en Appwrite`);
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the reservations from local state
+              const newIds = new Set(reservationsWithIds.map(r => r.id));
+              setReservations(prev => prev.filter(r => !newIds.has(r.id)));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al guardar reservas: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error saving reservations to Appwrite:', error);
+          }
+      }
   };
 
   const handleUpdateReservation = async (id: string, data: Partial<Reservation>) => {
       const oldReservation = reservations.find(r => r.id === id);
+      if (!oldReservation) return;
+
+      const updatedReservation = { ...oldReservation, ...data };
 
       // Optimistic update
-      setReservations(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
+      setReservations(prev => prev.map(r => r.id === id ? updatedReservation : r));
 
-      // TODO: Add Appwrite integration when collection is created
-      console.log('✅ Reserva actualizada:', id);
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              await appwriteService.updateReservation(updatedReservation);
+              console.log('✅ Reserva actualizada en Appwrite:', id);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the original reservation
+              setReservations(prev => prev.map(r => r.id === id ? oldReservation : r));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al actualizar reserva: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error updating reservation in Appwrite:', error);
+          }
+      }
   };
 
   const handleDeleteReservation = async (id: string) => {
@@ -1177,15 +1210,46 @@ const MainLayout: React.FC = () => {
       // Optimistic delete
       setReservations(prev => prev.filter(r => r.id !== id));
 
-      // TODO: Add Appwrite integration when collection is created
-      console.log('✅ Reserva eliminada:', id);
+      if (settings.dataConfig?.type === 'APPWRITE' && reservation) {
+          try {
+              const docId = reservation.appwriteId || reservation.id;
+              await appwriteService.deleteReservation(docId);
+              console.log('✅ Reserva eliminada de Appwrite:', docId);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the deleted reservation
+              setReservations(prev => [reservation, ...prev]);
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al eliminar reserva: ${errorMessage}. La reserva no se ha eliminado.`);
+              console.error('Error deleting reservation from Appwrite:', error);
+          }
+      }
   };
 
-  const handleLinkApartmentToReservation = (reservationId: string, apartmentId: string) => {
+  const handleLinkApartmentToReservation = async (reservationId: string, apartmentId: string) => {
+      const reservation = reservations.find(r => r.id === reservationId);
+      if (!reservation) return;
+
+      const updatedReservation = { ...reservation, apartmentId };
+
+      // Optimistic update
       setReservations(prev => prev.map(r =>
-          r.id === reservationId ? { ...r, apartmentId } : r
+          r.id === reservationId ? updatedReservation : r
       ));
-      console.log('✅ Reserva vinculada a apartamento:', reservationId, '->', apartmentId);
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              await appwriteService.updateReservation(updatedReservation);
+              console.log('✅ Reserva vinculada a apartamento en Appwrite:', reservationId, '->', apartmentId);
+          } catch (error: unknown) {
+              // ROLLBACK
+              setReservations(prev => prev.map(r =>
+                  r.id === reservationId ? reservation : r
+              ));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al vincular reserva: ${errorMessage}`);
+              console.error('Error linking reservation to apartment:', error);
+          }
+      }
   };
 
   // Legacy File Handlers
