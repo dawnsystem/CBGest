@@ -351,11 +351,12 @@ export const databaseService = {
         history: history ? JSON.stringify(history) : undefined
       };
 
+      const docId = invoice.appwriteId || invoice.id;
       const doc = await withRetry(
         () => databases.updateDocument(
           config.databaseId,
           config.collections.invoices,
-          invoice.id,
+          docId,
           invoiceData
         ),
         'updateInvoice'
@@ -478,6 +479,7 @@ export const databaseService = {
         () => databases.deleteDocument(config.databaseId, config.collections.entries, id),
         'deleteEntry'
       );
+      notifySuccess('Asiento eliminado');
       connectionHealthy = true;
     } catch (error: any) {
       notifyError(error.message, 'deleteEntry');
@@ -617,12 +619,16 @@ export const databaseService = {
 
   async getSettings(): Promise<AppSettings | null> {
     try {
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.collections.settings,
-        [Query.limit(1)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.settings,
+          [Query.limit(1)]
+        ),
+        'getSettings'
       );
 
+      connectionHealthy = true;
       if (response.documents.length > 0) {
         const doc = response.documents[0] as any;
         return {
@@ -634,6 +640,7 @@ export const databaseService = {
       }
       return null;
     } catch (error: any) {
+      // Don't mark connection as unhealthy for settings - it's not critical
       console.error('Get settings error:', error);
       return null;
     }
@@ -650,35 +657,46 @@ export const databaseService = {
         ...supplierData
       } = supplier as any;
 
-      const doc = await databases.createDocument(
-        config.databaseId,
-        config.collections.suppliers,
-        id || ID.unique(),
-        supplierData
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.suppliers,
+          id || ID.unique(),
+          supplierData
+        ),
+        'createSupplier'
       );
 
+      notifySuccess('Proveedor creado');
+      connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Supplier;
     } catch (error: any) {
-      console.error('Create supplier error:', error);
+      notifyError(error.message, 'createSupplier');
+      connectionHealthy = false;
       throw error;
     }
   },
 
   async getSuppliers(): Promise<Supplier[]> {
     try {
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.collections.suppliers,
-        [Query.orderAsc('name'), Query.limit(1000)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.suppliers,
+          [Query.orderAsc('name'), Query.limit(1000)]
+        ),
+        'getSuppliers'
       );
 
+      connectionHealthy = true;
       return response.documents.map((doc: any) => ({
         ...doc,
         id: doc.$id,
         appwriteId: doc.$id
       })) as unknown as Supplier[];
     } catch (error: any) {
-      console.error('Get suppliers error:', error);
+      notifyError(error.message, 'getSuppliers');
+      connectionHealthy = false;
       throw error;
     }
   },
@@ -694,25 +712,37 @@ export const databaseService = {
       } = supplier as any;
       const docId = appwriteId || id;
 
-      const doc = await databases.updateDocument(
-        config.databaseId,
-        config.collections.suppliers,
-        docId,
-        supplierData
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.collections.suppliers,
+          docId,
+          supplierData
+        ),
+        'updateSupplier'
       );
 
+      notifySuccess('Proveedor actualizado');
+      connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Supplier;
     } catch (error: any) {
-      console.error('Update supplier error:', error);
+      notifyError(error.message, 'updateSupplier');
+      connectionHealthy = false;
       throw error;
     }
   },
 
   async deleteSupplier(appwriteId: string): Promise<void> {
     try {
-      await databases.deleteDocument(config.databaseId, config.collections.suppliers, appwriteId);
+      await withRetry(
+        () => databases.deleteDocument(config.databaseId, config.collections.suppliers, appwriteId),
+        'deleteSupplier'
+      );
+      notifySuccess('Proveedor eliminado');
+      connectionHealthy = true;
     } catch (error: any) {
-      console.error('Delete supplier error:', error);
+      notifyError(error.message, 'deleteSupplier');
+      connectionHealthy = false;
       throw error;
     }
   },
@@ -728,16 +758,21 @@ export const databaseService = {
         ...notificationData
       } = notification as any;
 
-      const doc = await databases.createDocument(
-        config.databaseId,
-        config.collections.notifications,
-        id || ID.unique(),
-        notificationData
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.notifications,
+          id || ID.unique(),
+          notificationData
+        ),
+        'createNotification'
       );
 
+      connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Notification;
     } catch (error: any) {
-      console.error('Create notification error:', error);
+      notifyError(error.message, 'createNotification');
+      connectionHealthy = false;
       throw error;
     }
   },
@@ -746,12 +781,16 @@ export const databaseService = {
     try {
       if (!config.collections.notifications) return [];
 
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.collections.notifications,
-        [Query.orderDesc('timestamp'), Query.limit(100)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.notifications,
+          [Query.orderDesc('timestamp'), Query.limit(100)]
+        ),
+        'getNotifications'
       );
 
+      connectionHealthy = true;
       return response.documents.map((doc: any) => ({
         ...doc,
         id: doc.$id,
@@ -759,7 +798,8 @@ export const databaseService = {
       })) as unknown as Notification[];
     } catch (error: any) {
       if (error?.code === 404 || error?.code === 401) return [];
-      console.error('Get notifications error:', error);
+      notifyError(error.message, 'getNotifications');
+      connectionHealthy = false;
       throw error;
     }
   },
@@ -775,44 +815,62 @@ export const databaseService = {
       } = notification as any;
       const docId = appwriteId || id;
 
-      const doc = await databases.updateDocument(
-        config.databaseId,
-        config.collections.notifications,
-        docId,
-        notificationData
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.collections.notifications,
+          docId,
+          notificationData
+        ),
+        'updateNotification'
       );
 
+      connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Notification;
     } catch (error: any) {
-      console.error('Update notification error:', error);
+      notifyError(error.message, 'updateNotification');
+      connectionHealthy = false;
       throw error;
     }
   },
 
   async deleteNotification(id: string): Promise<void> {
     try {
-      await databases.deleteDocument(config.databaseId, config.collections.notifications, id);
+      await withRetry(
+        () => databases.deleteDocument(config.databaseId, config.collections.notifications, id),
+        'deleteNotification'
+      );
+      connectionHealthy = true;
     } catch (error: any) {
-      console.error('Delete notification error:', error);
+      notifyError(error.message, 'deleteNotification');
+      connectionHealthy = false;
       throw error;
     }
   },
 
   async deleteAllNotifications(): Promise<void> {
     try {
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.collections.notifications,
-        [Query.limit(100)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.notifications,
+          [Query.limit(100)]
+        ),
+        'listNotificationsForDelete'
       );
 
       await Promise.all(
         response.documents.map(doc =>
-          databases.deleteDocument(config.databaseId, config.collections.notifications, doc.$id)
+          withRetry(
+            () => databases.deleteDocument(config.databaseId, config.collections.notifications, doc.$id),
+            'deleteNotificationBatch'
+          )
         )
       );
+      connectionHealthy = true;
     } catch (error: any) {
-      console.error('Delete all notifications error:', error);
+      notifyError(error.message, 'deleteAllNotifications');
+      connectionHealthy = false;
       throw error;
     }
   },
@@ -835,16 +893,21 @@ export const databaseService = {
         bankResult: bankResult ? JSON.stringify(bankResult) : undefined
       };
 
-      const doc = await databases.createDocument(
-        config.databaseId,
-        config.collections.uploads,
-        id || ID.unique(),
-        dataToSave
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.uploads,
+          id || ID.unique(),
+          dataToSave
+        ),
+        'createUploadItem'
       );
 
+      connectionHealthy = true;
       return { ...doc, file, result, bankResult, id: doc.$id } as unknown as QueueItem;
     } catch (error: any) {
-      console.error('Create upload item error:', error);
+      notifyError(error.message, 'createUploadItem');
+      connectionHealthy = false;
       throw error;
     }
   },
@@ -853,12 +916,16 @@ export const databaseService = {
     try {
       if (!config.collections.uploads) return [];
 
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.collections.uploads,
-        [Query.orderDesc('timestamp'), Query.limit(100)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.uploads,
+          [Query.orderDesc('timestamp'), Query.limit(100)]
+        ),
+        'getUploadQueue'
       );
 
+      connectionHealthy = true;
       return response.documents.map((doc: any) => ({
         ...doc,
         id: doc.$id,
@@ -867,7 +934,8 @@ export const databaseService = {
       })) as unknown as QueueItem[];
     } catch (error: any) {
       if (error?.code === 404 || error?.code === 401) return [];
-      console.error('Get upload queue error:', error);
+      notifyError(error.message, 'getUploadQueue');
+      connectionHealthy = false;
       throw error;
     }
   },
@@ -876,11 +944,12 @@ export const databaseService = {
     try {
       // Excluir campos que Appwrite gestiona automáticamente
       const {
-        file, result, bankResult, id,
+        file, result, bankResult, id, appwriteId,
         createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         ...itemData
       } = item as any;
+      const docId = appwriteId || id;
 
       const dataToSave = {
         ...itemData,
@@ -889,44 +958,62 @@ export const databaseService = {
         bankResult: bankResult ? JSON.stringify(bankResult) : undefined
       };
 
-      const doc = await databases.updateDocument(
-        config.databaseId,
-        config.collections.uploads,
-        id,
-        dataToSave
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.collections.uploads,
+          docId,
+          dataToSave
+        ),
+        'updateUploadItem'
       );
 
+      connectionHealthy = true;
       return { ...doc, file, result, bankResult, id: doc.$id } as unknown as QueueItem;
     } catch (error: any) {
-      console.error('Update upload item error:', error);
+      notifyError(error.message, 'updateUploadItem');
+      connectionHealthy = false;
       throw error;
     }
   },
 
   async deleteUploadItem(id: string): Promise<void> {
     try {
-      await databases.deleteDocument(config.databaseId, config.collections.uploads, id);
+      await withRetry(
+        () => databases.deleteDocument(config.databaseId, config.collections.uploads, id),
+        'deleteUploadItem'
+      );
+      connectionHealthy = true;
     } catch (error: any) {
-      console.error('Delete upload item error:', error);
+      notifyError(error.message, 'deleteUploadItem');
+      connectionHealthy = false;
       throw error;
     }
   },
 
   async deleteCompletedUploads(): Promise<void> {
     try {
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.collections.uploads,
-        [Query.equal('status', 'COMPLETED'), Query.limit(100)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.uploads,
+          [Query.equal('status', 'COMPLETED'), Query.limit(100)]
+        ),
+        'listCompletedUploads'
       );
 
       await Promise.all(
         response.documents.map(doc =>
-          databases.deleteDocument(config.databaseId, config.collections.uploads, doc.$id)
+          withRetry(
+            () => databases.deleteDocument(config.databaseId, config.collections.uploads, doc.$id),
+            'deleteCompletedUploadBatch'
+          )
         )
       );
+      connectionHealthy = true;
     } catch (error: any) {
-      console.error('Delete completed uploads error:', error);
+      notifyError(error.message, 'deleteCompletedUploads');
+      connectionHealthy = false;
       throw error;
     }
   },
@@ -1264,12 +1351,16 @@ export const databaseService = {
   // --- RESERVATIONS ---
   async getReservations(): Promise<Reservation[]> {
     try {
-      const response = await databases.listDocuments(
-        config.databaseId,
-        config.collections.reservations,
-        [Query.orderDesc('checkIn'), Query.limit(5000)]
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.reservations,
+          [Query.orderDesc('checkIn'), Query.limit(5000)]
+        ),
+        'getReservations'
       );
 
+      connectionHealthy = true;
       return response.documents.map((doc: any) => {
         const {
           $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
@@ -1280,6 +1371,7 @@ export const databaseService = {
     } catch (error: any) {
       if (error?.code === 404) return [];
       notifyError(error.message, 'getReservations');
+      connectionHealthy = false;
       throw error;
     }
   },
@@ -1288,21 +1380,26 @@ export const databaseService = {
     try {
       const {
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-        appwriteId, file, ...reservationData
+        appwriteId, file, id, ...reservationData
       } = reservation as any;
 
       const savedDoc = await withRetry(
         () => databases.createDocument(
           config.databaseId,
           config.collections.reservations,
-          ID.unique(),
+          id || ID.unique(),
           reservationData
         ),
         'createReservation'
       );
 
       connectionHealthy = true;
-      return { ...reservationData, id: savedDoc.$id, appwriteId: savedDoc.$id } as Reservation;
+      // Return saved document data to ensure consistency
+      const {
+        $id: savedId, $createdAt: _, $updatedAt: __, $databaseId: ___, $collectionId: ____, $permissions: _____,
+        ...savedData
+      } = savedDoc as any;
+      return { ...savedData, id: savedId, appwriteId: savedId } as Reservation;
     } catch (error: any) {
       notifyError(error.message, 'createReservation');
       connectionHealthy = false;
@@ -1345,7 +1442,12 @@ export const databaseService = {
       );
 
       connectionHealthy = true;
-      return { ...reservationData, id: updatedDoc.$id, appwriteId: updatedDoc.$id } as Reservation;
+      // Return updated document data to ensure consistency
+      const {
+        $id: updatedId, $createdAt: _, $updatedAt: __, $databaseId: ___, $collectionId: ____, $permissions: _____,
+        ...updatedData
+      } = updatedDoc as any;
+      return { ...updatedData, id: updatedId, appwriteId: updatedId } as Reservation;
     } catch (error: any) {
       notifyError(error.message, 'updateReservation');
       connectionHealthy = false;
