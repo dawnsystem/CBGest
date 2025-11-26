@@ -1288,7 +1288,7 @@ const MainLayout: React.FC = () => {
             <main className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8 relative">
               <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={<Dashboard invoices={invoices} settings={settings} apartments={apartments} onUpdateSettings={setSettings} />} />
+                <Route path="/" element={<Dashboard invoices={invoices} settings={settings} apartments={apartments} recurringExpenses={recurringExpenses} onUpdateSettings={setSettings} />} />
                 <Route path="/invoices" element={
                   <div className="p-4 md:p-8 animate-fade-in">
                     <InvoiceUploader
