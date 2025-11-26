@@ -62,6 +62,9 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
       if (res.status === 'Cancelled') return false;
 
       const resDate = new Date(res.checkIn);
+      // Skip reservations with invalid dates
+      if (isNaN(resDate.getTime())) return false;
+
       const resYear = resDate.getFullYear();
       const resMonth = resDate.getMonth();
       const resQuarter = Math.floor(resMonth / 3);
@@ -91,6 +94,9 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
       if (inv.status === 'PENDING') return false;
 
       const invDate = new Date(inv.date);
+      // Skip invoices with invalid dates
+      if (isNaN(invDate.getTime())) return false;
+
       const invYear = invDate.getFullYear();
       const invMonth = invDate.getMonth();
       const invQuarter = Math.floor(invMonth / 3);
@@ -159,17 +165,19 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
     filteredReservations.forEach(res => {
       const key = res.apartmentId || 'common';
       const metrics = metricsMap.get(key);
+      const amount = res.totalAmount || 0;
+      const nights = res.nights || 0;
 
       if (metrics) {
-        metrics.incomeFromReservations += res.totalAmount;
+        metrics.incomeFromReservations += amount;
         metrics.reservationCount++;
-        metrics.nights += res.nights;
+        metrics.nights += nights;
       } else {
         // Apartment was deleted, add to common
         const common = metricsMap.get('common')!;
-        common.incomeFromReservations += res.totalAmount;
+        common.incomeFromReservations += amount;
         common.reservationCount++;
-        common.nights += res.nights;
+        common.nights += nights;
       }
     });
 
@@ -177,22 +185,23 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
     filteredInvoices.forEach(inv => {
       const key = inv.apartmentId || 'common';
       const metrics = metricsMap.get(key);
+      const invoiceAmount = inv.totalAmount || 0;
 
       if (metrics) {
         if (inv.type === 'INCOME') {
-          metrics.incomeFromInvoices += inv.totalAmount;
+          metrics.incomeFromInvoices += invoiceAmount;
           metrics.invoiceCount++;
         } else {
-          metrics.expenses += inv.totalAmount;
+          metrics.expenses += invoiceAmount;
           metrics.expenseCount++;
         }
       } else {
         // Apartment was deleted, add to common
         const common = metricsMap.get('common')!;
         if (inv.type === 'INCOME') {
-          common.incomeFromInvoices += inv.totalAmount;
+          common.incomeFromInvoices += invoiceAmount;
         } else {
-          common.expenses += inv.totalAmount;
+          common.expenses += invoiceAmount;
         }
       }
     });
@@ -516,22 +525,27 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
             </div>
 
             {/* Progress bar showing income vs expenses */}
-            {(metrics.income > 0 || metrics.totalExpenses > 0) && (
-              <div className="mt-2 flex gap-1 h-1.5">
-                <div
-                  className="bg-blue-400 rounded-full"
-                  style={{
-                    width: `${(metrics.income / Math.max(metrics.income, metrics.totalExpenses)) * 50}%`
-                  }}
-                />
-                <div
-                  className="bg-rose-400 rounded-full"
-                  style={{
-                    width: `${(metrics.totalExpenses / Math.max(metrics.income, metrics.totalExpenses)) * 50}%`
-                  }}
-                />
-              </div>
-            )}
+            {(metrics.income > 0 || metrics.totalExpenses > 0) && (() => {
+              const maxValue = Math.max(metrics.income, metrics.totalExpenses);
+              // Safety check to prevent division by zero
+              if (maxValue === 0) return null;
+              return (
+                <div className="mt-2 flex gap-1 h-1.5">
+                  <div
+                    className="bg-blue-400 rounded-full"
+                    style={{
+                      width: `${(metrics.income / maxValue) * 50}%`
+                    }}
+                  />
+                  <div
+                    className="bg-rose-400 rounded-full"
+                    style={{
+                      width: `${(metrics.totalExpenses / maxValue) * 50}%`
+                    }}
+                  />
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>
