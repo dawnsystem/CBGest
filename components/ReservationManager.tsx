@@ -173,20 +173,35 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
         }
 
         // Try to match apartment
-        const matchedApartment = apartments.find(apt =>
-          apt.name.toLowerCase().includes(apartmentName.toLowerCase()) ||
-          apartmentName.toLowerCase().includes(apt.name.toLowerCase()) ||
-          (apt.code && apt.code.toLowerCase() === apartmentName.toLowerCase())
-        );
+        const apartmentNameLower = apartmentName.toLowerCase();
+        const matchedApartment = apartments.find(apt => {
+          const aptNameLower = apt.name?.toLowerCase() || '';
+          const aptCodeLower = apt.code?.toLowerCase() || '';
+          return aptNameLower.includes(apartmentNameLower) ||
+                 apartmentNameLower.includes(aptNameLower) ||
+                 (aptCodeLower && aptCodeLower === apartmentNameLower);
+        });
+
+        // Calculate nights if not provided, handling invalid dates
+        let calculatedNights = nights;
+        if (!calculatedNights || calculatedNights <= 0) {
+          const checkInDate = new Date(checkIn);
+          const checkOutDate = new Date(checkOut);
+          if (!isNaN(checkInDate.getTime()) && !isNaN(checkOutDate.getTime())) {
+            calculatedNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+          } else {
+            calculatedNights = 1; // Default fallback
+          }
+        }
 
         parsed.push({
           apartmentId: matchedApartment?.id,
           apartmentName,
           checkIn,
           checkOut,
-          nights: nights || Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)),
+          nights: calculatedNights > 0 ? calculatedNights : 1,
           pricePerNight,
-          totalAmount: totalAmount || (pricePerNight * nights),
+          totalAmount: totalAmount || (pricePerNight * calculatedNights),
           paidAmount,
           channel: mapChannel(channel),
           reservationNumber,
@@ -236,8 +251,8 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(r =>
-        r.apartmentName.toLowerCase().includes(term) ||
-        r.reservationNumber.toLowerCase().includes(term) ||
+        r.apartmentName?.toLowerCase().includes(term) ||
+        r.reservationNumber?.toLowerCase().includes(term) ||
         r.guestInitials?.toLowerCase().includes(term)
       );
     }
@@ -261,20 +276,26 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
     result.sort((a, b) => {
       let comparison = 0;
       switch (sortField) {
-        case 'checkIn':
-          comparison = new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
+        case 'checkIn': {
+          const dateA = a.checkIn ? new Date(a.checkIn).getTime() : 0;
+          const dateB = b.checkIn ? new Date(b.checkIn).getTime() : 0;
+          comparison = (isNaN(dateA) ? 0 : dateA) - (isNaN(dateB) ? 0 : dateB);
           break;
-        case 'checkOut':
-          comparison = new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime();
+        }
+        case 'checkOut': {
+          const dateA = a.checkOut ? new Date(a.checkOut).getTime() : 0;
+          const dateB = b.checkOut ? new Date(b.checkOut).getTime() : 0;
+          comparison = (isNaN(dateA) ? 0 : dateA) - (isNaN(dateB) ? 0 : dateB);
           break;
+        }
         case 'totalAmount':
-          comparison = a.totalAmount - b.totalAmount;
+          comparison = (a.totalAmount || 0) - (b.totalAmount || 0);
           break;
         case 'nights':
-          comparison = a.nights - b.nights;
+          comparison = (a.nights || 0) - (b.nights || 0);
           break;
         case 'apartmentName':
-          comparison = a.apartmentName.localeCompare(b.apartmentName);
+          comparison = (a.apartmentName || '').localeCompare(b.apartmentName || '');
           break;
       }
       return sortOrder === 'asc' ? comparison : -comparison;
@@ -285,9 +306,9 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
 
   // Calculate summary stats
   const stats = useMemo(() => {
-    const total = filteredReservations.reduce((sum, r) => sum + r.totalAmount, 0);
-    const paid = filteredReservations.reduce((sum, r) => sum + r.paidAmount, 0);
-    const nights = filteredReservations.reduce((sum, r) => sum + r.nights, 0);
+    const total = filteredReservations.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+    const paid = filteredReservations.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+    const nights = filteredReservations.reduce((sum, r) => sum + (r.nights || 0), 0);
     const cancelled = filteredReservations.filter(r => r.status === 'Cancelled').length;
     const unlinked = filteredReservations.filter(r => !r.apartmentId).length;
 
@@ -306,11 +327,10 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
 
   // Format date for display
   const formatDate = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-    } catch {
-      return dateStr;
-    }
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
   };
 
   return (
@@ -730,7 +750,11 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                           </div>
                         )}
                         <button
-                          onClick={() => onDeleteReservation(reservation.id)}
+                          onClick={() => {
+                            if (window.confirm('¿Estás seguro de eliminar esta reserva?')) {
+                              onDeleteReservation(reservation.id);
+                            }
+                          }}
                           className="p-1.5 text-red-500 hover:bg-red-50 rounded"
                           title="Eliminar"
                         >
