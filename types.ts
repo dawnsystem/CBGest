@@ -34,6 +34,7 @@ export interface Invoice {
   issuerPostalCode?: string; // Código postal del emisor
   issuerCountry?: string; // País del emisor (si no es España)
   supplierId?: string; // Reference to Supplier (if matched)
+  apartmentId?: string; // Reference to Apartment (NEW - for per-property tracking)
   baseAmount: number;
   vatRate: number; // 4, 10, 21
   vatAmount: number;
@@ -92,7 +93,15 @@ export interface BankTransaction {
   amount: number; // Positivo (Ingreso) o Negativo (Gasto)
   balance?: number;
   reconciledWithEntryId?: string; // ID del asiento con el que se casó
+  reconciledWithInvoiceId?: string; // ID de la factura con la que se casó (NEW)
   status: 'PENDING' | 'MATCHED';
+
+  // Platform detection (NEW - for Airbnb, Booking, etc.)
+  platformDetected?: string; // e.g., 'AIRBNB', 'BOOKING', 'VRBO'
+  grossAmount?: number; // Importe bruto (para calcular comisión de plataforma)
+
+  // AI matching (NEW)
+  aiMatchSuggestion?: string; // JSON string of AIMatchSuggestion
 
   appwriteId?: string;
 
@@ -178,6 +187,93 @@ export interface Supplier {
   // Audit fields
   createdBy?: string; // User ID who created this
   createdByName?: string; // User name who created this
+}
+
+// --- APARTMENT TYPES (NEW - for per-property tracking) ---
+export interface Apartment {
+  id: string;
+  name: string; // e.g., "Apartamento 1A", "Ático"
+  code?: string; // Short code e.g., "APT-01", "1A"
+  address?: string;
+  cadastralRef?: string; // Referencia catastral
+  surfaceArea?: number; // m²
+  maxOccupancy?: number; // Capacidad máxima
+  licenseNumber?: string; // Licencia turística
+  notes?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+
+  // Cloud fields
+  appwriteId?: string;
+}
+
+// --- RECURRING EXPENSE TYPES (NEW - for expense projections) ---
+export type ExpenseFrequency = 'MONTHLY' | 'BIMONTHLY' | 'QUARTERLY' | 'SEMIANNUAL' | 'ANNUAL';
+
+export interface RecurringExpense {
+  id: string;
+  name: string; // e.g., "Electricidad", "Comunidad"
+  description?: string;
+  estimatedAmount: number;
+  frequency: ExpenseFrequency;
+  category?: string; // PGC code or custom category
+  apartmentId?: string; // null/undefined = common expense for all apartments
+  supplierId?: string; // Optional link to supplier
+  dayOfMonth?: number; // Expected day of the month (1-31)
+  startDate?: string; // When this recurring expense starts
+  endDate?: string; // Optional end date
+  isDeductible: boolean;
+  isActive: boolean;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+
+  // Cloud fields
+  appwriteId?: string;
+}
+
+// --- AI MATCH HISTORY TYPES (NEW - for AI learning from user decisions) ---
+export type AIMatchType = 'INVOICE' | 'SUPPLIER' | 'CATEGORY' | 'PLATFORM';
+
+export interface AIMatchHistory {
+  id: string;
+  // Bank transaction info (patterns to learn from)
+  bankConcept: string; // Original bank concept text
+  normalizedConcept?: string; // Cleaned/normalized version
+  amount: number;
+
+  // What it was matched to
+  matchType: AIMatchType;
+  matchedInvoiceId?: string;
+  matchedSupplierId?: string;
+  matchedSupplierName?: string;
+  matchedCategory?: string;
+  matchedPlatform?: string; // Airbnb, Booking, etc.
+
+  // Confidence and feedback
+  wasAiSuggestion: boolean; // Was this suggested by AI?
+  userConfirmed: boolean; // Did user confirm this match?
+  usageCount: number; // How many times this pattern has been used
+
+  // Metadata
+  createdAt?: string;
+  lastUsedAt?: string;
+
+  // Cloud fields
+  appwriteId?: string;
+}
+
+// --- AI MATCH SUGGESTION (for real-time suggestions) ---
+export interface AIMatchSuggestion {
+  invoiceId?: string;
+  invoiceName?: string;
+  supplierId?: string;
+  supplierName?: string;
+  category?: string;
+  platform?: string;
+  confidence: number; // 0-100
+  reason: string; // Why this match was suggested
 }
 
 // Data Source Types
