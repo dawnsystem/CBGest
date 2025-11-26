@@ -1460,6 +1460,9 @@ const MainLayout: React.FC = () => {
                     <BankReconciliation
                         transactions={bankTransactions}
                         entries={accountingEntries}
+                        invoices={invoices}
+                        suppliers={suppliers}
+                        recurringExpenses={recurringExpenses}
                         onReconcile={handleReconcileTransaction}
                         onCreateEntryFromTransaction={handleCreateEntryFromTransaction}
                     />
