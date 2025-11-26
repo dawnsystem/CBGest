@@ -6,7 +6,7 @@ import { MobileNavigation } from './components/MobileNavigation';
 import { Header } from './components/Header';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
-import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment } from './types';
+import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment, RecurringExpense } from './types';
 import { Eye, Trash, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
@@ -33,6 +33,7 @@ const BankReconciliation = lazy(() => import('./components/BankReconciliation').
 const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const Suppliers = lazy(() => import('./components/Suppliers').then(m => ({ default: m.Suppliers })));
 const ApartmentManager = lazy(() => import('./components/ApartmentManager').then(m => ({ default: m.ApartmentManager })));
+const RecurringExpenseManager = lazy(() => import('./components/RecurringExpenseManager').then(m => ({ default: m.RecurringExpenseManager })));
 const DocumentViewer = lazy(() => import('./components/DocumentViewer').then(m => ({ default: m.DocumentViewer })));
 
 // Loading fallback component
@@ -116,6 +117,7 @@ const MainLayout: React.FC = () => {
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
 
   // UI States
   const [viewingDoc, setViewingDoc] = useState<{file: File, title?: string} | null>(null);
@@ -262,12 +264,13 @@ const MainLayout: React.FC = () => {
                 }
 
                 // Load all data in parallel for better performance
-                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments] = await Promise.all([
+                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses] = await Promise.all([
                     appwriteService.fetchInvoices(),
                     appwriteService.fetchEntries(),
                     appwriteService.fetchTransactions(),
                     appwriteService.fetchSuppliers().catch(() => []), // Don't fail if suppliers fail
-                    appwriteService.fetchApartments().catch(() => []) // Don't fail if apartments fail
+                    appwriteService.fetchApartments().catch(() => []), // Don't fail if apartments fail
+                    appwriteService.fetchRecurringExpenses().catch(() => []) // Don't fail if recurring expenses fail
                 ]);
 
                 // Update state with remote data
@@ -276,8 +279,9 @@ const MainLayout: React.FC = () => {
                 setBankTransactions(remoteTransactions);
                 setSuppliers(remoteSuppliers);
                 setApartments(remoteApartments);
+                setRecurringExpenses(remoteRecurringExpenses);
 
-                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos`);
+                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos, ${remoteRecurringExpenses.length} gastos recurrentes`);
                 setConnectionError(null);
               } catch (e: any) {
                   console.warn("Initial sync failed:", e);
@@ -1071,6 +1075,74 @@ const MainLayout: React.FC = () => {
       }
   };
 
+  // --- RECURRING EXPENSE HANDLERS ---
+  const handleAddRecurringExpense = async (expense: RecurringExpense) => {
+      // Optimistic add
+      setRecurringExpenses(prev => [expense, ...prev]);
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const savedExpense = await appwriteService.createRecurringExpense(expense);
+              // Update with Appwrite ID
+              setRecurringExpenses(prev => prev.map(e => e.id === expense.id ? savedExpense : e));
+              console.log('✅ Gasto recurrente guardado en Appwrite:', savedExpense.id);
+          } catch (error: unknown) {
+              // ROLLBACK: Remove the expense from local state
+              setRecurringExpenses(prev => prev.filter(e => e.id !== expense.id));
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al crear gasto recurrente: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error saving recurring expense to Appwrite:', error);
+          }
+      }
+  };
+
+  const handleUpdateRecurringExpense = async (expense: RecurringExpense) => {
+      const oldExpense = recurringExpenses.find(e => e.id === expense.id);
+
+      // Optimistic update
+      setRecurringExpenses(prev => prev.map(e => e.id === expense.id ? expense : e));
+
+      if (settings.dataConfig?.type === 'APPWRITE') {
+          try {
+              const expenseToUpdate = {
+                  ...expense,
+                  appwriteId: expense.appwriteId || expense.id
+              };
+              await appwriteService.updateRecurringExpense(expenseToUpdate);
+              console.log('✅ Gasto recurrente actualizado en Appwrite:', expense.id);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore old expense
+              if (oldExpense) {
+                  setRecurringExpenses(prev => prev.map(e => e.id === expense.id ? oldExpense : e));
+              }
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al actualizar gasto recurrente: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error updating recurring expense in Appwrite:', error);
+          }
+      }
+  };
+
+  const handleDeleteRecurringExpense = async (id: string) => {
+      const expense = recurringExpenses.find(e => e.id === id);
+
+      // Optimistic delete
+      setRecurringExpenses(prev => prev.filter(e => e.id !== id));
+
+      if (settings.dataConfig?.type === 'APPWRITE' && expense) {
+          try {
+              const docId = expense.appwriteId || expense.id;
+              await appwriteService.deleteRecurringExpense(docId);
+              console.log('✅ Gasto recurrente eliminado de Appwrite:', docId);
+          } catch (error: unknown) {
+              // ROLLBACK: Restore the deleted expense
+              setRecurringExpenses(prev => [expense, ...prev]);
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              showError(`Error al eliminar gasto recurrente: ${errorMessage}. El gasto no se ha eliminado.`);
+              console.error('Error deleting recurring expense from Appwrite:', error);
+          }
+      }
+  };
+
   // Legacy File Handlers
   const handleCloneToFile = async (password: string) => {
       try {
@@ -1363,6 +1435,16 @@ const MainLayout: React.FC = () => {
                         onAddApartment={handleAddApartment}
                         onUpdateApartment={handleUpdateApartment}
                         onDeleteApartment={handleDeleteApartment}
+                    />
+                } />
+                <Route path="/recurring" element={
+                    <RecurringExpenseManager
+                        expenses={recurringExpenses}
+                        apartments={apartments}
+                        suppliers={suppliers}
+                        onAddExpense={handleAddRecurringExpense}
+                        onUpdateExpense={handleUpdateRecurringExpense}
+                        onDeleteExpense={handleDeleteRecurringExpense}
                     />
                 } />
                 <Route path="/books" element={
