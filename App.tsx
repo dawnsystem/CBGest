@@ -266,14 +266,15 @@ const MainLayout: React.FC = () => {
                 }
 
                 // Load all data in parallel for better performance
+                // Each fetch has its own catch handler to prevent partial failures from breaking the entire load
                 const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses, remoteReservations] = await Promise.all([
-                    appwriteService.fetchInvoices(),
-                    appwriteService.fetchEntries(),
-                    appwriteService.fetchTransactions(),
-                    appwriteService.fetchSuppliers().catch(() => []), // Don't fail if suppliers fail
-                    appwriteService.fetchApartments().catch(() => []), // Don't fail if apartments fail
-                    appwriteService.fetchRecurringExpenses().catch(() => []), // Don't fail if recurring expenses fail
-                    appwriteService.fetchReservations().catch(() => []) // Don't fail if reservations fail
+                    appwriteService.fetchInvoices().catch((e) => { console.warn('Failed to fetch invoices:', e); return []; }),
+                    appwriteService.fetchEntries().catch((e) => { console.warn('Failed to fetch entries:', e); return []; }),
+                    appwriteService.fetchTransactions().catch((e) => { console.warn('Failed to fetch transactions:', e); return []; }),
+                    appwriteService.fetchSuppliers().catch((e) => { console.warn('Failed to fetch suppliers:', e); return []; }),
+                    appwriteService.fetchApartments().catch((e) => { console.warn('Failed to fetch apartments:', e); return []; }),
+                    appwriteService.fetchRecurringExpenses().catch((e) => { console.warn('Failed to fetch recurring expenses:', e); return []; }),
+                    appwriteService.fetchReservations().catch((e) => { console.warn('Failed to fetch reservations:', e); return []; })
                 ]);
 
                 // Update state with remote data
@@ -479,7 +480,7 @@ const MainLayout: React.FC = () => {
         addNotification({
           type: 'INVOICE_CREATED',
           title: 'Nueva factura creada',
-          message: `${invoiceWithAudit.type === 'INCOME' ? 'Ingreso' : 'Gasto'} de ${invoiceWithAudit.issuerName} por ${invoiceWithAudit.totalAmount.toFixed(2)}€`,
+          message: `${invoiceWithAudit.type === 'INCOME' ? 'Ingreso' : 'Gasto'} de ${invoiceWithAudit.issuerName} por ${(invoiceWithAudit.totalAmount ?? 0).toFixed(2)}€`,
           userId: user.$id,
           userName: user.name,
           relatedId: invoiceWithAudit.id
@@ -645,7 +646,7 @@ const MainLayout: React.FC = () => {
         addNotification({
           type: 'INVOICE_DELETED',
           title: 'Factura eliminada',
-          message: `${invoice.issuerName} - ${invoice.totalAmount.toFixed(2)}€`,
+          message: `${invoice.issuerName} - ${(invoice.totalAmount ?? 0).toFixed(2)}€`,
           userId: user.$id,
           userName: user.name,
           relatedId: id
@@ -1330,7 +1331,7 @@ const MainLayout: React.FC = () => {
       }
 
       // Check if properly configured
-      if (!settings.dataConfig.appwriteProjectId || !settings.dataConfig.appwriteDatabaseId || !settings.dataConfig.appwriteBucketId) {
+      if (!settings.dataConfig?.appwriteProjectId || !settings.dataConfig?.appwriteDatabaseId || !settings.dataConfig?.appwriteBucketId) {
         return 'DISCONNECTED'; // Not configured
       }
 
