@@ -6,7 +6,8 @@ export enum UserRole {
 }
 
 // --- COMMON TYPES (used across multiple interfaces) ---
-export type NifType = 'NIF' | 'CIF' | 'NIE' | 'DNI' | 'PASAPORTE';
+// NifType includes all Spanish tax ID types plus VAT for EU intra-community operations
+export type NifType = 'NIF' | 'CIF' | 'NIE' | 'DNI' | 'PASAPORTE' | 'VAT' | 'PASSPORT' | 'OTHER';
 
 export interface AppwriteUser {
   $id: string;

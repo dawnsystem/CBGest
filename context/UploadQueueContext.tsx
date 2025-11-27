@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier } from '../types';
 import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
 import { useAuth } from './AuthContext';
 import { generateId } from '../utils/defaults';
+import { uploadLogger } from '../services/logger';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
 
@@ -41,7 +42,7 @@ const base64ToFile = (dataurl: string, filename: string, mimeType: string): File
     }
     return new File([u8arr], filename, { type: mimeType });
   } catch (e) {
-    console.error("Error reconstructing file:", e);
+    uploadLogger.error("Error reconstructing file:", e);
     return new File([""], filename, { type: mimeType });
   }
 };
@@ -78,7 +79,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         });
         setQueue(rehydratedItems);
       } catch (error) {
-        console.error('Error cargando cola de subidas:', error);
+        uploadLogger.error('Error cargando cola de subidas:', error);
         setQueue([]);
       }
       setIsHydrated(true);
@@ -157,17 +158,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     ));
   };
 
-  // Processing Logic
-  useEffect(() => {
-    if (processingId) return;
-    if (!isHydrated) return;
-    const nextItem = queue.find(item => item.status === 'QUEUED');
-    if (!nextItem) return;
-
-    processItem(nextItem);
-  }, [queue, processingId, isHydrated]);
-
-  const processItem = async (item: QueueItem) => {
+  // processItem wrapped in useCallback to satisfy deps
+  const processItem = useCallback(async (item: QueueItem) => {
     setProcessingId(item.id);
 
     // Update to ANALYZING status - save to Appwrite
@@ -175,7 +167,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     try {
       await protectedDatabase.updateUploadItem(analyzingItem);
     } catch (error) {
-      console.error('Error actualizando estado a ANALYZING:', error);
+      uploadLogger.error('Error actualizando estado a ANALYZING:', error);
     }
     setQueue(prev => prev.map(i => i.id === item.id ? analyzingItem : i));
 
@@ -278,7 +270,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
     } catch (err: unknown) {
       clearInterval(progressInterval);
-      console.error(err);
+      uploadLogger.error('Error processing item:', err);
 
       const errorMessage = err instanceof Error ? err.message : 'Error en análisis IA.';
       const errorItem = {
@@ -293,13 +285,23 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       try {
         await protectedDatabase.updateUploadItem(errorItem);
       } catch (saveError) {
-        console.error('Error guardando estado de error:', saveError);
+        uploadLogger.error('Error guardando estado de error:', saveError);
       }
       setQueue(prev => prev.map(i => i.id === item.id ? errorItem : i));
     } finally {
       setProcessingId(null);
     }
-  };
+  }, [suppliers]);
+
+  // Processing Logic - runs when queue changes
+  useEffect(() => {
+    if (processingId) return;
+    if (!isHydrated) return;
+    const nextItem = queue.find(item => item.status === 'QUEUED');
+    if (!nextItem) return;
+
+    processItem(nextItem);
+  }, [queue, processingId, isHydrated, processItem]);
 
   return (
     <UploadQueueContext.Provider value={{ queue, addToQueue, removeFromQueue, retryItem, clearCompleted, dismissNotifications }}>

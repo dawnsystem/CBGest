@@ -1,7 +1,14 @@
 
-import React from 'react';
-import { FileText, Download, Calculator, AlertCircle } from 'lucide-react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { FileText, Download, AlertCircle, Loader2, Users } from 'lucide-react';
 import { Invoice, AppSettings } from '../types';
+import {
+  generatePDF303,
+  generatePDF184,
+  generatePartnerCertificate,
+  downloadPDF,
+  calculateTaxData
+} from '../services/pdfService';
 
 interface TaxModelsProps {
   invoices: Invoice[];
@@ -9,40 +16,82 @@ interface TaxModelsProps {
 }
 
 export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
-  
-  // Cálculo básico
-  const ivaRepercutido = (invoices || [])
-    .filter(i => i.type === 'INCOME')
-    .reduce((acc, curr) => acc + curr.vatAmount, 0);
+  const [generating303, setGenerating303] = useState(false);
+  const [generating184, setGenerating184] = useState(false);
+  const [generatingCerts, setGeneratingCerts] = useState(false);
 
-  const ivaSoportado = (invoices || [])
-    .filter(i => i.type === 'EXPENSE')
-    .reduce((acc, curr) => acc + curr.vatAmount, 0);
+  // Usar servicio centralizado para cálculos
+  const taxData = calculateTaxData(invoices, settings);
+  const { ivaRepercutido, ivaSoportado, resultadoIVA, totalIngresos, totalGastos, rendimientoNeto } = taxData;
 
-  const resultadoIVA = ivaRepercutido - ivaSoportado;
-
-  // Cálculo Rendimiento Neto (Para Mod 184)
-  // En régimen de alquiler, el IVA soportado es GASTO si no se deduce.
-  const totalIngresos = (invoices || [])
-    .filter(i => i.type === 'INCOME')
-    .reduce((acc, curr) => acc + curr.baseAmount, 0); // Rentas normalmente van sin IVA o exentas
-
-  const totalGastos = (invoices || [])
-    .filter(i => i.type === 'EXPENSE')
-    .reduce((acc, curr) => {
-        // Si es exento, el gasto es el Total (Base + IVA). Si es General, es solo Base.
-        if (settings.fiscalRegime === 'ALQUILER_EXENTO') {
-            return acc + curr.totalAmount; 
-        }
-        return acc + curr.baseAmount;
-    }, 0);
-
-  const rendimientoNeto = totalIngresos - totalGastos;
+  const currentYear = new Date().getFullYear();
+  const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+  const trimestre = `${currentQuarter}T`;
 
   const showMod303 = settings.fiscalRegime === 'GENERAL' && settings.vatObligation;
-  
-  // SAFE GUARD: Ensure partners exists
-  const partners = settings.partners || [];
+
+  // SAFE GUARD: Ensure partners exists - memoized to prevent re-renders
+  const partners = useMemo(() => settings.partners || [], [settings.partners]);
+
+  // Handler para generar PDF del Modelo 303
+  const handleGenerate303 = useCallback(() => {
+    setGenerating303(true);
+    try {
+      const blob = generatePDF303({
+        trimestre,
+        year: currentYear,
+        ivaRepercutido,
+        ivaSoportado,
+        resultado: resultadoIVA,
+        settings
+      });
+      downloadPDF(blob, `Modelo303_${trimestre}_${currentYear}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF 303:', error);
+      alert('Error al generar el PDF. Por favor, inténtelo de nuevo.');
+    } finally {
+      setGenerating303(false);
+    }
+  }, [trimestre, currentYear, ivaRepercutido, ivaSoportado, resultadoIVA, settings]);
+
+  // Handler para generar PDF del Modelo 184
+  const handleGenerate184 = useCallback(() => {
+    setGenerating184(true);
+    try {
+      const blob = generatePDF184({
+        year: currentYear,
+        rendimientoNeto,
+        totalIngresos,
+        totalGastos,
+        settings
+      });
+      downloadPDF(blob, `Modelo184_${currentYear}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF 184:', error);
+      alert('Error al generar el PDF. Por favor, inténtelo de nuevo.');
+    } finally {
+      setGenerating184(false);
+    }
+  }, [currentYear, rendimientoNeto, totalIngresos, totalGastos, settings]);
+
+  // Handler para generar certificados de los partícipes
+  const handleGenerateCertificates = useCallback(() => {
+    setGeneratingCerts(true);
+    try {
+      partners.forEach((partner, index) => {
+        const blob = generatePartnerCertificate(partner, settings, rendimientoNeto, currentYear);
+        // Small delay between downloads to prevent browser blocking
+        setTimeout(() => {
+          downloadPDF(blob, `Certificado_${partner.name.replace(/\s+/g, '_')}_${currentYear}.pdf`);
+        }, index * 300);
+      });
+    } catch (error) {
+      console.error('Error generating certificates:', error);
+      alert('Error al generar los certificados. Por favor, inténtelo de nuevo.');
+    } finally {
+      setTimeout(() => setGeneratingCerts(false), partners.length * 300 + 500);
+    }
+  }, [partners, settings, rendimientoNeto, currentYear]);
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
@@ -88,8 +137,16 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
               </div>
 
               <div className="flex gap-3">
-                <button className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-2">
-                  <Download className="w-4 h-4" /> Generar PDF
+                <button
+                  onClick={handleGenerate303}
+                  disabled={generating303}
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {generating303 ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
+                  ) : (
+                    <><Download className="w-4 h-4" /> Generar PDF</>
+                  )}
                 </button>
               </div>
             </div>
@@ -147,13 +204,34 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
              <div className="bg-emerald-50 rounded-lg p-3 mb-4 flex gap-2 items-start">
                 <AlertCircle className="w-4 h-4 text-emerald-700 mt-0.5" />
                 <p className="text-xs text-emerald-800">
-                    Este cálculo simula el "Rendimiento del Capital Inmobiliario" neto a imputar en la Renta (IRPF) de cada socio.
+                    Este cálculo simula el &ldquo;Rendimiento del Capital Inmobiliario&rdquo; neto a imputar en la Renta (IRPF) de cada socio.
                 </p>
              </div>
 
-             <button className="w-full bg-white border border-slate-300 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center justify-center gap-2">
-                <FileText className="w-4 h-4" /> Previsualizar Certificados
-              </button>
+             <div className="flex gap-3">
+               <button
+                 onClick={handleGenerate184}
+                 disabled={generating184}
+                 className="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+               >
+                 {generating184 ? (
+                   <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
+                 ) : (
+                   <><Download className="w-4 h-4" /> Modelo 184</>
+                 )}
+               </button>
+               <button
+                 onClick={handleGenerateCertificates}
+                 disabled={generatingCerts || partners.length === 0}
+                 className="flex-1 bg-white border border-slate-300 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+               >
+                 {generatingCerts ? (
+                   <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
+                 ) : (
+                   <><Users className="w-4 h-4" /> Certificados</>
+                 )}
+               </button>
+             </div>
           </div>
         </div>
       </div>

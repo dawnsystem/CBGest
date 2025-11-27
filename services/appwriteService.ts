@@ -19,6 +19,7 @@
 import { Query, ID } from 'appwrite';
 import { client, account, databases, storage, config } from '../lib/appwrite/client';
 import { authService } from './authService';
+import { dataLogger } from './logger';
 import type {
   Invoice,
   AccountingEntry,
@@ -95,7 +96,7 @@ const withRetry = async <T>(
     try {
       const result = await operation();
       if (attempt > 0) {
-        console.log(`[${operationName}] Succeeded after ${attempt} retries`);
+        dataLogger.debug(`[${operationName}] Succeeded after ${attempt} retries`);
       }
       return result;
     } catch (error: any) {
@@ -132,7 +133,7 @@ const withRetry = async <T>(
  * Esta función existe solo para compatibilidad con código existente.
  */
 export const initializeAppwrite = (_config?: any) => {
-  console.log('[appwriteService] initializeAppwrite called - client already initialized via lib/appwrite/client.ts');
+  dataLogger.debug('initializeAppwrite called - client already initialized via lib/appwrite/client.ts');
 };
 
 /**
@@ -153,7 +154,7 @@ export const testConnection = async (): Promise<boolean> => {
       if (error?.code !== 401) throw error;
     });
     connectionHealthy = true;
-    console.log('Appwrite connection test successful');
+    dataLogger.success('Appwrite connection test successful');
     return true;
   } catch (error: any) {
     console.error('Connection test failed:', error?.message);
@@ -188,7 +189,7 @@ export const verifyCollections = async (): Promise<{
     try {
       await databases.listDocuments(config.databaseId, col.id, [Query.limit(1)]);
       result.collections[col.name] = true;
-      console.log(`Colección '${col.name}' accesible`);
+      dataLogger.debug(`Colección '${col.name}' accesible`);
     } catch (error: any) {
       result.collections[col.name] = false;
       result.success = false;
@@ -1556,7 +1557,7 @@ export const createInvoice = async (invoice: Invoice): Promise<Invoice> => {
   let appwriteFileId: string | undefined;
 
   if (invoice.file) {
-    console.log('Uploading invoice file:', invoice.file.name);
+    dataLogger.cloud('Uploading invoice file:', invoice.file.name);
     appwriteFileId = await storageService.uploadFile(invoice.file, `invoice-${invoice.id}`);
   }
 

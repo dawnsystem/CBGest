@@ -29,20 +29,30 @@ export const Settings: React.FC<SettingsProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'PARTNERS' | 'DATA'>('GENERAL');
   
-  // Ensure partners and dataConfig are initialized correctly
-  const [formData, setFormData] = useState<AppSettings>({
-      ...settings,
-      partners: settings.partners || [],
-      dataConfig: settings.dataConfig || createDefaultDataSourceConfig()
+  // Initialize form data with settings
+  // Using a function to compute initial state avoids the need for useEffect sync
+  const getInitialFormData = (): AppSettings => ({
+    ...settings,
+    partners: settings.partners || [],
+    dataConfig: settings.dataConfig || createDefaultDataSourceConfig()
   });
 
-  // Sync with incoming settings props changes
-  useEffect(() => {
-      setFormData(prev => ({
-          ...settings,
-          partners: settings.partners || prev.partners || [],
-          dataConfig: settings.dataConfig || prev.dataConfig || createDefaultDataSourceConfig()
-      }));
+  const [formData, setFormData] = useState<AppSettings>(getInitialFormData);
+
+  // Track settings reference to detect external changes
+  const settingsRef = React.useRef(settings);
+
+  // Sync with incoming settings props changes only when they actually change
+  React.useEffect(() => {
+    // Only update if settings reference changed (external update)
+    if (settingsRef.current !== settings) {
+      settingsRef.current = settings;
+      setFormData({
+        ...settings,
+        partners: settings.partners || [],
+        dataConfig: settings.dataConfig || createDefaultDataSourceConfig()
+      });
+    }
   }, [settings]);
 
   const [isSaved, setIsSaved] = useState(false);

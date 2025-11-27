@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { Home, TrendingDown, Calendar, Filter } from 'lucide-react';
+import { Home, TrendingDown, Filter } from 'lucide-react';
 import { Invoice, Apartment } from '../types';
 
 interface ExpensesByApartmentProps {
@@ -23,6 +23,30 @@ const COLORS = [
 ];
 
 const COMMON_COLOR = '#64748b'; // slate for common/unassigned
+
+// Custom Tooltip component moved outside to prevent recreation on each render
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload: { fullName: string; value: number } }>;
+  totalExpenses: number;
+}
+
+const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, totalExpenses }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const percentage = totalExpenses > 0 ? ((data.value / totalExpenses) * 100).toFixed(1) : '0';
+    return (
+      <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-slate-200">
+        <p className="font-medium text-slate-900">{data.fullName}</p>
+        <p className="text-sm text-slate-600">
+          {data.value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+        </p>
+        <p className="text-xs text-slate-400">{percentage}% del total</p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoices, apartments }) => {
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('year');
@@ -119,32 +143,15 @@ export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoic
     switch (periodFilter) {
       case 'month':
         return now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-      case 'quarter':
+      case 'quarter': {
         const quarter = Math.floor(now.getMonth() / 3) + 1;
         return `${quarter}T ${now.getFullYear()}`;
+      }
       case 'year':
         return `Año ${now.getFullYear()}`;
       case 'all':
         return 'Todo el histórico';
     }
-  };
-
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      const percentage = ((data.value / totalExpenses) * 100).toFixed(1);
-      return (
-        <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-slate-200">
-          <p className="font-medium text-slate-900">{data.fullName}</p>
-          <p className="text-sm text-slate-600">
-            {data.value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          </p>
-          <p className="text-xs text-slate-400">{percentage}% del total</p>
-        </div>
-      );
-    }
-    return null;
   };
 
   return (
@@ -202,7 +209,7 @@ export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoic
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip totalExpenses={totalExpenses} />} />
                 <Legend
                   verticalAlign="bottom"
                   height={36}

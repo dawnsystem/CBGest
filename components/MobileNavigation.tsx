@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, PlusCircle, BookOpen, MoreHorizontal, Settings, Building2, Scale, X, CalendarCheck } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, BookOpen, MoreHorizontal, Settings, Building2, Scale, X, CalendarCheck, Home, RefreshCw } from 'lucide-react';
 
 export const MobileNavigation: React.FC = () => {
   const location = useLocation();
@@ -8,7 +8,7 @@ export const MobileNavigation: React.FC = () => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) => location.pathname === path;
-  const isMoreActive = ['/settings', '/suppliers', '/reconciliation', '/reservations'].includes(location.pathname);
+  const isMoreActive = ['/settings', '/suppliers', '/reconciliation', '/reservations', '/apartments', '/recurring'].includes(location.pathname);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -45,6 +45,26 @@ export const MobileNavigation: React.FC = () => {
           className="fixed bottom-20 right-4 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 md:hidden animate-fade-in-up min-w-[200px]"
         >
           <div className="p-2 space-y-1">
+            <Link
+              to="/apartments"
+              onClick={closeMenu}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive('/apartments') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Home className="w-5 h-5" />
+              <span className="text-sm font-medium">Apartamentos</span>
+            </Link>
+            <Link
+              to="/recurring"
+              onClick={closeMenu}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive('/recurring') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <RefreshCw className="w-5 h-5" />
+              <span className="text-sm font-medium">Gastos Fijos</span>
+            </Link>
             <Link
               to="/suppliers"
               onClick={closeMenu}

@@ -3,6 +3,10 @@ import { GoogleGenAI, Type } from "@google/genai";
 import readXlsxFile from 'read-excel-file';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 import { Supplier, BankTransaction } from '../types';
+import type { GeminiInvoiceResponse, GeminiBankTransaction } from '../types/gemini';
+
+// Re-export types for consumers
+export type { GeminiInvoiceResponse, GeminiBankTransaction } from '../types/gemini';
 
 // Initialize Gemini client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
@@ -11,7 +15,7 @@ export const analyzeInvoiceImage = async (
   base64Data: string,
   mimeType: string,
   existingSuppliers: Supplier[] = []
-): Promise<any> => {
+): Promise<GeminiInvoiceResponse> => {
   try {
     const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -151,7 +155,7 @@ export const analyzeInvoiceImage = async (
 };
 
 // NEW: Bank Statement Parser
-export const analyzeBankStatement = async (base64Data: string, mimeType: string): Promise<any[]> => {
+export const analyzeBankStatement = async (base64Data: string, mimeType: string): Promise<GeminiBankTransaction[]> => {
   try {
     const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
