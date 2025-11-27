@@ -10,6 +10,9 @@ import { generateId } from '../utils/defaults';
 import * as appwriteService from '../services/appwriteService';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { createLogger } from '../services/logger';
+
+const logger = createLogger('InvoiceHook');
 
 interface UseInvoicesOptions {
   settings: AppSettings;
@@ -97,7 +100,7 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
         setInvoices(prev => prev.filter(i => i.id !== invoiceWithAudit.id));
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         showError(`Error al guardar factura: ${errorMessage}. Los cambios no se han guardado.`);
-        console.error('Error saving invoice to Appwrite:', error);
+        logger.error('Error saving invoice to Appwrite:', error);
         return;
       }
     }
@@ -134,7 +137,7 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
           createdByName: user?.name
         };
 
-        console.log("Auto-creating supplier from invoice:", newSupplier.name, newSupplier.nif);
+        logger.info("Auto-creating supplier from invoice:", { name: newSupplier.name, nif: newSupplier.nif });
         onAddSupplier(newSupplier);
 
         const updatedInvoice = { ...originalInvoice, supplierId: newSupplier.id };
@@ -142,15 +145,15 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
       } else if (!invoiceWithAudit.supplierId) {
         const updatedInvoice = { ...originalInvoice, supplierId: existingSupplier.id };
         setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? updatedInvoice : i));
-        console.log("Linked invoice to existing supplier:", existingSupplier.name);
+        logger.debug("Linked invoice to existing supplier:", existingSupplier.name);
       }
     }
 
     if (originalStatus === 'PROCESSED' || originalStatus === 'PAID') {
-      console.log("Auto-creating entry for invoice:", originalInvoice.id, "Status:", originalStatus);
+      logger.debug("Auto-creating entry for invoice:", { id: originalInvoice.id, status: originalStatus });
       createEntryFromInvoice(originalInvoice);
     } else {
-      console.log("Invoice saved as PENDING - no accounting entry created yet:", originalInvoice.id);
+      logger.debug("Invoice saved as PENDING - no accounting entry created yet:", originalInvoice.id);
     }
   }, [user, settings, suppliers, addNotification, showError, onAddSupplier, createEntryFromInvoice]);
 
@@ -168,7 +171,7 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
         }
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         showError(`Error al actualizar factura: ${errorMessage}. Los cambios no se han guardado.`);
-        console.error('Error updating invoice in Appwrite:', error);
+        logger.error('Error updating invoice in Appwrite:', error);
         return;
       }
     }
@@ -187,10 +190,10 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
     if (oldInvoice?.status === 'PENDING' && (invoice.status === 'PROCESSED' || invoice.status === 'PAID')) {
       const existingEntry = accountingEntries.find(e => e.invoiceId === invoice.id);
       if (!existingEntry) {
-        console.log("Invoice status changed to PROCESSED/PAID - creating accounting entry:", invoice.id);
+        logger.debug("Invoice status changed to PROCESSED/PAID - creating accounting entry:", invoice.id);
         createEntryFromInvoice(invoice);
       } else {
-        console.log("Accounting entry already exists for invoice:", invoice.id);
+        logger.debug("Accounting entry already exists for invoice:", invoice.id);
       }
     }
   }, [invoices, settings, accountingEntries, user, addNotification, showError, createEntryFromInvoice]);
@@ -204,12 +207,12 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
       try {
         const docId = invoice.appwriteId || invoice.id;
         await appwriteService.deleteInvoice(docId);
-        console.log('✅ Factura eliminada de Appwrite:', docId);
+        logger.success('Factura eliminada de Appwrite:', docId);
       } catch (error: unknown) {
         setInvoices(prev => [invoice, ...prev]);
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         showError(`Error al eliminar factura: ${errorMessage}. La factura no se ha eliminado.`);
-        console.error('Error deleting invoice from Appwrite:', error);
+        logger.error('Error deleting invoice from Appwrite:', error);
         return;
       }
     }

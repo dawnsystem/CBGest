@@ -18,6 +18,7 @@ import {
 import * as appwriteService from '../services/appwriteService';
 import { useAuth, useSessionReady } from '../context/AuthContext';
 import { APPWRITE_CONFIG } from '../config/appwrite';
+import { dataLogger } from '../services/logger';
 
 interface UseAppwriteDataOptions {
   onError: (message: string) => void;
@@ -108,7 +109,7 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
 
     setIsLoading(true);
     try {
-      console.log('📥 Loading data from Appwrite...');
+      dataLogger.loading('Loading data from Appwrite...');
 
       // Perform health check first
       const health = await appwriteService.performHealthCheck();
@@ -161,9 +162,9 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
       }
 
       dataLoadedRef.current = true;
-      console.log(`✅ Data loaded: ${remoteInvoices.length} invoices, ${remoteEntries.length} entries`);
+      dataLogger.success(`Data loaded: ${remoteInvoices.length} invoices, ${remoteEntries.length} entries`);
     } catch (error) {
-      console.error('Error loading data:', error);
+      dataLogger.error('Error loading data:', error);
       onError('Error al cargar datos desde Appwrite');
     } finally {
       setIsLoading(false);
@@ -181,7 +182,7 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
   useEffect(() => {
     if (!user || !sessionReady || !dataLoadedRef.current) return;
 
-    console.log('🔴 Setting up Appwrite Realtime subscriptions...');
+    dataLogger.ready('Setting up Appwrite Realtime subscriptions...');
 
     // Subscribe to all data changes
     // Note: payload.payload has $id from Appwrite but our types use id
@@ -240,12 +241,12 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
 
       if (events.some(e => e.includes('suppliers'))) {
         // Refresh suppliers on any change
-        appwriteService.fetchSuppliers().then(setSuppliers).catch(console.error);
+        appwriteService.fetchSuppliers().then(setSuppliers).catch(err => dataLogger.error('Error fetching suppliers:', err));
       }
     });
 
     return () => {
-      console.log('🔴 Cleaning up Realtime subscriptions');
+      dataLogger.debug('Cleaning up Realtime subscriptions');
       unsubscribe();
     };
   }, [user, sessionReady]);
