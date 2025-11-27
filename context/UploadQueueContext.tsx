@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier } from '../types';
 import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
@@ -157,17 +157,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     ));
   };
 
-  // Processing Logic
-  useEffect(() => {
-    if (processingId) return;
-    if (!isHydrated) return;
-    const nextItem = queue.find(item => item.status === 'QUEUED');
-    if (!nextItem) return;
-
-    processItem(nextItem);
-  }, [queue, processingId, isHydrated]);
-
-  const processItem = async (item: QueueItem) => {
+  // processItem wrapped in useCallback to satisfy deps
+  const processItem = useCallback(async (item: QueueItem) => {
     setProcessingId(item.id);
 
     // Update to ANALYZING status - save to Appwrite
@@ -299,7 +290,17 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     } finally {
       setProcessingId(null);
     }
-  };
+  }, [suppliers]);
+
+  // Processing Logic - runs when queue changes
+  useEffect(() => {
+    if (processingId) return;
+    if (!isHydrated) return;
+    const nextItem = queue.find(item => item.status === 'QUEUED');
+    if (!nextItem) return;
+
+    processItem(nextItem);
+  }, [queue, processingId, isHydrated, processItem]);
 
   return (
     <UploadQueueContext.Provider value={{ queue, addToQueue, removeFromQueue, retryItem, clearCompleted, dismissNotifications }}>

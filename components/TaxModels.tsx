@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { FileText, Download, AlertCircle, Loader2, Users } from 'lucide-react';
 import { Invoice, AppSettings } from '../types';
 import {
@@ -30,8 +30,8 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
 
   const showMod303 = settings.fiscalRegime === 'GENERAL' && settings.vatObligation;
 
-  // SAFE GUARD: Ensure partners exists
-  const partners = settings.partners || [];
+  // SAFE GUARD: Ensure partners exists - memoized to prevent re-renders
+  const partners = useMemo(() => settings.partners || [], [settings.partners]);
 
   // Handler para generar PDF del Modelo 303
   const handleGenerate303 = useCallback(() => {

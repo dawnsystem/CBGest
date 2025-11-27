@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, FileSpreadsheet, Check, AlertCircle, ArrowRight, ChevronDown, ChevronUp, Save, RefreshCw } from 'lucide-react';
 import readXlsxFile from 'read-excel-file';
 import {
@@ -25,6 +25,52 @@ interface ColumnMapping {
 }
 
 type AmountMode = 'single' | 'separate';
+
+// Parse helpers moved outside component - pure functions
+const parseDate = (value: unknown): string => {
+  if (!value) return '';
+
+  // Handle Date objects (ExcelJS returns actual Date objects for date cells)
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  const str = String(value).trim();
+
+  // DD/MM/YYYY or DD-MM-YYYY
+  const ddmmyyyy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (ddmmyyyy) {
+    return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`;
+  }
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    return str;
+  }
+
+  // Excel serial number (days since 1900-01-01)
+  if (!isNaN(Number(str))) {
+    const serial = Number(str);
+    // Excel serial date: days since 1899-12-30 (Excel's epoch with the 1900 leap year bug)
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  return '';
+};
+
+const parseAmount = (value: unknown): number => {
+  if (value === null || value === undefined || value === '') return 0;
+  const str = String(value).replace(/[^\d,.\-]/g, '').replace(',', '.');
+  return parseFloat(str) || 0;
+};
 
 export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
   base64Data,
@@ -181,66 +227,8 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
     return true;
   }, [mapping, amountMode]);
 
-  // Auto-process when we have a saved mapping
-  useEffect(() => {
-    if (autoProcessing && isValid && rawData.length > 0) {
-      // Small delay to show the user what's happening
-      const timer = setTimeout(() => {
-        processAndConfirm(true);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [autoProcessing, isValid, rawData]);
-
-  // Parse date helper
-  const parseDate = (value: any): string => {
-    if (!value) return '';
-
-    // Handle Date objects (ExcelJS returns actual Date objects for date cells)
-    if (value instanceof Date) {
-      const year = value.getFullYear();
-      const month = String(value.getMonth() + 1).padStart(2, '0');
-      const day = String(value.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    const str = String(value).trim();
-
-    // DD/MM/YYYY or DD-MM-YYYY
-    const ddmmyyyy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-    if (ddmmyyyy) {
-      return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`;
-    }
-
-    // YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-      return str;
-    }
-
-    // Excel serial number (days since 1900-01-01)
-    if (!isNaN(Number(str))) {
-      const serial = Number(str);
-      // Excel serial date: days since 1899-12-30 (Excel's epoch with the 1900 leap year bug)
-      const excelEpoch = new Date(1899, 11, 30);
-      const date = new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    return '';
-  };
-
-  // Parse amount helper
-  const parseAmount = (value: any): number => {
-    if (value === null || value === undefined || value === '') return 0;
-    const str = String(value).replace(/[^\d,.\-]/g, '').replace(',', '.');
-    return parseFloat(str) || 0;
-  };
-
-  // Process and confirm (with option to save mapping)
-  const processAndConfirm = (skipSave: boolean = false) => {
+  // Process and confirm (with option to save mapping) - wrapped in useCallback
+  const processAndConfirm = useCallback((skipSave: boolean = false) => {
     if (!isValid) return;
 
     const transactions: { date: string; concept: string; amount: number }[] = [];
@@ -295,7 +283,18 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
     }
 
     onConfirm(transactions);
-  };
+  }, [isValid, dataStartRow, rawData, mapping, amountMode, usingSavedMapping, headers, onConfirm]);
+
+  // Auto-process when we have a saved mapping
+  useEffect(() => {
+    if (autoProcessing && isValid && rawData.length > 0) {
+      // Small delay to show the user what's happening
+      const timer = setTimeout(() => {
+        processAndConfirm(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoProcessing, isValid, rawData, processAndConfirm]);
 
   // Handler for manual confirm button
   const handleConfirm = () => {
