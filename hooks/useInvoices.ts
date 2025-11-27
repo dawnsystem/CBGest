@@ -1,0 +1,241 @@
+/**
+ * @fileoverview Hook para gestión de facturas
+ * @description Encapsula la lógica de estado y operaciones CRUD de facturas
+ */
+
+import { useState, useCallback, Dispatch, SetStateAction } from 'react';
+import { Invoice, AppSettings, Supplier, AccountingEntry } from '../types';
+import { detectNifType } from '../utils/validators';
+import { generateId } from '../utils/defaults';
+import * as appwriteService from '../services/appwriteService';
+import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
+
+interface UseInvoicesOptions {
+  settings: AppSettings;
+  suppliers: Supplier[];
+  accountingEntries: AccountingEntry[];
+  showError: (message: string, autoClearMs?: number) => void;
+  onAddSupplier: (supplier: Supplier) => void;
+  onAddEntry: (entry: AccountingEntry) => void;
+  onDeleteEntry: (id: string) => void;
+}
+
+interface UseInvoicesReturn {
+  invoices: Invoice[];
+  setInvoices: Dispatch<SetStateAction<Invoice[]>>;
+  handleAddInvoice: (invoice: Invoice) => Promise<void>;
+  handleUpdateInvoice: (invoice: Invoice) => Promise<void>;
+  handleDeleteInvoice: (id: string) => Promise<void>;
+}
+
+export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
+  const { settings, suppliers, accountingEntries, showError, onAddSupplier, onAddEntry, onDeleteEntry } = options;
+  const { user } = useAuth();
+  const { addNotification } = useNotifications();
+
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+
+  const createEntryFromInvoice = useCallback((inv: Invoice) => {
+    let accountCode = inv.type === 'EXPENSE' ? '600' : '700';
+    let accountName = inv.type === 'EXPENSE' ? 'Compras' : 'Ventas';
+
+    if (inv.category) {
+      const parts = inv.category.split(' - ');
+      if (parts.length > 1) {
+        accountCode = parts[0].trim();
+        accountName = parts.slice(1).join(' - ').trim();
+      } else {
+        accountCode = parts[0].trim();
+      }
+    }
+
+    const newEntry: AccountingEntry = {
+      id: `AUTO-${inv.id}`,
+      date: inv.date,
+      concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
+      accountCode: accountCode,
+      accountName: accountName,
+      debit: inv.type === 'EXPENSE' ? inv.totalAmount : 0,
+      credit: inv.type === 'INCOME' ? inv.totalAmount : 0,
+      invoiceId: inv.id,
+      referenceDoc: inv.file,
+      fileData: inv.fileData,
+      fileType: inv.fileType,
+      appwriteFileId: inv.appwriteFileId,
+      reconciled: false,
+      createdBy: inv.createdBy || user?.$id,
+      createdByName: inv.createdByName || user?.name,
+      createdAt: new Date().toISOString()
+    };
+
+    onAddEntry(newEntry);
+  }, [user, onAddEntry]);
+
+  const handleAddInvoice = useCallback(async (invoice: Invoice) => {
+    const originalStatus = invoice.status;
+
+    const invoiceWithAudit: Invoice = {
+      ...invoice,
+      createdBy: user?.$id,
+      createdByName: user?.name,
+      createdAt: new Date().toISOString()
+    };
+    const originalInvoice = { ...invoiceWithAudit };
+
+    setInvoices(prev => [invoiceWithAudit, ...prev]);
+
+    if (settings.dataConfig?.type === 'APPWRITE') {
+      try {
+        const savedInv = await appwriteService.createInvoice(invoiceWithAudit);
+        const mergedInvoice = {
+          ...savedInv,
+          status: savedInv.status || originalStatus
+        };
+        setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? mergedInvoice : i));
+      } catch (error: unknown) {
+        setInvoices(prev => prev.filter(i => i.id !== invoiceWithAudit.id));
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        showError(`Error al guardar factura: ${errorMessage}. Los cambios no se han guardado.`);
+        console.error('Error saving invoice to Appwrite:', error);
+        return;
+      }
+    }
+
+    if (user) {
+      addNotification({
+        type: 'INVOICE_CREATED',
+        title: 'Nueva factura creada',
+        message: `${invoiceWithAudit.type === 'INCOME' ? 'Ingreso' : 'Gasto'} de ${invoiceWithAudit.issuerName} por ${(invoiceWithAudit.totalAmount ?? 0).toFixed(2)}€`,
+        userId: user.$id,
+        userName: user.name,
+        relatedId: invoiceWithAudit.id
+      });
+    }
+
+    if ((originalStatus === 'PROCESSED' || originalStatus === 'PAID') && invoiceWithAudit.issuerNif && invoiceWithAudit.issuerName) {
+      const existingSupplier = suppliers.find(s =>
+        s.nif.toUpperCase().replace(/\s/g, '') === invoiceWithAudit.issuerNif.toUpperCase().replace(/\s/g, '')
+      );
+
+      if (!existingSupplier) {
+        const now = new Date().toISOString();
+        const newSupplier: Supplier = {
+          id: generateId(),
+          name: invoiceWithAudit.issuerName,
+          nif: invoiceWithAudit.issuerNif.toUpperCase(),
+          nifType: detectNifType(invoiceWithAudit.issuerNif),
+          address: invoiceWithAudit.issuerAddress,
+          city: invoiceWithAudit.issuerCity,
+          postalCode: invoiceWithAudit.issuerPostalCode,
+          createdAt: now,
+          updatedAt: now,
+          createdBy: user?.$id,
+          createdByName: user?.name
+        };
+
+        console.log("Auto-creating supplier from invoice:", newSupplier.name, newSupplier.nif);
+        onAddSupplier(newSupplier);
+
+        const updatedInvoice = { ...originalInvoice, supplierId: newSupplier.id };
+        setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? updatedInvoice : i));
+      } else if (!invoiceWithAudit.supplierId) {
+        const updatedInvoice = { ...originalInvoice, supplierId: existingSupplier.id };
+        setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? updatedInvoice : i));
+        console.log("Linked invoice to existing supplier:", existingSupplier.name);
+      }
+    }
+
+    if (originalStatus === 'PROCESSED' || originalStatus === 'PAID') {
+      console.log("Auto-creating entry for invoice:", originalInvoice.id, "Status:", originalStatus);
+      createEntryFromInvoice(originalInvoice);
+    } else {
+      console.log("Invoice saved as PENDING - no accounting entry created yet:", originalInvoice.id);
+    }
+  }, [user, settings, suppliers, addNotification, showError, onAddSupplier, createEntryFromInvoice]);
+
+  const handleUpdateInvoice = useCallback(async (invoice: Invoice) => {
+    const oldInvoice = invoices.find(i => i.id === invoice.id);
+
+    setInvoices(prev => prev.map(i => i.id === invoice.id ? invoice : i));
+
+    if (settings.dataConfig?.type === 'APPWRITE') {
+      try {
+        await appwriteService.updateInvoice(invoice);
+      } catch (error: unknown) {
+        if (oldInvoice) {
+          setInvoices(prev => prev.map(i => i.id === invoice.id ? oldInvoice : i));
+        }
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        showError(`Error al actualizar factura: ${errorMessage}. Los cambios no se han guardado.`);
+        console.error('Error updating invoice in Appwrite:', error);
+        return;
+      }
+    }
+
+    if (user) {
+      addNotification({
+        type: 'INVOICE_UPDATED',
+        title: 'Factura actualizada',
+        message: `${invoice.issuerName} - Estado: ${invoice.status}`,
+        userId: user.$id,
+        userName: user.name,
+        relatedId: invoice.id
+      });
+    }
+
+    if (oldInvoice?.status === 'PENDING' && (invoice.status === 'PROCESSED' || invoice.status === 'PAID')) {
+      const existingEntry = accountingEntries.find(e => e.invoiceId === invoice.id);
+      if (!existingEntry) {
+        console.log("Invoice status changed to PROCESSED/PAID - creating accounting entry:", invoice.id);
+        createEntryFromInvoice(invoice);
+      } else {
+        console.log("Accounting entry already exists for invoice:", invoice.id);
+      }
+    }
+  }, [invoices, settings, accountingEntries, user, addNotification, showError, createEntryFromInvoice]);
+
+  const handleDeleteInvoice = useCallback(async (id: string) => {
+    const invoice = invoices.find(i => i.id === id);
+
+    setInvoices(prev => prev.filter(i => i.id !== id));
+
+    if (settings.dataConfig?.type === 'APPWRITE' && invoice) {
+      try {
+        const docId = invoice.appwriteId || invoice.id;
+        await appwriteService.deleteInvoice(docId);
+        console.log('✅ Factura eliminada de Appwrite:', docId);
+      } catch (error: unknown) {
+        setInvoices(prev => [invoice, ...prev]);
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        showError(`Error al eliminar factura: ${errorMessage}. La factura no se ha eliminado.`);
+        console.error('Error deleting invoice from Appwrite:', error);
+        return;
+      }
+    }
+
+    if (user && invoice) {
+      addNotification({
+        type: 'INVOICE_DELETED',
+        title: 'Factura eliminada',
+        message: `${invoice.issuerName} - ${(invoice.totalAmount ?? 0).toFixed(2)}€`,
+        userId: user.$id,
+        userName: user.name,
+        relatedId: id
+      });
+    }
+
+    const relatedEntry = accountingEntries.find(e => e.invoiceId === id);
+    if (relatedEntry) {
+      onDeleteEntry(relatedEntry.id);
+    }
+  }, [invoices, settings, accountingEntries, user, addNotification, showError, onDeleteEntry]);
+
+  return {
+    invoices,
+    setInvoices,
+    handleAddInvoice,
+    handleUpdateInvoice,
+    handleDeleteInvoice
+  };
+}
