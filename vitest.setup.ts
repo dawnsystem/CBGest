@@ -1,4 +1,5 @@
-import { expect, afterEach, vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
+import { TextEncoder as NodeTextEncoder, TextDecoder as NodeTextDecoder } from 'util';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
@@ -159,9 +160,8 @@ if (typeof global.btoa === 'undefined') {
 
 // Mock TextEncoder and TextDecoder
 if (typeof global.TextEncoder === 'undefined') {
-  const { TextEncoder, TextDecoder } = require('util');
-  global.TextEncoder = TextEncoder;
-  global.TextDecoder = TextDecoder;
+  global.TextEncoder = NodeTextEncoder;
+  global.TextDecoder = NodeTextDecoder as typeof TextDecoder;
 }
 
 // Note: setInterval and clearInterval are already available in Node.js - no mock needed

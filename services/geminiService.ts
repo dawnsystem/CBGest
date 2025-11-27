@@ -355,12 +355,12 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       let amount = 0;
       if (amountCol !== -1 && row[amountCol] !== undefined && row[amountCol] !== '') {
         // Single amount column
-        const rawAmount = String(row[amountCol]).replace(/[^\d,.\-]/g, '').replace(',', '.');
+        const rawAmount = String(row[amountCol]).replace(/[^\d,.-]/g, '').replace(',', '.');
         amount = parseFloat(rawAmount) || 0;
       } else if (debitCol !== -1 || creditCol !== -1) {
         // Separate debit/credit columns
-        const debit = debitCol !== -1 ? parseFloat(String(row[debitCol] || 0).replace(/[^\d,.\-]/g, '').replace(',', '.')) || 0 : 0;
-        const credit = creditCol !== -1 ? parseFloat(String(row[creditCol] || 0).replace(/[^\d,.\-]/g, '').replace(',', '.')) || 0 : 0;
+        const debit = debitCol !== -1 ? parseFloat(String(row[debitCol] || 0).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0 : 0;
+        const credit = creditCol !== -1 ? parseFloat(String(row[creditCol] || 0).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0 : 0;
 
         // Debit is negative (expense), Credit is positive (income)
         if (debit > 0) {
