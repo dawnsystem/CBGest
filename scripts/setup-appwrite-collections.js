@@ -762,11 +762,15 @@ async function setupReservationsCollection() {
 
 /**
  * Setup Appwrite Functions for scheduled tasks
+ * Note: Focused on IRPF (no IVA/303)
  */
 async function setupFunctions() {
   console.log('\n=== Setting up APPWRITE FUNCTIONS ===\n');
 
   const functionsToCreate = [
+    // ==========================================
+    // MANTENIMIENTO
+    // ==========================================
     {
       id: 'cleanup-uploads',
       name: 'Limpieza Cola Subidas',
@@ -779,6 +783,17 @@ async function setupFunctions() {
       description: 'Elimina items completados de la cola de subidas con más de 7 días'
     },
     {
+      id: 'maintenance',
+      name: 'Mantenimiento BD',
+      runtime: 'node-18.0',
+      execute: [Role.users()],
+      events: [],
+      schedule: '0 4 * * 0', // Domingos 4 AM
+      timeout: 300,
+      enabled: true,
+      description: 'Limpieza de notificaciones antiguas, verificación integridad datos'
+    },
+    {
       id: 'backup-data',
       name: 'Backup Datos',
       runtime: 'node-18.0',
@@ -787,18 +802,74 @@ async function setupFunctions() {
       schedule: '0 2 * * 0', // Weekly on Sunday at 2 AM
       timeout: 300,
       enabled: true,
-      description: 'Exporta datos a JSON para backup'
+      description: 'Exporta datos a JSON para backup semanal'
+    },
+
+    // ==========================================
+    // CONCILIACIÓN Y ANÁLISIS
+    // ==========================================
+    {
+      id: 'auto-reconcile',
+      name: 'Conciliación Automática',
+      runtime: 'node-18.0',
+      execute: [Role.users()],
+      events: ['databases.*.collections.bankTransactions.documents.*.create'],
+      schedule: '',
+      timeout: 30,
+      enabled: true,
+      description: 'Concilia automáticamente movimientos bancarios con facturas'
     },
     {
-      id: 'tax-reminders',
-      name: 'Recordatorios Fiscales',
+      id: 'detect-recurring',
+      name: 'Detector Gastos Recurrentes',
       runtime: 'node-18.0',
       execute: [Role.users()],
       events: [],
-      schedule: '0 9 1 1,4,7,10 *', // 1st day of Jan, Apr, Jul, Oct at 9 AM
-      timeout: 30,
+      schedule: '0 2 1 * *', // 1º de cada mes
+      timeout: 120,
       enabled: true,
-      description: 'Envía recordatorios de declaraciones trimestrales'
+      description: 'Detecta patrones de gastos recurrentes y sugiere automatizaciones'
+    },
+
+    // ==========================================
+    // RENTABILIDAD Y MODELO 184
+    // ==========================================
+    {
+      id: 'calculate-profitability',
+      name: 'Cálculo Rentabilidad',
+      runtime: 'node-18.0',
+      execute: [Role.users()],
+      events: [],
+      schedule: '0 1 1 * *', // 1º de cada mes a la 1 AM
+      timeout: 180,
+      enabled: true,
+      description: 'Calcula rendimiento neto mensual por apartamento para IRPF'
+    },
+    {
+      id: 'prepare-modelo-184',
+      name: 'Preparación Modelo 184',
+      runtime: 'node-18.0',
+      execute: [Role.users()],
+      events: [],
+      schedule: '0 9 15 1 *', // 15 de Enero a las 9 AM
+      timeout: 180,
+      enabled: true,
+      description: 'Prepara datos para declaración anual de atribución de rentas (184)'
+    },
+
+    // ==========================================
+    // INFORMES
+    // ==========================================
+    {
+      id: 'weekly-summary',
+      name: 'Resumen Semanal',
+      runtime: 'node-18.0',
+      execute: [Role.users()],
+      events: [],
+      schedule: '0 10 * * 1', // Lunes 10 AM
+      timeout: 120,
+      enabled: true,
+      description: 'Genera resumen semanal: ingresos, gastos, ocupación, pendientes'
     },
   ];
 
@@ -949,9 +1020,18 @@ async function main() {
     console.log('   - reservations');
     console.log('');
     console.log('✅ Functions created (need code deployment):');
-    console.log('   - cleanup-uploads (daily at 3 AM)');
-    console.log('   - backup-data (weekly on Sunday at 2 AM)');
-    console.log('   - tax-reminders (quarterly on 1st day at 9 AM)');
+    console.log('   Mantenimiento:');
+    console.log('   - cleanup-uploads (diario 3 AM)');
+    console.log('   - maintenance (domingos 4 AM)');
+    console.log('   - backup-data (domingos 2 AM)');
+    console.log('   Conciliación:');
+    console.log('   - auto-reconcile (evento: nueva transacción)');
+    console.log('   - detect-recurring (1º de mes)');
+    console.log('   IRPF/Modelo 184:');
+    console.log('   - calculate-profitability (1º de mes)');
+    console.log('   - prepare-modelo-184 (15 enero)');
+    console.log('   Informes:');
+    console.log('   - weekly-summary (lunes 10 AM)');
     console.log('');
     console.log('📝 Next steps:');
     console.log('   1. Deploy code to the functions via Appwrite Console');
