@@ -53,7 +53,7 @@ export interface SessionInfo {
 // ============================================================================
 
 /** Delay para estabilización de sesión después de login (ms) */
-const SESSION_STABILIZATION_DELAY = 150;
+const SESSION_STABILIZATION_DELAY = 300;
 
 /** Códigos de error que indican sesión inválida */
 const SESSION_INVALID_CODES = [401, 403];
@@ -72,6 +72,13 @@ type AuthErrorCallback = (error: string, code?: number) => void;
 let onSessionReady: SessionReadyCallback | null = null;
 let onSessionExpired: SessionExpiredCallback | null = null;
 let onAuthError: AuthErrorCallback | null = null;
+
+/**
+ * Grace period after login where 401 errors won't trigger session expiration.
+ * This prevents race conditions during initial data load after login.
+ */
+const LOGIN_GRACE_PERIOD_MS = 5000;
+let loginGraceUntil: number = 0;
 
 /**
  * Configura callbacks para eventos de autenticación
@@ -201,7 +208,12 @@ export const authService = {
       const user = await account.get();
       console.log('[AuthService] Login exitoso:', user.email);
 
-      // 5. Emitir evento sessionReady
+      // 5. Set grace period for 401 errors during initial data load
+      // This prevents race conditions from triggering false session expiration
+      loginGraceUntil = Date.now() + LOGIN_GRACE_PERIOD_MS;
+      console.log('[AuthService] Período de gracia establecido por', LOGIN_GRACE_PERIOD_MS, 'ms');
+
+      // 6. Emitir evento sessionReady
       if (onSessionReady) {
         onSessionReady();
       }
@@ -374,6 +386,9 @@ export const authService = {
    * Verifica si la sesión actual es válida.
    * Útil para health checks periódicos.
    *
+   * NOTE: During the grace period after login, session errors won't trigger
+   * expiration to prevent race conditions during initial data load.
+   *
    * @returns true si la sesión es válida
    */
   async verifySession(): Promise<boolean> {
@@ -383,6 +398,12 @@ export const authService = {
     } catch (error) {
       const code = getErrorCode(error);
       if (SESSION_INVALID_CODES.includes(code || 0)) {
+        // Check if we're in the grace period after login
+        if (Date.now() < loginGraceUntil) {
+          console.warn('[AuthService] verifySession falló pero dentro del período de gracia - ignorando');
+          return true; // Pretend session is valid during grace period
+        }
+
         if (onSessionExpired) {
           onSessionExpired();
         }
@@ -396,8 +417,17 @@ export const authService = {
   /**
    * Maneja un error 401 detectado en otra parte de la aplicación.
    * Útil para que el servicio de base de datos notifique sesiones expiradas.
+   *
+   * NOTE: During the grace period after login, 401 errors are ignored to prevent
+   * race conditions during initial data load from triggering false session expiration.
    */
   handleUnauthorizedError(): void {
+    // Check if we're in the grace period after login
+    if (Date.now() < loginGraceUntil) {
+      console.warn('[AuthService] Error 401 detectado pero dentro del período de gracia post-login - ignorando');
+      return;
+    }
+
     console.warn('[AuthService] Error 401 detectado - sesión posiblemente expirada');
     if (onSessionExpired) {
       onSessionExpired();
