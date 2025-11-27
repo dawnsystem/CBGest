@@ -58,8 +58,6 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
       return;
     }
 
-    const now = new Date().toISOString();
-
     if (editingId) {
       // Update existing apartment
       const apartmentToUpdate = apartments.find(a => a.id === editingId);
@@ -67,12 +65,12 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
         onUpdateApartment({
           ...apartmentToUpdate,
           ...formData,
-          isActive: formData.isActive ?? true,
-          updatedAt: now
+          isActive: formData.isActive ?? true
         } as Apartment);
       }
     } else {
       // Create new apartment
+      // Nota: createdAt y updatedAt son gestionados automáticamente por Appwrite ($createdAt, $updatedAt)
       const newApartment: Apartment = {
         id: generateId(),
         name: trimmedName,
@@ -83,9 +81,7 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
         maxOccupancy: formData.maxOccupancy || undefined,
         licenseNumber: formData.licenseNumber || undefined,
         notes: formData.notes || undefined,
-        isActive: formData.isActive ?? true,
-        createdAt: now,
-        updatedAt: now
+        isActive: formData.isActive ?? true
       };
       onAddApartment(newApartment);
     }
@@ -118,8 +114,7 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
   const handleToggleActive = (apartment: Apartment) => {
     onUpdateApartment({
       ...apartment,
-      isActive: !apartment.isActive,
-      updatedAt: new Date().toISOString()
+      isActive: !apartment.isActive
     });
   };
 

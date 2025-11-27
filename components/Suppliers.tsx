@@ -56,8 +56,6 @@ export const Suppliers: React.FC<SuppliersProps> = ({
     const detectedType = detectNifType(normalizedNif);
     const finalNifType = formData.nifType === 'PASAPORTE' ? 'PASAPORTE' : detectedType;
 
-    const now = new Date().toISOString();
-
     if (editingId) {
       // Update existing supplier
       const supplierToUpdate = suppliers.find(s => s.id === editingId);
@@ -66,12 +64,12 @@ export const Suppliers: React.FC<SuppliersProps> = ({
           ...supplierToUpdate,
           ...formData as Supplier,
           nif: normalizedNif,
-          nifType: finalNifType,
-          updatedAt: now
+          nifType: finalNifType
         });
       }
     } else {
       // Create new supplier
+      // Nota: createdAt y updatedAt son gestionados automáticamente por Appwrite ($createdAt, $updatedAt)
       const newSupplier: Supplier = {
         id: generateId(),
         name: formData.name!,
@@ -82,9 +80,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
         postalCode: formData.postalCode,
         email: formData.email,
         phone: formData.phone,
-        notes: formData.notes,
-        createdAt: now,
-        updatedAt: now
+        notes: formData.notes
       };
       onAddSupplier(newSupplier);
     }
