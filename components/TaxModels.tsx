@@ -204,7 +204,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
              <div className="bg-emerald-50 rounded-lg p-3 mb-4 flex gap-2 items-start">
                 <AlertCircle className="w-4 h-4 text-emerald-700 mt-0.5" />
                 <p className="text-xs text-emerald-800">
-                    Este cálculo simula el "Rendimiento del Capital Inmobiliario" neto a imputar en la Renta (IRPF) de cada socio.
+                    Este cálculo simula el &ldquo;Rendimiento del Capital Inmobiliario&rdquo; neto a imputar en la Renta (IRPF) de cada socio.
                 </p>
              </div>
 

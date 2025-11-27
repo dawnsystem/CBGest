@@ -50,7 +50,7 @@ describe('geminiService', () => {
 
       expect(typeof result.issuerNif).toBe('string');
       // Should not contain spaces, hyphens, dots
-      expect(result.issuerNif).not.toMatch(/[\s\-\.]/);
+      expect(result.issuerNif).not.toMatch(/[\s\-.]/);
     });
 
     it('should return valid NIF type', async () => {

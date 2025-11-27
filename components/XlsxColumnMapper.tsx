@@ -41,7 +41,7 @@ const parseDate = (value: unknown): string => {
   const str = String(value).trim();
 
   // DD/MM/YYYY or DD-MM-YYYY
-  const ddmmyyyy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const ddmmyyyy = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (ddmmyyyy) {
     return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`;
   }
@@ -68,7 +68,7 @@ const parseDate = (value: unknown): string => {
 
 const parseAmount = (value: unknown): number => {
   if (value === null || value === undefined || value === '') return 0;
-  const str = String(value).replace(/[^\d,.\-]/g, '').replace(',', '.');
+  const str = String(value).replace(/[^\d,.-]/g, '').replace(',', '.');
   return parseFloat(str) || 0;
 };
 

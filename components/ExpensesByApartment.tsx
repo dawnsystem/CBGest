@@ -143,9 +143,10 @@ export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoic
     switch (periodFilter) {
       case 'month':
         return now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-      case 'quarter':
+      case 'quarter': {
         const quarter = Math.floor(now.getMonth() / 3) + 1;
         return `${quarter}T ${now.getFullYear()}`;
+      }
       case 'year':
         return `Año ${now.getFullYear()}`;
       case 'all':
