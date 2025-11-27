@@ -1,0 +1,10 @@
+{
+  "name": "calculate-profitability",
+  "version": "1.0.0",
+  "description": "Calcula rendimiento neto mensual por apartamento para IRPF",
+  "main": "src/main.js",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^13.0.0"
+  }
+}

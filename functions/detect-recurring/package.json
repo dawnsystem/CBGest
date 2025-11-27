@@ -1,0 +1,10 @@
+{
+  "name": "detect-recurring",
+  "version": "1.0.0",
+  "description": "Detecta patrones de gastos recurrentes y sugiere automatizaciones",
+  "main": "src/main.js",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^13.0.0"
+  }
+}

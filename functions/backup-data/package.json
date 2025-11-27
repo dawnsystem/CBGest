@@ -1,0 +1,10 @@
+{
+  "name": "backup-data",
+  "version": "1.0.0",
+  "description": "Exporta datos a JSON para backup semanal",
+  "main": "src/main.js",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^13.0.0"
+  }
+}

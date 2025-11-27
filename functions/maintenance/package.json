@@ -1,0 +1,10 @@
+{
+  "name": "maintenance",
+  "version": "1.0.0",
+  "description": "Limpieza de notificaciones antiguas y verificación de integridad de datos",
+  "main": "src/main.js",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^13.0.0"
+  }
+}
