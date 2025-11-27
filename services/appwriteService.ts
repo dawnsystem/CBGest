@@ -273,11 +273,13 @@ export const databaseService = {
   // --- INVOICES ---
   async createInvoice(invoice: Invoice): Promise<Invoice> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente
+      // Excluir campos que Appwrite gestiona automáticamente o que no existen en el esquema
       const {
         file, history, id, appwriteId,
         createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        // Campos que Gemini puede generar pero que no existen en el esquema de Appwrite
+        issuerNifType, issuerAddress, issuerCity, issuerPostalCode, issuerCountry,
         ...restInvoiceData
       } = invoice as any;
       const invoiceData = {
@@ -341,11 +343,13 @@ export const databaseService = {
 
   async updateInvoice(invoice: Invoice): Promise<Invoice> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente
+      // Excluir campos que Appwrite gestiona automáticamente o que no existen en el esquema
       const {
         file, history, id, appwriteId,
         createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        // Campos que Gemini puede generar pero que no existen en el esquema de Appwrite
+        issuerNifType, issuerAddress, issuerCity, issuerPostalCode, issuerCountry,
         ...restInvoiceData
       } = invoice as any;
       const invoiceData = {
