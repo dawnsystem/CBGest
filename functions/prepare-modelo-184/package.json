@@ -1,0 +1,10 @@
+{
+  "name": "prepare-modelo-184",
+  "version": "1.0.0",
+  "description": "Prepara datos para declaración anual de atribución de rentas (Modelo 184)",
+  "main": "src/main.js",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^13.0.0"
+  }
+}

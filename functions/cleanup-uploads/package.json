@@ -1,0 +1,10 @@
+{
+  "name": "cleanup-uploads",
+  "version": "1.0.0",
+  "description": "Elimina items completados de la cola de subidas con más de 7 días",
+  "main": "src/main.js",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^13.0.0"
+  }
+}
