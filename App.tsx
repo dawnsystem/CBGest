@@ -163,6 +163,8 @@ const MainLayout: React.FC = () => {
   // Use refs to access current values without adding them as dependencies
   const settingsRef = useRef(settings);
   const defaultSettingsRef = useRef(defaultSettings);
+  // Ref to prevent double initialization in React Strict Mode
+  const dataLayerInitializedRef = useRef(false);
 
   // Keep refs in sync
   useEffect(() => {
@@ -190,6 +192,8 @@ const MainLayout: React.FC = () => {
   useEffect(() => {
       if (!user) {
           setIsDataLoading(false);
+          // Reset initialization flag on logout so we can re-initialize on next login
+          dataLayerInitializedRef.current = false;
           return;
       }
 
@@ -200,6 +204,13 @@ const MainLayout: React.FC = () => {
           console.log('[App] Waiting for session to be ready...');
           return;
       }
+
+      // Prevent double initialization in React Strict Mode
+      if (dataLayerInitializedRef.current) {
+          console.log('[App] Data layer already initialized, skipping...');
+          return;
+      }
+      dataLayerInitializedRef.current = true;
 
       const initDataLayer = async () => {
           // Use ref to get current settings as fallback, avoiding dependency issues
@@ -238,13 +249,24 @@ const MainLayout: React.FC = () => {
                   }
 
                   if (!healthResult.collectionsReady) {
-                      setConnectionError(`Configuración incompleta: ${healthResult.errors.join(', ')}`);
-                      console.error('❌ Collections not ready:', healthResult.errors);
-                      // Continue anyway - might be first run
+                      // Show warning but don't block - some collections might have permission issues
+                      console.warn('⚠️ Algunas colecciones no están listas:', healthResult.errors);
+                      // Only set error if ALL collections failed, otherwise just warn
+                      const criticalErrors = healthResult.errors.filter(e =>
+                        !e.includes('permisos') // Permission errors are non-critical
+                      );
+                      if (criticalErrors.length > 0) {
+                        setConnectionError(`Configuración incompleta: ${criticalErrors.join(', ')}`);
+                        console.error('❌ Critical collection errors:', criticalErrors);
+                      } else {
+                        // Only permission issues - log but continue
+                        console.log('✅ Conexión verificada (algunas colecciones con permisos limitados)');
+                        setConnectionError(null);
+                      }
+                  } else {
+                      console.log('✅ Conexión verificada correctamente');
+                      setConnectionError(null);
                   }
-
-                  console.log('✅ Conexión verificada correctamente');
-                  setConnectionError(null);
               } catch (healthError: any) {
                   console.error('❌ Health check error:', healthError);
                   // Don't block on health check errors - the login was already successful

@@ -418,17 +418,36 @@ export const authService = {
    * Maneja un error 401 detectado en otra parte de la aplicación.
    * Útil para que el servicio de base de datos notifique sesiones expiradas.
    *
-   * NOTE: During the grace period after login, 401 errors are ignored to prevent
-   * race conditions during initial data load from triggering false session expiration.
+   * NOTE: This method now verifies if the session is actually invalid before
+   * triggering expiration. A 401 from a collection (permissions issue) should NOT
+   * trigger session expiration if the user's session is still valid.
    */
-  handleUnauthorizedError(): void {
+  async handleUnauthorizedError(): Promise<void> {
     // Check if we're in the grace period after login
     if (Date.now() < loginGraceUntil) {
       console.warn('[AuthService] Error 401 detectado pero dentro del período de gracia post-login - ignorando');
       return;
     }
 
-    console.warn('[AuthService] Error 401 detectado - sesión posiblemente expirada');
+    // IMPORTANT: Verify if the session is actually invalid before triggering expiration
+    // A 401 from a collection (permissions issue) should NOT trigger session expiration
+    try {
+      const user = await account.get();
+      if (user) {
+        // Session is valid! The 401 was due to collection permissions, not session expiration
+        console.warn('[AuthService] Error 401 detectado pero la sesión sigue válida - probablemente es un problema de permisos de colección');
+        return;
+      }
+    } catch (sessionCheckError: any) {
+      // If we can't verify the session, it's likely expired
+      if (sessionCheckError?.code === 401) {
+        console.warn('[AuthService] Sesión verificada como expirada');
+      } else {
+        console.warn('[AuthService] Error verificando sesión:', sessionCheckError?.message);
+      }
+    }
+
+    console.warn('[AuthService] Error 401 confirmado - sesión expirada');
     if (onSessionExpired) {
       onSessionExpired();
     }

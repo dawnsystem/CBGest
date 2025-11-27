@@ -102,10 +102,11 @@ const withRetry = async <T>(
     } catch (error: any) {
       lastError = error;
 
-      // GLOBAL 401 HANDLER: Notificar sesión expirada
+      // GLOBAL 401 HANDLER: Verificar si es sesión expirada o problema de permisos
       if (error?.code === 401) {
-        console.warn(`[${operationName}] Error 401 detectado - notificando sesión expirada`);
-        authService.handleUnauthorizedError();
+        console.warn(`[${operationName}] Error 401 detectado - verificando si es sesión expirada o permisos`);
+        // Don't await - let it run in background to avoid blocking the error throw
+        authService.handleUnauthorizedError().catch(() => {});
         throw error;
       }
 
