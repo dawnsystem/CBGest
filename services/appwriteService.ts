@@ -1022,8 +1022,10 @@ export const databaseService = {
   // --- APARTMENTS (NEW) ---
   async createApartment(apartment: Apartment): Promise<Apartment> {
     try {
+      // Excluir campos que Appwrite gestiona automáticamente
       const {
         id, appwriteId,
+        createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         ...apartmentData
       } = apartment as any;
@@ -1033,11 +1035,7 @@ export const databaseService = {
           config.databaseId,
           config.collections.apartments,
           id || ID.unique(),
-          {
-            ...apartmentData,
-            createdAt: apartmentData.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
+          apartmentData
         ),
         'createApartment'
       );
@@ -1078,8 +1076,10 @@ export const databaseService = {
 
   async updateApartment(apartment: Apartment): Promise<Apartment> {
     try {
+      // Excluir campos que Appwrite gestiona automáticamente
       const {
         id, appwriteId,
+        createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         ...apartmentData
       } = apartment as any;
@@ -1090,10 +1090,7 @@ export const databaseService = {
           config.databaseId,
           config.collections.apartments,
           docId,
-          {
-            ...apartmentData,
-            updatedAt: new Date().toISOString()
-          }
+          apartmentData
         ),
         'updateApartment'
       );
@@ -1124,8 +1121,10 @@ export const databaseService = {
   // --- RECURRING EXPENSES (NEW) ---
   async createRecurringExpense(expense: RecurringExpense): Promise<RecurringExpense> {
     try {
+      // Excluir campos que Appwrite gestiona automáticamente
       const {
         id, appwriteId,
+        createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         ...expenseData
       } = expense as any;
@@ -1135,11 +1134,7 @@ export const databaseService = {
           config.databaseId,
           config.collections.recurringExpenses,
           id || ID.unique(),
-          {
-            ...expenseData,
-            createdAt: expenseData.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
+          expenseData
         ),
         'createRecurringExpense'
       );
@@ -1180,8 +1175,10 @@ export const databaseService = {
 
   async updateRecurringExpense(expense: RecurringExpense): Promise<RecurringExpense> {
     try {
+      // Excluir campos que Appwrite gestiona automáticamente
       const {
         id, appwriteId,
+        createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         ...expenseData
       } = expense as any;
@@ -1192,10 +1189,7 @@ export const databaseService = {
           config.databaseId,
           config.collections.recurringExpenses,
           docId,
-          {
-            ...expenseData,
-            updatedAt: new Date().toISOString()
-          }
+          expenseData
         ),
         'updateRecurringExpense'
       );
@@ -1226,8 +1220,10 @@ export const databaseService = {
   // --- AI MATCH HISTORY (NEW) ---
   async createAIMatchHistory(match: AIMatchHistory): Promise<AIMatchHistory> {
     try {
+      // Excluir campos que Appwrite gestiona automáticamente
       const {
         id, appwriteId,
+        createdAt, lastUsedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         ...matchData
       } = match as any;
@@ -1237,11 +1233,7 @@ export const databaseService = {
           config.databaseId,
           config.collections.aiMatchHistory,
           id || ID.unique(),
-          {
-            ...matchData,
-            createdAt: matchData.createdAt || new Date().toISOString(),
-            lastUsedAt: matchData.lastUsedAt || new Date().toISOString()
-          }
+          matchData
         ),
         'createAIMatchHistory'
       );
@@ -1282,8 +1274,10 @@ export const databaseService = {
 
   async updateAIMatchHistory(match: AIMatchHistory): Promise<AIMatchHistory> {
     try {
+      // Excluir campos que Appwrite gestiona automáticamente
       const {
         id, appwriteId,
+        createdAt, lastUsedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         ...matchData
       } = match as any;
@@ -1294,10 +1288,7 @@ export const databaseService = {
           config.databaseId,
           config.collections.aiMatchHistory,
           docId,
-          {
-            ...matchData,
-            lastUsedAt: new Date().toISOString()
-          }
+          matchData
         ),
         'updateAIMatchHistory'
       );
