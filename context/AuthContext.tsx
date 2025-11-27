@@ -135,6 +135,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [sessionReady, setSessionReady] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
 
+  // Ref to prevent double session check in React Strict Mode
+  const sessionCheckStartedRef = useRef(false);
+
   // Estado de carga derivado
   const loading = authState === 'INITIALIZING' || authState === 'AUTHENTICATING';
 
@@ -172,6 +175,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================================================
 
   useEffect(() => {
+    // Prevent double session check in React Strict Mode
+    if (sessionCheckStartedRef.current) {
+      return;
+    }
+    sessionCheckStartedRef.current = true;
+
     const checkExistingSession = async () => {
       console.log('[AuthContext] Checking existing session...');
 
