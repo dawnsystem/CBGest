@@ -124,6 +124,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false); // Ocultar canceladas por defecto
 
   // Parse CSV file
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +248,12 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   const filteredReservations = useMemo(() => {
     let result = [...reservations];
 
+    // IMPORTANTE: Ocultar reservas canceladas por defecto
+    // Solo se muestran si showCancelled es true O si se filtra específicamente por Cancelled
+    if (!showCancelled && filterStatus !== 'Cancelled') {
+      result = result.filter(r => r.status !== 'Cancelled');
+    }
+
     // Search
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -302,17 +309,22 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
     });
 
     return result;
-  }, [reservations, searchTerm, filterChannel, filterApartment, filterStatus, sortField, sortOrder]);
+  }, [reservations, searchTerm, filterChannel, filterApartment, filterStatus, sortField, sortOrder, showCancelled]);
 
   // Calculate summary stats
+  // IMPORTANTE: Las canceladas NUNCA cuentan en los totales, independientemente de si se muestran
   const stats = useMemo(() => {
-    const total = filteredReservations.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
-    const paid = filteredReservations.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
-    const nights = filteredReservations.reduce((sum, r) => sum + (r.nights || 0), 0);
-    const cancelled = filteredReservations.filter(r => r.status === 'Cancelled').length;
-    const unlinked = filteredReservations.filter(r => !r.apartmentId).length;
+    // Filtrar las canceladas para los cálculos de totales
+    const activeReservations = filteredReservations.filter(r => r.status !== 'Cancelled');
 
-    return { total, paid, nights, count: filteredReservations.length, cancelled, unlinked };
+    const total = activeReservations.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+    const paid = activeReservations.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+    const nights = activeReservations.reduce((sum, r) => sum + (r.nights || 0), 0);
+    const cancelled = filteredReservations.filter(r => r.status === 'Cancelled').length;
+    const unlinked = activeReservations.filter(r => !r.apartmentId).length;
+
+    // count es solo de reservas activas (no canceladas)
+    return { total, paid, nights, count: activeReservations.length, cancelled, unlinked };
   }, [filteredReservations]);
 
   // Toggle sort
@@ -547,53 +559,77 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
 
         {/* Filter Options */}
         {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-100">
-            <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Canal</label>
-              <select
-                value={filterChannel}
-                onChange={e => setFilterChannel(e.target.value as ReservationChannel | 'ALL')}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-              >
-                <option value="ALL">Todos los canales</option>
-                <option value="Booking">Booking</option>
-                <option value="Airbnb">Airbnb</option>
-                <option value="Direct">Directo</option>
-                <option value="Agoda">Agoda</option>
-                <option value="Vrbo">Vrbo</option>
-                <option value="Other">Otro</option>
-              </select>
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Canal</label>
+                <select
+                  value={filterChannel}
+                  onChange={e => setFilterChannel(e.target.value as ReservationChannel | 'ALL')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                >
+                  <option value="ALL">Todos los canales</option>
+                  <option value="Booking">Booking</option>
+                  <option value="Airbnb">Airbnb</option>
+                  <option value="Direct">Directo</option>
+                  <option value="Agoda">Agoda</option>
+                  <option value="Vrbo">Vrbo</option>
+                  <option value="Other">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Apartamento</label>
+                <select
+                  value={filterApartment}
+                  onChange={e => setFilterApartment(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                >
+                  <option value="ALL">Todos los apartamentos</option>
+                  {apartments.map(apt => (
+                    <option key={apt.id} value={apt.id}>
+                      {apt.code || apt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Estado</label>
+                <select
+                  value={filterStatus}
+                  onChange={e => setFilterStatus(e.target.value as ReservationStatus | 'ALL')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                >
+                  <option value="ALL">Todos los estados</option>
+                  <option value="New">Nuevo</option>
+                  <option value="Confirmed">Confirmado</option>
+                  <option value="Paid">Pagado</option>
+                  <option value="PaidCC">Pagado CC</option>
+                  <option value="Cancelled">Cancelado</option>
+                  <option value="Completed">Completado</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Apartamento</label>
-              <select
-                value={filterApartment}
-                onChange={e => setFilterApartment(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-              >
-                <option value="ALL">Todos los apartamentos</option>
-                {apartments.map(apt => (
-                  <option key={apt.id} value={apt.id}>
-                    {apt.code || apt.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Estado</label>
-              <select
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value as ReservationStatus | 'ALL')}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-              >
-                <option value="ALL">Todos los estados</option>
-                <option value="New">Nuevo</option>
-                <option value="Confirmed">Confirmado</option>
-                <option value="Paid">Pagado</option>
-                <option value="PaidCC">Pagado CC</option>
-                <option value="Cancelled">Cancelado</option>
-                <option value="Completed">Completado</option>
-              </select>
+            {/* Checkbox para mostrar canceladas */}
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showCancelled}
+                  onChange={e => setShowCancelled(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-sm text-slate-600">
+                  Mostrar reservas canceladas
+                </span>
+                {stats.cancelled > 0 && (
+                  <span className="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+                    {stats.cancelled} canceladas
+                  </span>
+                )}
+              </label>
+              <p className="text-xs text-slate-400 mt-1 ml-6">
+                Las reservas canceladas no cuentan en los totales
+              </p>
             </div>
           </div>
         )}

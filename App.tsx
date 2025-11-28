@@ -7,7 +7,7 @@ import { Header } from './components/Header';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
 import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment, RecurringExpense, Reservation } from './types';
-import { Eye, Trash, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
+import { Eye, Trash, AlertTriangle, RefreshCw, XCircle, Check } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
 import { generateId } from './utils/defaults';
@@ -141,6 +141,17 @@ const MainLayout: React.FC = () => {
     setConnectionError(message);
     if (autoClearMs > 0) {
       setTimeout(() => setConnectionError(null), autoClearMs);
+    }
+  }, []);
+
+  // State para mensajes de éxito
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Helper to show success message to user with auto-clear
+  const showSuccess = useCallback((message: string, autoClearMs = 5000) => {
+    setSuccessMessage(message);
+    if (autoClearMs > 0) {
+      setTimeout(() => setSuccessMessage(null), autoClearMs);
     }
   }, []);
 
@@ -1176,35 +1187,110 @@ const MainLayout: React.FC = () => {
   };
 
   // --- RESERVATION HANDLERS ---
+  // Sistema de UPSERT: Crea nuevas reservas o actualiza las existentes por reservationNumber
   const handleAddReservations = async (newReservations: Omit<Reservation, 'id'>[]) => {
-      // Generate IDs and add to state
-      const reservationsWithIds: Reservation[] = newReservations.map(r => ({
-          ...r,
-          id: generateId()
-      }));
+      // Crear mapa de reservas existentes por reservationNumber
+      const existingByNumber = new Map<string, Reservation>();
+      reservations.forEach(r => {
+          if (r.reservationNumber) {
+              existingByNumber.set(r.reservationNumber, r);
+          }
+      });
 
-      // Optimistic add
-      setReservations(prev => [...reservationsWithIds, ...prev]);
+      // Separar reservas: las que ya existen (UPDATE) vs nuevas (CREATE)
+      const toCreate: Reservation[] = [];
+      const toUpdate: Reservation[] = [];
+
+      newReservations.forEach(newRes => {
+          const existing = newRes.reservationNumber ? existingByNumber.get(newRes.reservationNumber) : null;
+
+          if (existing) {
+              // Ya existe: preparar para UPDATE
+              toUpdate.push({
+                  ...existing,
+                  ...newRes,
+                  id: existing.id,
+                  appwriteId: existing.appwriteId
+              });
+          } else {
+              // Nueva: preparar para CREATE
+              toCreate.push({
+                  ...newRes,
+                  id: generateId()
+              });
+          }
+      });
+
+      // Estado inicial para rollback
+      const originalReservations = [...reservations];
+
+      // Optimistic update del estado local
+      setReservations(prev => {
+          // Primero añadir las nuevas
+          let updated = [...toCreate, ...prev];
+          // Luego actualizar las existentes
+          toUpdate.forEach(updatedRes => {
+              updated = updated.map(r => r.id === updatedRes.id ? updatedRes : r);
+          });
+          return updated;
+      });
 
       if (settings.dataConfig?.type === 'APPWRITE') {
+          let createdCount = 0;
+          let updatedCount = 0;
+          const errors: string[] = [];
+
           try {
-              const savedReservations = await appwriteService.createReservations(reservationsWithIds);
-              // Update state with saved reservations (includes appwriteId)
-              setReservations(prev => {
-                  const savedIds = new Set(savedReservations.map(s => s.id));
-                  return prev.map(r => {
+              // Crear nuevas reservas
+              if (toCreate.length > 0) {
+                  const savedReservations = await appwriteService.createReservations(toCreate);
+                  createdCount = savedReservations.length;
+                  // Actualizar estado con los appwriteIds
+                  setReservations(prev => prev.map(r => {
                       const saved = savedReservations.find(s => s.id === r.id);
                       return saved || r;
-                  });
-              });
-              console.log(`✅ ${savedReservations.length} reservas guardadas en Appwrite`);
+                  }));
+              }
+
+              // Actualizar reservas existentes
+              for (const res of toUpdate) {
+                  try {
+                      await appwriteService.updateReservation(res);
+                      updatedCount++;
+                  } catch (err) {
+                      const msg = err instanceof Error ? err.message : 'Error';
+                      errors.push(`Error actualizando ${res.reservationNumber}: ${msg}`);
+                  }
+              }
+
+              // Mostrar resumen
+              const parts: string[] = [];
+              if (createdCount > 0) parts.push(`${createdCount} creadas`);
+              if (updatedCount > 0) parts.push(`${updatedCount} actualizadas`);
+              if (errors.length > 0) parts.push(`${errors.length} errores`);
+
+              console.log(`✅ Reservas importadas: ${parts.join(', ')}`);
+
+              if (errors.length > 0) {
+                  showError(`Importación completada con errores:\n${errors.slice(0, 3).join('\n')}`);
+              } else if (parts.length > 0) {
+                  showSuccess(`Importación completada: ${parts.join(', ')}`);
+              }
+
           } catch (error: unknown) {
-              // ROLLBACK: Remove the reservations from local state
-              const newIds = new Set(reservationsWithIds.map(r => r.id));
-              setReservations(prev => prev.filter(r => !newIds.has(r.id)));
+              // ROLLBACK: Restaurar estado original
+              setReservations(originalReservations);
               const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-              showError(`Error al guardar reservas: ${errorMessage}. Los cambios no se han guardado.`);
-              console.error('Error saving reservations to Appwrite:', error);
+              showError(`Error al importar reservas: ${errorMessage}. Los cambios no se han guardado.`);
+              console.error('Error importing reservations to Appwrite:', error);
+          }
+      } else {
+          // Modo local: mostrar resumen
+          const parts: string[] = [];
+          if (toCreate.length > 0) parts.push(`${toCreate.length} creadas`);
+          if (toUpdate.length > 0) parts.push(`${toUpdate.length} actualizadas`);
+          if (parts.length > 0) {
+              showSuccess(`Importación completada: ${parts.join(', ')}`);
           }
       }
   };
@@ -1407,6 +1493,21 @@ const MainLayout: React.FC = () => {
                   <button
                     onClick={() => setConnectionError(null)}
                     className="text-red-400 hover:text-red-600"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* Success Message Banner */}
+            {successMessage && (
+              <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 mx-4 mt-4 rounded-r-lg animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <p className="text-emerald-700 flex-1">{successMessage}</p>
+                  <button
+                    onClick={() => setSuccessMessage(null)}
+                    className="text-emerald-400 hover:text-emerald-600"
                   >
                     <XCircle className="w-5 h-5" />
                   </button>
