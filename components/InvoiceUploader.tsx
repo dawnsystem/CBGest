@@ -52,6 +52,8 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       addToQueue(Array.from(e.target.files), uploadType);
+      // Reset input to allow selecting the same file again
+      e.target.value = '';
     }
   };
 
@@ -394,7 +396,8 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
             name="files"
             type="file"
             ref={fileInputRef}
-            className="hidden"
+            className="absolute w-0 h-0 opacity-0 overflow-hidden"
+            style={{ position: 'absolute', left: '-9999px' }}
             multiple
             accept={uploadType === 'INVOICE'
               ? "image/*,.pdf"
