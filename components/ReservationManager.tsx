@@ -350,7 +350,8 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
             type="file"
             accept=".csv,.txt"
             onChange={handleFileUpload}
-            className="hidden"
+            className="absolute w-0 h-0 opacity-0 overflow-hidden"
+            style={{ position: 'absolute', left: '-9999px' }}
           />
           <button
             onClick={() => fileInputRef.current?.click()}
