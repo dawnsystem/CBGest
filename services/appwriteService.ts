@@ -282,6 +282,8 @@ export const databaseService = {
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         // Campos del emisor para el proveedor - no existen en el esquema de facturas de Appwrite
         issuerNifType, issuerAddress, issuerCity, issuerPostalCode, issuerCountry,
+        // Campos generados por Gemini que no están en el esquema de Appwrite
+        suggestedAccountCode, matchedSupplierId,
         ...restInvoiceData
       } = invoice as any;
       const invoiceData = {
@@ -352,6 +354,8 @@ export const databaseService = {
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         // Campos del emisor - no existen en el esquema de facturas de Appwrite
         issuerNifType, issuerAddress, issuerCity, issuerPostalCode, issuerCountry,
+        // Campos generados por Gemini que no están en el esquema de Appwrite
+        suggestedAccountCode, matchedSupplierId,
         ...restInvoiceData
       } = invoice as any;
       const invoiceData = {
