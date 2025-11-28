@@ -92,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
       <div className="flex items-center gap-4 w-full md:w-1/3">
         {/* Mobile Logo/Menu Placeholder */}
         <div className="md:hidden flex items-center gap-2 mr-2">
-             <img src="/assets/logo.png" alt="CBGest" className="w-8 h-10 object-contain" />
+             <img src="/assets/logo.png" alt="CBGest" className="w-12 h-[3.75rem] object-contain" />
         </div>
 
         <div className="relative w-full max-w-md">
