@@ -284,6 +284,8 @@ export const databaseService = {
         issuerNifType, issuerAddress, issuerCity, issuerPostalCode, issuerCountry,
         // Campos generados por Gemini que no están en el esquema de Appwrite
         suggestedAccountCode, matchedSupplierId,
+        // fileData contains large base64 data from Gemini - must not be sent to Appwrite
+        fileData,
         ...restInvoiceData
       } = invoice as any;
       const invoiceData = {
@@ -356,6 +358,8 @@ export const databaseService = {
         issuerNifType, issuerAddress, issuerCity, issuerPostalCode, issuerCountry,
         // Campos generados por Gemini que no están en el esquema de Appwrite
         suggestedAccountCode, matchedSupplierId,
+        // fileData contains large base64 data from Gemini - must not be sent to Appwrite
+        fileData,
         ...restInvoiceData
       } = invoice as any;
       const invoiceData = {
