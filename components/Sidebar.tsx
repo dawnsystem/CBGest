@@ -49,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus, connectionHe
     <aside className="hidden md:flex w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex-col shadow-xl z-30">
       <div className="p-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <img src="/assets/logo.png" alt="CBGest" className="w-9 h-11 object-contain" />
+          <img src="/assets/logo.png" alt="CBGest" className="w-[3.375rem] h-[4.125rem] object-contain" />
           <div>
             <h1 className="text-lg font-bold tracking-tight text-white">CBGest</h1>
             <p className="text-xs text-slate-400">Gestión Contable</p>
