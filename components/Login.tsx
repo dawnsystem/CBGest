@@ -6,7 +6,8 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, ShieldCheck, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowRight, AlertTriangle } from 'lucide-react';
+import { LogoCubes } from './Logo';
 
 export const Login: React.FC = () => {
   const { login, register, lastError, clearError } = useAuth();
@@ -65,12 +66,12 @@ export const Login: React.FC = () => {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative z-10">
         {/* Header */}
-        <div className="bg-blue-600 p-8 text-center">
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-            <ShieldCheck className="w-8 h-8 text-white" />
+        <div className="bg-slate-900 p-8 text-center">
+          <div className="flex justify-center mb-4">
+            <LogoCubes size={72} />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">CBGest</h1>
-          <p className="text-blue-100 text-sm mt-2">
+          <p className="text-slate-400 text-sm mt-2">
             Contabilidad y Gestión para Comunidades de Bienes
           </p>
         </div>

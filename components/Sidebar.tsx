@@ -1,6 +1,7 @@
 import React from 'react';
 import { LayoutDashboard, FileText, BookOpen, PieChart, Settings, FileCheck, Scale, Cloud, HardDrive, Wifi, Building2, Home, RefreshCw, CalendarCheck } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { LogoMini } from './Logo';
 
 interface SidebarProps {
   connectionStatus: 'APPWRITE' | 'LOCAL' | 'OFFLINE';
@@ -48,13 +49,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus, connectionHe
   return (
     <aside className="hidden md:flex w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex-col shadow-xl z-30">
       <div className="p-6 border-b border-slate-800">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white">
-            G
-          </div>
+        <div className="flex items-center gap-3">
+          <LogoMini size={36} />
           <div>
             <h1 className="text-lg font-bold tracking-tight text-white">CBGest</h1>
-            <p className="text-xs text-slate-300">Cataluña Edition</p>
+            <p className="text-xs text-slate-400">Gestión Contable</p>
           </div>
         </div>
       </div>

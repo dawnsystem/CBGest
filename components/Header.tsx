@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Search, User, ShieldCheck, LogOut, X, FileText, BookOpen, DollarSign, Settings as SettingsIcon, UserPlus, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { LogoMini } from './Logo';
 import { useNotifications } from '../context/NotificationContext';
 import { NotificationType } from '../types';
 
@@ -92,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
       <div className="flex items-center gap-4 w-full md:w-1/3">
         {/* Mobile Logo/Menu Placeholder */}
         <div className="md:hidden flex items-center gap-2 mr-2">
-             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-sm">G</div>
+             <LogoMini size={32} />
         </div>
 
         <div className="relative w-full max-w-md">
