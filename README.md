@@ -1,5 +1,5 @@
 <div align="center">
-<img width="1200" height="475" alt="CBGest Banner" src="./assets/banner.svg" />
+<img width="1200" height="475" alt="CBGest Banner" src="./assets/banner.png" />
 </div>
 
 # CBGest - Sistema de Gestión Contable para Comunidades de Bienes
