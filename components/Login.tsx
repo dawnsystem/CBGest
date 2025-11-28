@@ -7,7 +7,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Loader2, ArrowRight, AlertTriangle } from 'lucide-react';
-import { LogoCubes } from './Logo';
 
 export const Login: React.FC = () => {
   const { login, register, lastError, clearError } = useAuth();
@@ -68,7 +67,7 @@ export const Login: React.FC = () => {
         {/* Header */}
         <div className="bg-slate-900 p-8 text-center">
           <div className="flex justify-center mb-4">
-            <LogoCubes size={72} />
+            <img src="/assets/logo.png" alt="CBGest" className="w-20 h-24 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">CBGest</h1>
           <p className="text-slate-400 text-sm mt-2">
