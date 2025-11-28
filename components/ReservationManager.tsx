@@ -337,12 +337,15 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
     }
   };
 
-  // Format date for display
+  // Format date for display (dd/mm/aaaa)
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   };
 
   return (
@@ -657,8 +660,19 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                   onClick={() => toggleSort('checkIn')}
                 >
                   <div className="flex items-center gap-1">
-                    Fechas
+                    Llegada
                     {sortField === 'checkIn' && (
+                      sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
+                  onClick={() => toggleSort('checkOut')}
+                >
+                  <div className="flex items-center gap-1">
+                    Salida
+                    {sortField === 'checkOut' && (
                       sortOrder === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
                     )}
                   </div>
@@ -702,7 +716,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredReservations.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
                     <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <p>No hay reservas</p>
                     <p className="text-xs mt-1">Importa un archivo CSV para comenzar</p>
@@ -727,7 +741,10 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-600">
-                      {formatDate(reservation.checkIn)} → {formatDate(reservation.checkOut)}
+                      {formatDate(reservation.checkIn)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      {formatDate(reservation.checkOut)}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-900 text-right font-medium">
                       {reservation.nights}
