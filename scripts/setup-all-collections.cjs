@@ -390,6 +390,8 @@ async function setupEntriesCollection() {
     { type: 'float', key: 'credit', required: true, min: 0, max: 999999999 },
     { type: 'string', key: 'invoiceId', size: 100, required: false },
     { type: 'boolean', key: 'reconciled', required: false, default: false },
+    // Lines - JSON string containing array of AccountingEntryLine for double-entry accounting
+    { type: 'string', key: 'lines', size: 50000, required: false },
     // File references
     { type: 'string', key: 'fileData', size: 10000000, required: false },
     { type: 'string', key: 'fileType', size: 100, required: false },
@@ -526,8 +528,7 @@ async function setupSuppliersCollection() {
     { type: 'string', key: 'phone', size: 50, required: false },
     { type: 'string', key: 'category', size: 200, required: false },
     { type: 'string', key: 'notes', size: 2000, required: false },
-    { type: 'string', key: 'createdAt', size: 50, required: false },
-    { type: 'string', key: 'updatedAt', size: 50, required: false },
+    // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
   for (const attr of attributes) {
@@ -672,8 +673,7 @@ async function setupApartmentsCollection() {
     { type: 'string', key: 'licenseNumber', size: 100, required: false }, // Licencia turística
     { type: 'string', key: 'notes', size: 2000, required: false },
     { type: 'boolean', key: 'isActive', required: false, default: true },
-    { type: 'string', key: 'createdAt', size: 50, required: false },
-    { type: 'string', key: 'updatedAt', size: 50, required: false },
+    // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
   for (const attr of attributes) {
@@ -725,8 +725,7 @@ async function setupRecurringExpensesCollection() {
     { type: 'boolean', key: 'isDeductible', required: false, default: true },
     { type: 'boolean', key: 'isActive', required: false, default: true },
     { type: 'string', key: 'notes', size: 2000, required: false },
-    { type: 'string', key: 'createdAt', size: 50, required: false },
-    { type: 'string', key: 'updatedAt', size: 50, required: false },
+    // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
   for (const attr of attributes) {
@@ -785,8 +784,8 @@ async function setupAiMatchHistoryCollection() {
     { type: 'integer', key: 'usageCount', required: false, min: 0, max: 999999, default: 1 }, // How many times this pattern matched
 
     // Metadata
-    { type: 'string', key: 'createdAt', size: 50, required: false },
-    { type: 'string', key: 'lastUsedAt', size: 50, required: false },
+    { type: 'string', key: 'lastUsedAt', size: 50, required: false }, // Cuándo se usó este match por última vez
+    // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
   for (const attr of attributes) {
