@@ -342,7 +342,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
         <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-100 shadow-sm">
           <h3 className="text-base md:text-lg font-semibold text-slate-900 mb-4 md:mb-6">Evolución Tesorería (Real)</h3>
           <div className="h-56 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />

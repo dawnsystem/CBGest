@@ -418,7 +418,7 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
       {/* Chart */}
       {chartData.length > 0 && (
         <div className="h-56 mb-6">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <BarChart data={chartData} barGap={0}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis
