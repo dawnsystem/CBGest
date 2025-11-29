@@ -123,7 +123,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           item.id === placeholderItem.id ? savedItem : item
         ));
       } catch (error) {
-        uploadLogger.error('Error processing file:', placeholderItem.fileName, error);
+        uploadLogger.error(`Error processing file: ${placeholderItem.fileName}`, error);
 
         // Mark item as error
         const errorItem = {
