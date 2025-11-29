@@ -4,6 +4,36 @@
  *              y throttling inteligente para evitar exceder límites de API
  */
 
+/**
+ * Genera un UUID v4 compatible con todos los navegadores
+ * Usa crypto.randomUUID si está disponible, sino fallback a crypto.getRandomValues
+ */
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  // Fallback para navegadores que no soportan randomUUID
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+
+    // Set version (4) and variant (2) bits
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
+  // Último fallback con Math.random (menos seguro pero funcional)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 interface QueuedRequest<T> {
   id: string;
   execute: () => Promise<T>;
@@ -54,7 +84,7 @@ class AppwriteRateLimiter {
   ): Promise<T> {
     return new Promise((resolve, reject) => {
       const request: QueuedRequest<T> = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         execute,
         resolve: resolve as (value: T) => void,
         reject,
