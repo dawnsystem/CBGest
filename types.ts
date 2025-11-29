@@ -75,17 +75,15 @@ export interface AccountingEntry {
   date: string;
   concept: string;
   
-  // Sistema de líneas múltiples (partida doble)
-  // NOTA: Este campo NO existe en Appwrite schema - es computado en runtime
-  // Opcional porque los asientos se pueden crear con campos legacy
-  lines?: AccountingEntryLine[];
+  // NUEVO: Sistema de líneas múltiples (partida doble)
+  lines: AccountingEntryLine[];
   
   // LEGACY: Campos para compatibilidad con asientos antiguos (single-line)
-  // Estos campos SÍ existen en el esquema de Appwrite
-  accountCode?: string;   // Código de cuenta PGC
-  accountName?: string;   // Nombre de la cuenta
-  debit?: number;         // Importe en el Debe
-  credit?: number;        // Importe en el Haber
+  // Si 'lines' está vacío, usar estos campos legacy
+  accountCode?: string;   // @deprecated - usar lines[0].accountCode
+  accountName?: string;   // @deprecated - usar lines[0].accountName
+  debit?: number;         // @deprecated - usar lines[0].debit
+  credit?: number;        // @deprecated - usar lines[0].credit
   
   invoiceId?: string;     // Enlace opcional a factura origen
   transactionId?: string; // Enlace opcional a transacción bancaria

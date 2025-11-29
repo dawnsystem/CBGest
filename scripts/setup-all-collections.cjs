@@ -390,6 +390,8 @@ async function setupEntriesCollection() {
     { type: 'float', key: 'credit', required: true, min: 0, max: 999999999 },
     { type: 'string', key: 'invoiceId', size: 100, required: false },
     { type: 'boolean', key: 'reconciled', required: false, default: false },
+    // Lines - JSON string containing array of AccountingEntryLine for double-entry accounting
+    { type: 'string', key: 'lines', size: 50000, required: false },
     // File references
     { type: 'string', key: 'fileData', size: 10000000, required: false },
     { type: 'string', key: 'fileType', size: 100, required: false },

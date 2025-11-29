@@ -457,7 +457,7 @@ export const databaseService = {
   // --- ENTRIES ---
   async createEntry(entry: AccountingEntry): Promise<AccountingEntry> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente y campos que no existen en el esquema
+      // Excluir campos que Appwrite gestiona automáticamente
       const {
         referenceDoc, id, appwriteId, lines,
         createdAt, updatedAt,
@@ -465,14 +465,16 @@ export const databaseService = {
         ...entryData
       } = entry as any;
 
-      // NOTA: El campo 'lines' NO existe en el esquema de Appwrite para entries.
-      // Usamos los campos legacy (accountCode, accountName, debit, credit) directamente.
-      // Si hay lines, extraemos la primera línea para los campos legacy.
+      // Serializar líneas como JSON string para Appwrite
       const dataToSave = {
         ...entryData,
-        // Usar datos de la primera línea si existen, o los valores directos
-        accountCode: lines?.[0]?.accountCode || entryData.accountCode || '',
-        accountName: lines?.[0]?.accountName || entryData.accountName || '',
+        // Guardar líneas como JSON string
+        lines: lines && Array.isArray(lines) && lines.length > 0
+          ? JSON.stringify(lines)
+          : undefined,
+        // Mantener compatibilidad legacy: si hay líneas, extraer primera para campos legacy
+        accountCode: lines?.[0]?.accountCode || entryData.accountCode,
+        accountName: lines?.[0]?.accountName || entryData.accountName,
         debit: lines?.[0]?.debit ?? entryData.debit ?? 0,
         credit: lines?.[0]?.credit ?? entryData.credit ?? 0,
       };
@@ -489,13 +491,17 @@ export const databaseService = {
 
       connectionHealthy = true;
       
-      // Reconstruir líneas desde campos legacy al devolver
+      // Deserializar líneas al devolver
+      const parsedLines = doc.lines
+        ? (typeof doc.lines === 'string' ? JSON.parse(doc.lines) : doc.lines)
+        : [];
+      
       return {
         ...doc,
         referenceDoc,
         id: doc.$id,
         appwriteId: doc.$id,
-        lines: [{
+        lines: parsedLines.length > 0 ? parsedLines : [{
           accountCode: doc.accountCode || '',
           accountName: doc.accountName || '',
           debit: doc.debit || 0,
@@ -522,17 +528,31 @@ export const databaseService = {
 
       connectionHealthy = true;
       return response.documents.map((doc: any) => {
-        // El esquema de Appwrite no tiene 'lines', construir desde campos legacy
-        return {
-          ...doc,
-          id: doc.$id,
-          appwriteId: doc.$id,
-          lines: [{
+        // Deserializar líneas si existen
+        let parsedLines: any[] = [];
+        if (doc.lines) {
+          try {
+            parsedLines = typeof doc.lines === 'string' ? JSON.parse(doc.lines) : doc.lines;
+          } catch {
+            parsedLines = [];
+          }
+        }
+        
+        // Si no hay líneas parseadas, crear una desde campos legacy
+        if (parsedLines.length === 0 && doc.accountCode) {
+          parsedLines = [{
             accountCode: doc.accountCode || '',
             accountName: doc.accountName || '',
             debit: doc.debit || 0,
             credit: doc.credit || 0
-          }]
+          }];
+        }
+
+        return {
+          ...doc,
+          id: doc.$id,
+          appwriteId: doc.$id,
+          lines: parsedLines
         };
       }) as unknown as AccountingEntry[];
     } catch (error: any) {
@@ -544,7 +564,7 @@ export const databaseService = {
 
   async updateEntry(entry: AccountingEntry): Promise<AccountingEntry> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente y campos que no existen en el esquema
+      // Excluir campos que Appwrite gestiona automáticamente
       const {
         referenceDoc, id, appwriteId, lines,
         createdAt, updatedAt,
@@ -553,13 +573,15 @@ export const databaseService = {
       } = entry as any;
       const docId = appwriteId || id;
 
-      // NOTA: El campo 'lines' NO existe en el esquema de Appwrite para entries.
-      // Usamos los campos legacy (accountCode, accountName, debit, credit) directamente.
+      // Serializar líneas como JSON string para Appwrite
       const dataToSave = {
         ...entryData,
-        // Usar datos de la primera línea si existen, o los valores directos
-        accountCode: lines?.[0]?.accountCode || entryData.accountCode || '',
-        accountName: lines?.[0]?.accountName || entryData.accountName || '',
+        lines: lines && Array.isArray(lines) && lines.length > 0
+          ? JSON.stringify(lines)
+          : undefined,
+        // Mantener compatibilidad legacy
+        accountCode: lines?.[0]?.accountCode || entryData.accountCode,
+        accountName: lines?.[0]?.accountName || entryData.accountName,
         debit: lines?.[0]?.debit ?? entryData.debit ?? 0,
         credit: lines?.[0]?.credit ?? entryData.credit ?? 0,
       };
@@ -571,13 +593,17 @@ export const databaseService = {
 
       connectionHealthy = true;
       
-      // Reconstruir líneas desde campos legacy al devolver
+      // Deserializar líneas al devolver
+      const parsedLines = doc.lines
+        ? (typeof doc.lines === 'string' ? JSON.parse(doc.lines) : doc.lines)
+        : [];
+      
       return {
         ...doc,
         referenceDoc,
         id: doc.$id,
         appwriteId: doc.$id,
-        lines: [{
+        lines: parsedLines.length > 0 ? parsedLines : [{
           accountCode: doc.accountCode || '',
           accountName: doc.accountName || '',
           debit: doc.debit || 0,
