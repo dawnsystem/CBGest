@@ -32,7 +32,7 @@ export const GlobalUploadWidget: React.FC = () => {
   // Minimized state
   if (isMinimized) {
     return (
-      <div className="fixed bottom-20 md:bottom-8 right-4 z-50 bg-slate-900 rounded-lg shadow-xl border border-slate-700 overflow-hidden animate-fade-in-up cursor-pointer hover:bg-slate-800 transition-colors"
+      <div className="fixed bottom-24 md:bottom-8 right-4 z-40 bg-slate-900 rounded-lg shadow-xl border border-slate-700 overflow-hidden animate-fade-in-up cursor-pointer hover:bg-slate-800 transition-colors"
            onClick={() => setIsMinimized(false)}>
         <div className="px-4 py-3 flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -52,7 +52,7 @@ export const GlobalUploadWidget: React.FC = () => {
   }
 
   return (
-    <div className="fixed bottom-20 md:bottom-8 right-4 z-50 bg-white rounded-lg shadow-xl border border-slate-200 w-80 overflow-hidden animate-fade-in-up">
+    <div className="fixed bottom-24 md:bottom-8 right-4 z-40 bg-white rounded-lg shadow-xl border border-slate-200 w-80 max-w-[calc(100vw-2rem)] overflow-hidden animate-fade-in-up">
       {/* Header */}
       <div className="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-2">

@@ -89,29 +89,54 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   }, [user]);
 
   const addToQueue = async (files: File[], type: UploadType) => {
-    const newItemsPromises = files.map(async (file) => {
-      const base64Full = await fileToBase64(file);
-      return {
-        id: generateId(),
-        file,
-        uploadType: type,
-        fileName: file.name,
-        mimeType: file.type,
-        base64Data: base64Full,
-        status: 'QUEUED' as const,
-        progress: 0,
-        timestamp: Date.now(),
-        notificationDismissed: false
-      };
-    });
+    // Create placeholder items immediately for instant feedback on mobile
+    const placeholderItems: QueueItem[] = files.map((file) => ({
+      id: generateId(),
+      file,
+      uploadType: type,
+      fileName: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      base64Data: '',
+      status: 'QUEUED' as const,
+      progress: 0,
+      timestamp: Date.now(),
+      notificationDismissed: false
+    }));
 
-    const newItems = await Promise.all(newItemsPromises);
+    // Show items immediately in UI
+    setQueue(prev => [...prev, ...placeholderItems]);
 
-    // Create items in Appwrite - no fallback to local state
-    const savedItems = await Promise.all(
-      newItems.map(item => protectedDatabase.createUploadItem(item))
-    );
-    setQueue(prev => [...prev, ...savedItems]);
+    // Process each file with error handling
+    for (const placeholderItem of placeholderItems) {
+      try {
+        const base64Full = await fileToBase64(placeholderItem.file);
+        const completeItem = {
+          ...placeholderItem,
+          base64Data: base64Full
+        };
+
+        // Save to Appwrite
+        const savedItem = await protectedDatabase.createUploadItem(completeItem);
+
+        // Update item in queue with saved data
+        setQueue(prev => prev.map(item =>
+          item.id === placeholderItem.id ? savedItem : item
+        ));
+      } catch (error) {
+        uploadLogger.error('Error processing file:', placeholderItem.fileName, error);
+
+        // Mark item as error
+        const errorItem = {
+          ...placeholderItem,
+          status: 'ERROR' as const,
+          error: error instanceof Error ? error.message : 'Error al procesar archivo'
+        };
+
+        setQueue(prev => prev.map(item =>
+          item.id === placeholderItem.id ? errorItem : item
+        ));
+      }
+    }
   };
 
   const removeFromQueue = async (id: string) => {
@@ -297,7 +322,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   useEffect(() => {
     if (processingId) return;
     if (!isHydrated) return;
-    const nextItem = queue.find(item => item.status === 'QUEUED');
+    // Only process items that have base64Data (file has been fully loaded)
+    const nextItem = queue.find(item => item.status === 'QUEUED' && item.base64Data);
     if (!nextItem) return;
 
     processItem(nextItem);

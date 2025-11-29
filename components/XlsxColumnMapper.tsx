@@ -378,17 +378,17 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[95vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+              <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
             </div>
-            <div>
-              <h3 className="font-semibold text-slate-900">Mapear Columnas del Excel</h3>
-              <p className="text-sm text-slate-500">{fileName}</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Mapear Columnas</h3>
+              <p className="text-xs sm:text-sm text-slate-500 truncate">{fileName}</p>
             </div>
             {usingSavedMapping && (
               <span className="ml-2 px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full flex items-center gap-1">
@@ -402,40 +402,40 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Column Mapping Section */}
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+          <div className="bg-slate-50 rounded-xl p-3 sm:p-4 border border-slate-200">
             <h4 className="font-medium text-slate-900 mb-4">Configuracion de Columnas</h4>
 
             {/* Amount Mode Toggle */}
             <div className="mb-4">
               <label className="text-xs font-medium text-slate-600 mb-2 block">Formato de Importe</label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => {
                     setAmountMode('single');
                     setMapping(m => ({ ...m, debitColumn: null, creditColumn: null }));
                   }}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                     amountMode === 'single'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  Una columna (Importe)
+                  Una columna
                 </button>
                 <button
                   onClick={() => {
                     setAmountMode('separate');
                     setMapping(m => ({ ...m, amountColumn: null }));
                   }}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                     amountMode === 'separate'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  Dos columnas (Cargo/Abono)
+                  Cargo/Abono
                 </button>
               </div>
             </div>

@@ -396,17 +396,21 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
             name="files"
             type="file"
             ref={fileInputRef}
-            className="absolute w-0 h-0 opacity-0 overflow-hidden"
-            style={{ position: 'absolute', left: '-9999px' }}
+            className="sr-only"
             multiple
             accept={uploadType === 'INVOICE'
-              ? "image/*,.pdf"
-              : ".pdf,.xlsx,.xls,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"}
+              ? "image/jpeg,image/png,image/gif,image/webp,application/pdf"
+              : "application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"}
             onChange={handleFileInput}
+            capture={undefined}
           />
-          <button onClick={() => fileInputRef.current?.click()} className="bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
+          <label
+            htmlFor="invoice-uploader-file-input"
+            className="bg-slate-900 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors cursor-pointer inline-flex items-center gap-2 active:scale-95 touch-manipulation select-none"
+          >
+            <Upload className="w-5 h-5" />
             Seleccionar Archivos
-          </button>
+          </label>
         </div>
       </div>
 
