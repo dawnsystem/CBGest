@@ -6,7 +6,7 @@ import { MobileNavigation } from './components/MobileNavigation';
 import { Header } from './components/Header';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
-import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment, RecurringExpense, Reservation } from './types';
+import { Invoice, AppSettings, AccountingEntry, AccountingEntryLine, BankTransaction, Supplier, Apartment, RecurringExpense, Reservation } from './types';
 import { Eye, Trash, AlertTriangle, RefreshCw, XCircle, Check } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
@@ -29,6 +29,8 @@ const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ defau
 const InvoiceUploader = lazy(() => import('./components/InvoiceUploader').then(m => ({ default: m.InvoiceUploader })));
 const TaxModels = lazy(() => import('./components/TaxModels').then(m => ({ default: m.TaxModels })));
 const AccountingBooks = lazy(() => import('./components/AccountingBooks').then(m => ({ default: m.AccountingBooks })));
+const AccountLedger = lazy(() => import('./components/AccountLedger').then(m => ({ default: m.AccountLedger })));
+const TrialBalance = lazy(() => import('./components/TrialBalance').then(m => ({ default: m.TrialBalance })));
 const BankReconciliation = lazy(() => import('./components/BankReconciliation').then(m => ({ default: m.BankReconciliation })));
 const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const Suppliers = lazy(() => import('./components/Suppliers').then(m => ({ default: m.Suppliers })));
@@ -573,36 +575,132 @@ const MainLayout: React.FC = () => {
   };
 
   const createEntryFromInvoice = async (inv: Invoice) => {
-    let accountCode = inv.type === 'EXPENSE' ? '600' : '700';
-    let accountName = inv.type === 'EXPENSE' ? 'Compras' : 'Ventas';
+    // Parse Category "CODE - NAME" for main account
+    let mainAccountCode = inv.type === 'EXPENSE' ? '600' : '700';
+    let mainAccountName = inv.type === 'EXPENSE' ? 'Compras' : 'Ventas';
     
-    // Parse Category "CODE - NAME"
     if (inv.category) {
         const parts = inv.category.split(' - ');
         if (parts.length > 1) { 
-            accountCode = parts[0].trim(); 
-            accountName = parts.slice(1).join(' - ').trim(); 
+            mainAccountCode = parts[0].trim(); 
+            mainAccountName = parts.slice(1).join(' - ').trim(); 
         } else { 
-            accountCode = parts[0].trim(); 
+            mainAccountCode = parts[0].trim(); 
         }
+    }
+
+    // Build entry lines based on invoice type and VAT
+    const lines: AccountingEntryLine[] = [];
+    const isRentalExempt = settings.fiscalRegime === 'ALQUILER_EXENTO';
+
+    if (inv.type === 'EXPENSE') {
+      // GASTO: Debit = Gasto + IVA soportado, Credit = Acreedor/Proveedor
+      
+      // Línea 1: Cuenta de gasto (base imponible)
+      lines.push({
+        accountCode: mainAccountCode,
+        accountName: mainAccountName,
+        debit: inv.baseAmount,
+        credit: 0
+      });
+
+      // Línea 2: IVA soportado (si aplica y no es régimen exento o IVA > 0)
+      if (inv.vatAmount > 0 && !isRentalExempt) {
+        // Determinar subcuenta de IVA según tipo
+        let ivaCode = '472';
+        let ivaName = 'Hacienda Pública, IVA soportado';
+        if (inv.vatRate === 21) {
+          ivaCode = '4720';
+          ivaName = 'IVA soportado 21%';
+        } else if (inv.vatRate === 10) {
+          ivaCode = '4721';
+          ivaName = 'IVA soportado 10%';
+        } else if (inv.vatRate === 4) {
+          ivaCode = '4722';
+          ivaName = 'IVA soportado 4%';
+        }
+
+        lines.push({
+          accountCode: ivaCode,
+          accountName: ivaName,
+          debit: inv.vatAmount,
+          credit: 0
+        });
+      } else if (inv.vatAmount > 0 && isRentalExempt) {
+        // En régimen exento, el IVA es mayor gasto (no recuperable)
+        // Actualizamos la primera línea para incluir el total
+        lines[0].debit = inv.totalAmount;
+      }
+
+      // Línea 3: Contrapartida - Acreedor por prestaciones de servicios (o proveedor)
+      lines.push({
+        accountCode: '410',
+        accountName: 'Acreedores por prestaciones de servicios',
+        debit: 0,
+        credit: inv.totalAmount
+      });
+
+    } else {
+      // INGRESO: Debit = Cliente/Banco, Credit = Ingreso + IVA repercutido
+      
+      // Línea 1: Contrapartida - Cliente (deudor)
+      lines.push({
+        accountCode: '430',
+        accountName: 'Clientes',
+        debit: inv.totalAmount,
+        credit: 0
+      });
+
+      // Línea 2: Cuenta de ingreso (base imponible)
+      lines.push({
+        accountCode: mainAccountCode,
+        accountName: mainAccountName,
+        debit: 0,
+        credit: inv.baseAmount
+      });
+
+      // Línea 3: IVA repercutido (si aplica)
+      if (inv.vatAmount > 0 && !isRentalExempt) {
+        let ivaCode = '477';
+        let ivaName = 'Hacienda Pública, IVA repercutido';
+        if (inv.vatRate === 21) {
+          ivaCode = '4770';
+          ivaName = 'IVA repercutido 21%';
+        } else if (inv.vatRate === 10) {
+          ivaCode = '4771';
+          ivaName = 'IVA repercutido 10%';
+        } else if (inv.vatRate === 4) {
+          ivaCode = '4772';
+          ivaName = 'IVA repercutido 4%';
+        }
+
+        lines.push({
+          accountCode: ivaCode,
+          accountName: ivaName,
+          debit: 0,
+          credit: inv.vatAmount
+        });
+      }
     }
 
     const newEntry: AccountingEntry = {
         id: `AUTO-${inv.id}`,
         date: inv.date,
         concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
-        accountCode: accountCode,
-        accountName: accountName,
-        debit: inv.type === 'EXPENSE' ? inv.totalAmount : 0, // NOTE: Total amount for simple accounting if exempt
-        credit: inv.type === 'INCOME' ? inv.totalAmount : 0,
+        lines: lines,
+        // Legacy fields for compatibility (first line)
+        accountCode: lines[0].accountCode,
+        accountName: lines[0].accountName,
+        debit: lines[0].debit,
+        credit: lines[0].credit,
         invoiceId: inv.id,
         // Pass file references carefully
         referenceDoc: inv.file,
         fileData: inv.fileData,
         fileType: inv.fileType,
-        appwriteFileId: inv.appwriteFileId, // Important for Cloud
+        appwriteFileId: inv.appwriteFileId,
         reconciled: false,
-        // Audit fields - inherited from invoice or current user
+        // Audit fields
         createdBy: inv.createdBy || user?.$id,
         createdByName: inv.createdByName || user?.name,
         createdAt: new Date().toISOString()
@@ -843,17 +941,60 @@ const MainLayout: React.FC = () => {
       }
   };
 
-  // NEW: Create Accounting Entry from Bank Transaction
+  // NEW: Create Accounting Entry from Bank Transaction (with double-entry)
   const handleCreateEntryFromTransaction = (tx: BankTransaction) => {
+     const isExpense = tx.amount < 0;
+     const absAmount = Math.abs(tx.amount);
+     
+     // Build lines for double-entry
+     const lines: AccountingEntryLine[] = [];
+     
+     if (isExpense) {
+       // GASTO desde banco
+       // Debe: Cuenta de gasto
+       lines.push({
+         accountCode: '626',
+         accountName: 'Servicios bancarios y similares',
+         debit: absAmount,
+         credit: 0
+       });
+       // Haber: Banco
+       lines.push({
+         accountCode: '572',
+         accountName: 'Bancos e instituciones de crédito c/c vista, euros',
+         debit: 0,
+         credit: absAmount
+       });
+     } else {
+       // INGRESO a banco
+       // Debe: Banco
+       lines.push({
+         accountCode: '572',
+         accountName: 'Bancos e instituciones de crédito c/c vista, euros',
+         debit: absAmount,
+         credit: 0
+       });
+       // Haber: Cuenta de ingreso
+       lines.push({
+         accountCode: '769',
+         accountName: 'Otros ingresos financieros',
+         debit: 0,
+         credit: absAmount
+       });
+     }
+
      const newEntry: AccountingEntry = {
         id: `BANK-${tx.id}`,
         date: tx.date,
         concept: tx.concept,
-        accountCode: tx.amount < 0 ? '626' : '769', // Default guess: Bank Services or Financial Income
-        accountName: tx.amount < 0 ? 'Servicios bancarios' : 'Ingresos financieros',
-        debit: tx.amount < 0 ? Math.abs(tx.amount) : 0,
-        credit: tx.amount > 0 ? tx.amount : 0,
-        reconciled: true // It comes from bank, so it matches!
+        lines: lines,
+        // Legacy fields
+        accountCode: lines[0].accountCode,
+        accountName: lines[0].accountName,
+        debit: lines[0].debit,
+        credit: lines[0].credit,
+        transactionId: tx.id,
+        reconciled: true
      };
      handleAddEntry(newEntry);
 
@@ -864,7 +1005,7 @@ const MainLayout: React.FC = () => {
        reconciledWithEntryId: newEntry.id
      });
 
-     alert("Asiento creado. Ve a 'Libros Contables' para editar la cuenta si es necesario.");
+     alert("Asiento creado con partida doble. Ve a 'Libros Contables' para editar las cuentas si es necesario.");
   };
 
   // Reconcile a movement (imported transaction or accounting entry) with another entry
@@ -1703,6 +1844,12 @@ const MainLayout: React.FC = () => {
                         onDeleteEntry={handleDeleteEntry}
                         onViewDocument={(file) => setViewingDoc({file})}
                     />
+                } />
+                <Route path="/ledger" element={
+                    <AccountLedger entries={accountingEntries} />
+                } />
+                <Route path="/trial-balance" element={
+                    <TrialBalance entries={accountingEntries} />
                 } />
                 <Route path="/reconciliation" element={
                     <BankReconciliation

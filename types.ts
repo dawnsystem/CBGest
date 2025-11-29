@@ -60,31 +60,88 @@ export interface Invoice {
   createdAt?: string; // ISO timestamp
 }
 
-// Asiento Contable REAL y EDITABLE
+// Línea individual de un asiento contable (partida doble)
+export interface AccountingEntryLine {
+  accountCode: string;    // Ej: 628, 472, 410
+  accountName: string;    // Ej: Suministros, IVA soportado, Acreedores
+  debit: number;          // Importe en el Debe (0 si es Haber)
+  credit: number;         // Importe en el Haber (0 si es Debe)
+}
+
+// Asiento Contable REAL con PARTIDA DOBLE (múltiples líneas)
 export interface AccountingEntry {
   id: string;
+  number?: number;        // Número secuencial del asiento (opcional para migración)
   date: string;
   concept: string;
-  accountCode: string; // Ej: 628.0.1
-  accountName: string; // Ej: Suministros
-  debit: number;
-  credit: number;
-  invoiceId?: string; // Enlace opcional a factura origen
+  
+  // NUEVO: Sistema de líneas múltiples (partida doble)
+  lines: AccountingEntryLine[];
+  
+  // LEGACY: Campos para compatibilidad con asientos antiguos (single-line)
+  // Si 'lines' está vacío, usar estos campos legacy
+  accountCode?: string;   // @deprecated - usar lines[0].accountCode
+  accountName?: string;   // @deprecated - usar lines[0].accountName
+  debit?: number;         // @deprecated - usar lines[0].debit
+  credit?: number;        // @deprecated - usar lines[0].credit
+  
+  invoiceId?: string;     // Enlace opcional a factura origen
+  transactionId?: string; // Enlace opcional a transacción bancaria
 
-  referenceDoc?: File; // Runtime only
-  fileData?: string; // Base64 for persistence
-  fileType?: string; // MIME type
+  referenceDoc?: File;    // Runtime only
+  fileData?: string;      // Base64 for persistence
+  fileType?: string;      // MIME type
 
-  appwriteId?: string; // Document ID
+  appwriteId?: string;    // Document ID
   appwriteFileId?: string; // Attachment ID
 
-  reconciled: boolean; // ¿Conciliado con banco?
+  reconciled: boolean;    // ¿Conciliado con banco?
 
   // Audit fields
-  createdBy?: string; // User ID who created this
+  createdBy?: string;     // User ID who created this
   createdByName?: string; // User name who created this
-  createdAt?: string; // ISO timestamp
+  createdAt?: string;     // ISO timestamp
 }
+
+// Helper type para calcular totales de un asiento
+export interface EntryTotals {
+  totalDebit: number;
+  totalCredit: number;
+  isBalanced: boolean;    // true si totalDebit === totalCredit
+}
+
+// Helper function para obtener líneas de un asiento (compatibilidad legacy)
+export const getEntryLines = (entry: AccountingEntry): AccountingEntryLine[] => {
+  // Si tiene líneas, usarlas directamente
+  if (entry.lines && entry.lines.length > 0) {
+    return entry.lines;
+  }
+  
+  // Fallback para asientos legacy (single-line)
+  if (entry.accountCode) {
+    return [{
+      accountCode: entry.accountCode,
+      accountName: entry.accountName || '',
+      debit: entry.debit || 0,
+      credit: entry.credit || 0
+    }];
+  }
+  
+  return [];
+};
+
+// Helper function para calcular totales de un asiento
+export const calculateEntryTotals = (entry: AccountingEntry): EntryTotals => {
+  const lines = getEntryLines(entry);
+  const totalDebit = lines.reduce((sum, line) => sum + (line.debit || 0), 0);
+  const totalCredit = lines.reduce((sum, line) => sum + (line.credit || 0), 0);
+  
+  return {
+    totalDebit,
+    totalCredit,
+    isBalanced: Math.abs(totalDebit - totalCredit) < 0.01 // Tolerancia de 1 céntimo
+  };
+};
 
 export interface BankTransaction {
   id: string;
