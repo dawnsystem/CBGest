@@ -528,8 +528,7 @@ async function setupSuppliersCollection() {
     { type: 'string', key: 'phone', size: 50, required: false },
     { type: 'string', key: 'category', size: 200, required: false },
     { type: 'string', key: 'notes', size: 2000, required: false },
-    { type: 'string', key: 'createdAt', size: 50, required: false },
-    { type: 'string', key: 'updatedAt', size: 50, required: false },
+    // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
   for (const attr of attributes) {
@@ -674,8 +673,7 @@ async function setupApartmentsCollection() {
     { type: 'string', key: 'licenseNumber', size: 100, required: false }, // Licencia turística
     { type: 'string', key: 'notes', size: 2000, required: false },
     { type: 'boolean', key: 'isActive', required: false, default: true },
-    { type: 'string', key: 'createdAt', size: 50, required: false },
-    { type: 'string', key: 'updatedAt', size: 50, required: false },
+    // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
   for (const attr of attributes) {
