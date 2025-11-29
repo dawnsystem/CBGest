@@ -1,14 +1,37 @@
 import React, { useState, useMemo } from 'react';
-import { BankTransaction, AccountingEntry, Invoice, Supplier, RecurringExpense, AIMatchSuggestion } from '../types';
-import { ArrowRightLeft, Check, AlertCircle, Plus, BookOpen, Building2, Sparkles, Zap, TrendingUp, FileText, RefreshCw } from 'lucide-react';
-import { generateMatchSuggestions, detectPlatform, categorizeTransaction } from '../utils/aiMatching';
+import { BankTransaction, AccountingEntry, Invoice, Supplier, RecurringExpense, AIMatchSuggestion, getEntryLines, calculateEntryTotals } from '../types';
+import { ArrowRightLeft, Check, AlertCircle, Plus, BookOpen, Building2, Sparkles, Zap, FileText, RefreshCw } from 'lucide-react';
+import { generateMatchSuggestions } from '../utils/aiMatching';
+import { isTreasuryAccount } from '../utils/accountingPlan';
 
-// Bank account codes (cuentas de tesorería PGC)
-const BANK_ACCOUNT_PREFIXES = ['570', '571', '572', '573', '574', '575', '576', '577'];
+// Helper to check if an entry has any treasury/bank lines
+const entryHasBankLine = (entry: AccountingEntry): boolean => {
+  const lines = getEntryLines(entry);
+  return lines.some(line => isTreasuryAccount(line.accountCode));
+};
 
-// Check if an account code is a bank/cash account
-const isBankAccount = (accountCode: string): boolean => {
-  return BANK_ACCOUNT_PREFIXES.some(prefix => accountCode.startsWith(prefix));
+// Get the bank line amount from an entry (positive for debit, negative for credit)
+const getBankLineAmount = (entry: AccountingEntry): number => {
+  const lines = getEntryLines(entry);
+  for (const line of lines) {
+    if (isTreasuryAccount(line.accountCode)) {
+      // Debit on bank = money coming in (positive)
+      // Credit on bank = money going out (negative)
+      return line.debit > 0 ? line.debit : -line.credit;
+    }
+  }
+  return 0;
+};
+
+// Get the bank account code from an entry
+const getBankAccountCode = (entry: AccountingEntry): string => {
+  const lines = getEntryLines(entry);
+  for (const line of lines) {
+    if (isTreasuryAccount(line.accountCode)) {
+      return line.accountCode;
+    }
+  }
+  return '';
 };
 
 // Union type for bank movements (imported or from accounting entries)
@@ -68,14 +91,14 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
   );
 
   // Convert accounting entries with bank accounts to movements
-  // An entry with a bank account (572, 573, etc.) represents a bank movement
+  // An entry with a bank account line (572, 573, etc.) represents a bank movement
   const accountingMovements: BankMovement[] = useMemo(() =>
     entries
-      .filter(e => !e.reconciled && isBankAccount(e.accountCode))
+      .filter(e => !e.reconciled && entryHasBankLine(e))
       .map(entry => {
-        // If debit > 0 on bank account = money coming IN (positive)
-        // If credit > 0 on bank account = money going OUT (negative)
-        const amount = entry.debit > 0 ? entry.debit : -entry.credit;
+        // Get amount from the bank line
+        const amount = getBankLineAmount(entry);
+        const bankAccountCode = getBankAccountCode(entry);
         return {
           id: `entry-${entry.id}`,
           date: entry.date,
@@ -83,7 +106,7 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
           amount: amount,
           source: 'ACCOUNTING' as const,
           originalEntry: entry,
-          accountCode: entry.accountCode,
+          accountCode: bankAccountCode,
           status: 'PENDING' as const
         };
       }),
@@ -97,17 +120,19 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
     [importedMovements, accountingMovements]
   );
 
-  // Get entries that are NOT bank accounts (for matching panel)
+  // Get entries that do NOT have bank account lines (for matching panel)
   const nonBankEntries = useMemo(() =>
-    entries.filter(e => !e.reconciled && !isBankAccount(e.accountCode)),
+    entries.filter(e => !e.reconciled && !entryHasBankLine(e)),
     [entries]
   );
 
-  // Find potential matches - entries that are NOT bank accounts with matching amount
+  // Find potential matches - entries without bank accounts with matching total amount
   const getMatches = (movement: BankMovement) => {
     const movementAmountAbs = Math.abs(movement.amount);
     return nonBankEntries.filter(entry => {
-      const entryAmount = entry.debit > 0 ? entry.debit : entry.credit;
+      const totals = calculateEntryTotals(entry);
+      // Use the larger of debit/credit totals as the entry amount
+      const entryAmount = Math.max(totals.totalDebit, totals.totalCredit);
       return Math.abs(movementAmountAbs - entryAmount) < 0.05; // 5 cent tolerance
     });
   };
@@ -289,25 +314,43 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
                     </div>
                 ) : (
                     <>
-                        {getMatches(selectedMovementData).map(match => (
-                            <div key={match.id} className="bg-white p-4 rounded-lg border border-emerald-200 shadow-sm flex justify-between items-center">
-                                <div>
-                                    <p className="font-bold text-slate-800">{match.concept}</p>
-                                    <p className="text-xs text-slate-500">{match.date} • {match.accountCode}</p>
+                        {getMatches(selectedMovementData).map(match => {
+                            const matchTotals = calculateEntryTotals(match);
+                            const matchLines = getEntryLines(match);
+                            return (
+                            <div key={match.id} className="bg-white p-4 rounded-lg border border-emerald-200 shadow-sm">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p className="font-bold text-slate-800">{match.concept}</p>
+                                        <p className="text-xs text-slate-500">{match.date}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="font-mono font-bold">
+                                            {matchTotals.totalDebit.toFixed(2)}€
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    <span className="font-mono font-bold">
-                                        {match.debit > 0 ? `-${match.debit}€` : `+${match.credit}€`}
-                                    </span>
-                                    <button
-                                        onClick={() => handleReconcile(selectedMovement, match.id)}
-                                        className="bg-emerald-500 text-white px-3 py-1 rounded text-xs font-bold hover:bg-emerald-600 flex items-center gap-1"
-                                    >
-                                        <Check className="w-3 h-3" /> CASAR
-                                    </button>
+                                {/* Show lines summary */}
+                                <div className="text-xs text-slate-500 mb-2 space-y-0.5">
+                                    {matchLines.slice(0, 3).map((line, idx) => (
+                                        <div key={idx} className="flex justify-between">
+                                            <span className="font-mono">{line.accountCode}</span>
+                                            <span>{line.debit > 0 ? `D:${line.debit}` : `H:${line.credit}`}</span>
+                                        </div>
+                                    ))}
+                                    {matchLines.length > 3 && (
+                                        <span className="text-slate-400">+{matchLines.length - 3} más...</span>
+                                    )}
                                 </div>
+                                <button
+                                    onClick={() => handleReconcile(selectedMovement, match.id)}
+                                    className="w-full bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-emerald-600 flex items-center justify-center gap-1"
+                                >
+                                    <Check className="w-3 h-3" /> CASAR
+                                </button>
                             </div>
-                        ))}
+                            );
+                        })}
 
                         {getMatches(selectedMovementData).length === 0 && (
                              <div className="text-center p-6">

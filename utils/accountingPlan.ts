@@ -3,6 +3,57 @@ export interface AccountOption {
   name: string;
 }
 
+// Helper function para obtener una cuenta por código
+export const getAccountByCode = (code: string): AccountOption | undefined => {
+  return ACCOUNT_PLAN.find(a => a.code === code);
+};
+
+// Helper function para obtener nombre de cuenta por código
+export const getAccountName = (code: string): string => {
+  const account = getAccountByCode(code);
+  return account?.name || code;
+};
+
+// Helper function para formatear cuenta como "CÓDIGO - NOMBRE"
+export const formatAccount = (code: string): string => {
+  const account = getAccountByCode(code);
+  return account ? `${account.code} - ${account.name}` : code;
+};
+
+// Grupos de cuentas por naturaleza
+export const ACCOUNT_GROUPS = {
+  ACTIVO: ['1', '2', '3', '4', '5'], // Simplificado - activos
+  PASIVO: ['1', '4', '5'],           // Simplificado - pasivos
+  GASTOS: ['6'],                      // Grupo 6
+  INGRESOS: ['7'],                    // Grupo 7
+  TESORERIA: ['57'],                  // Cuentas de caja y bancos
+  IVA_SOPORTADO: ['472'],             // IVA soportado
+  IVA_REPERCUTIDO: ['477'],           // IVA repercutido
+  PROVEEDORES: ['40'],                // Proveedores
+  ACREEDORES: ['41'],                 // Acreedores
+  CLIENTES: ['43'],                   // Clientes
+};
+
+// Verificar si una cuenta es de tesorería (banco/caja)
+export const isTreasuryAccount = (code: string): boolean => {
+  return code.startsWith('57');
+};
+
+// Verificar si una cuenta es de IVA
+export const isVATAccount = (code: string): boolean => {
+  return code.startsWith('472') || code.startsWith('477');
+};
+
+// Verificar si una cuenta es de gasto
+export const isExpenseAccount = (code: string): boolean => {
+  return code.startsWith('6');
+};
+
+// Verificar si una cuenta es de ingreso
+export const isIncomeAccount = (code: string): boolean => {
+  return code.startsWith('7');
+};
+
 // Plan General Contable Español - Adaptado para Comunidades de Bienes
 // Fuente: PGC aprobado por Real Decreto 1514/2007
 // Simplificado y enfocado en actividades inmobiliarias/turísticas
@@ -140,23 +191,60 @@ export const ACCOUNT_PLAN: AccountOption[] = [
   // GRUPO 4 - ACREEDORES Y DEUDORES POR OPERACIONES COMERCIALES
   // ===================================================================
 
-  { code: '430', name: 'Clientes' },
-  { code: '431', name: 'Clientes, efectos comerciales a cobrar' },
-  { code: '436', name: 'Clientes de dudoso cobro' },
-  { code: '437', name: 'Envases y embalajes a devolver por clientes' },
+  // Subgrupo 40 - Proveedores
   { code: '400', name: 'Proveedores' },
   { code: '401', name: 'Proveedores, efectos comerciales a pagar' },
+  { code: '403', name: 'Proveedores, empresas del grupo' },
+  { code: '406', name: 'Envases y embalajes a devolver a proveedores' },
+  { code: '407', name: 'Anticipos a proveedores' },
+
+  // Subgrupo 41 - Acreedores varios
   { code: '410', name: 'Acreedores por prestaciones de servicios' },
   { code: '411', name: 'Acreedores, efectos comerciales a pagar' },
+  { code: '419', name: 'Acreedores por operaciones en común' },
+
+  // Subgrupo 43 - Clientes
+  { code: '430', name: 'Clientes' },
+  { code: '431', name: 'Clientes, efectos comerciales a cobrar' },
+  { code: '432', name: 'Clientes, operaciones de factoring' },
+  { code: '435', name: 'Clientes de dudoso cobro' },
+  { code: '436', name: 'Clientes de dudoso cobro' },
+  { code: '437', name: 'Envases y embalajes a devolver por clientes' },
+  { code: '438', name: 'Anticipos de clientes' },
+
+  // Subgrupo 44 - Deudores varios
   { code: '440', name: 'Deudores' },
   { code: '441', name: 'Deudores, efectos comerciales a cobrar' },
+  { code: '445', name: 'Deudores de dudoso cobro' },
+  { code: '449', name: 'Deudores por operaciones en común' },
+
+  // Subgrupo 46 - Personal
+  { code: '460', name: 'Anticipos de remuneraciones' },
+  { code: '465', name: 'Remuneraciones pendientes de pago' },
+
+  // Subgrupo 47 - Administraciones Públicas
   { code: '470', name: 'Hacienda Pública, deudora por diversos conceptos' },
+  { code: '4700', name: 'Hacienda Pública, deudora por IVA' },
+  { code: '4708', name: 'Hacienda Pública, deudora por subvenciones' },
+  { code: '4709', name: 'Hacienda Pública, deudora por devoluciones' },
   { code: '471', name: 'Organismos de la Seguridad Social, deudores' },
   { code: '472', name: 'Hacienda Pública, IVA soportado' },
+  { code: '4720', name: 'IVA soportado 21%' },
+  { code: '4721', name: 'IVA soportado 10%' },
+  { code: '4722', name: 'IVA soportado 4%' },
   { code: '473', name: 'Hacienda Pública, retenciones y pagos a cuenta' },
+  { code: '4730', name: 'Retenciones IRPF practicadas' },
+  { code: '474', name: 'Activos por impuesto diferido' },
   { code: '475', name: 'Hacienda Pública, acreedora por conceptos fiscales' },
+  { code: '4750', name: 'Hacienda Pública, acreedora por IVA' },
+  { code: '4751', name: 'Hacienda Pública, acreedora por retenciones' },
+  { code: '4752', name: 'Hacienda Pública, acreedora por impuesto sociedades' },
   { code: '476', name: 'Organismos de la Seguridad Social, acreedores' },
   { code: '477', name: 'Hacienda Pública, IVA repercutido' },
+  { code: '4770', name: 'IVA repercutido 21%' },
+  { code: '4771', name: 'IVA repercutido 10%' },
+  { code: '4772', name: 'IVA repercutido 4%' },
+  { code: '479', name: 'Pasivos por diferencias temporarias imponibles' },
 
   // ===================================================================
   // GRUPO 5 - CUENTAS FINANCIERAS

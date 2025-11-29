@@ -24,9 +24,10 @@ describe('accountingPlan', () => {
   });
 
   describe('account codes format', () => {
-    it('should have valid account codes (3 digits)', () => {
+    it('should have valid account codes (3-4 digits)', () => {
       ACCOUNT_PLAN.forEach((account) => {
-        expect(account.code).toMatch(/^\d{3}$/);
+        // Account codes can be 3 or 4 digits (subcuentas de IVA, retenciones, etc.)
+        expect(account.code).toMatch(/^\d{3,4}$/);
       });
     });
 
