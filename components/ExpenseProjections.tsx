@@ -299,7 +299,7 @@ export const ExpenseProjections: React.FC<ExpenseProjectionsProps> = ({
 
       {/* Chart */}
       <div className="h-48 mb-6">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis

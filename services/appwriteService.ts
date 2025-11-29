@@ -288,9 +288,15 @@ export const databaseService = {
         fileData,
         ...restInvoiceData
       } = invoice as any;
+
+      // Appwrite expects history as an array of strings (each event serialized as JSON)
+      const historyArray = history && Array.isArray(history)
+        ? history.map((event: any) => typeof event === 'string' ? event : JSON.stringify(event))
+        : [];
+
       const invoiceData = {
         ...restInvoiceData,
-        history: history ? JSON.stringify(history) : undefined
+        history: historyArray
       };
 
       const doc = await withRetry(
@@ -306,12 +312,17 @@ export const databaseService = {
       notifySuccess('Factura guardada');
       connectionHealthy = true;
 
+      // Parse history back to objects
+      const parsedHistory = (doc.history && Array.isArray(doc.history))
+        ? doc.history.map((item: any) => typeof item === 'string' ? JSON.parse(item) : item)
+        : [];
+
       return {
         ...doc,
         file,
         id: doc.$id,
         appwriteId: doc.$id,
-        history: doc.history ? JSON.parse(doc.history as string) : []
+        history: parsedHistory
       } as unknown as Invoice;
     } catch (error: any) {
       notifyError(error.message, 'createInvoice');
@@ -332,14 +343,36 @@ export const databaseService = {
       );
 
       connectionHealthy = true;
-      return response.documents.map((doc: any) => ({
-        ...doc,
-        id: doc.$id,
-        appwriteId: doc.$id,
-        history: doc.history && typeof doc.history === 'string'
-          ? JSON.parse(doc.history)
-          : (doc.history || [])
-      })) as unknown as Invoice[];
+      return response.documents.map((doc: any) => {
+        // Parse history: it's stored as an array of JSON strings
+        let parsedHistory: any[] = [];
+        if (doc.history && Array.isArray(doc.history)) {
+          parsedHistory = doc.history.map((item: any) => {
+            if (typeof item === 'string') {
+              try {
+                return JSON.parse(item);
+              } catch {
+                return { action: item, date: new Date().toISOString(), user: 'system' };
+              }
+            }
+            return item;
+          });
+        } else if (doc.history && typeof doc.history === 'string') {
+          // Legacy support: single JSON string
+          try {
+            parsedHistory = JSON.parse(doc.history);
+          } catch {
+            parsedHistory = [];
+          }
+        }
+
+        return {
+          ...doc,
+          id: doc.$id,
+          appwriteId: doc.$id,
+          history: parsedHistory
+        };
+      }) as unknown as Invoice[];
     } catch (error: any) {
       notifyError(error.message, 'getInvoices');
       connectionHealthy = false;
@@ -362,9 +395,15 @@ export const databaseService = {
         fileData,
         ...restInvoiceData
       } = invoice as any;
+
+      // Appwrite expects history as an array of strings (each event serialized as JSON)
+      const historyArray = history && Array.isArray(history)
+        ? history.map((event: any) => typeof event === 'string' ? event : JSON.stringify(event))
+        : [];
+
       const invoiceData = {
         ...restInvoiceData,
-        history: history ? JSON.stringify(history) : undefined
+        history: historyArray
       };
 
       const docId = invoice.appwriteId || invoice.id;
@@ -381,12 +420,17 @@ export const databaseService = {
       notifySuccess('Factura actualizada');
       connectionHealthy = true;
 
+      // Parse history back to objects
+      const parsedHistory = (doc.history && Array.isArray(doc.history))
+        ? doc.history.map((item: any) => typeof item === 'string' ? JSON.parse(item) : item)
+        : [];
+
       return {
         ...doc,
         file,
         id: doc.$id,
         appwriteId: doc.$id,
-        history: doc.history ? JSON.parse(doc.history as string) : []
+        history: parsedHistory
       } as unknown as Invoice;
     } catch (error: any) {
       notifyError(error.message, 'updateInvoice');
