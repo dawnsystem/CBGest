@@ -725,8 +725,7 @@ async function setupRecurringExpensesCollection() {
     { type: 'boolean', key: 'isDeductible', required: false, default: true },
     { type: 'boolean', key: 'isActive', required: false, default: true },
     { type: 'string', key: 'notes', size: 2000, required: false },
-    { type: 'string', key: 'createdAt', size: 50, required: false },
-    { type: 'string', key: 'updatedAt', size: 50, required: false },
+    // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
   for (const attr of attributes) {
@@ -785,8 +784,8 @@ async function setupAiMatchHistoryCollection() {
     { type: 'integer', key: 'usageCount', required: false, min: 0, max: 999999, default: 1 }, // How many times this pattern matched
 
     // Metadata
-    { type: 'string', key: 'createdAt', size: 50, required: false },
-    { type: 'string', key: 'lastUsedAt', size: 50, required: false },
+    { type: 'string', key: 'lastUsedAt', size: 50, required: false }, // Cuándo se usó este match por última vez
+    // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
   for (const attr of attributes) {
