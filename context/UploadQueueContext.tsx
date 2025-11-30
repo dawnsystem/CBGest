@@ -158,11 +158,14 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
       uploadLogger.debug(`[UploadQueue] Subiendo ${item.fileName} a Storage...`);
       
+      // Generar un fileId válido para Appwrite (máx 36 chars, solo a-z, A-Z, 0-9, ., -, _)
+      // Usamos un formato corto: timestamp en base36 + sufijo aleatorio
+      const shortTimestamp = Date.now().toString(36).slice(-8);
+      const randomPart = Math.random().toString(36).substring(2, 10);
+      const fileId = `up_${shortTimestamp}_${randomPart}`;
+      
       // Subir archivo a Storage
-      const storageFileId = await storageService.uploadFile(
-        file, 
-        `upload-${item.id}-${Date.now()}`
-      );
+      const storageFileId = await storageService.uploadFile(file, fileId);
       
       uploadLogger.debug(`[UploadQueue] ${item.fileName} subido, storageFileId: ${storageFileId}`);
 
