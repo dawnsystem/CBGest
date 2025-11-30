@@ -129,19 +129,22 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       }
     }
 
+    const debit = inv.type === 'EXPENSE' ? inv.totalAmount : 0;
+    const credit = inv.type === 'INCOME' ? inv.totalAmount : 0;
+    
     const newEntry: AccountingEntry = {
       id: `AUTO-${inv.id}`,
       date: inv.date,
       concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
+      lines: [{ accountCode, accountName, debit, credit }],
+      // Legacy fields for compatibility
       accountCode,
       accountName,
-      debit: inv.type === 'EXPENSE' ? inv.totalAmount : 0,
-      credit: inv.type === 'INCOME' ? inv.totalAmount : 0,
+      debit,
+      credit,
       invoiceId: inv.id,
-      referenceDoc: inv.file,
-      fileData: inv.fileData,
-      fileType: inv.fileType,
       appwriteFileId: inv.appwriteFileId,
+      fileType: inv.fileType,
       reconciled: false,
       createdBy: inv.createdBy || user?.$id,
       createdByName: inv.createdByName || user?.name,
