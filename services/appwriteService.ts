@@ -1129,6 +1129,11 @@ export const databaseService = {
       );
       connectionHealthy = true;
     } catch (error: any) {
+      // Ignorar errores 404 - si el documento no existe, el objetivo ya se cumplió
+      if (error?.code === 404) {
+        console.log(`[deleteUploadItem] Documento ${id} no encontrado - ya fue eliminado`);
+        return;
+      }
       notifyError(error.message, 'deleteUploadItem');
       connectionHealthy = false;
       throw error;
@@ -1147,12 +1152,19 @@ export const databaseService = {
       );
 
       await Promise.all(
-        response.documents.map(doc =>
-          withRetry(
-            () => databases.deleteDocument(config.databaseId, config.collections.uploads, doc.$id),
-            'deleteCompletedUploadBatch'
-          )
-        )
+        response.documents.map(async doc => {
+          try {
+            await withRetry(
+              () => databases.deleteDocument(config.databaseId, config.collections.uploads, doc.$id),
+              'deleteCompletedUploadBatch'
+            );
+          } catch (error: any) {
+            // Ignorar errores 404 - el documento ya fue eliminado
+            if (error?.code !== 404) {
+              throw error;
+            }
+          }
+        })
       );
       connectionHealthy = true;
     } catch (error: any) {
