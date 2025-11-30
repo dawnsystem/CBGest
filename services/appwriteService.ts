@@ -1718,8 +1718,15 @@ export const storageService = {
 
   async downloadFile(fileId: string): Promise<Blob> {
     try {
-      const file = await storage.getFileDownload(config.bucketId, fileId);
-      return file as unknown as Blob;
+      // getFileDownload returns a URL, not a Blob - we need to fetch it
+      const downloadUrl = storage.getFileDownload(config.bucketId, fileId);
+      const response = await fetch(downloadUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+      }
+      
+      return await response.blob();
     } catch (error: any) {
       console.error('Download file error:', error);
       throw error;
