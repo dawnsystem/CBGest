@@ -55,6 +55,8 @@ const storage = new Storage(client);
  * Evita tener que importar APPWRITE_CONFIG en cada archivo.
  */
 const config = {
+  projectId: APPWRITE_CONFIG.projectId,
+  endpoint: APPWRITE_CONFIG.endpoint,
   databaseId: APPWRITE_CONFIG.databaseId,
   bucketId: APPWRITE_CONFIG.bucketId,
   collections: APPWRITE_CONFIG.collections,

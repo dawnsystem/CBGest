@@ -528,6 +528,22 @@ export const authService = {
       return false;
     }
   },
+
+  /**
+   * Creates a JWT token for the current session.
+   * The JWT can be used to authenticate requests to Appwrite APIs.
+   * 
+   * @returns JWT token string or null if failed
+   */
+  async createJWT(): Promise<string | null> {
+    try {
+      const jwt = await account.createJWT();
+      return jwt.jwt;
+    } catch (error) {
+      console.error('[AuthService] CreateJWT error:', getErrorMessage(error));
+      return null;
+    }
+  },
 };
 
 export default authService;
