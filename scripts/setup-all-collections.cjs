@@ -605,9 +605,16 @@ async function setupNotificationsCollection() {
 
 /**
  * UPLOADS Collection
+ * 
+ * OPTIMIZED: Uses Appwrite Storage instead of base64 in document
+ * - storageFileId: Reference to file in Storage bucket
+ * - fileSize: For progress calculation
+ * - NO base64Data: Files stored in Storage (691f31c9000fc8c83ab1)
+ * 
+ * Status flow: PENDING_UPLOAD → UPLOADING → QUEUED → ANALYZING → COMPLETED/ERROR
  */
 async function setupUploadsCollection() {
-  console.log('\n=== Setting up UPLOADS collection ===\n');
+  console.log('\n=== Setting up UPLOADS collection (OPTIMIZED) ===\n');
   const collectionId = 'uploads';
 
   await createCollection(collectionId, 'Upload Queue');
@@ -616,16 +623,28 @@ async function setupUploadsCollection() {
   console.log('\n📋 Creating attributes...');
 
   const attributes = [
+    // File metadata
     { type: 'string', key: 'uploadType', size: 50, required: true },
     { type: 'string', key: 'fileName', size: 255, required: true },
     { type: 'string', key: 'mimeType', size: 100, required: true },
-    { type: 'string', key: 'base64Data', size: 10000000, required: false },
+    { type: 'integer', key: 'fileSize', required: false, min: 0, max: 104857600, default: 0 }, // 100MB max
+    
+    // Storage reference (replaces base64Data)
+    { type: 'string', key: 'storageFileId', size: 100, required: false },
+    
+    // Status: PENDING_UPLOAD | UPLOADING | QUEUED | ANALYZING | COMPLETED | ERROR
     { type: 'string', key: 'status', size: 50, required: true },
     { type: 'integer', key: 'progress', required: false, min: 0, max: 100, default: 0 },
     { type: 'string', key: 'error', size: 1000, required: false },
+    
+    // Timestamps
     { type: 'integer', key: 'timestamp', required: true, min: 0, max: 9999999999999 },
+    
+    // UI state
     { type: 'boolean', key: 'notificationDismissed', required: false, default: false },
     { type: 'boolean', key: 'needsMapping', required: false, default: false },
+    
+    // Results (JSON strings)
     { type: 'string', key: 'result', size: 50000, required: false },
     { type: 'string', key: 'bankResult', size: 100000, required: false },
   ];
@@ -643,6 +662,7 @@ async function setupUploadsCollection() {
   const indexes = [
     { key: 'timestamp_index', type: 'key', attributes: ['timestamp'], orders: ['DESC'] },
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+    { key: 'storageFileId_index', type: 'key', attributes: ['storageFileId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -651,6 +671,8 @@ async function setupUploadsCollection() {
   }
 
   console.log('\n✅ Uploads collection setup complete!\n');
+  console.log('   📦 Files stored in Storage bucket: 691f31c9000fc8c83ab1');
+  console.log('   📄 Documents only contain metadata + storageFileId reference\n');
 }
 
 /**
