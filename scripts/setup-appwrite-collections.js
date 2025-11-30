@@ -556,6 +556,7 @@ async function setupApartmentsCollection() {
     { type: 'float', key: 'surfaceArea', required: false, min: 0, max: 10000 },
     { type: 'integer', key: 'maxOccupancy', required: false, min: 1, max: 100 },
     { type: 'string', key: 'licenseNumber', size: 100, required: false },
+    { type: 'enum', key: 'apartmentType', elements: ['TOURIST', 'RESIDENTIAL'], required: false, default: 'TOURIST' }, // Tipo de apartamento
     { type: 'string', key: 'notes', size: 2000, required: false },
     { type: 'boolean', key: 'isActive', required: true, default: true },
     { type: 'string', key: 'createdAt', size: 50, required: false },
@@ -713,19 +714,46 @@ async function setupReservationsCollection() {
   console.log('\n📋 Creating attributes...');
 
   const attributes = [
+    // Core booking data
     { type: 'string', key: 'id', size: 255, required: true },
     { type: 'string', key: 'apartmentId', size: 255, required: false },
     { type: 'string', key: 'apartmentName', size: 255, required: true },
     { type: 'string', key: 'checkIn', size: 50, required: true },
     { type: 'string', key: 'checkOut', size: 50, required: true },
     { type: 'integer', key: 'nights', required: true, min: 1, max: 365 },
+
+    // Financial data
     { type: 'float', key: 'pricePerNight', required: true, min: 0, max: 99999 },
     { type: 'float', key: 'totalAmount', required: true, min: 0, max: 999999 },
     { type: 'float', key: 'paidAmount', required: true, min: 0, max: 999999, default: 0 },
+
+    // Booking reference
     { type: 'string', key: 'channel', size: 50, required: true },
     { type: 'string', key: 'reservationNumber', size: 100, required: true },
     { type: 'string', key: 'status', size: 50, required: true },
+
+    // Guest info
     { type: 'string', key: 'guestInitials', size: 20, required: false },
+    { type: 'string', key: 'guestName', size: 200, required: false }, // For consecutive stay detection
+    { type: 'string', key: 'guestEmail', size: 200, required: false }, // For consecutive stay detection
+    { type: 'integer', key: 'numberOfGuests', required: false, min: 1, max: 50, default: 1 }, // Adults for tourist tax
+    { type: 'integer', key: 'numberOfChildren', required: false, min: 0, max: 50, default: 0 }, // Children - no tax
+
+    // Tourist Tax (IEET)
+    { type: 'float', key: 'touristTaxAmount', required: false, min: 0, max: 9999, default: 0 },
+    { type: 'boolean', key: 'touristTaxCollected', required: false, default: false },
+    { type: 'string', key: 'touristTaxCollectedDate', size: 50, required: false },
+    { type: 'integer', key: 'touristTaxNightsCounted', required: false, min: 0, max: 365, default: 0 },
+
+    // Deposit/Fianza
+    { type: 'float', key: 'depositAmount', required: false, min: 0, max: 99999, default: 0 },
+    { type: 'boolean', key: 'depositCollected', required: false, default: false },
+    { type: 'string', key: 'depositCollectedDate', size: 50, required: false },
+    { type: 'boolean', key: 'depositReturned', required: false, default: false },
+    { type: 'string', key: 'depositReturnedDate', size: 50, required: false },
+    { type: 'float', key: 'depositRetainedAmount', required: false, min: 0, max: 99999, default: 0 },
+
+    // Metadata
     { type: 'string', key: 'importedAt', size: 50, required: false },
     { type: 'string', key: 'notes', size: 2000, required: false },
   ];
@@ -745,7 +773,9 @@ async function setupReservationsCollection() {
     { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
     { key: 'channel_index', type: 'key', attributes: ['channel'], orders: ['ASC'] },
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
-    { key: 'reservationNumber_index', type: 'key', attributes: ['reservationNumber'], orders: ['ASC'] }
+    { key: 'reservationNumber_index', type: 'key', attributes: ['reservationNumber'], orders: ['ASC'] },
+    { key: 'touristTaxCollected_index', type: 'key', attributes: ['touristTaxCollected'], orders: ['ASC'] },
+    { key: 'guestName_index', type: 'key', attributes: ['guestName'], orders: ['ASC'] }
   ];
 
   for (const index of indexes) {
@@ -1014,10 +1044,10 @@ async function main() {
     console.log('✅ Collections created/verified:');
     console.log('   - notifications');
     console.log('   - uploads');
-    console.log('   - apartments');
+    console.log('   - apartments (+ apartmentType: TOURIST/RESIDENTIAL)');
     console.log('   - recurring_expenses');
     console.log('   - ai_match_history');
-    console.log('   - reservations');
+    console.log('   - reservations (+ tourist tax & deposit fields)');
     console.log('');
     console.log('✅ Functions created (need code deployment):');
     console.log('   Mantenimiento:');
