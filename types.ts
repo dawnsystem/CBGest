@@ -248,6 +248,8 @@ export interface Supplier {
 }
 
 // --- APARTMENT TYPES (NEW - for per-property tracking) ---
+export type ApartmentType = 'TOURIST' | 'RESIDENTIAL';
+
 export interface Apartment {
   id: string;
   name: string; // e.g., "Apartamento 1A", "Ático"
@@ -256,7 +258,8 @@ export interface Apartment {
   cadastralRef?: string; // Referencia catastral
   surfaceArea?: number; // m²
   maxOccupancy?: number; // Capacidad máxima
-  licenseNumber?: string; // Licencia turística
+  licenseNumber?: string; // Licencia turística (HUT)
+  apartmentType: ApartmentType; // TOURIST = Vivienda uso turístico, RESIDENTIAL = Vivienda habitual
   notes?: string;
   isActive: boolean;
   createdAt?: string;
@@ -358,8 +361,26 @@ export interface Reservation {
   reservationNumber: string;   // External booking reference
   status: ReservationStatus;
 
-  // Minimal guest info (no personal data for GDPR)
-  guestInitials?: string;      // Just initials like "J.S."
+  // Guest info
+  guestInitials?: string;      // Just initials like "J.S." (for GDPR)
+  guestName?: string;          // Full name (for consecutive stay detection)
+  guestEmail?: string;         // Email (for consecutive stay detection)
+  numberOfGuests: number;      // Number of adult guests (≥17 years) for tourist tax
+  numberOfChildren: number;    // Number of children (<17 years) - no tourist tax
+
+  // Tourist Tax (IEET - Impost sobre Estades en Establiments Turístics)
+  touristTaxAmount: number;           // Calculated tax amount
+  touristTaxCollected: boolean;       // Has tax been collected from guest?
+  touristTaxCollectedDate?: string;   // Date when tax was collected
+  touristTaxNightsCounted: number;    // Nights counted for this reservation (max 7 per stay)
+
+  // Deposit/Fianza
+  depositAmount: number;              // Deposit amount (100€ for tourist, 1 month for residential)
+  depositCollected: boolean;          // Has deposit been collected?
+  depositCollectedDate?: string;      // Date when deposit was collected
+  depositReturned: boolean;           // Has deposit been returned?
+  depositReturnedDate?: string;       // Date when deposit was returned
+  depositRetainedAmount: number;      // Amount retained for damages (if any)
 
   // Metadata
   importedAt?: string;
@@ -416,6 +437,14 @@ export interface AppUser {
   prefs: Record<string, any>;
 }
 
+// --- TOURIST TAX CONFIGURATION (IEET - Cataluña) ---
+export interface TouristTaxConfig {
+  rate: number;            // €/night/adult (default: 1)
+  maxNights: number;       // Maximum nights per stay (default: 7)
+  minAge: number;          // Minimum age for tax (default: 17)
+  enabled: boolean;        // Is tourist tax collection enabled?
+}
+
 export interface AppSettings {
   appwriteId?: string; // ID del documento de settings en la nube
   cbName: string;
@@ -424,6 +453,9 @@ export interface AppSettings {
   vatObligation: boolean;
   partners: Partner[];
   dataConfig?: DataSourceConfig; // New field for data management
+  
+  // Tourist Tax Configuration (IEET - Cataluña)
+  touristTaxConfig?: TouristTaxConfig;
 }
 
 export interface DashboardMetrics {

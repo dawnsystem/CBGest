@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Apartment } from '../types';
+import { Apartment, ApartmentType } from '../types';
 import {
   Plus, Search, Edit2, Trash2, Save, X, Building2,
-  Home, MapPin, Hash, Users, FileText, CheckCircle, XCircle
+  Home, MapPin, Hash, Users, FileText, CheckCircle, XCircle,
+  Palmtree, Building
 } from 'lucide-react';
 import { generateId } from '../utils/defaults';
 
@@ -21,6 +22,7 @@ const emptyFormData: Partial<Apartment> = {
   surfaceArea: undefined,
   maxOccupancy: undefined,
   licenseNumber: '',
+  apartmentType: 'TOURIST',
   notes: '',
   isActive: true
 };
@@ -80,6 +82,7 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
         surfaceArea: formData.surfaceArea || undefined,
         maxOccupancy: formData.maxOccupancy || undefined,
         licenseNumber: formData.licenseNumber || undefined,
+        apartmentType: formData.apartmentType || 'TOURIST',
         notes: formData.notes || undefined,
         isActive: formData.isActive ?? true
       };
@@ -288,6 +291,50 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
                 </div>
               </div>
 
+              {/* Apartment Type */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Tipo de Apartamento *
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, apartmentType: 'TOURIST' })}
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                      formData.apartmentType === 'TOURIST'
+                        ? 'border-amber-500 bg-amber-50 text-amber-700'
+                        : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    <Palmtree className={`w-5 h-5 ${formData.apartmentType === 'TOURIST' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <div className="text-left">
+                      <p className="font-medium text-sm">Turístico (HUT)</p>
+                      <p className="text-xs text-slate-500">Vivienda de uso turístico</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, apartmentType: 'RESIDENTIAL' })}
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                      formData.apartmentType === 'RESIDENTIAL'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    <Building className={`w-5 h-5 ${formData.apartmentType === 'RESIDENTIAL' ? 'text-blue-600' : 'text-slate-400'}`} />
+                    <div className="text-left">
+                      <p className="font-medium text-sm">Vivienda Habitual</p>
+                      <p className="text-xs text-slate-500">Alquiler de larga estancia</p>
+                    </div>
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  {formData.apartmentType === 'TOURIST' 
+                    ? '🏖️ Los apartamentos turísticos generan tasa turística (IEET)'
+                    : '🏠 Los apartamentos de vivienda habitual NO generan tasa turística'}
+                </p>
+              </div>
+
               {/* Surface & Occupancy Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -426,20 +473,39 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
               }`}
             >
               {/* Card Header */}
-              <div className={`px-4 py-3 border-b ${apartment.isActive ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100'}`}>
+              <div className={`px-4 py-3 border-b ${
+                apartment.isActive 
+                  ? apartment.apartmentType === 'TOURIST' 
+                    ? 'bg-amber-50 border-amber-100' 
+                    : 'bg-blue-50 border-blue-100'
+                  : 'bg-slate-50 border-slate-100'
+              }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Building2 className={`w-5 h-5 ${apartment.isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                    {apartment.apartmentType === 'TOURIST' ? (
+                      <Palmtree className={`w-5 h-5 ${apartment.isActive ? 'text-amber-600' : 'text-slate-400'}`} />
+                    ) : (
+                      <Building className={`w-5 h-5 ${apartment.isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                    )}
                     <h3 className="font-semibold text-slate-900">
-                      {apartment.code && <span className="text-blue-600">{apartment.code} - </span>}
+                      {apartment.code && <span className={apartment.apartmentType === 'TOURIST' ? 'text-amber-600' : 'text-blue-600'}>{apartment.code} - </span>}
                       {apartment.name}
                     </h3>
                   </div>
-                  {apartment.isActive ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-500" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-slate-400" />
-                  )}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      apartment.apartmentType === 'TOURIST'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {apartment.apartmentType === 'TOURIST' ? 'HUT' : 'VIVIENDA'}
+                    </span>
+                    {apartment.isActive ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-slate-400" />
+                    )}
+                  </div>
                 </div>
               </div>
 

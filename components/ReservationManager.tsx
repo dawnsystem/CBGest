@@ -2,18 +2,27 @@ import React, { useState, useRef, useMemo } from 'react';
 import {
   Upload, Calendar, Home, Users, Euro, Search, Filter,
   ChevronDown, ChevronUp, X, Check, AlertTriangle, FileText,
-  Download, Trash2, Edit2, Save, XCircle
+  Download, Trash2, Edit2, Save, XCircle, Receipt, Wallet, CalendarDays
 } from 'lucide-react';
-import { Reservation, ReservationChannel, ReservationStatus, Apartment } from '../types';
+import { Reservation, ReservationChannel, ReservationStatus, Apartment, AppSettings, TouristTaxConfig } from '../types';
 
 interface ReservationManagerProps {
   reservations: Reservation[];
   apartments: Apartment[];
+  settings?: AppSettings;
   onAddReservations: (reservations: Omit<Reservation, 'id'>[]) => void;
   onUpdateReservation: (id: string, data: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
   onLinkApartment: (reservationId: string, apartmentId: string) => void;
 }
+
+// Default tourist tax config
+const DEFAULT_TAX_CONFIG: TouristTaxConfig = {
+  rate: 1,
+  maxNights: 7,
+  minAge: 17,
+  enabled: true
+};
 
 type SortField = 'checkIn' | 'checkOut' | 'totalAmount' | 'nights' | 'apartmentName';
 type SortOrder = 'asc' | 'desc';
@@ -106,6 +115,7 @@ const statusColors: Record<ReservationStatus, string> = {
 export const ReservationManager: React.FC<ReservationManagerProps> = ({
   reservations,
   apartments,
+  settings,
   onAddReservations,
   onUpdateReservation,
   onDeleteReservation,
@@ -125,6 +135,17 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false); // Ocultar canceladas por defecto
+  
+  // Date filter state
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [filterDateTo, setFilterDateTo] = useState<string>('');
+  
+  // Editing guests state
+  const [editingGuestsId, setEditingGuestsId] = useState<string | null>(null);
+  const [editingGuestsValue, setEditingGuestsValue] = useState<number>(1);
+  
+  // Get tax config
+  const taxConfig = settings?.touristTaxConfig || DEFAULT_TAX_CONFIG;
 
   // Parse CSV file
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,6 +216,11 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
           }
         }
 
+        // Parse number of guests from CSV if available (column index may vary)
+        // NoBeds typically includes guests in a specific column
+        const numberOfGuestsRaw = fields[9] || '1'; // Adjust index based on your CSV format
+        const numberOfGuests = parseInt(numberOfGuestsRaw) || 1;
+        
         parsed.push({
           apartmentId: matchedApartment?.id,
           apartmentName,
@@ -208,6 +234,16 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
           reservationNumber,
           status: mapStatus(status),
           guestInitials: extractInitials(guestName),
+          guestName: guestName, // Keep full name for consecutive stay detection
+          numberOfGuests: numberOfGuests,
+          numberOfChildren: 0, // Default, editable in app
+          touristTaxAmount: 0, // Will be calculated
+          touristTaxCollected: false,
+          touristTaxNightsCounted: 0,
+          depositAmount: 0, // Will be set based on apartment type
+          depositCollected: false,
+          depositReturned: false,
+          depositRetainedAmount: 0,
           importedAt: new Date().toISOString()
         });
       }
@@ -279,6 +315,23 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       result = result.filter(r => r.status === filterStatus);
     }
 
+    // Filter by date range (check-in date)
+    if (filterDateFrom) {
+      const fromDate = new Date(filterDateFrom);
+      result = result.filter(r => {
+        const checkInDate = new Date(r.checkIn);
+        return !isNaN(checkInDate.getTime()) && checkInDate >= fromDate;
+      });
+    }
+    if (filterDateTo) {
+      const toDate = new Date(filterDateTo);
+      toDate.setHours(23, 59, 59, 999); // Include the entire day
+      result = result.filter(r => {
+        const checkInDate = new Date(r.checkIn);
+        return !isNaN(checkInDate.getTime()) && checkInDate <= toDate;
+      });
+    }
+
     // Sort
     result.sort((a, b) => {
       let comparison = 0;
@@ -309,7 +362,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
     });
 
     return result;
-  }, [reservations, searchTerm, filterChannel, filterApartment, filterStatus, sortField, sortOrder, showCancelled]);
+  }, [reservations, searchTerm, filterChannel, filterApartment, filterStatus, sortField, sortOrder, showCancelled, filterDateFrom, filterDateTo]);
 
   // Calculate summary stats
   // IMPORTANTE: Las canceladas NUNCA cuentan en los totales, independientemente de si se muestran
@@ -322,10 +375,34 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
     const nights = activeReservations.reduce((sum, r) => sum + (r.nights || 0), 0);
     const cancelled = filteredReservations.filter(r => r.status === 'Cancelled').length;
     const unlinked = activeReservations.filter(r => !r.apartmentId).length;
+    
+    // Calculate pernoctaciones (nights × guests) for tourist apartments only
+    const pernoctaciones = activeReservations.reduce((sum, r) => {
+      const apt = apartments.find(a => a.id === r.apartmentId);
+      if (apt?.apartmentType === 'TOURIST') {
+        return sum + ((r.nights || 0) * (r.numberOfGuests || 1));
+      }
+      return sum;
+    }, 0);
+    
+    // Tourist tax stats
+    const taxCollected = activeReservations.reduce((sum, r) => {
+      if (r.touristTaxCollected) {
+        return sum + (r.touristTaxAmount || 0);
+      }
+      return sum;
+    }, 0);
+    
+    const taxPending = activeReservations.reduce((sum, r) => {
+      if (!r.touristTaxCollected) {
+        return sum + (r.touristTaxAmount || 0);
+      }
+      return sum;
+    }, 0);
 
     // count es solo de reservas activas (no canceladas)
-    return { total, paid, nights, count: activeReservations.length, cancelled, unlinked };
-  }, [filteredReservations]);
+    return { total, paid, nights, count: activeReservations.length, cancelled, unlinked, pernoctaciones, taxCollected, taxPending };
+  }, [filteredReservations, apartments]);
 
   // Toggle sort
   const toggleSort = (field: SortField) => {
@@ -490,7 +567,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
             <Calendar className="w-4 h-4" />
@@ -504,6 +581,14 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
             Noches
           </div>
           <p className="text-xl font-bold text-slate-900">{stats.nights}</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 text-purple-600 text-xs mb-1">
+            <Users className="w-4 h-4" />
+            Pernoctaciones
+          </div>
+          <p className="text-xl font-bold text-purple-600">{stats.pernoctaciones}</p>
+          <p className="text-[10px] text-slate-400">Solo turísticos</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 text-emerald-600 text-xs mb-1">
@@ -590,7 +675,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                   <option value="ALL">Todos los apartamentos</option>
                   {apartments.map(apt => (
                     <option key={apt.id} value={apt.id}>
-                      {apt.code || apt.name}
+                      {apt.code || apt.name} {apt.apartmentType === 'TOURIST' ? '🏖️' : '🏠'}
                     </option>
                   ))}
                 </select>
@@ -610,6 +695,47 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                   <option value="Cancelled">Cancelado</option>
                   <option value="Completed">Completado</option>
                 </select>
+              </div>
+            </div>
+            
+            {/* Date Range Filter */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-100">
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block flex items-center gap-1">
+                  <CalendarDays className="w-3 h-3" /> Desde (Check-in)
+                </label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={e => setFilterDateFrom(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block flex items-center gap-1">
+                  <CalendarDays className="w-3 h-3" /> Hasta (Check-in)
+                </label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={e => setFilterDateTo(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setFilterDateFrom('');
+                    setFilterDateTo('');
+                    setFilterChannel('ALL');
+                    setFilterApartment('ALL');
+                    setFilterStatus('ALL');
+                    setSearchTerm('');
+                  }}
+                  className="w-full px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm transition-colors"
+                >
+                  Limpiar filtros
+                </button>
               </div>
             </div>
             {/* Checkbox para mostrar canceladas */}
@@ -688,6 +814,9 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                     )}
                   </div>
                 </th>
+                <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Huéspedes
+                </th>
                 <th
                   className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
                   onClick={() => toggleSort('totalAmount')}
@@ -716,7 +845,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredReservations.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan={10} className="px-4 py-12 text-center text-slate-400">
                     <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <p>No hay reservas</p>
                     <p className="text-xs mt-1">Importa un archivo CSV para comenzar</p>
@@ -748,6 +877,48 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-900 text-right font-medium">
                       {reservation.nights}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {editingGuestsId === reservation.id ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={editingGuestsValue}
+                            onChange={e => setEditingGuestsValue(Math.max(1, parseInt(e.target.value) || 1))}
+                            className="w-14 px-2 py-1 text-sm border border-slate-300 rounded text-center"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => {
+                              onUpdateReservation(reservation.id, { numberOfGuests: editingGuestsValue });
+                              setEditingGuestsId(null);
+                            }}
+                            className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => setEditingGuestsId(null)}
+                            className="p-1 text-slate-400 hover:bg-slate-50 rounded"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setEditingGuestsId(reservation.id);
+                            setEditingGuestsValue(reservation.numberOfGuests || 1);
+                          }}
+                          className="flex items-center justify-center gap-1 px-2 py-1 text-sm text-slate-700 hover:bg-slate-100 rounded transition-colors group"
+                          title="Clic para editar"
+                        >
+                          <Users className="w-3 h-3 text-slate-400 group-hover:text-slate-600" />
+                          {reservation.numberOfGuests || 1}
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <p className="font-bold text-slate-900 text-sm">

@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { FileText, Download, AlertCircle, Loader2, Users } from 'lucide-react';
-import { Invoice, AppSettings } from '../types';
+import { FileText, Download, AlertCircle, Loader2, Users, Receipt } from 'lucide-react';
+import { Invoice, AppSettings, Reservation, Apartment } from '../types';
 import {
   generatePDF303,
   generatePDF184,
@@ -9,16 +9,27 @@ import {
   downloadPDF,
   calculateTaxData
 } from '../services/pdfService';
+import { TouristTaxPanel } from './TouristTaxPanel';
 
 interface TaxModelsProps {
   invoices: Invoice[];
   settings: AppSettings;
+  reservations?: Reservation[];
+  apartments?: Apartment[];
+  onUpdateReservation?: (id: string, data: Partial<Reservation>) => void;
 }
 
-export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
+export const TaxModels: React.FC<TaxModelsProps> = ({ 
+  invoices, 
+  settings,
+  reservations = [],
+  apartments = [],
+  onUpdateReservation
+}) => {
   const [generating303, setGenerating303] = useState(false);
   const [generating184, setGenerating184] = useState(false);
   const [generatingCerts, setGeneratingCerts] = useState(false);
+  const [activeTab, setActiveTab] = useState<'MODELS' | 'IEET'>('MODELS');
 
   // Usar servicio centralizado para cálculos
   const taxData = calculateTaxData(invoices, settings);
@@ -93,9 +104,14 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
     }
   }, [partners, settings, rendimientoNeto, currentYear]);
 
+  // Check if tourist tax is enabled
+  const showIEET = settings.fiscalRegime === 'ALQUILER_EXENTO' && 
+                   (settings.touristTaxConfig?.enabled ?? true) &&
+                   apartments.some(a => a.apartmentType === 'TOURIST');
+
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-slate-900">Modelos Fiscales</h2>
           <p className="text-sm md:text-base text-slate-500">
@@ -104,8 +120,48 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
               : 'Régimen General'}
           </p>
         </div>
+        
+        {/* Tabs for IEET */}
+        {showIEET && (
+          <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+            <button
+              onClick={() => setActiveTab('MODELS')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'MODELS'
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Modelos 184/303
+            </button>
+            <button
+              onClick={() => setActiveTab('IEET')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'IEET'
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Receipt className="w-4 h-4" />
+              Tasa Turística (IEET)
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* IEET Tab Content */}
+      {showIEET && activeTab === 'IEET' && onUpdateReservation && (
+        <TouristTaxPanel
+          reservations={reservations}
+          apartments={apartments}
+          settings={settings}
+          onUpdateReservation={onUpdateReservation}
+        />
+      )}
+
+      {/* Models Tab Content */}
+      {activeTab === 'MODELS' && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Modelo 303 - IVA (Condicional) */}
         {showMod303 ? (
@@ -235,6 +291,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({ invoices, settings }) => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
