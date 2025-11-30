@@ -402,7 +402,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
             <Calendar className="w-4 h-4" />
@@ -411,7 +411,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
           <p className="text-2xl font-bold text-slate-900">{totals.totalGroups}</p>
           <p className="text-xs text-slate-400">{totals.totalReservations} reservas</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-4 rounded-xl border border-purple-200 shadow-sm">
           <div className="flex items-center gap-2 text-purple-600 text-xs mb-1">
             <Users className="w-4 h-4" />
             Uds. Sujetas
@@ -419,21 +419,13 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
           <p className="text-2xl font-bold text-purple-600">{totals.totalTaxableUnits}</p>
           <p className="text-xs text-slate-400">Adultos (≥{taxConfig.minAge})</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-4 rounded-xl border border-cyan-200 shadow-sm">
           <div className="flex items-center gap-2 text-cyan-600 text-xs mb-1">
             <Baby className="w-4 h-4" />
             Uds. Exentas
           </div>
           <p className="text-2xl font-bold text-cyan-600">{totals.totalExemptUnits}</p>
           <p className="text-xs text-slate-400">Menores (≤{taxConfig.minAge - 1})</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 text-indigo-600 text-xs mb-1">
-            <Users className="w-4 h-4" />
-            Total Pernoctaciones
-          </div>
-          <p className="text-2xl font-bold text-indigo-600">{totals.totalPernoctaciones}</p>
-          <p className="text-xs text-slate-400">Sujetas + Exentas</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 text-amber-600 text-xs mb-1">
