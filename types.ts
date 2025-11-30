@@ -475,29 +475,60 @@ export interface TaxModelData {
 
 // --- Upload Queue Types ---
 
-export type UploadStatus = 'QUEUED' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
-export type UploadType = 'INVOICE' | 'BANK_STATEMENT'; // Nuevo selector
+/**
+ * Upload status flow:
+ * PENDING_UPLOAD → UPLOADING → QUEUED → ANALYZING → COMPLETED
+ *                     ↓           ↓          ↓
+ *                   ERROR       ERROR      ERROR
+ * 
+ * - PENDING_UPLOAD: Solo existe localmente, esperando subir a Storage
+ * - UPLOADING: Subiendo archivo a Appwrite Storage
+ * - QUEUED: En Appwrite (Storage + documento), esperando procesamiento Gemini
+ * - ANALYZING: Procesando con Gemini AI
+ * - COMPLETED: Análisis completado, listo para confirmar
+ * - ERROR: Error en cualquier fase
+ */
+export type UploadStatus = 
+  | 'PENDING_UPLOAD'  // Solo local, esperando subir
+  | 'UPLOADING'       // Subiendo a Storage
+  | 'QUEUED'          // En Appwrite, esperando Gemini
+  | 'ANALYZING'       // Procesando con Gemini
+  | 'COMPLETED'       // Listo
+  | 'ERROR';          // Error
+
+export type UploadType = 'INVOICE' | 'BANK_STATEMENT';
 
 export interface QueueItem {
   id: string;
-  file: File;
-  uploadType: UploadType; // Factura o Banco
-
-  // Persistence fields
+  
+  // Appwrite IDs (undefined si solo existe localmente)
+  appwriteId?: string;      // ID del documento en colección 'uploads'
+  storageFileId?: string;   // ID del archivo en Storage bucket
+  
+  // File metadata
   fileName: string;
   mimeType: string;
-  base64Data?: string;
-
+  fileSize: number;
+  uploadType: UploadType;
+  
+  // Local file reference (solo en memoria, no se persiste)
+  // undefined cuando se carga desde Appwrite
+  localFile?: File;
+  
+  // Status
   status: UploadStatus;
   progress: number;
-
-  // Resultados (Union type simple)
+  
+  // Results (cuando COMPLETED)
   result?: Invoice;
-  bankResult?: BankTransaction[]; // Si es extracto bancario devuelve array
-
+  bankResult?: BankTransaction[];
+  
+  // Error info
   error?: string;
+  
+  // Timestamps
   timestamp: number;
-
+  
   // UI State
   notificationDismissed?: boolean;
   needsMapping?: boolean; // XLSX files need manual column mapping
@@ -510,6 +541,10 @@ export interface UploadQueueContextType {
   retryItem: (id: string) => void;
   clearCompleted: () => void;
   dismissNotifications: () => void;
+  /** Indica si hay subidas en progreso */
+  isUploading: boolean;
+  /** Número de items pendientes de subir */
+  pendingCount: number;
 }
 
 // --- Notification Types ---

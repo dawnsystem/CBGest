@@ -87,14 +87,21 @@ export function useBankTransactions(options: UseBankTransactionsOptions): UseBan
   }, [settings]);
 
   const handleCreateEntryFromTransaction = useCallback((tx: BankTransaction) => {
+    const accountCode = tx.amount < 0 ? '626' : '769';
+    const accountName = tx.amount < 0 ? 'Servicios bancarios' : 'Ingresos financieros';
+    const debit = tx.amount < 0 ? Math.abs(tx.amount) : 0;
+    const credit = tx.amount > 0 ? tx.amount : 0;
+    
     const newEntry: AccountingEntry = {
       id: `BANK-${tx.id}`,
       date: tx.date,
       concept: tx.concept,
-      accountCode: tx.amount < 0 ? '626' : '769',
-      accountName: tx.amount < 0 ? 'Servicios bancarios' : 'Ingresos financieros',
-      debit: tx.amount < 0 ? Math.abs(tx.amount) : 0,
-      credit: tx.amount > 0 ? tx.amount : 0,
+      lines: [{ accountCode, accountName, debit, credit }],
+      // Legacy fields for compatibility
+      accountCode,
+      accountName,
+      debit,
+      credit,
       reconciled: true
     };
     onAddEntry(newEntry);

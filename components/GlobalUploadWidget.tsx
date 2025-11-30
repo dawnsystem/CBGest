@@ -87,7 +87,11 @@ export const GlobalUploadWidget: React.FC = () => {
         {visibleItems.slice(0, 5).map(item => (
           <div key={item.id} className="bg-white p-2 rounded border border-slate-100 flex items-center gap-3">
             <div className="shrink-0">
-              {item.status === 'ANALYZING' || item.status === 'QUEUED' ? (
+              {item.status === 'PENDING_UPLOAD' || item.status === 'UPLOADING' ? (
+                <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
+                  <span className="text-xs font-bold text-amber-600">↑</span>
+                </div>
+              ) : item.status === 'ANALYZING' || item.status === 'QUEUED' ? (
                 <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
                   <span className="text-xs font-bold text-blue-600">{Math.round(item.progress)}%</span>
                 </div>
@@ -98,10 +102,13 @@ export const GlobalUploadWidget: React.FC = () => {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-slate-900 truncate">{item.file.name}</p>
-              <p className="text-[10px] text-slate-500 uppercase">{item.status}</p>
+              <p className="text-xs font-medium text-slate-900 truncate">{item.fileName}</p>
+              <p className="text-[10px] text-slate-500 uppercase">
+                {item.status === 'PENDING_UPLOAD' ? 'ESPERANDO' : 
+                 item.status === 'UPLOADING' ? 'SUBIENDO' : item.status}
+              </p>
             </div>
-            {item.status === 'ANALYZING' && (
+            {(item.status === 'ANALYZING' || item.status === 'UPLOADING') && (
               <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${item.progress}%` }}></div>
               </div>

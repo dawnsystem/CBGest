@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier } from '../types';
 import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
+import { storageService } from '../services/appwriteService';
 import { useAuth } from './AuthContext';
 import { generateId } from '../utils/defaults';
 import { uploadLogger } from '../services/logger';
@@ -16,36 +17,19 @@ export const useUploadQueue = () => {
   return context;
 };
 
-// Helper: File to Base64
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const result = reader.result?.toString();
-      if (result) resolve(result);
-      else reject(new Error("Failed to read file"));
-    };
-    reader.onerror = reject;
-  });
-};
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
-// Helper: Base64 to File
-const base64ToFile = (dataurl: string, filename: string, mimeType: string): File => {
-  try {
-    const arr = dataurl.split(',');
-    const bstr = atob(arr.length > 1 ? arr[1] : arr[0]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new File([u8arr], filename, { type: mimeType });
-  } catch (e) {
-    uploadLogger.error("Error reconstructing file:", e);
-    return new File([""], filename, { type: mimeType });
-  }
-};
+/** Número máximo de subidas paralelas a Storage */
+const MAX_CONCURRENT_UPLOADS = 5;
+
+/** Intervalo para actualizar progreso visual (ms) */
+const PROGRESS_UPDATE_INTERVAL = 500;
+
+// ============================================================================
+// PROVIDER
+// ============================================================================
 
 interface UploadQueueProviderProps {
   children: ReactNode;
@@ -57,8 +41,15 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Ref para tracking de uploads en progreso (para el pool de workers)
+  const uploadingCountRef = useRef(0);
+  const uploadQueueRef = useRef<QueueItem[]>([]);
 
-  // Load queue from Appwrite on mount and when user changes
+  // ============================================================================
+  // LOAD QUEUE FROM APPWRITE
+  // ============================================================================
+
   useEffect(() => {
     const loadQueue = async () => {
       if (!user) {
@@ -68,18 +59,30 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       }
 
       try {
+        uploadLogger.info('[UploadQueue] Cargando cola desde Appwrite...');
         const loadedItems = await protectedDatabase.getUploadQueue();
-        // Reconstruct File objects from base64Data
-        const rehydratedItems: QueueItem[] = loadedItems.map((item: QueueItem) => {
-          let file = item.file;
-          if (item.base64Data) {
-            file = base64ToFile(item.base64Data, item.fileName, item.mimeType);
+        
+        // Items de Appwrite no tienen localFile - son solo metadata
+        setQueue(loadedItems);
+        uploadLogger.info(`[UploadQueue] ${loadedItems.length} items cargados`);
+        
+        // Reanudar items que quedaron en UPLOADING (probablemente por cierre inesperado)
+        const stuckUploading = loadedItems.filter(item => item.status === 'UPLOADING');
+        if (stuckUploading.length > 0) {
+          uploadLogger.info(`[UploadQueue] ${stuckUploading.length} items en UPLOADING - marcando como ERROR`);
+          for (const item of stuckUploading) {
+            await protectedDatabase.updateUploadItem({
+              ...item,
+              status: 'ERROR',
+              error: 'Subida interrumpida. Por favor, vuelve a añadir el archivo.'
+            });
           }
-          return { ...item, file };
-        });
-        setQueue(rehydratedItems);
+          // Recargar para obtener el estado actualizado
+          const updatedItems = await protectedDatabase.getUploadQueue();
+          setQueue(updatedItems);
+        }
       } catch (error) {
-        uploadLogger.error('Error cargando cola de subidas:', error);
+        uploadLogger.error('[UploadQueue] Error cargando cola:', error);
         setQueue([]);
       }
       setIsHydrated(true);
@@ -88,116 +91,265 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     loadQueue();
   }, [user]);
 
-  const addToQueue = async (files: File[], type: UploadType) => {
-    // Create placeholder items immediately for instant feedback on mobile
-    const placeholderItems: QueueItem[] = files.map((file) => ({
+  // ============================================================================
+  // ADD TO QUEUE - Fase 1: Captura instantánea
+  // ============================================================================
+
+  const addToQueue = useCallback(async (files: File[], type: UploadType) => {
+    uploadLogger.info(`[UploadQueue] Añadiendo ${files.length} archivos a la cola`);
+    
+    // Crear items locales inmediatamente (UI instantánea)
+    const newItems: QueueItem[] = files.map((file) => ({
       id: generateId(),
-      file,
+      localFile: file,
       uploadType: type,
       fileName: file.name,
       mimeType: file.type || 'application/octet-stream',
-      base64Data: '',
-      status: 'QUEUED' as const,
+      fileSize: file.size,
+      status: 'PENDING_UPLOAD' as const,
       progress: 0,
       timestamp: Date.now(),
       notificationDismissed: false
     }));
 
-    // Show items immediately in UI
-    setQueue(prev => [...prev, ...placeholderItems]);
+    // Añadir a la cola local inmediatamente
+    setQueue(prev => [...prev, ...newItems]);
+    
+    // Añadir a la cola de upload para el pool de workers
+    uploadQueueRef.current = [...uploadQueueRef.current, ...newItems];
+    
+    // Iniciar el pool de workers si no está activo
+    processUploadQueue();
+  }, []);
 
-    // Process each file with error handling
-    for (const placeholderItem of placeholderItems) {
-      try {
-        const base64Full = await fileToBase64(placeholderItem.file);
-        const completeItem = {
-          ...placeholderItem,
-          base64Data: base64Full
-        };
+  // ============================================================================
+  // UPLOAD POOL - Fase 2: Subida paralela a Storage
+  // ============================================================================
 
-        // Save to Appwrite
-        const savedItem = await protectedDatabase.createUploadItem(completeItem);
+  const processUploadQueue = useCallback(async () => {
+    // Procesar items pendientes respetando el límite de concurrencia
+    while (uploadQueueRef.current.length > 0 && uploadingCountRef.current < MAX_CONCURRENT_UPLOADS) {
+      const item = uploadQueueRef.current.shift();
+      if (!item || !item.localFile) continue;
+      
+      uploadingCountRef.current++;
+      
+      // Procesar en background (no await)
+      uploadSingleFile(item).finally(() => {
+        uploadingCountRef.current--;
+        // Continuar procesando si hay más en cola
+        processUploadQueue();
+      });
+    }
+  }, []);
 
-        // Update item in queue with saved data
-        setQueue(prev => prev.map(item =>
-          item.id === placeholderItem.id ? savedItem : item
-        ));
-      } catch (error) {
-        uploadLogger.error(`Error processing file: ${placeholderItem.fileName}`, error);
+  const uploadSingleFile = async (item: QueueItem): Promise<void> => {
+    const file = item.localFile;
+    if (!file) {
+      uploadLogger.error(`[UploadQueue] Item ${item.id} no tiene localFile`);
+      return;
+    }
 
-        // Mark item as error
-        const errorItem = {
-          ...placeholderItem,
-          status: 'ERROR' as const,
-          error: error instanceof Error ? error.message : 'Error al procesar archivo'
-        };
+    try {
+      // Actualizar estado a UPLOADING
+      setQueue(prev => prev.map(i => 
+        i.id === item.id ? { ...i, status: 'UPLOADING' as const, progress: 5 } : i
+      ));
 
-        setQueue(prev => prev.map(item =>
-          item.id === placeholderItem.id ? errorItem : item
-        ));
-      }
+      uploadLogger.debug(`[UploadQueue] Subiendo ${item.fileName} a Storage...`);
+      
+      // Subir archivo a Storage
+      const storageFileId = await storageService.uploadFile(
+        file, 
+        `upload-${item.id}-${Date.now()}`
+      );
+      
+      uploadLogger.debug(`[UploadQueue] ${item.fileName} subido, storageFileId: ${storageFileId}`);
+
+      // Crear documento en la colección uploads
+      const itemForAppwrite: QueueItem = {
+        ...item,
+        storageFileId,
+        status: 'QUEUED',
+        progress: 0,
+        localFile: undefined, // No enviar a Appwrite
+      };
+
+      const savedItem = await protectedDatabase.createUploadItem(itemForAppwrite);
+
+      uploadLogger.info(`[UploadQueue] ${item.fileName} en cola (appwriteId: ${savedItem.appwriteId})`);
+
+      // Actualizar estado local con los IDs de Appwrite
+      setQueue(prev => prev.map(i => 
+        i.id === item.id 
+          ? { 
+              ...savedItem, 
+              id: item.id, // Mantener el ID original para consistencia
+              localFile: undefined // Ya no necesitamos el archivo local
+            } 
+          : i
+      ));
+
+    } catch (error) {
+      uploadLogger.error(`[UploadQueue] Error subiendo ${item.fileName}:`, error);
+      
+      // Marcar como error
+      setQueue(prev => prev.map(i => 
+        i.id === item.id 
+          ? { 
+              ...i, 
+              status: 'ERROR' as const, 
+              progress: 0,
+              error: error instanceof Error ? error.message : 'Error al subir archivo'
+            } 
+          : i
+      ));
     }
   };
 
-  const removeFromQueue = async (id: string) => {
-    await protectedDatabase.deleteUploadItem(id);
-    setQueue(prev => prev.filter(item => item.id !== id));
-  };
+  // ============================================================================
+  // REMOVE FROM QUEUE - Sin errores 404
+  // ============================================================================
 
-  const retryItem = async (id: string) => {
+  const removeFromQueue = useCallback(async (id: string) => {
+    const item = queue.find(i => i.id === id);
+    
+    // Eliminar de UI inmediatamente
+    setQueue(prev => prev.filter(i => i.id !== id));
+    
+    // También eliminar de la cola de upload si está pendiente
+    uploadQueueRef.current = uploadQueueRef.current.filter(i => i.id !== id);
+    
+    if (!item) return;
+
+    // Si es solo local (PENDING_UPLOAD), ya terminamos
+    if (!item.appwriteId) {
+      uploadLogger.debug(`[UploadQueue] Item ${id} eliminado (solo local)`);
+      return;
+    }
+
+    // Si está en Appwrite, eliminar documento y archivo de Storage
+    try {
+      await protectedDatabase.deleteUploadItem(item.appwriteId, item.storageFileId);
+      uploadLogger.info(`[UploadQueue] Item ${id} eliminado de Appwrite`);
+    } catch (error) {
+      // Error ya manejado en el servicio, solo loguear
+      uploadLogger.error(`[UploadQueue] Error eliminando ${id}:`, error);
+    }
+  }, [queue]);
+
+  // ============================================================================
+  // RETRY ITEM
+  // ============================================================================
+
+  const retryItem = useCallback(async (id: string) => {
     const item = queue.find(i => i.id === id);
     if (!item) return;
 
-    const updatedItem = {
-      ...item,
-      status: 'QUEUED' as const,
-      progress: 0,
-      error: undefined,
-      notificationDismissed: false
-    };
+    // Si el item tiene archivo local, reintentar subida
+    if (item.localFile && (item.status === 'ERROR' || item.status === 'PENDING_UPLOAD')) {
+      setQueue(prev => prev.map(i => 
+        i.id === id 
+          ? { ...i, status: 'PENDING_UPLOAD' as const, progress: 0, error: undefined } 
+          : i
+      ));
+      uploadQueueRef.current.push(item);
+      processUploadQueue();
+      return;
+    }
 
-    await protectedDatabase.updateUploadItem(updatedItem);
-    setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
-  };
+    // Si está en Appwrite y tiene storageFileId, reintentar procesamiento Gemini
+    if (item.appwriteId && item.storageFileId) {
+      const updatedItem: QueueItem = {
+        ...item,
+        status: 'QUEUED',
+        progress: 0,
+        error: undefined,
+        notificationDismissed: false
+      };
 
-  const clearCompleted = async () => {
-    await protectedDatabase.deleteCompletedUploads();
+      try {
+        await protectedDatabase.updateUploadItem(updatedItem);
+        setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
+      } catch (error) {
+        uploadLogger.error(`[UploadQueue] Error reintentando ${id}:`, error);
+      }
+    }
+  }, [queue, processUploadQueue]);
+
+  // ============================================================================
+  // CLEAR COMPLETED
+  // ============================================================================
+
+  const clearCompleted = useCallback(async () => {
+    // Eliminar localmente primero
     setQueue(prev => prev.filter(item => item.status !== 'COMPLETED'));
-  };
+    
+    // Luego eliminar de Appwrite (incluyendo archivos de Storage)
+    try {
+      await protectedDatabase.deleteCompletedUploads();
+    } catch (error) {
+      uploadLogger.error('[UploadQueue] Error eliminando completados:', error);
+    }
+  }, []);
 
-  const dismissNotifications = async () => {
+  // ============================================================================
+  // DISMISS NOTIFICATIONS
+  // ============================================================================
+
+  const dismissNotifications = useCallback(async () => {
     const itemsToDismiss = queue.filter(
-      item => (item.status === 'COMPLETED' || item.status === 'ERROR') && !item.notificationDismissed
+      item => (item.status === 'COMPLETED' || item.status === 'ERROR') && 
+              !item.notificationDismissed &&
+              item.appwriteId // Solo items que están en Appwrite
     );
 
-    // Update in Appwrite - debounced to avoid rate limiting
-    await Promise.all(
-      itemsToDismiss.map(item =>
-        protectedDatabase.updateUploadItem({ ...item, notificationDismissed: true })
-      )
-    );
+    if (itemsToDismiss.length === 0) return;
+
+    // Actualizar localmente primero
     setQueue(prev => prev.map(item =>
       (item.status === 'COMPLETED' || item.status === 'ERROR')
         ? { ...item, notificationDismissed: true }
         : item
     ));
-  };
 
-  // processItem wrapped in useCallback to satisfy deps
-  const processItem = useCallback(async (item: QueueItem) => {
+    // Actualizar en Appwrite
+    try {
+      await Promise.all(
+        itemsToDismiss.map(item =>
+          protectedDatabase.updateUploadItem({ ...item, notificationDismissed: true })
+        )
+      );
+    } catch (error) {
+      uploadLogger.error('[UploadQueue] Error dismissing notifications:', error);
+    }
+  }, [queue]);
+
+  // ============================================================================
+  // GEMINI PROCESSING - Fase 3: Procesar con IA
+  // ============================================================================
+
+  const processWithGemini = useCallback(async (item: QueueItem) => {
+    if (!item.storageFileId) {
+      uploadLogger.error(`[UploadQueue] Item ${item.id} no tiene storageFileId`);
+      return;
+    }
+
     setProcessingId(item.id);
 
-    // Update to ANALYZING status - save to Appwrite
-    const analyzingItem = { ...item, status: 'ANALYZING' as const, progress: 10 };
-    try {
-      await protectedDatabase.updateUploadItem(analyzingItem);
-    } catch (error) {
-      uploadLogger.error('Error actualizando estado a ANALYZING:', error);
-    }
+    // Actualizar a ANALYZING
+    const analyzingItem: QueueItem = { ...item, status: 'ANALYZING', progress: 10 };
     setQueue(prev => prev.map(i => i.id === item.id ? analyzingItem : i));
+    
+    try {
+      if (item.appwriteId) {
+        await protectedDatabase.updateUploadItem(analyzingItem);
+      }
+    } catch (error) {
+      uploadLogger.error('[UploadQueue] Error actualizando estado a ANALYZING:', error);
+    }
 
-    // OPTIMIZED: Only update progress locally to avoid rate limiting
-    // We only save to Appwrite at the start (ANALYZING) and end (COMPLETED/ERROR)
+    // Progreso visual
     const progressInterval = setInterval(() => {
       setQueue(prev => prev.map(i => {
         if (i.id === item.id && i.status === 'ANALYZING' && i.progress < 90) {
@@ -205,18 +357,26 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         }
         return i;
       }));
-    }, 500);
+    }, PROGRESS_UPDATE_INTERVAL);
 
     try {
-      let base64ForApi = item.base64Data || '';
-      if (base64ForApi.includes(',')) base64ForApi = base64ForApi.split(',')[1];
-      if (!base64ForApi) throw new Error("Data invalid");
+      // Descargar archivo de Storage
+      uploadLogger.debug(`[UploadQueue] Descargando archivo ${item.storageFileId} de Storage...`);
+      const blob = await storageService.downloadFile(item.storageFileId);
+      
+      // Convertir a base64 para Gemini API
+      const base64 = await blobToBase64(blob);
+      const base64ForApi = base64.includes(',') ? base64.split(',')[1] : base64;
 
-      // CRITICAL: Choose parser based on uploadType
+      if (!base64ForApi) {
+        throw new Error('Error convirtiendo archivo a base64');
+      }
+
+      // Procesar según tipo
       if (item.uploadType === 'INVOICE') {
         const data = await analyzeInvoiceImage(base64ForApi, item.mimeType, suppliers);
 
-        // If AI matched a supplier, find the supplier ID
+        // Buscar proveedor si la IA lo sugirió
         let matchedSupplierId: string | undefined = undefined;
         if (data.matchedSupplierId) {
           const supplier = suppliers.find(s =>
@@ -238,20 +398,21 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
         clearInterval(progressInterval);
 
-        const completedItem = {
+        const completedItem: QueueItem = {
           ...item,
-          status: 'COMPLETED' as const,
+          status: 'COMPLETED',
           progress: 100,
           result: resultInvoice,
           notificationDismissed: false
         };
 
-        // Save final state to Appwrite
-        await protectedDatabase.updateUploadItem(completedItem);
+        if (item.appwriteId) {
+          await protectedDatabase.updateUploadItem(completedItem);
+        }
         setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
 
       } else if (item.uploadType === 'BANK_STATEMENT') {
-        // Detect file type
+        // Detectar tipo de archivo
         const isXlsx = item.mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
           item.mimeType === 'application/vnd.ms-excel' ||
           item.fileName.toLowerCase().endsWith('.xlsx') ||
@@ -260,57 +421,61 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         clearInterval(progressInterval);
 
         if (isXlsx) {
-          // XLSX files need manual column mapping - mark as ready for mapping
-          const completedItem = {
+          // XLSX necesita mapeo manual
+          const completedItem: QueueItem = {
             ...item,
-            status: 'COMPLETED' as const,
+            status: 'COMPLETED',
             progress: 100,
-            needsMapping: true, // Flag to show mapping UI
+            needsMapping: true,
             notificationDismissed: false
           };
-          await protectedDatabase.updateUploadItem(completedItem);
+          if (item.appwriteId) {
+            await protectedDatabase.updateUploadItem(completedItem);
+          }
           setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
         } else {
-          // Use AI for PDF/images
+          // Usar IA para PDF/imágenes
           const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
 
-          // Add IDs to transactions
           const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
             id: generateId(),
             ...t,
             status: 'PENDING' as const
           }));
 
-          const completedItem = {
+          const completedItem: QueueItem = {
             ...item,
-            status: 'COMPLETED' as const,
+            status: 'COMPLETED',
             progress: 100,
             bankResult: enrichedTransactions,
             notificationDismissed: false
           };
-          await protectedDatabase.updateUploadItem(completedItem);
+          if (item.appwriteId) {
+            await protectedDatabase.updateUploadItem(completedItem);
+          }
           setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
         }
       }
 
     } catch (err: unknown) {
       clearInterval(progressInterval);
-      uploadLogger.error('Error processing item:', err);
+      uploadLogger.error('[UploadQueue] Error procesando con Gemini:', err);
 
       const errorMessage = err instanceof Error ? err.message : 'Error en análisis IA.';
-      const errorItem = {
+      const errorItem: QueueItem = {
         ...item,
-        status: 'ERROR' as const,
+        status: 'ERROR',
         progress: 0,
         error: errorMessage,
         notificationDismissed: false
       };
 
-      // Save error state to Appwrite
       try {
-        await protectedDatabase.updateUploadItem(errorItem);
+        if (item.appwriteId) {
+          await protectedDatabase.updateUploadItem(errorItem);
+        }
       } catch (saveError) {
-        uploadLogger.error('Error guardando estado de error:', saveError);
+        uploadLogger.error('[UploadQueue] Error guardando estado de error:', saveError);
       }
       setQueue(prev => prev.map(i => i.id === item.id ? errorItem : i));
     } finally {
@@ -318,20 +483,77 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     }
   }, [suppliers]);
 
-  // Processing Logic - runs when queue changes
+  // ============================================================================
+  // PROCESSING LOOP - Procesar items QUEUED con Gemini
+  // ============================================================================
+
   useEffect(() => {
     if (processingId) return;
     if (!isHydrated) return;
-    // Only process items that have base64Data (file has been fully loaded)
-    const nextItem = queue.find(item => item.status === 'QUEUED' && item.base64Data);
+    
+    // Buscar el siguiente item QUEUED que tenga storageFileId
+    const nextItem = queue.find(item => 
+      item.status === 'QUEUED' && 
+      item.storageFileId &&
+      item.appwriteId
+    );
+    
     if (!nextItem) return;
 
-    processItem(nextItem);
-  }, [queue, processingId, isHydrated, processItem]);
+    processWithGemini(nextItem);
+  }, [queue, processingId, isHydrated, processWithGemini]);
+
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
+
+  const isUploading = queue.some(item => 
+    item.status === 'PENDING_UPLOAD' || item.status === 'UPLOADING'
+  );
+  
+  const pendingCount = queue.filter(item => 
+    item.status === 'PENDING_UPLOAD' || 
+    item.status === 'UPLOADING' || 
+    item.status === 'QUEUED' ||
+    item.status === 'ANALYZING'
+  ).length;
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
-    <UploadQueueContext.Provider value={{ queue, addToQueue, removeFromQueue, retryItem, clearCompleted, dismissNotifications }}>
+    <UploadQueueContext.Provider value={{ 
+      queue, 
+      addToQueue, 
+      removeFromQueue, 
+      retryItem, 
+      clearCompleted, 
+      dismissNotifications,
+      isUploading,
+      pendingCount
+    }}>
       {children}
     </UploadQueueContext.Provider>
   );
 };
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Convierte un Blob a base64 string
+ */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onload = () => {
+      const result = reader.result?.toString();
+      if (result) resolve(result);
+      else reject(new Error('Failed to convert blob to base64'));
+    };
+    reader.onerror = reject;
+  });
+}

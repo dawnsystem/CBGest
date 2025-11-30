@@ -393,11 +393,11 @@ class ProtectedDatabaseService {
     });
   }
 
-  async deleteUploadItem(id: string, options: MutationOptions = {}): Promise<void> {
+  async deleteUploadItem(id: string, storageFileId?: string, options: MutationOptions = {}): Promise<void> {
     const { priority = 'normal' } = options;
 
     await rateLimiter.enqueue(async () => {
-      await databaseService.deleteUploadItem(id);
+      await databaseService.deleteUploadItem(id, storageFileId);
     }, priority);
 
     cache.invalidateCollection('uploads');

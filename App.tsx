@@ -124,7 +124,12 @@ const MainLayout: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
 
   // UI States
-  const [viewingDoc, setViewingDoc] = useState<{file: File, title?: string} | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<{
+    file?: File; 
+    appwriteFileId?: string; 
+    mimeType?: string;
+    title?: string
+  } | null>(null);
 
   // --- FILE SYSTEM STATE ---
   const [fileHandle, setFileHandle] = useState<any | null>(null);
@@ -694,11 +699,9 @@ const MainLayout: React.FC = () => {
         debit: lines[0].debit,
         credit: lines[0].credit,
         invoiceId: inv.id,
-        // Pass file references carefully
-        referenceDoc: inv.file,
-        fileData: inv.fileData,
-        fileType: inv.fileType,
+        // Pass file references - now using appwriteFileId
         appwriteFileId: inv.appwriteFileId,
+        fileType: inv.fileType,
         reconciled: false,
         // Audit fields
         createdBy: inv.createdBy || user?.$id,
@@ -1723,9 +1726,16 @@ const MainLayout: React.FC = () => {
                                   </td>
                                   <td className="px-6 py-4 flex justify-center gap-2">
                                     <button
-                                      onClick={() => inv.file && setViewingDoc({file: inv.file})}
-                                      className="p-1 text-slate-400 hover:text-blue-600"
-                                      title="Ver documento"
+                                      onClick={() => {
+                                        if (inv.appwriteFileId) {
+                                          setViewingDoc({ appwriteFileId: inv.appwriteFileId, mimeType: inv.fileType, title: inv.number });
+                                        } else if (inv.file) {
+                                          setViewingDoc({ file: inv.file, title: inv.number });
+                                        }
+                                      }}
+                                      disabled={!inv.appwriteFileId && !inv.file}
+                                      className={`p-1 ${inv.appwriteFileId || inv.file ? 'text-slate-400 hover:text-blue-600' : 'text-slate-200 cursor-not-allowed'}`}
+                                      title={inv.appwriteFileId || inv.file ? 'Ver documento' : 'Sin documento adjunto'}
                                     >
                                       <Eye className="w-4 h-4" />
                                     </button>
@@ -1777,8 +1787,15 @@ const MainLayout: React.FC = () => {
                               </div>
                               <div className="flex gap-3 pt-3 border-t border-slate-100">
                                 <button
-                                  onClick={() => inv.file && setViewingDoc({file: inv.file})}
-                                  className="flex-1 text-blue-600 text-xs font-medium uppercase"
+                                  onClick={() => {
+                                    if (inv.appwriteFileId) {
+                                      setViewingDoc({ appwriteFileId: inv.appwriteFileId, mimeType: inv.fileType, title: inv.number });
+                                    } else if (inv.file) {
+                                      setViewingDoc({ file: inv.file, title: inv.number });
+                                    }
+                                  }}
+                                  disabled={!inv.appwriteFileId && !inv.file}
+                                  className={`flex-1 text-xs font-medium uppercase ${inv.appwriteFileId || inv.file ? 'text-blue-600' : 'text-slate-300 cursor-not-allowed'}`}
                                 >
                                   Ver PDF
                                 </button>
@@ -1882,7 +1899,14 @@ const MainLayout: React.FC = () => {
               </Suspense>
               <GlobalUploadWidget />
               <Suspense fallback={null}>
-                <DocumentViewer isOpen={!!viewingDoc} onClose={() => setViewingDoc(null)} file={viewingDoc?.file} />
+                <DocumentViewer 
+                  isOpen={!!viewingDoc} 
+                  onClose={() => setViewingDoc(null)} 
+                  file={viewingDoc?.file} 
+                  appwriteFileId={viewingDoc?.appwriteFileId}
+                  mimeType={viewingDoc?.mimeType}
+                  title={viewingDoc?.title}
+                />
               </Suspense>
             </main>
           </div>
