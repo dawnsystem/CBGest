@@ -1720,7 +1720,31 @@ export const storageService = {
     try {
       // getFileDownload returns a URL, not a Blob - we need to fetch it
       const downloadUrl = storage.getFileDownload(config.bucketId, fileId);
-      const response = await fetch(downloadUrl);
+      
+      // First attempt: use credentials (cookies)
+      let response = await fetch(downloadUrl, {
+        credentials: 'include',
+        headers: {
+          'X-Appwrite-Project': config.projectId,
+        }
+      });
+      
+      // If 401, try with JWT authentication
+      if (response.status === 401) {
+        console.log('[StorageService] Cookie auth failed, trying JWT...');
+        const jwt = await authService.createJWT();
+        
+        if (jwt) {
+          // Build URL manually to avoid duplicate project params
+          const baseUrl = `${config.endpoint}/storage/buckets/${config.bucketId}/files/${fileId}/download`;
+          response = await fetch(baseUrl, {
+            headers: {
+              'X-Appwrite-Project': config.projectId,
+              'X-Appwrite-JWT': jwt,
+            }
+          });
+        }
+      }
       
       if (!response.ok) {
         throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
