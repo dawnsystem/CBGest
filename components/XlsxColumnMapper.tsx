@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { X, FileSpreadsheet, Check, AlertCircle, ArrowRight, ChevronDown, ChevronUp, Save, RefreshCw } from 'lucide-react';
+import { X, FileSpreadsheet, Check, AlertCircle, ArrowRight, ChevronDown, ChevronUp, Save, RefreshCw, Loader2 } from 'lucide-react';
 import readXlsxFile from 'read-excel-file';
 import {
   findMatchingMapping,
@@ -7,9 +7,13 @@ import {
   validateMapping,
   SavedMapping
 } from '../services/xlsxMappingService';
+import { storageService } from '../services/appwriteService';
 
 interface XlsxColumnMapperProps {
-  base64Data: string;
+  /** Base64 data del archivo (legacy - para compatibilidad) */
+  base64Data?: string;
+  /** ID del archivo en Appwrite Storage (nuevo sistema) */
+  storageFileId?: string;
   fileName: string;
   onConfirm: (transactions: { date: string; concept: string; amount: number }[]) => void;
   onCancel: () => void;
@@ -74,6 +78,7 @@ const parseAmount = (value: unknown): number => {
 
 export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
   base64Data,
+  storageFileId,
   fileName,
   onConfirm,
   onCancel
@@ -93,22 +98,34 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
   const [showAllRows, setShowAllRows] = useState(false);
   const [usingSavedMapping, setUsingSavedMapping] = useState(false);
   const [autoProcessing, setAutoProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Parse XLSX on mount and check for saved mapping
   useEffect(() => {
     const parseExcel = async () => {
       try {
-        // Convert base64 to ArrayBuffer for read-excel-file
-        const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+        setIsLoading(true);
+        let blob: Blob;
+        
+        // Obtener el blob del archivo - desde Storage o base64
+        if (storageFileId) {
+          // Nuevo sistema: descargar de Storage
+          blob = await storageService.downloadFile(storageFileId);
+        } else if (base64Data) {
+          // Legacy: convertir base64 a blob
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          blob = new Blob([bytes.buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          });
+        } else {
+          setError('No se proporcionó archivo para procesar');
+          setIsLoading(false);
+          return;
         }
-
-        // Create a Blob and File from the buffer for read-excel-file
-        const blob = new Blob([bytes.buffer], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        });
 
         // read-excel-file returns rows as arrays of cell values
         // It automatically handles dates, numbers, and strings
@@ -196,11 +213,13 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
       } catch (err) {
         console.error('Error parsing XLSX:', err);
         setError('Error al leer el archivo Excel');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     parseExcel();
-  }, [base64Data]);
+  }, [base64Data, storageFileId]);
 
   // Preview rows (limited or all)
   const previewRows = useMemo(() => {
@@ -326,6 +345,25 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
       </select>
     </div>
   );
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-100 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+          </div>
+          <h3 className="font-semibold text-lg text-slate-900 mb-2">
+            Cargando archivo...
+          </h3>
+          <p className="text-sm text-slate-500">
+            {storageFileId ? 'Descargando desde el servidor...' : 'Procesando archivo...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (error && rawData.length === 0) {
     return (

@@ -1019,12 +1019,22 @@ export const databaseService = {
     }
   },
 
-  // --- UPLOAD QUEUE ---
+  // --- UPLOAD QUEUE (OPTIMIZED - uses Storage for files) ---
+  
+  /**
+   * Crea un item en la cola de uploads.
+   * El archivo debe haberse subido previamente a Storage.
+   * Solo guarda metadata + storageFileId en el documento.
+   */
   async createUploadItem(item: QueueItem): Promise<QueueItem> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente
+      // Excluir campos locales y campos que Appwrite gestiona
       const {
-        file, result, bankResult, id,
+        localFile,           // Solo en memoria
+        result, 
+        bankResult, 
+        id,
+        appwriteId,          // Se genera aquí
         createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         ...itemData
@@ -1033,6 +1043,7 @@ export const databaseService = {
       const dataToSave = {
         ...itemData,
         progress: Math.round(itemData.progress || 0),
+        fileSize: itemData.fileSize || 0,
         result: result ? JSON.stringify(result) : undefined,
         bankResult: bankResult ? JSON.stringify(bankResult) : undefined
       };
@@ -1048,7 +1059,14 @@ export const databaseService = {
       );
 
       connectionHealthy = true;
-      return { ...doc, file, result, bankResult, id: doc.$id } as unknown as QueueItem;
+      return { 
+        ...doc, 
+        id: doc.$id, 
+        appwriteId: doc.$id,
+        result, 
+        bankResult,
+        // localFile no se devuelve - ya no existe
+      } as unknown as QueueItem;
     } catch (error: any) {
       notifyError(error.message, 'createUploadItem');
       connectionHealthy = false;
@@ -1056,6 +1074,10 @@ export const databaseService = {
     }
   },
 
+  /**
+   * Obtiene la cola de uploads desde Appwrite.
+   * Los items devueltos NO tienen localFile - solo metadata.
+   */
   async getUploadQueue(): Promise<QueueItem[]> {
     try {
       if (!config.collections.uploads) return [];
@@ -1071,11 +1093,23 @@ export const databaseService = {
 
       connectionHealthy = true;
       return response.documents.map((doc: any) => ({
-        ...doc,
         id: doc.$id,
+        appwriteId: doc.$id,
+        storageFileId: doc.storageFileId,
+        fileName: doc.fileName,
+        mimeType: doc.mimeType,
+        fileSize: doc.fileSize || 0,
+        uploadType: doc.uploadType,
+        status: doc.status,
+        progress: doc.progress || 0,
+        error: doc.error,
+        timestamp: doc.timestamp,
+        notificationDismissed: doc.notificationDismissed,
+        needsMapping: doc.needsMapping,
         result: doc.result && typeof doc.result === 'string' ? JSON.parse(doc.result) : doc.result,
-        bankResult: doc.bankResult && typeof doc.bankResult === 'string' ? JSON.parse(doc.bankResult) : doc.bankResult
-      })) as unknown as QueueItem[];
+        bankResult: doc.bankResult && typeof doc.bankResult === 'string' ? JSON.parse(doc.bankResult) : doc.bankResult,
+        // localFile es undefined - se obtendría de Storage si se necesita
+      })) as QueueItem[];
     } catch (error: any) {
       if (error?.code === 404 || error?.code === 401) return [];
       notifyError(error.message, 'getUploadQueue');
@@ -1084,11 +1118,18 @@ export const databaseService = {
     }
   },
 
+  /**
+   * Actualiza un item en la cola de uploads.
+   */
   async updateUploadItem(item: QueueItem): Promise<QueueItem> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente
+      // Excluir campos locales y campos que Appwrite gestiona
       const {
-        file, result, bankResult, id, appwriteId,
+        localFile,           // Solo en memoria
+        result, 
+        bankResult, 
+        id, 
+        appwriteId,
         createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
         ...itemData
@@ -1113,7 +1154,13 @@ export const databaseService = {
       );
 
       connectionHealthy = true;
-      return { ...doc, file, result, bankResult, id: doc.$id } as unknown as QueueItem;
+      return { 
+        ...doc, 
+        id: doc.$id, 
+        appwriteId: doc.$id,
+        result, 
+        bankResult 
+      } as unknown as QueueItem;
     } catch (error: any) {
       notifyError(error.message, 'updateUploadItem');
       connectionHealthy = false;
@@ -1121,8 +1168,26 @@ export const databaseService = {
     }
   },
 
-  async deleteUploadItem(id: string): Promise<void> {
+  /**
+   * Elimina un item de la cola de uploads.
+   * También elimina el archivo asociado de Storage si existe.
+   */
+  async deleteUploadItem(id: string, storageFileId?: string): Promise<void> {
     try {
+      // Primero eliminar el archivo de Storage si existe
+      if (storageFileId) {
+        try {
+          await storage.deleteFile(config.bucketId, storageFileId);
+          dataLogger.debug(`[deleteUploadItem] Archivo ${storageFileId} eliminado de Storage`);
+        } catch (storageError: any) {
+          // Ignorar errores 404 en Storage
+          if (storageError?.code !== 404) {
+            console.warn(`[deleteUploadItem] Error eliminando archivo de Storage:`, storageError.message);
+          }
+        }
+      }
+      
+      // Luego eliminar el documento
       await withRetry(
         () => databases.deleteDocument(config.databaseId, config.collections.uploads, id),
         'deleteUploadItem'
@@ -1131,7 +1196,7 @@ export const databaseService = {
     } catch (error: any) {
       // Ignorar errores 404 - si el documento no existe, el objetivo ya se cumplió
       if (error?.code === 404) {
-        console.log(`[deleteUploadItem] Documento ${id} no encontrado - ya fue eliminado`);
+        dataLogger.debug(`[deleteUploadItem] Documento ${id} no encontrado - ya fue eliminado`);
         return;
       }
       notifyError(error.message, 'deleteUploadItem');
@@ -1140,6 +1205,9 @@ export const databaseService = {
     }
   },
 
+  /**
+   * Elimina todos los uploads completados, incluyendo sus archivos de Storage.
+   */
   async deleteCompletedUploads(): Promise<void> {
     try {
       const response = await withRetry(
@@ -1152,8 +1220,20 @@ export const databaseService = {
       );
 
       await Promise.all(
-        response.documents.map(async doc => {
+        response.documents.map(async (doc: any) => {
           try {
+            // Eliminar archivo de Storage si existe
+            if (doc.storageFileId) {
+              try {
+                await storage.deleteFile(config.bucketId, doc.storageFileId);
+              } catch (storageError: any) {
+                if (storageError?.code !== 404) {
+                  console.warn(`[deleteCompletedUploads] Error eliminando archivo:`, storageError.message);
+                }
+              }
+            }
+            
+            // Eliminar documento
             await withRetry(
               () => databases.deleteDocument(config.databaseId, config.collections.uploads, doc.$id),
               'deleteCompletedUploadBatch'

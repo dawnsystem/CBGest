@@ -58,7 +58,7 @@ describe('XlsxColumnMapper', () => {
 
       // Should auto-detect columns based on headers
       await waitFor(() => {
-        expect(screen.getByText('Mapear Columnas del Excel')).toBeInTheDocument();
+        expect(screen.getByText('Mapear Columnas')).toBeInTheDocument();
       });
     });
 
@@ -104,8 +104,8 @@ describe('XlsxColumnMapper', () => {
       );
 
       await waitFor(() => {
-        // Should detect separate debit/credit mode
-        expect(screen.getByText(/Dos columnas/i)).toBeInTheDocument();
+        // Should detect separate debit/credit mode - button text is "Cargo/Abono"
+        expect(screen.getByText(/Cargo\/Abono/i)).toBeInTheDocument();
       });
     });
 

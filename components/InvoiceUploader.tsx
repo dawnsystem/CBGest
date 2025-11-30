@@ -82,7 +82,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
     } else if (item.uploadType === 'BANK_STATEMENT') {
         // Check if XLSX needs mapping
-        if (item.needsMapping && item.base64Data) {
+        if (item.needsMapping && item.storageFileId) {
             setMappingItem(item);
         } else if (item.bankResult) {
             // PDF was processed by AI
@@ -124,8 +124,9 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
         ...preview,
         apartmentId: selectedApartmentId || undefined,
         status: markAsProcessed ? 'PROCESSED' : 'PENDING',
-        file: reviewItem.file,
-        fileData: reviewItem.base64Data,
+        // Usar storageFileId en lugar de file/base64Data
+        // El archivo está en Appwrite Storage, referenciado por appwriteFileId
+        appwriteFileId: reviewItem.storageFileId,
         fileType: reviewItem.mimeType,
         history: [...preview.history, {
             date: new Date().toISOString(),
@@ -435,7 +436,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                             <span className={`text-[10px] px-1.5 rounded border ${item.uploadType === 'INVOICE' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-indigo-200 bg-indigo-50 text-indigo-700'}`}>
                                 {item.uploadType === 'INVOICE' ? 'FRA' : 'BNC'}
                             </span>
-                            <p className="font-medium text-slate-900 truncate">{item.file.name}</p>
+                            <p className="font-medium text-slate-900 truncate">{item.fileName}</p>
                         </div>
                         <p className="text-xs text-slate-500">
                             {item.status === 'ANALYZING' && (item.uploadType === 'INVOICE'
@@ -482,9 +483,9 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
       )}
 
       {/* XLSX Column Mapper Modal */}
-      {mappingItem && mappingItem.base64Data && (
+      {mappingItem && mappingItem.storageFileId && (
         <XlsxColumnMapper
-          base64Data={mappingItem.base64Data.includes(',') ? mappingItem.base64Data.split(',')[1] : mappingItem.base64Data}
+          storageFileId={mappingItem.storageFileId}
           fileName={mappingItem.fileName}
           onConfirm={handleMappingConfirm}
           onCancel={handleMappingCancel}

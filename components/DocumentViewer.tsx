@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { X, Download, FileText, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, Maximize, ArrowLeftRight } from 'lucide-react';
 import { pdfjsLib } from '../utils/pdfLoader';
+import { storageService } from '../services/appwriteService';
 
 declare global {
   interface Window {
@@ -11,15 +12,29 @@ declare global {
 type FitMode = 'page' | 'width' | 'custom';
 
 interface DocumentViewerProps {
+  /** File object directo (legacy) */
   file?: File;
+  /** ID del archivo en Appwrite Storage */
+  appwriteFileId?: string;
+  /** Tipo MIME del archivo (necesario si se usa appwriteFileId) */
+  mimeType?: string;
   isOpen: boolean;
   onClose: () => void;
   title?: string;
 }
 
-export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, onClose, title }) => {
+export const DocumentViewer: React.FC<DocumentViewerProps> = ({ 
+  file, 
+  appwriteFileId, 
+  mimeType, 
+  isOpen, 
+  onClose, 
+  title 
+}) => {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [isPdf, setIsPdf] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadedFile, setDownloadedFile] = useState<File | null>(null);
 
   // PDF State
   const [pdfDoc, setPdfDoc] = useState<any>(null);
@@ -71,12 +86,42 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
     }
   }, [baseViewport]);
 
+  // Download file from Storage if appwriteFileId is provided
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!appwriteFileId) {
+      setDownloadedFile(null);
+      return;
+    }
+
+    const downloadFile = async () => {
+      setIsDownloading(true);
+      setRenderError(null);
+      try {
+        const blob = await storageService.downloadFile(appwriteFileId);
+        const downloadedMimeType = mimeType || blob.type || 'application/octet-stream';
+        const downloadedFileObj = new File([blob], title || 'document', { type: downloadedMimeType });
+        setDownloadedFile(downloadedFileObj);
+      } catch (error) {
+        console.error('Error downloading file from Storage:', error);
+        setRenderError('Error al descargar el archivo');
+      } finally {
+        setIsDownloading(false);
+      }
+    };
+
+    downloadFile();
+  }, [appwriteFileId, isOpen, mimeType, title]);
+
+  // Determine which file to use (direct file or downloaded)
+  const effectiveFile = file || downloadedFile;
+
   // Initialize Object URL
   useEffect(() => {
-    if (file) {
-      const url = URL.createObjectURL(file);
+    if (effectiveFile) {
+      const url = URL.createObjectURL(effectiveFile);
       setObjectUrl(url);
-      setIsPdf(file.type === 'application/pdf');
+      setIsPdf(effectiveFile.type === 'application/pdf');
 
       // Reset PDF state
       setPdfDoc(null);
@@ -94,7 +139,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
 
       return () => URL.revokeObjectURL(url);
     }
-  }, [file]);
+  }, [effectiveFile]);
 
   // Load PDF Document
   useEffect(() => {
@@ -242,7 +287,20 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, numPages]);
 
-  if (!isOpen || !file || !objectUrl) return null;
+  // Show loading state while downloading
+  if (isOpen && appwriteFileId && isDownloading) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-slate-800 p-8 rounded-xl text-center">
+          <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-white">Descargando documento...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isOpen || (!effectiveFile && !renderError) || (!objectUrl && !renderError)) return null;
 
   const zoomPercentage = Math.round(scale * 100);
 
@@ -264,19 +322,21 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, isOpen, on
               <FileText className="w-5 h-5 text-blue-400" />
             </div>
             <div className="overflow-hidden">
-              <h3 className="text-sm font-medium text-white max-w-[150px] md:max-w-md truncate">{title || file.name}</h3>
-              <p className="text-xs text-slate-300">{file.type} • {(file.size / 1024).toFixed(1)} KB</p>
+              <h3 className="text-sm font-medium text-white max-w-[150px] md:max-w-md truncate">{title || effectiveFile?.name || 'Documento'}</h3>
+              <p className="text-xs text-slate-300">{effectiveFile?.type || mimeType || 'Archivo'} • {effectiveFile ? `${(effectiveFile.size / 1024).toFixed(1)} KB` : ''}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <a
-              href={objectUrl}
-              download={file.name}
-              className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-              title="Descargar original"
-            >
-              <Download className="w-5 h-5" />
-            </a>
+            {objectUrl && (
+              <a
+                href={objectUrl}
+                download={effectiveFile?.name || title || 'document'}
+                className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                title="Descargar original"
+              >
+                <Download className="w-5 h-5" />
+              </a>
+            )}
             <button
               onClick={onClose}
               className="p-2 text-slate-300 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors ml-1"
