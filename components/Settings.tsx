@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Users, Building, Info, Plus, Trash2, Database, Cloud, HardDrive, Download, Upload, CheckCircle, FilePlus, FileInput, Lock, LogOut, Check, Clock, ShieldCheck, Wifi, AlertTriangle, HelpCircle } from 'lucide-react';
-import { AppSettings, Partner, DataSourceType } from '../types';
+import { Save, Users, Building, Info, Plus, Trash2, Database, Cloud, HardDrive, Download, Upload, CheckCircle, FilePlus, FileInput, Lock, LogOut, Check, Clock, ShieldCheck, Wifi, AlertTriangle, HelpCircle, Receipt, Euro } from 'lucide-react';
+import { AppSettings, Partner, DataSourceType, TouristTaxConfig } from '../types';
 import { APPWRITE_CONFIG } from '../config/appwrite';
 import { createDefaultDataSourceConfig, generateId } from '../utils/defaults';
 
@@ -27,7 +27,7 @@ export const Settings: React.FC<SettingsProps> = ({
     isLocalFileMode,
     lastSaved
 }) => {
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'PARTNERS' | 'DATA'>('GENERAL');
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'PARTNERS' | 'TAX' | 'DATA'>('GENERAL');
   
   // Initialize form data with settings
   // Using a function to compute initial state avoids the need for useEffect sync
@@ -160,6 +160,9 @@ export const Settings: React.FC<SettingsProps> = ({
         </button>
         <button onClick={() => setActiveTab('PARTNERS')} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'PARTNERS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             <Users className="w-4 h-4 inline mr-2" /> Comuneros
+        </button>
+        <button onClick={() => setActiveTab('TAX')} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'TAX' ? 'border-amber-600 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            <Receipt className="w-4 h-4 inline mr-2" /> Tasa Turística
         </button>
         <button onClick={() => setActiveTab('DATA')} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'DATA' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             <Database className="w-4 h-4 inline mr-2" /> Datos y Conexiones
@@ -313,6 +316,167 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
             </div>
         )}
+
+      {/* --- TAX TAB CONTENT --- */}
+      {activeTab === 'TAX' && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Receipt className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Configuración de Tasa Turística (IEET)</h3>
+                <p className="text-sm text-slate-500">Impost sobre Estades en Establiments Turístics - Cataluña</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Enable/Disable */}
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.touristTaxConfig?.enabled ?? true}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      touristTaxConfig: {
+                        ...formData.touristTaxConfig || { rate: 1, maxNights: 7, minAge: 17, enabled: true },
+                        enabled: e.target.checked
+                      }
+                    })}
+                    className="w-5 h-5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <div>
+                    <span className="font-medium text-slate-900">Activar gestión de tasa turística</span>
+                    <p className="text-xs text-slate-500">Habilita el cálculo y seguimiento de la tasa turística</p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Rate */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Tarifa por noche/adulto
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.touristTaxConfig?.rate ?? 1}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      touristTaxConfig: {
+                        ...formData.touristTaxConfig || { rate: 1, maxNights: 7, minAge: 17, enabled: true },
+                        rate: parseFloat(e.target.value) || 1
+                      }
+                    })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm pr-8"
+                  />
+                  <Euro className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Actualmente en Cataluña: 1€ (puede variar según zona)</p>
+              </div>
+
+              {/* Max Nights */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Máximo de noches por estancia
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={formData.touristTaxConfig?.maxNights ?? 7}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    touristTaxConfig: {
+                      ...formData.touristTaxConfig || { rate: 1, maxNights: 7, minAge: 17, enabled: true },
+                      maxNights: parseInt(e.target.value) || 7
+                    }
+                  })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+                <p className="text-xs text-slate-500 mt-1">Máximo de noches que se cobra por estancia (incluso consecutivas)</p>
+              </div>
+
+              {/* Min Age */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Edad mínima para pagar tasa
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={formData.touristTaxConfig?.minAge ?? 17}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      touristTaxConfig: {
+                        ...formData.touristTaxConfig || { rate: 1, maxNights: 7, minAge: 17, enabled: true },
+                        minAge: parseInt(e.target.value) || 17
+                      }
+                    })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Los menores de esta edad no pagan tasa turística</p>
+              </div>
+            </div>
+
+            {/* Info Box */}
+            <div className="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium mb-2">Información sobre la Tasa Turística en Cataluña:</p>
+                  <ul className="list-disc ml-4 space-y-1 text-xs">
+                    <li>Se aplica solo a <strong>apartamentos turísticos</strong> (con licencia HUT)</li>
+                    <li>Las <strong>estancias consecutivas</strong> del mismo huésped cuentan como una única estancia</li>
+                    <li>Liquidación semestral: <strong>Abril</strong> (2º sem. anterior) y <strong>Octubre</strong> (1er sem. año)</li>
+                    <li>Presentación en el Portal de la <strong>Agència Tributària de Catalunya</strong></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Deposit Configuration */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Euro className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Configuración de Fianzas</h3>
+                <p className="text-sm text-slate-500">Depósitos de garantía por tipo de alquiler</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🏖️</span>
+                  <h4 className="font-medium text-amber-800">Apartamentos Turísticos</h4>
+                </div>
+                <p className="text-3xl font-bold text-amber-600 mb-1">100€</p>
+                <p className="text-xs text-amber-700">Fianza fija por estancia</p>
+              </div>
+
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🏠</span>
+                  <h4 className="font-medium text-blue-800">Vivienda Habitual</h4>
+                </div>
+                <p className="text-3xl font-bold text-blue-600 mb-1">1 mes</p>
+                <p className="text-xs text-blue-700">Equivalente a 1 mes de alquiler</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
         
         {/* Password Modal (Existing) */}
         {showPasswordModal !== 'NONE' && (

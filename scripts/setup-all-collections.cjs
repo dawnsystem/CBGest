@@ -495,6 +495,8 @@ async function setupSettingsCollection() {
     { type: 'boolean', key: 'vatObligation', required: false, default: false },
     // Partners stored as JSON string (array of objects not supported)
     { type: 'string', key: 'partners', size: 50000, required: false },
+    // Tourist tax config stored as JSON string
+    { type: 'string', key: 'touristTaxConfig', size: 1000, required: false },
   ];
 
   for (const attr of attributes) {
@@ -670,7 +672,8 @@ async function setupApartmentsCollection() {
     { type: 'string', key: 'cadastralRef', size: 50, required: false }, // Referencia catastral
     { type: 'float', key: 'surfaceArea', required: false, min: 0, max: 99999 }, // m²
     { type: 'integer', key: 'maxOccupancy', required: false, min: 1, max: 50 },
-    { type: 'string', key: 'licenseNumber', size: 100, required: false }, // Licencia turística
+    { type: 'string', key: 'licenseNumber', size: 100, required: false }, // Licencia turística (HUT)
+    { type: 'enum', key: 'apartmentType', elements: ['TOURIST', 'RESIDENTIAL'], required: false, default: 'TOURIST' }, // Tipo de apartamento
     { type: 'string', key: 'notes', size: 2000, required: false },
     { type: 'boolean', key: 'isActive', required: false, default: true },
     // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
@@ -812,6 +815,89 @@ async function setupAiMatchHistoryCollection() {
 }
 
 /**
+ * RESERVATIONS Collection (NEW - for tourist tax and deposit tracking)
+ */
+async function setupReservationsCollection() {
+  console.log('\n=== Setting up RESERVATIONS collection ===\n');
+  const collectionId = 'reservations';
+
+  await createCollection(collectionId, 'Reservations');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    // Core booking data
+    { type: 'string', key: 'apartmentId', size: 100, required: false },
+    { type: 'string', key: 'apartmentName', size: 200, required: true },
+    { type: 'string', key: 'checkIn', size: 20, required: true },
+    { type: 'string', key: 'checkOut', size: 20, required: true },
+    { type: 'integer', key: 'nights', required: true, min: 1, max: 365 },
+
+    // Financial data
+    { type: 'float', key: 'pricePerNight', required: true, min: 0, max: 99999 },
+    { type: 'float', key: 'totalAmount', required: true, min: 0, max: 999999 },
+    { type: 'float', key: 'paidAmount', required: false, min: 0, max: 999999, default: 0 },
+
+    // Booking reference
+    { type: 'enum', key: 'channel', elements: ['Booking', 'Airbnb', 'Direct', 'Agoda', 'Vrbo', 'Other'], required: true },
+    { type: 'string', key: 'reservationNumber', size: 100, required: true },
+    { type: 'enum', key: 'status', elements: ['New', 'Confirmed', 'Paid', 'PaidCC', 'Cancelled', 'Completed'], required: true },
+
+    // Guest info
+    { type: 'string', key: 'guestInitials', size: 20, required: false },
+    { type: 'string', key: 'guestName', size: 200, required: false }, // For consecutive stay detection
+    { type: 'string', key: 'guestEmail', size: 200, required: false }, // For consecutive stay detection
+    { type: 'integer', key: 'numberOfGuests', required: false, min: 1, max: 50, default: 1 }, // Adults for tourist tax
+    { type: 'integer', key: 'numberOfChildren', required: false, min: 0, max: 50, default: 0 }, // Children - no tax
+
+    // Tourist Tax (IEET)
+    { type: 'float', key: 'touristTaxAmount', required: false, min: 0, max: 9999, default: 0 },
+    { type: 'boolean', key: 'touristTaxCollected', required: false, default: false },
+    { type: 'string', key: 'touristTaxCollectedDate', size: 20, required: false },
+    { type: 'integer', key: 'touristTaxNightsCounted', required: false, min: 0, max: 365, default: 0 },
+
+    // Deposit/Fianza
+    { type: 'float', key: 'depositAmount', required: false, min: 0, max: 99999, default: 0 },
+    { type: 'boolean', key: 'depositCollected', required: false, default: false },
+    { type: 'string', key: 'depositCollectedDate', size: 20, required: false },
+    { type: 'boolean', key: 'depositReturned', required: false, default: false },
+    { type: 'string', key: 'depositReturnedDate', size: 20, required: false },
+    { type: 'float', key: 'depositRetainedAmount', required: false, min: 0, max: 99999, default: 0 },
+
+    // Metadata
+    { type: 'string', key: 'importedAt', size: 50, required: false },
+    { type: 'string', key: 'notes', size: 2000, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'checkIn_index', type: 'key', attributes: ['checkIn'], orders: ['DESC'] },
+    { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
+    { key: 'channel_index', type: 'key', attributes: ['channel'], orders: ['ASC'] },
+    { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+    { key: 'touristTaxCollected_index', type: 'key', attributes: ['touristTaxCollected'], orders: ['ASC'] },
+    { key: 'guestName_index', type: 'key', attributes: ['guestName'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Reservations collection setup complete!\n');
+}
+
+/**
  * Main execution
  */
 async function main() {
@@ -835,6 +921,7 @@ async function main() {
     await setupApartmentsCollection();
     await setupRecurringExpensesCollection();
     await setupAiMatchHistoryCollection();
+    await setupReservationsCollection();
 
     console.log('');
     console.log('🎉 ALL collections have been set up successfully!');
@@ -843,13 +930,14 @@ async function main() {
     console.log('  ✅ invoices (+ apartmentId field)');
     console.log('  ✅ entries');
     console.log('  ✅ transactions (+ platformDetected, grossAmount, aiMatchSuggestion fields)');
-    console.log('  ✅ settings');
+    console.log('  ✅ settings (+ touristTaxConfig field)');
     console.log('  ✅ suppliers');
     console.log('  ✅ notifications');
     console.log('  ✅ uploads');
-    console.log('  ✅ apartments (NEW)');
-    console.log('  ✅ recurring_expenses (NEW)');
-    console.log('  ✅ ai_match_history (NEW)');
+    console.log('  ✅ apartments (+ apartmentType field: TOURIST/RESIDENTIAL)');
+    console.log('  ✅ recurring_expenses');
+    console.log('  ✅ ai_match_history');
+    console.log('  ✅ reservations (+ tourist tax and deposit fields)');
     console.log('');
     console.log('Next steps:');
     console.log('  1. Verify the collections in Appwrite Console');
