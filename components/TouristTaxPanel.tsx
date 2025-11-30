@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Receipt, Calendar, Users, Euro, Download, Check, X,
-  AlertTriangle, ChevronDown, ChevronUp, Palmtree, Building
+  AlertTriangle, ChevronDown, ChevronUp, Palmtree, Building, Baby
 } from 'lucide-react';
 import { Reservation, Apartment, AppSettings, TouristTaxConfig } from '../types';
 
@@ -42,8 +42,11 @@ interface ConsecutiveStayGroup {
   reservations: Reservation[];
   totalNights: number;
   taxableNights: number; // Max 7
-  totalGuests: number;
+  totalGuests: number;        // Adults (≥17 years) - subject to tourist tax
+  totalChildren: number;      // Children (≤16 years) - exempt from tourist tax
   totalTax: number;
+  taxableUnits: number;       // Unidades sujetas a tasa: adults × taxableNights
+  exemptUnits: number;        // Unidades exentas: children × taxableNights
   allCollected: boolean;
 }
 
@@ -118,7 +121,10 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
           const totalNights = currentGroup.reduce((sum, r) => sum + (r.nights || 0), 0);
           const taxableNights = Math.min(totalNights, taxConfig.maxNights);
           const totalGuests = Math.max(...currentGroup.map(r => r.numberOfGuests || 1));
-          const totalTax = taxableNights * totalGuests * taxConfig.rate;
+          const totalChildren = Math.max(...currentGroup.map(r => r.numberOfChildren || 0));
+          const taxableUnits = taxableNights * totalGuests;
+          const exemptUnits = taxableNights * totalChildren;
+          const totalTax = taxableUnits * taxConfig.rate;
           const allCollected = currentGroup.every(r => r.touristTaxCollected);
           
           groups.push({
@@ -128,7 +134,10 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
             totalNights,
             taxableNights,
             totalGuests,
+            totalChildren,
             totalTax,
+            taxableUnits,
+            exemptUnits,
             allCollected
           });
         }
@@ -142,7 +151,10 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       const totalNights = currentGroup.reduce((sum, r) => sum + (r.nights || 0), 0);
       const taxableNights = Math.min(totalNights, taxConfig.maxNights);
       const totalGuests = Math.max(...currentGroup.map(r => r.numberOfGuests || 1));
-      const totalTax = taxableNights * totalGuests * taxConfig.rate;
+      const totalChildren = Math.max(...currentGroup.map(r => r.numberOfChildren || 0));
+      const taxableUnits = taxableNights * totalGuests;
+      const exemptUnits = taxableNights * totalChildren;
+      const totalTax = taxableUnits * taxConfig.rate;
       const allCollected = currentGroup.every(r => r.touristTaxCollected);
       
       groups.push({
@@ -152,7 +164,10 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
         totalNights,
         taxableNights,
         totalGuests,
+        totalChildren,
         totalTax,
+        taxableUnits,
+        exemptUnits,
         allCollected
       });
     }
@@ -165,7 +180,12 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
     const totalReservations = filteredReservations.length;
     const totalNights = consecutiveStayGroups.reduce((sum, g) => sum + g.totalNights, 0);
     const totalTaxableNights = consecutiveStayGroups.reduce((sum, g) => sum + g.taxableNights, 0);
-    const totalPernoctaciones = consecutiveStayGroups.reduce((sum, g) => sum + (g.taxableNights * g.totalGuests), 0);
+    // Unidades sujetas a tasa (adultos × noches tasables)
+    const totalTaxableUnits = consecutiveStayGroups.reduce((sum, g) => sum + g.taxableUnits, 0);
+    // Unidades exentas (menores ≤16 años × noches tasables, máx 7)
+    const totalExemptUnits = consecutiveStayGroups.reduce((sum, g) => sum + g.exemptUnits, 0);
+    // Total pernoctaciones (adultos + niños)
+    const totalPernoctaciones = totalTaxableUnits + totalExemptUnits;
     const totalTaxExpected = consecutiveStayGroups.reduce((sum, g) => sum + g.totalTax, 0);
     const totalTaxCollected = consecutiveStayGroups
       .filter(g => g.allCollected)
@@ -178,6 +198,8 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       totalReservations,
       totalNights,
       totalTaxableNights,
+      totalTaxableUnits,
+      totalExemptUnits,
       totalPernoctaciones,
       totalTaxExpected,
       totalTaxCollected,
@@ -236,8 +258,10 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       'Check-out',
       'Noches',
       'Noches Tasables',
-      'Huéspedes',
-      'Pernoctaciones',
+      'Adultos (≥17)',
+      'Menores (≤16)',
+      'Uds. Sujetas',
+      'Uds. Exentas',
       'Tasa (€)',
       'Cobrada'
     ];
@@ -255,14 +279,34 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
           r.nights || 0,
           idx === 0 ? group.taxableNights : 0, // Only count on first reservation of group
           r.numberOfGuests || 1,
-          idx === 0 ? group.taxableNights * group.totalGuests : 0,
+          r.numberOfChildren || 0,
+          idx === 0 ? group.taxableUnits : 0, // Unidades sujetas (adultos × noches)
+          idx === 0 ? group.exemptUnits : 0,  // Unidades exentas (menores × noches)
           idx === 0 ? group.totalTax.toFixed(2) : '0.00',
           group.allCollected ? 'Sí' : 'No'
         ].join(';');
       });
     });
 
-    const csv = [headers.join(';'), ...rows].join('\n');
+    // Add summary row
+    const summaryRow = [
+      'TOTAL',
+      '',
+      '',
+      '',
+      '',
+      '',
+      totals.totalNights,
+      totals.totalTaxableNights,
+      '',
+      '',
+      totals.totalTaxableUnits,
+      totals.totalExemptUnits,
+      totals.totalTaxExpected.toFixed(2),
+      ''
+    ].join(';');
+
+    const csv = [headers.join(';'), ...rows, '', summaryRow].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -349,6 +393,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
             <p className="font-medium mb-1">Configuración actual:</p>
             <ul className="list-disc ml-4 space-y-1">
               <li>Tarifa: <strong>{taxConfig.rate}€</strong> por noche y adulto (≥{taxConfig.minAge} años)</li>
+              <li><strong>Exentos:</strong> Menores de {taxConfig.minAge} años (≤{taxConfig.minAge - 1}) - se declaran pero no pagan</li>
               <li>Máximo: <strong>{taxConfig.maxNights} noches</strong> por estancia (incluso si es consecutiva)</li>
               <li>Las estancias consecutivas del mismo huésped cuentan como una única estancia</li>
             </ul>
@@ -357,7 +402,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
             <Calendar className="w-4 h-4" />
@@ -366,13 +411,21 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
           <p className="text-2xl font-bold text-slate-900">{totals.totalGroups}</p>
           <p className="text-xs text-slate-400">{totals.totalReservations} reservas</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-4 rounded-xl border border-purple-200 shadow-sm">
           <div className="flex items-center gap-2 text-purple-600 text-xs mb-1">
             <Users className="w-4 h-4" />
-            Pernoctaciones
+            Uds. Sujetas
           </div>
-          <p className="text-2xl font-bold text-purple-600">{totals.totalPernoctaciones}</p>
-          <p className="text-xs text-slate-400">{totals.totalTaxableNights} noches × huéspedes</p>
+          <p className="text-2xl font-bold text-purple-600">{totals.totalTaxableUnits}</p>
+          <p className="text-xs text-slate-400">Adultos (≥{taxConfig.minAge})</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-cyan-200 shadow-sm">
+          <div className="flex items-center gap-2 text-cyan-600 text-xs mb-1">
+            <Baby className="w-4 h-4" />
+            Uds. Exentas
+          </div>
+          <p className="text-2xl font-bold text-cyan-600">{totals.totalExemptUnits}</p>
+          <p className="text-xs text-slate-400">Menores (≤{taxConfig.minAge - 1})</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 text-amber-600 text-xs mb-1">
@@ -452,13 +505,23 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
 
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-sm font-medium text-slate-900">
-                        {group.taxableNights} noches × {group.totalGuests} = {group.taxableNights * group.totalGuests} pernoctaciones
-                      </p>
-                      <p className="text-xs text-slate-500">
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className="text-purple-600 font-medium" title="Unidades sujetas a tasa">
+                          <Users className="w-3 h-3 inline mr-1" />
+                          {group.taxableUnits} uds.
+                        </span>
+                        {group.totalChildren > 0 && (
+                          <span className="text-cyan-600 font-medium" title="Unidades exentas">
+                            <Baby className="w-3 h-3 inline mr-1" />
+                            {group.exemptUnits} exentas
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {group.taxableNights} noches × ({group.totalGuests} ad.{group.totalChildren > 0 && ` + ${group.totalChildren} niños`})
                         {group.totalNights > group.taxableNights && (
-                          <span className="text-amber-600">
-                            ({group.totalNights} noches totales, máx. {taxConfig.maxNights})
+                          <span className="text-amber-600 ml-1">
+                            (máx. {taxConfig.maxNights})
                           </span>
                         )}
                       </p>
@@ -504,7 +567,8 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
                           <th className="text-left pb-2">Check-in</th>
                           <th className="text-left pb-2">Check-out</th>
                           <th className="text-right pb-2">Noches</th>
-                          <th className="text-right pb-2">Huéspedes</th>
+                          <th className="text-right pb-2">Adultos</th>
+                          <th className="text-right pb-2">Menores</th>
                           <th className="text-right pb-2">Canal</th>
                         </tr>
                       </thead>
@@ -517,7 +581,14 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
                               <td className="py-2">{formatDate(r.checkIn)}</td>
                               <td className="py-2">{formatDate(r.checkOut)}</td>
                               <td className="py-2 text-right">{r.nights}</td>
-                              <td className="py-2 text-right">{r.numberOfGuests || 1}</td>
+                              <td className="py-2 text-right">
+                                <span className="text-purple-600 font-medium">{r.numberOfGuests || 1}</span>
+                              </td>
+                              <td className="py-2 text-right">
+                                <span className={`font-medium ${(r.numberOfChildren || 0) > 0 ? 'text-cyan-600' : 'text-slate-400'}`}>
+                                  {r.numberOfChildren || 0}
+                                </span>
+                              </td>
                               <td className="py-2 text-right">
                                 <span className="text-xs px-2 py-0.5 bg-slate-100 rounded">
                                   {r.channel}
