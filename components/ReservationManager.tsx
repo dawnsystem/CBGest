@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import {
   Upload, Calendar, Home, Users, Euro, Search, Filter,
   ChevronDown, ChevronUp, X, Check, AlertTriangle, FileText,
-  Download, Trash2, Edit2, Save, XCircle, Receipt, Wallet, CalendarDays
+  Download, Trash2, Edit2, Save, XCircle, Receipt, Wallet, CalendarDays, Baby
 } from 'lucide-react';
 import { Reservation, ReservationChannel, ReservationStatus, Apartment, AppSettings, TouristTaxConfig } from '../types';
 
@@ -140,9 +140,13 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   
-  // Editing guests state
+  // Editing guests state (adults)
   const [editingGuestsId, setEditingGuestsId] = useState<string | null>(null);
   const [editingGuestsValue, setEditingGuestsValue] = useState<number>(1);
+  
+  // Editing children state (minors ≤16 years - exempt from tourist tax)
+  const [editingChildrenId, setEditingChildrenId] = useState<string | null>(null);
+  const [editingChildrenValue, setEditingChildrenValue] = useState<number>(0);
   
   // Get tax config
   const taxConfig = settings?.touristTaxConfig || DEFAULT_TAX_CONFIG;
@@ -815,7 +819,10 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                   </div>
                 </th>
                 <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Huéspedes
+                  Adultos
+                </th>
+                <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Menores
                 </th>
                 <th
                   className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
@@ -845,7 +852,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredReservations.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
                     <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <p>No hay reservas</p>
                     <p className="text-xs mt-1">Importa un archivo CSV para comenzar</p>
@@ -912,11 +919,61 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                             setEditingGuestsId(reservation.id);
                             setEditingGuestsValue(reservation.numberOfGuests || 1);
                           }}
-                          className="flex items-center justify-center gap-1 px-2 py-1 text-sm text-slate-700 hover:bg-slate-100 rounded transition-colors group"
-                          title="Clic para editar"
+                          className="flex items-center justify-center gap-1 px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded transition-colors group"
+                          title="Clic para editar adultos (≥17 años)"
                         >
-                          <Users className="w-3 h-3 text-slate-400 group-hover:text-slate-600" />
+                          <Users className="w-3 h-3 text-purple-400 group-hover:text-purple-600" />
                           {reservation.numberOfGuests || 1}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {editingChildrenId === reservation.id ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            max="20"
+                            value={editingChildrenValue}
+                            onChange={e => setEditingChildrenValue(Math.max(0, parseInt(e.target.value) || 0))}
+                            className="w-14 px-2 py-1 text-sm border border-slate-300 rounded text-center"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => {
+                              onUpdateReservation(reservation.id, { numberOfChildren: editingChildrenValue });
+                              setEditingChildrenId(null);
+                            }}
+                            className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => setEditingChildrenId(null)}
+                            className="p-1 text-slate-400 hover:bg-slate-50 rounded"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setEditingChildrenId(reservation.id);
+                            setEditingChildrenValue(reservation.numberOfChildren || 0);
+                          }}
+                          className={`flex items-center justify-center gap-1 px-2 py-1 text-sm rounded transition-colors group ${
+                            (reservation.numberOfChildren || 0) > 0 
+                              ? 'text-cyan-700 hover:bg-cyan-50' 
+                              : 'text-slate-400 hover:bg-slate-100'
+                          }`}
+                          title="Clic para editar menores (≤16 años, exentos de tasa turística)"
+                        >
+                          <Baby className={`w-3 h-3 ${
+                            (reservation.numberOfChildren || 0) > 0 
+                              ? 'text-cyan-400 group-hover:text-cyan-600' 
+                              : 'text-slate-300 group-hover:text-slate-500'
+                          }`} />
+                          {reservation.numberOfChildren || 0}
                         </button>
                       )}
                     </td>
