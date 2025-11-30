@@ -140,8 +140,16 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   };
 
   const removeFromQueue = async (id: string) => {
-    await protectedDatabase.deleteUploadItem(id);
+    // Actualizar estado local primero para respuesta inmediata en UI
     setQueue(prev => prev.filter(item => item.id !== id));
+    
+    // Luego intentar eliminar de Appwrite (puede fallar si nunca se guardó)
+    try {
+      await protectedDatabase.deleteUploadItem(id);
+    } catch {
+      // Ignorar errores - el item ya se eliminó del estado local
+      uploadLogger.debug(`Item ${id} eliminado localmente (puede no existir en Appwrite)`);
+    }
   };
 
   const retryItem = async (id: string) => {
