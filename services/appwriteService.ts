@@ -457,11 +457,16 @@ export const databaseService = {
   // --- ENTRIES ---
   async createEntry(entry: AccountingEntry): Promise<AccountingEntry> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente
+      // Excluir campos que Appwrite gestiona automáticamente o que no existen en el esquema
       const {
         referenceDoc, id, appwriteId, lines,
         createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        // Campos que existen en types.ts pero no en la colección de Appwrite
+        // TODO: Añadir estos atributos a la colección en Appwrite
+        transactionId,
+        createdBy, createdByName,
+        number, // número secuencial del asiento
         ...entryData
       } = entry as any;
 
@@ -564,11 +569,16 @@ export const databaseService = {
 
   async updateEntry(entry: AccountingEntry): Promise<AccountingEntry> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente
+      // Excluir campos que Appwrite gestiona automáticamente o que no existen en el esquema
       const {
         referenceDoc, id, appwriteId, lines,
         createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        // Campos que existen en types.ts pero no en la colección de Appwrite
+        // TODO: Añadir estos atributos a la colección en Appwrite
+        transactionId,
+        createdBy, createdByName,
+        number, // número secuencial del asiento
         ...entryData
       } = entry as any;
       const docId = appwriteId || id;
@@ -635,11 +645,13 @@ export const databaseService = {
   // --- TRANSACTIONS ---
   async createTransaction(transaction: BankTransaction): Promise<BankTransaction> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente
+      // Excluir campos que Appwrite gestiona automáticamente o que no existen en el esquema
       const {
         id, appwriteId,
         createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        // Campos que existen en types.ts pero no en la colección de Appwrite
+        createdBy, createdByName,
         ...transactionData
       } = transaction as any;
 
@@ -688,11 +700,13 @@ export const databaseService = {
 
   async updateTransaction(transaction: BankTransaction): Promise<BankTransaction> {
     try {
-      // Excluir campos que Appwrite gestiona automáticamente
+      // Excluir campos que Appwrite gestiona automáticamente o que no existen en el esquema
       const {
         id, appwriteId,
         createdAt, updatedAt,
         $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        // Campos que existen en types.ts pero no en la colección de Appwrite
+        createdBy, createdByName,
         ...transactionData
       } = transaction as any;
       const docId = appwriteId || id;

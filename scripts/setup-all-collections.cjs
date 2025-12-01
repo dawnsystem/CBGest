@@ -389,13 +389,20 @@ async function setupEntriesCollection() {
     { type: 'float', key: 'debit', required: true, min: 0, max: 999999999 },
     { type: 'float', key: 'credit', required: true, min: 0, max: 999999999 },
     { type: 'string', key: 'invoiceId', size: 100, required: false },
+    // Link to bank transaction (for entries created from bank movements)
+    { type: 'string', key: 'transactionId', size: 100, required: false },
     { type: 'boolean', key: 'reconciled', required: false, default: false },
+    // Sequential entry number
+    { type: 'integer', key: 'number', required: false, min: 1, max: 999999999 },
     // Lines - JSON string containing array of AccountingEntryLine for double-entry accounting
     { type: 'string', key: 'lines', size: 50000, required: false },
     // File references
     { type: 'string', key: 'fileData', size: 10000000, required: false },
     { type: 'string', key: 'fileType', size: 100, required: false },
     { type: 'string', key: 'appwriteFileId', size: 100, required: false },
+    // Audit fields
+    { type: 'string', key: 'createdBy', size: 100, required: false },
+    { type: 'string', key: 'createdByName', size: 255, required: false },
   ];
 
   for (const attr of attributes) {
@@ -450,6 +457,10 @@ async function setupTransactionsCollection() {
     // AI matching suggestions (NEW - for intelligent reconciliation)
     { type: 'string', key: 'aiMatchSuggestion', size: 5000, required: false },
     { type: 'string', key: 'reconciledWithInvoiceId', size: 100, required: false },
+    
+    // Audit fields
+    { type: 'string', key: 'createdBy', size: 100, required: false },
+    { type: 'string', key: 'createdByName', size: 255, required: false },
   ];
 
   for (const attr of attributes) {
