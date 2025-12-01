@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Award, Home, ArrowUpRight, ArrowDownRight, Minus, Filter } from 'lucide-react';
 import { Invoice, Apartment, RecurringExpense, Reservation } from '../types';
+import { ChartWrapper } from './ChartWrapper';
 
 interface ProfitabilityByApartmentProps {
   invoices: Invoice[];
@@ -417,49 +418,47 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
 
       {/* Chart */}
       {chartData.length > 0 && (
-        <div className="h-56 mb-6 overflow-hidden">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-            <BarChart data={chartData} barGap={0}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#64748b', fontSize: 11 }}
-              />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#64748b', fontSize: 11 }}
-                tickFormatter={(v) => `${(v/1000).toFixed(0)}k`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#fff',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0',
-                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                }}
-                formatter={(value: number, name: string) => [
-                  value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }),
-                  name
-                ]}
-                labelFormatter={(label) => {
-                  const item = chartData.find(d => d.name === label);
-                  return item?.fullName || label;
-                }}
-              />
-              <Legend
-                verticalAlign="bottom"
-                height={24}
-                iconType="circle"
-                iconSize={8}
-              />
-              <Bar dataKey="Ingresos" fill={COLORS.income} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Gastos" fill={COLORS.expense} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <ChartWrapper className="h-56 mb-6" minHeight={224}>
+          <BarChart data={chartData} barGap={0}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <XAxis
+              dataKey="name"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 11 }}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 11 }}
+              tickFormatter={(v) => `${(v/1000).toFixed(0)}k`}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#fff',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+              }}
+              formatter={(value: number, name: string) => [
+                value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }),
+                name
+              ]}
+              labelFormatter={(label) => {
+                const item = chartData.find(d => d.name === label);
+                return item?.fullName || label;
+              }}
+            />
+            <Legend
+              verticalAlign="bottom"
+              height={24}
+              iconType="circle"
+              iconSize={8}
+            />
+            <Bar dataKey="Ingresos" fill={COLORS.income} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Gastos" fill={COLORS.expense} radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ChartWrapper>
       )}
 
       {/* Detailed List */}

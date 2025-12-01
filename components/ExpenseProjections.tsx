@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Calendar, TrendingUp, AlertTriangle, ChevronRight, Clock } from 'lucide-react';
 import { RecurringExpense, ExpenseFrequency, Apartment } from '../types';
+import { ChartWrapper } from './ChartWrapper';
 
 interface ExpenseProjectionsProps {
   recurringExpenses: RecurringExpense[];
@@ -298,53 +299,51 @@ export const ExpenseProjections: React.FC<ExpenseProjectionsProps> = ({
       </div>
 
       {/* Chart */}
-      <div className="h-48 mb-6 overflow-hidden">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            <XAxis
-              dataKey="name"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: '#64748b', fontSize: 11 }}
+      <ChartWrapper className="h-48 mb-6" minHeight={192}>
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+          <XAxis
+            dataKey="name"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: '#64748b', fontSize: 11 }}
+          />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: '#64748b', fontSize: 11 }}
+            tickFormatter={(v) => `${v}€`}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#fff',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+            }}
+            formatter={(value: number) => [`${value.toFixed(2)}€`, '']}
+          />
+          <Legend
+            verticalAlign="bottom"
+            height={24}
+            iconType="circle"
+            iconSize={8}
+            formatter={(value: string) => (
+              <span className="text-xs text-slate-600">{value}</span>
+            )}
+          />
+          <Bar dataKey="Comunitario" stackId="a" fill={COLORS[0]} radius={[0, 0, 0, 0]} />
+          {apartments.slice(0, 7).map((apt, idx) => (
+            <Bar
+              key={apt.id}
+              dataKey={apt.code || apt.name}
+              stackId="a"
+              fill={COLORS[idx + 1]}
+              radius={idx === apartments.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
             />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: '#64748b', fontSize: 11 }}
-              tickFormatter={(v) => `${v}€`}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#fff',
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-              }}
-              formatter={(value: number) => [`${value.toFixed(2)}€`, '']}
-            />
-            <Legend
-              verticalAlign="bottom"
-              height={24}
-              iconType="circle"
-              iconSize={8}
-              formatter={(value: string) => (
-                <span className="text-xs text-slate-600">{value}</span>
-              )}
-            />
-            <Bar dataKey="Comunitario" stackId="a" fill={COLORS[0]} radius={[0, 0, 0, 0]} />
-            {apartments.slice(0, 7).map((apt, idx) => (
-              <Bar
-                key={apt.id}
-                dataKey={apt.code || apt.name}
-                stackId="a"
-                fill={COLORS[idx + 1]}
-                radius={idx === apartments.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+          ))}
+        </BarChart>
+      </ChartWrapper>
 
       {/* Upcoming Expenses Alert */}
       {nextBigExpense.length > 0 && (

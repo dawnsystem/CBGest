@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { Home, TrendingDown, Filter } from 'lucide-react';
 import { Invoice, Apartment } from '../types';
+import { ChartWrapper } from './ChartWrapper';
 
 interface ExpensesByApartmentProps {
   invoices: Invoice[];
@@ -193,33 +194,31 @@ export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoic
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pie Chart */}
-          <div className="h-64 overflow-hidden">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip totalExpenses={totalExpenses} />} />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  formatter={(value: string) => (
-                    <span className="text-xs text-slate-600">{value}</span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          <ChartWrapper className="h-64" minHeight={256}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip totalExpenses={totalExpenses} />} />
+              <Legend
+                verticalAlign="bottom"
+                height={36}
+                formatter={(value: string) => (
+                  <span className="text-xs text-slate-600">{value}</span>
+                )}
+              />
+            </PieChart>
+          </ChartWrapper>
 
           {/* Table */}
           <div className="overflow-hidden">
