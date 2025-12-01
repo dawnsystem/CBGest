@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, TrendingDown, Wallet, AlertCircle, Calculator, FileText, LucideIcon } from 'lucide-react';
+import { ChartWrapper } from './ChartWrapper';
 import { Invoice, AppSettings, Partner, PartnerTaxInfo, DisabilityLevel, Apartment, RecurringExpense, Reservation } from '../types';
 import { PartnerTaxForm } from './PartnerTaxForm';
 import { ExpensesByApartment } from './ExpensesByApartment';
@@ -341,22 +342,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-100 shadow-sm">
           <h3 className="text-base md:text-lg font-semibold text-slate-900 mb-4 md:mb-6">Evolución Tesorería (Real)</h3>
-          <div className="h-56 md:h-72 overflow-hidden">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `€${value}`} />
-                <Tooltip 
-                  contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                  cursor={{fill: '#f8fafc'}}
-                  formatter={(value: number) => [`${value.toFixed(2)}€`, '']}
-                />
-                <Bar dataKey="ingresos" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
-                <Bar dataKey="gastos" name="Gastos" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={32} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <ChartWrapper className="h-56 md:h-72" minHeight={224}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `€${value}`} />
+              <Tooltip 
+                contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                cursor={{fill: '#f8fafc'}}
+                formatter={(value: number) => [`${value.toFixed(2)}€`, '']}
+              />
+              <Bar dataKey="ingresos" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
+              <Bar dataKey="gastos" name="Gastos" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={32} />
+            </BarChart>
+          </ChartWrapper>
         </div>
 
         {/* 3. TAX ESTIMATION WIDGET (NEW) */}
