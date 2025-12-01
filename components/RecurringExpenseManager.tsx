@@ -250,7 +250,7 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
   };
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
