@@ -49,7 +49,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus, connectionHe
 
   return (
     <aside className="hidden md:flex w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex-col shadow-xl z-30">
-      <div className="p-6 border-b border-slate-800">
+      {/* Header - fixed height */}
+      <div className="flex-shrink-0 p-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <img 
             src="/assets/logo.png" 
@@ -68,7 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus, connectionHe
         </div>
       </div>
 
-      <nav className="flex-1 py-6 px-3 space-y-1">
+      {/* Navigation - scrollable area */}
+      <nav className="flex-1 min-h-0 py-6 px-3 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
         {navItems.map((item) => (
           <Link
             key={item.path}
@@ -85,7 +87,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus, connectionHe
         ))}
       </nav>
 
-      <div className="p-4 border-t border-slate-800">
+      {/* Connection Status Widget - always visible at bottom */}
+      <div className="flex-shrink-0 p-4 border-t border-slate-800">
         <div className="bg-slate-800 rounded-lg p-4">
           <p className="text-xs text-slate-300 mb-2">Estado de Conexión</p>
 
