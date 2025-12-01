@@ -5,26 +5,197 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light">
     <title>CBGest - Contabilidad Comunidades de Bienes</title>
+    
+    <!-- DNS Prefetch & Preconnect for faster resource loading -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    <link rel="dns-prefetch" href="https://aistudiocdn.com">
+    <link rel="dns-prefetch" href="https://esm.sh">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://aistudiocdn.com" crossorigin>
+    <link rel="preconnect" href="https://esm.sh" crossorigin>
+    
+    <!-- Preload critical assets -->
+    <link rel="preload" href="/assets/logo.png" as="image" type="image/png">
+    
+    <!-- Favicon -->
     <link rel="icon" type="image/png" href="/assets/logo.png">
     <link rel="apple-touch-icon" href="/assets/logo.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Google Fonts with display=swap for non-blocking load -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 
     <style>
-      /* FORCE LIGHT MODE ON NATIVE CONTROLS */
+      /* CRITICAL CSS - Inlined for fastest FCP/LCP */
       :root {
         color-scheme: light;
       }
+      
+      /* System font stack as fallback while Inter loads */
       html, body {
-        font-family: 'Inter', sans-serif;
-        background-color: #F8FAFC; /* slate-50 */
-        color: #0F172A; /* slate-900 */
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background-color: #F8FAFC;
+        color: #0F172A;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
       }
+      
+      /* Apply Inter once loaded */
+      .fonts-loaded body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      
       /* Ensure inputs are always white background with dark text */
       input, select, textarea {
         background-color: #ffffff !important;
         color: #0F172A !important;
       }
+      
+      /* Initial loading skeleton - shown immediately for good LCP */
+      #initial-skeleton {
+        display: flex;
+        min-height: 100vh;
+        background: #F8FAFC;
+      }
+      
+      /* Sidebar skeleton */
+      .skeleton-sidebar {
+        width: 256px;
+        background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%);
+        display: none;
+        flex-direction: column;
+        padding: 1.5rem;
+      }
+      
+      @media (min-width: 768px) {
+        .skeleton-sidebar {
+          display: flex;
+        }
+      }
+      
+      .skeleton-logo {
+        width: 48px;
+        height: 60px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        margin-bottom: 2rem;
+      }
+      
+      .skeleton-nav-item {
+        height: 40px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+      }
+      
+      /* Main content skeleton */
+      .skeleton-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .skeleton-header {
+        height: 64px;
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        padding: 0 1.5rem;
+      }
+      
+      .skeleton-search {
+        width: 300px;
+        max-width: 100%;
+        height: 40px;
+        background: #f1f5f9;
+        border-radius: 8px;
+      }
+      
+      .skeleton-content {
+        flex: 1;
+        padding: 2rem;
+      }
+      
+      .skeleton-title {
+        height: 32px;
+        width: 200px;
+        background: #e2e8f0;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+      }
+      
+      .skeleton-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+      }
+      
+      .skeleton-card {
+        height: 140px;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        padding: 1.5rem;
+      }
+      
+      .skeleton-card-line {
+        height: 14px;
+        background: #f1f5f9;
+        border-radius: 4px;
+        margin-bottom: 0.75rem;
+      }
+      
+      .skeleton-card-line.short { width: 40%; }
+      .skeleton-card-line.medium { width: 60%; }
+      .skeleton-card-line.long { width: 80%; }
+      
+      .skeleton-card-amount {
+        height: 28px;
+        width: 120px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        margin-top: 1rem;
+      }
+      
+      /* Pulse animation for skeleton */
+      @keyframes skeleton-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      
+      .skeleton-card-line,
+      .skeleton-card-amount,
+      .skeleton-title,
+      .skeleton-search,
+      .skeleton-logo,
+      .skeleton-nav-item {
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
+      }
+      
+      /* Hide skeleton when app is loaded */
+      #root:not(:empty) + #initial-skeleton,
+      #root.loaded ~ #initial-skeleton {
+        display: none !important;
+      }
     </style>
+    
+    <!-- Font loading detection -->
+    <script>
+      if ('fonts' in document) {
+        document.fonts.ready.then(function() {
+          document.documentElement.classList.add('fonts-loaded');
+        });
+      } else {
+        // Fallback for browsers without Font Loading API
+        document.documentElement.classList.add('fonts-loaded');
+      }
+    </script>
+    
   <script type="importmap">
 {
   "imports": {
@@ -42,6 +213,41 @@
 </head>
   <body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
+    
+    <!-- Initial skeleton for fast LCP - hidden once React mounts -->
+    <div id="initial-skeleton" aria-hidden="true" aria-label="Cargando aplicación...">
+      <div class="skeleton-sidebar">
+        <div class="skeleton-logo"></div>
+        <div class="skeleton-nav-item"></div>
+        <div class="skeleton-nav-item"></div>
+        <div class="skeleton-nav-item"></div>
+        <div class="skeleton-nav-item"></div>
+        <div class="skeleton-nav-item"></div>
+      </div>
+      <div class="skeleton-main">
+        <div class="skeleton-header">
+          <div class="skeleton-search"></div>
+        </div>
+        <div class="skeleton-content">
+          <div class="skeleton-title"></div>
+          <div class="skeleton-cards">
+            <div class="skeleton-card">
+              <div class="skeleton-card-line short"></div>
+              <div class="skeleton-card-amount"></div>
+            </div>
+            <div class="skeleton-card">
+              <div class="skeleton-card-line short"></div>
+              <div class="skeleton-card-amount"></div>
+            </div>
+            <div class="skeleton-card">
+              <div class="skeleton-card-line short"></div>
+              <div class="skeleton-card-amount"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

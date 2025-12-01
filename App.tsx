@@ -39,10 +39,27 @@ const RecurringExpenseManager = lazy(() => import('./components/RecurringExpense
 const ReservationManager = lazy(() => import('./components/ReservationManager').then(m => ({ default: m.ReservationManager })));
 const DocumentViewer = lazy(() => import('./components/DocumentViewer').then(m => ({ default: m.DocumentViewer })));
 
-// Loading fallback component
+// Loading fallback component with skeleton for better LCP
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-[50vh]">
-    <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+  <div className="p-4 md:p-8 animate-pulse">
+    {/* Title skeleton */}
+    <div className="h-8 w-48 bg-slate-200 rounded-md mb-6"></div>
+    
+    {/* Cards skeleton */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+          <div className="h-4 w-24 bg-slate-200 rounded mb-4"></div>
+          <div className="h-8 w-32 bg-slate-100 rounded"></div>
+        </div>
+      ))}
+    </div>
+    
+    {/* Content skeleton */}
+    <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+      <div className="h-6 w-40 bg-slate-200 rounded mb-4"></div>
+      <div className="h-64 bg-slate-100 rounded"></div>
+    </div>
   </div>
 );
 
@@ -1546,19 +1563,62 @@ const MainLayout: React.FC = () => {
   const handleDisconnectFile = () => { setIsLocalFileMode(false); setFileHandle(null); setEncryptionKey(null); };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full"></div></div>;
+    // Show skeleton during auth check for better LCP
+    return (
+      <div className="min-h-screen bg-slate-50 flex">
+        {/* Sidebar skeleton - hidden on mobile */}
+        <div className="hidden md:flex w-64 flex-col p-6" style={{background: 'linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%)'}}>
+          <div className="w-12 h-15 bg-white/10 rounded-lg mb-8 animate-pulse"></div>
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="h-10 bg-white/5 rounded-lg mb-2 animate-pulse"></div>
+          ))}
+        </div>
+        {/* Main content skeleton */}
+        <div className="flex-1 flex flex-col">
+          <div className="h-16 bg-white border-b border-slate-200 flex items-center px-6">
+            <div className="w-72 h-10 bg-slate-100 rounded-lg animate-pulse"></div>
+          </div>
+          <div className="flex-1 p-8">
+            <div className="h-8 w-48 bg-slate-200 rounded-md mb-6 animate-pulse"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[1,2,3].map(i => (
+                <div key={i} className="bg-white p-6 rounded-xl border border-slate-100 animate-pulse">
+                  <div className="h-4 w-24 bg-slate-200 rounded mb-4"></div>
+                  <div className="h-8 w-32 bg-slate-100 rounded"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!user && settings.dataConfig?.type === 'APPWRITE') {
       return <Login />;
   }
 
-  // Show loading state while fetching data from Appwrite
+  // Show loading state while fetching data from Appwrite - with skeleton
   if (isDataLoading && settings.dataConfig?.type === 'APPWRITE') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
-        <div className="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-        <p className="text-slate-600">Cargando datos desde Appwrite...</p>
+      <div className="min-h-screen bg-slate-50 flex">
+        {/* Sidebar skeleton */}
+        <div className="hidden md:flex w-64 flex-col p-6" style={{background: 'linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%)'}}>
+          <div className="w-12 h-15 bg-white/10 rounded-lg mb-8 animate-pulse"></div>
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="h-10 bg-white/5 rounded-lg mb-2 animate-pulse"></div>
+          ))}
+        </div>
+        {/* Main content with loading indicator */}
+        <div className="flex-1 flex flex-col">
+          <div className="h-16 bg-white border-b border-slate-200 flex items-center px-6">
+            <div className="w-72 h-10 bg-slate-100 rounded-lg animate-pulse"></div>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center gap-4">
+            <div className="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+            <p className="text-slate-600">Cargando datos...</p>
+          </div>
+        </div>
       </div>
     );
   }

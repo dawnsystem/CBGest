@@ -111,6 +111,9 @@ export const createDefaultAccountingEntry = (id?: string): AccountingEntry => ({
   id: id || generateId(),
   date: new Date().toISOString().split('T')[0],
   concept: '',
+  // Multi-line entry system (required)
+  lines: [],
+  // Legacy fields for compatibility
   accountCode: '',
   accountName: '',
   debit: 0,

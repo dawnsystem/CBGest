@@ -67,7 +67,16 @@ export const Login: React.FC = () => {
         {/* Header */}
         <div className="bg-blue-600 p-8 text-center">
           <div className="flex justify-center mb-4">
-            <img src="/assets/logo.png" alt="CBGest" className="w-[7.5rem] h-36 object-contain" />
+            <img 
+              src="/assets/logo.png" 
+              alt="CBGest" 
+              className="w-[7.5rem] h-36 object-contain"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+              width="120"
+              height="144"
+            />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">CBGest</h1>
           <p className="text-blue-100 text-sm mt-2">

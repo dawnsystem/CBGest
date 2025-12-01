@@ -22,6 +22,42 @@ export default defineConfig(({ mode }) => {
       },
       optimizeDeps: {
         include: ['pdfjs-dist']
-      }
+      },
+      build: {
+        // Optimize chunk splitting for better caching and loading
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              // Separate vendor chunks for better caching
+              'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+              'vendor-charts': ['recharts'],
+              'vendor-icons': ['lucide-react'],
+              // Keep heavy libs separate
+              'vendor-pdf': ['pdfjs-dist'],
+            },
+            // Ensure consistent chunk naming for caching
+            chunkFileNames: 'assets/[name]-[hash].js',
+            entryFileNames: 'assets/[name]-[hash].js',
+            assetFileNames: 'assets/[name]-[hash].[ext]',
+          },
+        },
+        // Improve initial load by inlining small assets
+        assetsInlineLimit: 4096,
+        // Enable CSS code splitting
+        cssCodeSplit: true,
+        // Generate source maps for production debugging (optional)
+        sourcemap: false,
+        // Minify for smaller bundles
+        minify: 'esbuild',
+        // Target modern browsers for smaller bundles
+        target: 'es2020',
+      },
+      // Preload critical modules
+      experimental: {
+        renderBuiltUrl(filename, { hostType }) {
+          // Add preload hints for critical chunks
+          return filename;
+        },
+      },
     };
 });
