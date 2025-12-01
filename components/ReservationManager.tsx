@@ -430,7 +430,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>

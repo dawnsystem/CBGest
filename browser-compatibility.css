@@ -4,6 +4,37 @@
  * detected in the console warnings.
  */
 
+/* =====================================================
+   MOBILE VIEWPORT FIX - Prevent unwanted zoom/scale
+   ===================================================== */
+
+/* Prevent horizontal overflow which causes zoom-out on mobile */
+html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+/* Ensure the main app container doesn't cause overflow */
+#root {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+/* Tables that might overflow - allow horizontal scroll within container */
+.overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text from causing horizontal overflow */
+* {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* =====================================================
+   ORIGINAL FIXES
+   ===================================================== */
+
 /* Fix for -moz-appearance - Add standard appearance property */
 input[type=number] {
     -moz-appearance: textfield;
