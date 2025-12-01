@@ -430,7 +430,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   };
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-hidden">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -570,54 +570,56 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
-            <Calendar className="w-4 h-4" />
-            Reservas
+      {/* Stats Cards - Scrollable on mobile */}
+      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex md:grid md:grid-cols-6 gap-3 min-w-max md:min-w-0">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
+            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
+              <Calendar className="w-4 h-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Reservas</span>
+            </div>
+            <p className="text-xl font-bold text-slate-900">{stats.count}</p>
           </div>
-          <p className="text-xl font-bold text-slate-900">{stats.count}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
-            <Home className="w-4 h-4" />
-            Noches
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
+            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
+              <Home className="w-4 h-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Noches</span>
+            </div>
+            <p className="text-xl font-bold text-slate-900">{stats.nights}</p>
           </div>
-          <p className="text-xl font-bold text-slate-900">{stats.nights}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 text-purple-600 text-xs mb-1">
-            <Users className="w-4 h-4" />
-            Pernoctaciones
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
+            <div className="flex items-center gap-2 text-purple-600 text-xs mb-1">
+              <Users className="w-4 h-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Pernoctaciones</span>
+            </div>
+            <p className="text-xl font-bold text-purple-600">{stats.pernoctaciones}</p>
+            <p className="text-[10px] text-slate-400">Solo turísticos</p>
           </div>
-          <p className="text-xl font-bold text-purple-600">{stats.pernoctaciones}</p>
-          <p className="text-[10px] text-slate-400">Solo turísticos</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 text-emerald-600 text-xs mb-1">
-            <Euro className="w-4 h-4" />
-            Total Facturado
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
+            <div className="flex items-center gap-2 text-emerald-600 text-xs mb-1">
+              <Euro className="w-4 h-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Total Facturado</span>
+            </div>
+            <p className="text-xl font-bold text-emerald-600 whitespace-nowrap">
+              {stats.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            </p>
           </div>
-          <p className="text-xl font-bold text-emerald-600">
-            {stats.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 text-blue-600 text-xs mb-1">
-            <Euro className="w-4 h-4" />
-            Cobrado
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
+            <div className="flex items-center gap-2 text-blue-600 text-xs mb-1">
+              <Euro className="w-4 h-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Cobrado</span>
+            </div>
+            <p className="text-xl font-bold text-blue-600 whitespace-nowrap">
+              {stats.paid.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            </p>
           </div>
-          <p className="text-xl font-bold text-blue-600">
-            {stats.paid.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 text-amber-600 text-xs mb-1">
-            <AlertTriangle className="w-4 h-4" />
-            Sin Vincular
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
+            <div className="flex items-center gap-2 text-amber-600 text-xs mb-1">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Sin Vincular</span>
+            </div>
+            <p className="text-xl font-bold text-amber-600">{stats.unlinked}</p>
           </div>
-          <p className="text-xl font-bold text-amber-600">{stats.unlinked}</p>
         </div>
       </div>
 
@@ -769,9 +771,9 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       </div>
 
       {/* Reservations Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden -mx-4 md:mx-0">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[1000px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th
