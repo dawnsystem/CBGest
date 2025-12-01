@@ -340,16 +340,15 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
     setProcessingId(item.id);
 
-    // Actualizar a ANALYZING
+    // Actualizar a ANALYZING - UI inmediata, Appwrite en background
     const analyzingItem: QueueItem = { ...item, status: 'ANALYZING', progress: 10 };
     setQueue(prev => prev.map(i => i.id === item.id ? analyzingItem : i));
     
-    try {
-      if (item.appwriteId) {
-        await protectedDatabase.updateUploadItem(analyzingItem);
-      }
-    } catch (error) {
-      uploadLogger.error('[UploadQueue] Error actualizando estado a ANALYZING:', error);
+    // Actualizar Appwrite en segundo plano (no bloquear el procesamiento)
+    if (item.appwriteId) {
+      protectedDatabase.updateUploadItem(analyzingItem).catch(error => {
+        uploadLogger.error('[UploadQueue] Error actualizando estado a ANALYZING:', error);
+      });
     }
 
     // Progreso visual
@@ -363,7 +362,49 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     }, PROGRESS_UPDATE_INTERVAL);
 
     try {
-      // Descargar archivo de Storage
+      // ========================================================================
+      // OPTIMIZACIÓN: Detectar XLSX ANTES de descargar para evitar trabajo innecesario
+      // Los archivos XLSX se procesan en el XlsxColumnMapper, no aquí
+      // ========================================================================
+      if (item.uploadType === 'BANK_STATEMENT') {
+        const isXlsx = item.mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+          item.mimeType === 'application/vnd.ms-excel' ||
+          item.fileName.toLowerCase().endsWith('.xlsx') ||
+          item.fileName.toLowerCase().endsWith('.xls');
+
+        if (isXlsx) {
+          clearInterval(progressInterval);
+          
+          // XLSX necesita mapeo manual - NO necesita descargar ni procesar con Gemini
+          const completedItem: QueueItem = {
+            ...item,
+            status: 'COMPLETED',
+            progress: 100,
+            needsMapping: true,
+            notificationDismissed: false
+          };
+          
+          // IMPORTANTE: Actualizar UI inmediatamente
+          setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
+          
+          // Actualizar Appwrite en segundo plano (fire-and-forget)
+          if (item.appwriteId) {
+            protectedDatabase.updateUploadItem(completedItem).catch(err => {
+              uploadLogger.error('[UploadQueue] Error guardando estado COMPLETED para XLSX:', err);
+            });
+          }
+          
+          uploadLogger.info(`[UploadQueue] XLSX ${item.fileName} listo para mapeo de columnas`);
+          
+          // IMPORTANTE: Limpiar processingId antes de salir para permitir procesar más items
+          setProcessingId(null);
+          return; // Salir - no necesitamos procesar más
+        }
+      }
+
+      // ========================================================================
+      // Para PDFs y facturas: descargar de Storage y procesar con Gemini
+      // ========================================================================
       uploadLogger.debug(`[UploadQueue] Descargando archivo ${item.storageFileId} de Storage...`);
       const blob = await storageService.downloadFile(item.storageFileId);
       
@@ -409,55 +450,50 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           notificationDismissed: false
         };
 
-        if (item.appwriteId) {
-          await protectedDatabase.updateUploadItem(completedItem);
-        }
+        // IMPORTANTE: Actualizar UI inmediatamente ANTES de esperar a Appwrite
         setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
+        
+        // Actualizar Appwrite en segundo plano
+        if (item.appwriteId) {
+          protectedDatabase.updateUploadItem(completedItem).catch(err => {
+            uploadLogger.error('[UploadQueue] Error guardando estado COMPLETED para factura:', err);
+          });
+        }
+        
+        uploadLogger.info(`[UploadQueue] Factura ${item.fileName} procesada`);
 
       } else if (item.uploadType === 'BANK_STATEMENT') {
-        // Detectar tipo de archivo
-        const isXlsx = item.mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-          item.mimeType === 'application/vnd.ms-excel' ||
-          item.fileName.toLowerCase().endsWith('.xlsx') ||
-          item.fileName.toLowerCase().endsWith('.xls');
+        // PDF/imagen de extracto bancario - procesar con IA
+        // (Los XLSX ya fueron manejados arriba y retornaron)
+        const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
+
+        const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
+          id: generateId(),
+          ...t,
+          status: 'PENDING' as const
+        }));
 
         clearInterval(progressInterval);
 
-        if (isXlsx) {
-          // XLSX necesita mapeo manual
-          const completedItem: QueueItem = {
-            ...item,
-            status: 'COMPLETED',
-            progress: 100,
-            needsMapping: true,
-            notificationDismissed: false
-          };
-          if (item.appwriteId) {
-            await protectedDatabase.updateUploadItem(completedItem);
-          }
-          setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
-        } else {
-          // Usar IA para PDF/imágenes
-          const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
-
-          const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
-            id: generateId(),
-            ...t,
-            status: 'PENDING' as const
-          }));
-
-          const completedItem: QueueItem = {
-            ...item,
-            status: 'COMPLETED',
-            progress: 100,
-            bankResult: enrichedTransactions,
-            notificationDismissed: false
-          };
-          if (item.appwriteId) {
-            await protectedDatabase.updateUploadItem(completedItem);
-          }
-          setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
+        const completedItem: QueueItem = {
+          ...item,
+          status: 'COMPLETED',
+          progress: 100,
+          bankResult: enrichedTransactions,
+          notificationDismissed: false
+        };
+        
+        // IMPORTANTE: Actualizar UI inmediatamente ANTES de esperar a Appwrite
+        setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
+        
+        // Actualizar Appwrite en segundo plano
+        if (item.appwriteId) {
+          protectedDatabase.updateUploadItem(completedItem).catch(err => {
+            uploadLogger.error('[UploadQueue] Error guardando estado COMPLETED para PDF:', err);
+          });
         }
+        
+        uploadLogger.info(`[UploadQueue] PDF ${item.fileName} procesado: ${enrichedTransactions.length} transacciones`);
       }
 
     } catch (err: unknown) {
@@ -473,14 +509,15 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         notificationDismissed: false
       };
 
-      try {
-        if (item.appwriteId) {
-          await protectedDatabase.updateUploadItem(errorItem);
-        }
-      } catch (saveError) {
-        uploadLogger.error('[UploadQueue] Error guardando estado de error:', saveError);
-      }
+      // IMPORTANTE: Actualizar UI inmediatamente
       setQueue(prev => prev.map(i => i.id === item.id ? errorItem : i));
+      
+      // Actualizar Appwrite en segundo plano
+      if (item.appwriteId) {
+        protectedDatabase.updateUploadItem(errorItem).catch(saveError => {
+          uploadLogger.error('[UploadQueue] Error guardando estado de error:', saveError);
+        });
+      }
     } finally {
       setProcessingId(null);
     }
