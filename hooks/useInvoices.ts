@@ -57,6 +57,14 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
       id: `AUTO-${inv.id}`,
       date: inv.date,
       concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
+      // Multi-line entry for double-entry bookkeeping
+      lines: [{
+        accountCode: accountCode,
+        accountName: accountName,
+        debit: inv.type === 'EXPENSE' ? inv.totalAmount : 0,
+        credit: inv.type === 'INCOME' ? inv.totalAmount : 0,
+      }],
+      // Legacy fields for compatibility
       accountCode: accountCode,
       accountName: accountName,
       debit: inv.type === 'EXPENSE' ? inv.totalAmount : 0,
