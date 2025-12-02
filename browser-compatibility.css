@@ -9,20 +9,47 @@
    ===================================================== */
 
 /* Prevent horizontal overflow which causes zoom-out on mobile */
-html, body {
-    overflow-x: hidden;
+html {
+    overflow-x: clip;
     max-width: 100vw;
+}
+
+body {
+    overflow-x: clip;
+    max-width: 100vw;
+    min-height: 100vh;
 }
 
 /* Ensure the main app container doesn't cause overflow */
 #root {
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100vw;
 }
 
-/* Tables that might overflow - allow horizontal scroll within container */
+/* Tables and horizontal scroll containers */
 .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scroll-behavior: smooth;
+    overflow-x: auto !important;
+    overflow-y: visible;
+}
+
+/* Mobile-specific horizontal scroll fixes */
+@media (max-width: 768px) {
+    /* Make sure scroll containers work */
+    .overflow-x-auto {
+        display: block;
+        overflow-x: auto !important;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
+    }
+    
+    /* Allow children to scroll horizontally */
+    .overflow-x-auto > * {
+        min-width: max-content;
+    }
 }
 
 /* Prevent text from causing horizontal overflow */

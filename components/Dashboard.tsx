@@ -332,10 +332,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
       </div>
 
       {/* 1. KEY METRICS (REAL DATA) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="Ingresos Rentas" amount={totalIncome} type="positive" icon={TrendingUp} isRental={isRental} />
-        <StatCard title="Gastos Deducibles" amount={totalExpense} type="negative" icon={TrendingDown} isRental={isRental} />
-        <StatCard title="Resultado Neto" amount={netResult} type="neutral" icon={Wallet} isRental={isRental} />
+      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-6 pb-2" style={{ minWidth: 'max-content' }}>
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 md:flex-shrink">
+            <StatCard title="Ingresos Rentas" amount={totalIncome} type="positive" icon={TrendingUp} isRental={isRental} />
+          </div>
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 md:flex-shrink">
+            <StatCard title="Gastos Deducibles" amount={totalExpense} type="negative" icon={TrendingDown} isRental={isRental} />
+          </div>
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 md:flex-shrink">
+            <StatCard title="Resultado Neto" amount={netResult} type="neutral" icon={Wallet} isRental={isRental} />
+          </div>
+        </div>
       </div>
 
       {/* 2. CHARTS (REAL DATA) */}
