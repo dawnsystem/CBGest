@@ -307,7 +307,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in pb-24 md:pb-8">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-slate-900">Panel General</h2>
@@ -332,16 +332,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
       </div>
 
       {/* 1. KEY METRICS (REAL DATA) */}
-      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-6 pb-2" style={{ minWidth: 'max-content' }}>
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 md:flex-shrink">
-            <StatCard title="Ingresos Rentas" amount={totalIncome} type="positive" icon={TrendingUp} isRental={isRental} />
-          </div>
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 md:flex-shrink">
-            <StatCard title="Gastos Deducibles" amount={totalExpense} type="negative" icon={TrendingDown} isRental={isRental} />
-          </div>
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 md:flex-shrink">
-            <StatCard title="Resultado Neto" amount={netResult} type="neutral" icon={Wallet} isRental={isRental} />
+      <div className="-mx-4 px-4 md:mx-0 md:px-0">
+        <div className="overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-6" style={{ minWidth: 'max-content' }}>
+            <div className="min-w-[180px] md:min-w-0 flex-shrink-0 md:flex-shrink">
+              <StatCard title="Ingresos Rentas" amount={totalIncome} type="positive" icon={TrendingUp} isRental={isRental} />
+            </div>
+            <div className="min-w-[180px] md:min-w-0 flex-shrink-0 md:flex-shrink">
+              <StatCard title="Gastos Deducibles" amount={totalExpense} type="negative" icon={TrendingDown} isRental={isRental} />
+            </div>
+            <div className="min-w-[180px] md:min-w-0 flex-shrink-0 md:flex-shrink">
+              <StatCard title="Resultado Neto" amount={netResult} type="neutral" icon={Wallet} isRental={isRental} />
+            </div>
           </div>
         </div>
       </div>

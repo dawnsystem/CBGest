@@ -165,7 +165,7 @@ export const AccountLedger: React.FC<AccountLedgerProps> = ({ entries }) => {
   };
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Libro Mayor</h2>

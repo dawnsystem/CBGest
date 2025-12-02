@@ -430,7 +430,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   };
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -571,8 +571,9 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       )}
 
       {/* Stats Cards - Scrollable on mobile */}
-      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 mt-4" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="flex md:grid md:grid-cols-6 gap-3 pb-2" style={{ minWidth: 'max-content' }}>
+      <div className="-mx-4 px-4 md:mx-0 md:px-0 mt-4">
+        <div className="overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex md:grid md:grid-cols-6 gap-3" style={{ minWidth: 'max-content' }}>
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
             <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
               <Calendar className="w-4 h-4 flex-shrink-0" />
@@ -619,6 +620,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
               <span className="whitespace-nowrap">Sin Vincular</span>
             </div>
             <p className="text-xl font-bold text-amber-600">{stats.unlinked}</p>
+          </div>
           </div>
         </div>
       </div>
@@ -771,9 +773,10 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       </div>
 
       {/* Reservations Table */}
-      <div className="bg-white md:rounded-xl border-y md:border border-slate-200 shadow-sm -mx-4 md:mx-0">
-        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <table className="w-full" style={{ minWidth: '1000px' }}>
+      <div className="-mx-4 md:mx-0">
+        <div className="bg-white md:rounded-xl border-y md:border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full" style={{ minWidth: '1000px' }}>
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th
@@ -1051,6 +1054,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
