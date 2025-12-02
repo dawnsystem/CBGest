@@ -21,20 +21,20 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, amount, type, icon: Icon, isRental = false }) => (
-  <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-    <div className="flex items-center justify-between mb-3 md:mb-4">
-      <span className="text-slate-500 text-xs md:text-sm font-medium uppercase tracking-wider">{title}</span>
-      <div className={`p-1.5 md:p-2 rounded-lg ${
+  <div className="bg-white p-3 md:p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+    <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-4">
+      <div className={`p-1 md:p-2 rounded-lg flex-shrink-0 ${
         type === 'positive' ? 'bg-emerald-100 text-emerald-600' :
         type === 'negative' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'
       }`}>
-        <Icon className="w-4 h-4 md:w-5 md:h-5" />
+        <Icon className="w-3 h-3 md:w-5 md:h-5" />
       </div>
+      <span className="text-slate-500 text-[10px] md:text-sm font-medium uppercase tracking-wider truncate">{title}</span>
     </div>
-    <div className="flex items-end gap-2">
-      <h3 className="text-lg md:text-2xl font-bold text-slate-900">{amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</h3>
-    </div>
-    <p className="text-[10px] md:text-xs text-slate-400 mt-2">
+    <h3 className="text-sm md:text-2xl font-bold text-slate-900 truncate">
+      {amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+    </h3>
+    <p className="text-[8px] md:text-xs text-slate-400 mt-1 md:mt-2 hidden md:block">
         {isRental && title.includes('Neto') ? 'Rendimiento Inmobiliario (YTD)' : 'Acumulado Año Actual'}
     </p>
   </div>
@@ -307,7 +307,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in pb-24 md:pb-8">
       <div className="flex flex-col gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-slate-900">Panel General</h2>
@@ -332,20 +332,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
       </div>
 
       {/* 1. KEY METRICS (REAL DATA) */}
-      <div className="-mx-4 px-4 md:mx-0 md:px-0">
-        <div className="overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-6" style={{ minWidth: 'max-content' }}>
-            <div className="min-w-[180px] md:min-w-0 flex-shrink-0 md:flex-shrink">
-              <StatCard title="Ingresos Rentas" amount={totalIncome} type="positive" icon={TrendingUp} isRental={isRental} />
-            </div>
-            <div className="min-w-[180px] md:min-w-0 flex-shrink-0 md:flex-shrink">
-              <StatCard title="Gastos Deducibles" amount={totalExpense} type="negative" icon={TrendingDown} isRental={isRental} />
-            </div>
-            <div className="min-w-[180px] md:min-w-0 flex-shrink-0 md:flex-shrink">
-              <StatCard title="Resultado Neto" amount={netResult} type="neutral" icon={Wallet} isRental={isRental} />
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-3 gap-2 md:gap-6">
+        <StatCard title="Ingresos" amount={totalIncome} type="positive" icon={TrendingUp} isRental={isRental} />
+        <StatCard title="Gastos" amount={totalExpense} type="negative" icon={TrendingDown} isRental={isRental} />
+        <StatCard title="Neto" amount={netResult} type="neutral" icon={Wallet} isRental={isRental} />
       </div>
 
       {/* 2. CHARTS (REAL DATA) */}

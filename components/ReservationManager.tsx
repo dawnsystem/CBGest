@@ -430,13 +430,13 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   };
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Reservas</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Gestiona las reservas de tus apartamentos
+          <h2 className="text-xl md:text-2xl font-bold text-slate-900">Reservas</h2>
+          <p className="text-xs md:text-sm text-slate-500 mt-0.5">
+            Gestiona las reservas
           </p>
         </div>
 
@@ -452,10 +452,11 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 md:px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 text-sm"
           >
             <Upload className="w-4 h-4" />
-            {importing ? 'Importando...' : 'Importar CSV'}
+            <span className="hidden sm:inline">{importing ? 'Importando...' : 'Importar CSV'}</span>
+            <span className="sm:hidden">{importing ? '...' : 'CSV'}</span>
           </button>
         </div>
       </div>
@@ -570,85 +571,80 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
         </div>
       )}
 
-      {/* Stats Cards - Scrollable on mobile */}
-      <div className="-mx-4 px-4 md:mx-0 md:px-0 mt-4">
-        <div className="overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <div className="flex md:grid md:grid-cols-6 gap-3" style={{ minWidth: 'max-content' }}>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
-            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
-              <Calendar className="w-4 h-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Reservas</span>
-            </div>
-            <p className="text-xl font-bold text-slate-900">{stats.count}</p>
+      {/* Stats Cards - Grid on mobile */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
+        <div className="bg-white p-2 md:p-4 rounded-lg md:rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1 md:gap-2 text-slate-500 text-[10px] md:text-xs mb-0.5 md:mb-1">
+            <Calendar className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+            <span>Reservas</span>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
-            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
-              <Home className="w-4 h-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Noches</span>
-            </div>
-            <p className="text-xl font-bold text-slate-900">{stats.nights}</p>
+          <p className="text-base md:text-xl font-bold text-slate-900">{stats.count}</p>
+        </div>
+        <div className="bg-white p-2 md:p-4 rounded-lg md:rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1 md:gap-2 text-slate-500 text-[10px] md:text-xs mb-0.5 md:mb-1">
+            <Home className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+            <span>Noches</span>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
-            <div className="flex items-center gap-2 text-purple-600 text-xs mb-1">
-              <Users className="w-4 h-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Pernoctaciones</span>
-            </div>
-            <p className="text-xl font-bold text-purple-600">{stats.pernoctaciones}</p>
-            <p className="text-[10px] text-slate-400">Solo turísticos</p>
+          <p className="text-base md:text-xl font-bold text-slate-900">{stats.nights}</p>
+        </div>
+        <div className="bg-white p-2 md:p-4 rounded-lg md:rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1 md:gap-2 text-purple-600 text-[10px] md:text-xs mb-0.5 md:mb-1">
+            <Users className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+            <span>Pernoc.</span>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
-            <div className="flex items-center gap-2 text-emerald-600 text-xs mb-1">
-              <Euro className="w-4 h-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Total Facturado</span>
-            </div>
-            <p className="text-xl font-bold text-emerald-600 whitespace-nowrap">
-              {stats.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-            </p>
+          <p className="text-base md:text-xl font-bold text-purple-600">{stats.pernoctaciones}</p>
+        </div>
+        <div className="bg-white p-2 md:p-4 rounded-lg md:rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1 md:gap-2 text-emerald-600 text-[10px] md:text-xs mb-0.5 md:mb-1">
+            <Euro className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+            <span>Total</span>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
-            <div className="flex items-center gap-2 text-blue-600 text-xs mb-1">
-              <Euro className="w-4 h-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Cobrado</span>
-            </div>
-            <p className="text-xl font-bold text-blue-600 whitespace-nowrap">
-              {stats.paid.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-            </p>
+          <p className="text-sm md:text-xl font-bold text-emerald-600 truncate">
+            {stats.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+          </p>
+        </div>
+        <div className="bg-white p-2 md:p-4 rounded-lg md:rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1 md:gap-2 text-blue-600 text-[10px] md:text-xs mb-0.5 md:mb-1">
+            <Euro className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+            <span>Cobrado</span>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[140px] md:min-w-0">
-            <div className="flex items-center gap-2 text-amber-600 text-xs mb-1">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Sin Vincular</span>
-            </div>
-            <p className="text-xl font-bold text-amber-600">{stats.unlinked}</p>
+          <p className="text-sm md:text-xl font-bold text-blue-600 truncate">
+            {stats.paid.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+          </p>
+        </div>
+        <div className="bg-white p-2 md:p-4 rounded-lg md:rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1 md:gap-2 text-amber-600 text-[10px] md:text-xs mb-0.5 md:mb-1">
+            <AlertTriangle className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+            <span>Pendiente</span>
           </div>
-          </div>
+          <p className="text-base md:text-xl font-bold text-amber-600">{stats.unlinked}</p>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 md:p-4 mt-4">
+        <div className="flex gap-2 md:gap-3">
           {/* Search */}
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por alojamiento, nº reserva..."
+              placeholder="Buscar..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              className="w-full pl-8 md:pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
             />
           </div>
 
           {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors ${
+            className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 border rounded-lg text-sm transition-colors whitespace-nowrap ${
               showFilters ? 'bg-slate-100 border-slate-300' : 'border-slate-200 hover:bg-slate-50'
             }`}
           >
             <Filter className="w-4 h-4" />
-            Filtros
+            <span className="hidden sm:inline">Filtros</span>
             {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
@@ -774,9 +770,9 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
 
       {/* Reservations Table */}
       <div className="-mx-4 md:mx-0">
-        <div className="bg-white md:rounded-xl border-y md:border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <table className="w-full" style={{ minWidth: '1000px' }}>
+        <div className="bg-white md:rounded-xl border-y md:border border-slate-200 shadow-sm">
+          <div className="overflow-x-auto -webkit-overflow-scrolling-touch" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full" style={{ minWidth: '900px' }}>
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th
@@ -1059,13 +1055,13 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       </div>
 
       {/* Help Text */}
-      <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-600">
-        <p className="font-medium mb-2">Formato CSV esperado:</p>
-        <p className="text-xs text-slate-500 font-mono">
+      <div className="bg-slate-50 rounded-lg p-3 md:p-4 text-sm text-slate-600 mt-4">
+        <p className="font-medium mb-1 md:mb-2 text-xs md:text-sm">Formato CSV esperado:</p>
+        <p className="text-[10px] md:text-xs text-slate-500 font-mono break-all">
           Alojamiento;llegada;salida;;noches;precio/noche;total;pagado;nombre;...;canal;nº reserva;estado
         </p>
-        <p className="text-xs text-slate-400 mt-2">
-          • Separador: punto y coma (;) • Formato números: español (1.234,56) • Sin cabecera
+        <p className="text-[10px] md:text-xs text-slate-400 mt-1 md:mt-2">
+          Separador: ; • Números: español • Sin cabecera
         </p>
       </div>
     </div>
