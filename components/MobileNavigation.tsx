@@ -42,7 +42,8 @@ export const MobileNavigation: React.FC = () => {
       {showMoreMenu && (
         <div
           ref={menuRef}
-          className="fixed bottom-20 right-4 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 md:hidden animate-fade-in-up min-w-[200px]"
+          className="fixed right-4 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 md:hidden animate-fade-in-up min-w-[200px] max-h-[60vh] overflow-y-auto"
+          style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
         >
           <div className="p-2 space-y-1">
             <Link
@@ -130,8 +131,11 @@ export const MobileNavigation: React.FC = () => {
       )}
 
       {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 pb-safe md:hidden z-50">
-        <div className="flex justify-around items-center h-16 px-2">
+      <nav 
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 md:hidden z-50"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <div className="flex justify-around items-center h-16 px-2 max-w-lg mx-auto">
           <Link
             to="/"
             className={`flex flex-col items-center justify-center w-16 h-full space-y-1 ${isActive('/') ? 'text-blue-600' : 'text-slate-400'}`}
@@ -171,7 +175,7 @@ export const MobileNavigation: React.FC = () => {
             <span className="text-[10px] font-medium">Más</span>
           </button>
         </div>
-      </div>
+      </nav>
     </>
   );
 };

@@ -88,23 +88,24 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
   }, []);
 
   return (
-    <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
-      <div className="flex items-center gap-4 w-full md:w-1/3">
-        {/* Mobile Logo/Menu Placeholder */}
-        <div className="md:hidden flex items-center gap-2 mr-2">
+    <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-3 md:px-6 sticky top-0 z-20">
+      <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+        {/* Mobile Logo */}
+        <div className="md:hidden flex-shrink-0">
              <img 
                src="/assets/logo.png" 
                alt="CBGest" 
-               className="w-12 h-[3.75rem] object-contain"
+               className="w-10 h-12 object-contain"
                loading="eager"
                decoding="async"
                fetchPriority="high"
-               width="48"
-               height="60"
+               width="40"
+               height="48"
              />
         </div>
 
-        <div className="relative w-full max-w-md">
+        {/* Search - hidden on very small screens, visible on larger mobile */}
+        <div className="relative flex-1 min-w-0 max-w-md hidden xs:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -114,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-4 ml-2">
+      <div className="flex items-center gap-1 md:gap-4 flex-shrink-0">
         {isLocalFileMode && (
             <div className="hidden md:flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-100" title="Base de Datos Encriptada Activa">
                 <ShieldCheck className="w-4 h-4" />
@@ -137,7 +138,7 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
 
           {/* Notifications Panel */}
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-96 bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden animate-fade-in-up max-h-[70vh] sm:max-h-[600px] flex flex-col -right-2 sm:right-0">
+            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-1rem)] xs:w-80 sm:w-96 bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden animate-fade-in-up max-h-[70vh] sm:max-h-[600px] flex flex-col -right-1 xs:-right-2 sm:right-0">
               {/* Header */}
               <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <div>
@@ -221,17 +222,17 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3 pl-2 md:pl-4 md:border-l border-slate-200">
+        <div className="flex items-center gap-2 md:gap-3 pl-2 md:pl-4 md:border-l border-slate-200">
           <div className="text-right hidden md:block">
-            <p className="text-sm font-medium text-slate-900">{user?.name || 'Usuario'}</p>
-            <p className="text-xs text-slate-500 truncate max-w-[150px]">{user?.email || 'Invitado'}</p>
+            <p className="text-sm font-medium text-slate-900 truncate max-w-[120px]">{user?.name || 'Usuario'}</p>
+            <p className="text-xs text-slate-500 truncate max-w-[120px]">{user?.email || 'Invitado'}</p>
           </div>
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center border border-blue-200">
+          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center border border-blue-200 flex-shrink-0">
             <User className="w-4 h-4 text-blue-600" />
           </div>
           <button
             onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors ml-2"
+            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors flex-shrink-0"
             title="Cerrar Sesión"
           >
              <LogOut className="w-5 h-5" />

@@ -136,7 +136,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const partners = formData.partners || [];
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in max-w-5xl mx-auto pb-24 md:pb-8 overflow-hidden">
+    <div className="p-4 md:p-8 animate-fade-in max-w-5xl mx-auto pb-24 md:pb-8 overflow-x-hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
             <h2 className="text-2xl font-bold text-slate-900">Configuración</h2>
