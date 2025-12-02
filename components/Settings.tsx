@@ -136,8 +136,8 @@ export const Settings: React.FC<SettingsProps> = ({
   const partners = formData.partners || [];
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in max-w-5xl mx-auto pb-24">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-8 animate-fade-in max-w-5xl mx-auto pb-24 md:pb-8 overflow-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
             <h2 className="text-2xl font-bold text-slate-900">Configuración</h2>
             <p className="text-slate-500">Gestión integral de la entidad y datos.</p>
@@ -154,43 +154,43 @@ export const Settings: React.FC<SettingsProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 mb-6 overflow-x-auto">
-        <button onClick={() => setActiveTab('GENERAL')} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'GENERAL' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-            <Building className="w-4 h-4 inline mr-2" /> Datos Fiscales
+      <div className="flex border-b border-slate-200 mb-6 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+        <button onClick={() => setActiveTab('GENERAL')} className={`px-4 md:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === 'GENERAL' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            <Building className="w-4 h-4 inline mr-1 md:mr-2" /> <span className="hidden sm:inline">Datos</span> Fiscales
         </button>
-        <button onClick={() => setActiveTab('PARTNERS')} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'PARTNERS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-            <Users className="w-4 h-4 inline mr-2" /> Comuneros
+        <button onClick={() => setActiveTab('PARTNERS')} className={`px-4 md:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === 'PARTNERS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            <Users className="w-4 h-4 inline mr-1 md:mr-2" /> Comuneros
         </button>
-        <button onClick={() => setActiveTab('TAX')} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'TAX' ? 'border-amber-600 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-            <Receipt className="w-4 h-4 inline mr-2" /> Tasa Turística
+        <button onClick={() => setActiveTab('TAX')} className={`px-4 md:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === 'TAX' ? 'border-amber-600 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            <Receipt className="w-4 h-4 inline mr-1 md:mr-2" /> <span className="hidden sm:inline">Tasa</span> Turística
         </button>
-        <button onClick={() => setActiveTab('DATA')} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'DATA' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-            <Database className="w-4 h-4 inline mr-2" /> Datos y Conexiones
+        <button onClick={() => setActiveTab('DATA')} className={`px-4 md:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === 'DATA' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            <Database className="w-4 h-4 inline mr-1 md:mr-2" /> <span className="hidden sm:inline">Datos y</span> Conexiones
         </button>
       </div>
 
       {/* --- DATA TAB CONTENT --- */}
       {activeTab === 'DATA' && (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-6 animate-fade-in">
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 {/* 1. LOCAL STORAGE */}
                 <button 
                     type="button"
                     onClick={handleLocalModeClick}
-                    className={`relative p-6 rounded-xl border-2 text-left transition-all duration-300 ${
+                    className={`relative p-4 md:p-6 rounded-xl border-2 text-left transition-all duration-300 ${
                         !isLocalFileMode && formData.dataConfig?.type === 'LOCAL_STORAGE'
                         ? 'border-blue-600 bg-blue-50 ring-4 ring-blue-100 shadow-lg z-10' 
                         : 'border-slate-200 hover:bg-slate-50'
                     }`}
                 >
-                    <HardDrive className={`w-8 h-8 mb-4 text-slate-600`} />
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">Navegador Local</h3>
+                    <HardDrive className={`w-6 md:w-8 h-6 md:h-8 mb-3 md:mb-4 text-slate-600`} />
+                    <h3 className="text-base md:text-lg font-bold text-slate-900 mb-2">Navegador Local</h3>
                     <p className="text-sm text-slate-500">Uso básico. Sin configuración.</p>
                 </button>
 
                 {/* 2. APPWRITE CLOUD */}
-                <div className={`relative p-6 rounded-xl border-2 transition-all duration-300 col-span-1 md:col-span-2 ${
+                <div className={`relative p-4 md:p-6 rounded-xl border-2 transition-all duration-300 lg:col-span-2 ${
                     formData.dataConfig?.type === 'APPWRITE'
                     ? 'border-pink-600 bg-pink-50 ring-4 ring-pink-100 shadow-lg z-10'
                     : 'border-slate-200 bg-white'
@@ -199,44 +199,46 @@ export const Settings: React.FC<SettingsProps> = ({
                         <div className="absolute -top-3 -right-3 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md">CONECTADO</div>
                     )}
 
-                    <div className="flex items-start gap-4 mb-4">
-                        <Cloud className={`w-8 h-8 ${formData.dataConfig?.type === 'APPWRITE' ? 'text-pink-600' : 'text-slate-400'}`} />
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-900">Backend Appwrite</h3>
+                    <div className="flex items-start gap-3 md:gap-4 mb-4">
+                        <Cloud className={`w-6 md:w-8 h-6 md:h-8 flex-shrink-0 ${formData.dataConfig?.type === 'APPWRITE' ? 'text-pink-600' : 'text-slate-400'}`} />
+                        <div className="min-w-0">
+                            <h3 className="text-base md:text-lg font-bold text-slate-900">Backend Appwrite</h3>
                             <p className="text-sm text-slate-500">Sincronización completa en la nube.</p>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
+                    <div className="grid grid-cols-1 gap-3 md:gap-4">
+                        <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">
                                 API Endpoint
                             </label>
-                            <div className="w-full border-slate-200 border rounded text-sm bg-slate-50 text-slate-700 font-mono px-3 py-2">
+                            <div className="w-full border-slate-200 border rounded text-xs md:text-sm bg-slate-50 text-slate-700 font-mono px-3 py-2 truncate">
                                 {APPWRITE_CONFIG.endpoint}
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">
-                                Project ID
-                            </label>
-                            <div className="w-full border-slate-200 border rounded text-sm bg-slate-50 text-slate-700 font-mono px-3 py-2">
-                                {APPWRITE_CONFIG.projectId}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">
+                                    Project ID
+                                </label>
+                                <div className="w-full border-slate-200 border rounded text-xs md:text-sm bg-slate-50 text-slate-700 font-mono px-3 py-2 truncate">
+                                    {APPWRITE_CONFIG.projectId}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">
+                                    Database ID
+                                </label>
+                                <div className="w-full border-slate-200 border rounded text-xs md:text-sm bg-slate-50 text-slate-700 font-mono px-3 py-2 truncate">
+                                    {APPWRITE_CONFIG.databaseId}
+                                </div>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">
-                                Database ID
-                            </label>
-                            <div className="w-full border-slate-200 border rounded text-sm bg-slate-50 text-slate-700 font-mono px-3 py-2">
-                                {APPWRITE_CONFIG.databaseId}
-                            </div>
-                        </div>
-                        <div className="md:col-span-2">
                             <label className="block text-xs font-bold text-slate-500 mb-1">
                                 Bucket ID (Storage)
                             </label>
-                            <div className="w-full border-slate-200 border rounded text-sm bg-slate-50 text-slate-700 font-mono px-3 py-2">
+                            <div className="w-full border-slate-200 border rounded text-xs md:text-sm bg-slate-50 text-slate-700 font-mono px-3 py-2 truncate">
                                 {APPWRITE_CONFIG.bucketId}
                             </div>
                         </div>
