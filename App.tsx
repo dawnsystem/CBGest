@@ -1727,7 +1727,7 @@ const MainLayout: React.FC = () => {
                 </div>
               </div>
             )}
-            <main className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8 relative overflow-x-hidden">
+            <main className="main-content min-h-[calc(100vh-4rem)] relative overflow-x-hidden">
               <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<Dashboard invoices={invoices} settings={settings} apartments={apartments} recurringExpenses={recurringExpenses} reservations={reservations} onUpdateSettings={setSettings} />} />

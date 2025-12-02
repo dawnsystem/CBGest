@@ -191,23 +191,23 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
   const selectedMovementData = allPendingMovements.find(m => m.id === selectedMovement);
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 h-[calc(100vh-4rem)] flex flex-col overflow-x-hidden">
-       <div className="flex justify-between items-center mb-6 shrink-0">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 min-h-[calc(100vh-4rem)] md:h-[calc(100vh-4rem)] flex flex-col overflow-x-hidden">
+       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 shrink-0">
         <div>
-           <h2 className="text-2xl font-bold text-slate-900">Conciliación Bancaria</h2>
-           <p className="text-slate-500">Movimientos Bancarios vs Libro Diario</p>
+           <h2 className="text-xl md:text-2xl font-bold text-slate-900">Conciliación Bancaria</h2>
+           <p className="text-sm text-slate-500">Movimientos Bancarios vs Libro Diario</p>
         </div>
-        <div className="flex gap-2">
-          <div className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
+        <div className="flex gap-2 flex-wrap">
+          <div className="bg-indigo-50 text-indigo-700 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium">
             Importados: {importedMovements.length}
           </div>
-          <div className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-sm font-medium">
+          <div className="bg-emerald-50 text-emerald-700 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium">
             Asientos 57X: {accountingMovements.length}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-0">
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 min-h-0 md:overflow-hidden">
          {/* Left: Bank Movements (Imported + Accounting entries with bank accounts) */}
          <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden">
             <div className="bg-indigo-50 px-4 py-3 border-b border-indigo-100 font-semibold text-indigo-900 flex justify-between items-center">

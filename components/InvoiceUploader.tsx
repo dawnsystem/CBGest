@@ -170,18 +170,18 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   // --- REVIEW UI (Invoice) ---
   if (preview && reviewItem) {
       return (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-lg animate-fade-in-up">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-lg animate-fade-in-up mx-auto max-w-3xl">
+          <div className="bg-slate-50 px-4 md:px-6 py-3 md:py-4 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
             <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
-              <h4 className="font-semibold text-slate-900">Revisión de Factura</h4>
+              <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+              <h4 className="font-semibold text-slate-900 text-sm md:text-base">Revisión de Factura</h4>
             </div>
-            <button onClick={() => { setReviewItem(null); setPreview(null); }} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => { setReviewItem(null); setPreview(null); }} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
             </button>
           </div>
           
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-h-[60vh] overflow-y-auto">
             <div>
               <label htmlFor="invoice-issuer-name-input" className="block text-xs text-slate-500 mb-1">Emisor</label>
               <input id="invoice-issuer-name-input" name="issuerName" type="text" value={preview.issuerName} onChange={(e) => handleFieldChange('issuerName', e.target.value)} className="w-full border-slate-200 rounded text-sm font-medium bg-white text-slate-900" autoComplete="organization" />
@@ -319,31 +319,31 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
             </div>
           </div>
 
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+          <div className="px-4 md:px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0">
              <button
                 onClick={() => { setReviewItem(null); setPreview(null); }}
-                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                className="order-3 sm:order-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
              >
                 Cancelar
              </button>
              <button
                 onClick={() => confirmInvoice(false)}
-                className="bg-white border border-amber-500 text-amber-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-50 flex items-center gap-2 transition-colors"
+                className="order-2 bg-white border border-amber-500 text-amber-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-50 flex items-center justify-center gap-2 transition-colors"
                 title="Guardar como borrador sin crear asiento contable (requiere revisión posterior)"
              >
-                <CheckCircle className="w-4 h-4" /> Guardar Borrador
+                <CheckCircle className="w-4 h-4" /> <span className="hidden xs:inline">Guardar</span> Borrador
              </button>
              <button
                 onClick={() => confirmInvoice(true)}
                 disabled={nifError && !forceAcceptNif}
-                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-md transition-all ${
+                className={`order-1 sm:order-3 px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 shadow-md transition-all ${
                     nifError && !forceAcceptNif
                     ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                     : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'
                 }`}
                 title="Validar factura y crear asiento contable automáticamente"
              >
-                <BookPlus className="w-4 h-4" /> Validar y Contabilizar
+                <BookPlus className="w-4 h-4" /> Contabilizar
              </button>
           </div>
         </div>

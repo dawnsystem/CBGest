@@ -50,17 +50,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus, connectionHe
   return (
     <aside className="hidden md:flex w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex-col shadow-xl z-30">
       {/* Header - fixed height */}
-      <div className="flex-shrink-0 p-6 border-b border-slate-800">
+      <div className="flex-shrink-0 p-5 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <img 
             src="/assets/logo.png" 
             alt="CBGest" 
-            className="w-[3.375rem] h-[4.125rem] object-contain"
+            className="w-12 h-14 object-contain"
             loading="eager"
             decoding="async"
             fetchPriority="high"
-            width="54"
-            height="66"
+            width="48"
+            height="56"
           />
           <div>
             <h1 className="text-lg font-bold tracking-tight text-white">CBGest</h1>
@@ -69,8 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus, connectionHe
         </div>
       </div>
 
-      {/* Navigation - scrollable area */}
-      <nav className="flex-1 min-h-0 py-6 px-3 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+      {/* Navigation - scrollable area with proper spacing */}
+      <nav className="flex-1 min-h-0 py-4 px-3 space-y-0.5 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
         {navItems.map((item) => (
           <Link
             key={item.path}

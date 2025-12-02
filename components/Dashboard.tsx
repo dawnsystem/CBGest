@@ -308,23 +308,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-slate-900">Panel General</h2>
-          <p className="text-sm md:text-base text-slate-500">
-              {isRental ? 'Gestión de Patrimonio Inmobiliario (Exento IVA)' : 'Resumen financiero y estado de la CB'}
+          <p className="text-sm text-slate-500 mt-0.5">
+              {isRental ? 'Gestión de Patrimonio Inmobiliario' : 'Resumen financiero y estado de la CB'}
           </p>
         </div>
-        <div className="flex gap-2 md:gap-3 w-full sm:w-auto">
+        <div className="flex gap-2 w-full sm:w-auto">
           <button
             onClick={() => navigate('/taxes')}
-            className="flex-1 sm:flex-none bg-white text-slate-700 px-3 md:px-4 py-2 rounded-lg border border-slate-200 text-xs md:text-sm font-medium hover:bg-slate-50 transition-colors"
+            className="flex-1 sm:flex-none bg-white text-slate-700 px-3 py-2.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium hover:bg-slate-50 transition-colors whitespace-nowrap"
           >
             Informe Trimestral
           </button>
           <button
             onClick={() => navigate('/invoices')}
-            className="flex-1 sm:flex-none bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200 transition-colors"
+            className="flex-1 sm:flex-none bg-blue-600 text-white px-3 py-2.5 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200 transition-colors whitespace-nowrap"
           >
             Nueva Factura
           </button>
