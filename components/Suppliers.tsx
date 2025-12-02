@@ -136,30 +136,30 @@ export const Suppliers: React.FC<SuppliersProps> = ({
   );
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <Building2 className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-slate-900">Proveedores</h1>
+      <div className="mb-6 md:mb-8">
+        <div className="flex items-center gap-2 md:gap-3 mb-2">
+          <Building2 className="w-6 h-6 md:w-8 md:h-8 text-blue-600 flex-shrink-0" />
+          <h1 className="text-xl md:text-3xl font-bold text-slate-900">Proveedores</h1>
         </div>
-        <p className="text-slate-600">
-          Gestiona tu lista de proveedores. La IA consultará esta lista antes de crear nuevos proveedores en las facturas.
+        <p className="text-sm md:text-base text-slate-600">
+          Gestiona tu lista de proveedores.
         </p>
       </div>
 
       {/* Search and Add */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-slate-400" />
           <input
             id="suppliers-search-input"
             name="search"
             type="text"
-            placeholder="Buscar por nombre, NIF o email..."
+            placeholder="Buscar..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full pl-9 md:pl-10 pr-4 py-2 md:py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm md:text-base"
             autoComplete="off"
           />
         </div>
@@ -168,17 +168,18 @@ export const Suppliers: React.FC<SuppliersProps> = ({
             setShowForm(!showForm);
             if (showForm) handleCancelEdit();
           }}
-          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          className="flex items-center justify-center gap-2 px-4 py-2 md:px-6 md:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm md:text-base whitespace-nowrap"
         >
           {showForm ? (
             <>
-              <X className="w-5 h-5" />
-              Cancelar
+              <X className="w-4 h-4 md:w-5 md:h-5" />
+              <span>Cancelar</span>
             </>
           ) : (
             <>
-              <Plus className="w-5 h-5" />
-              Nuevo Proveedor
+              <Plus className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline">Nuevo Proveedor</span>
+              <span className="sm:hidden">Añadir</span>
             </>
           )}
         </button>

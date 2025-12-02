@@ -24,8 +24,7 @@
    GLOBAL DOCUMENT FIXES
    ===================================================== */
 html {
-    /* Prevent horizontal overflow/zoom on mobile */
-    overflow-x: hidden;
+    /* Allow horizontal scroll where needed */
     max-width: 100%;
     /* Smooth scrolling */
     scroll-behavior: smooth;
@@ -35,7 +34,6 @@ html {
 }
 
 body {
-    overflow-x: hidden;
     max-width: 100%;
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport height for mobile */
@@ -45,7 +43,6 @@ body {
 
 /* Root container */
 #root {
-    overflow-x: hidden;
     max-width: 100%;
     min-height: 100vh;
     min-height: 100dvh;
