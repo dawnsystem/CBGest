@@ -191,7 +191,7 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
   const selectedMovementData = allPendingMovements.find(m => m.id === selectedMovement);
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 h-[calc(100vh-4rem)] flex flex-col">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 h-[calc(100vh-4rem)] flex flex-col overflow-x-hidden">
        <div className="flex justify-between items-center mb-6 shrink-0">
         <div>
            <h2 className="text-2xl font-bold text-slate-900">Conciliación Bancaria</h2>

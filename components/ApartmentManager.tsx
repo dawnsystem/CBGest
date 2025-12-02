@@ -137,7 +137,7 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
   const inactiveCount = apartments.filter(a => !a.isActive).length;
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">

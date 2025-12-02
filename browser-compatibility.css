@@ -31,8 +31,13 @@ body {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scroll-behavior: smooth;
-    overflow-x: auto !important;
+    overflow-x: auto;
     overflow-y: visible;
+}
+
+/* Ensure tables can scroll horizontally */
+.overflow-x-auto > table {
+    min-width: 100%;
 }
 
 /* Mobile-specific horizontal scroll fixes */
@@ -40,16 +45,25 @@ body {
     /* Make sure scroll containers work */
     .overflow-x-auto {
         display: block;
-        overflow-x: auto !important;
+        overflow-x: auto;
         overflow-y: visible;
         -webkit-overflow-scrolling: touch;
         position: relative;
+        /* Ensure scroll is always possible */
+        max-width: 100%;
     }
     
-    /* Allow children to scroll horizontally */
-    .overflow-x-auto > * {
+    /* Don't force min-width on all children, only specific elements */
+    .overflow-x-auto > table,
+    .overflow-x-auto > [style*="min-width"] {
         min-width: max-content;
     }
+}
+
+/* Page containers should hide horizontal overflow */
+.overflow-x-hidden {
+    overflow-x: hidden;
+    max-width: 100%;
 }
 
 /* Prevent text from causing horizontal overflow */

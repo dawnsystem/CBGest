@@ -211,7 +211,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   };
 
   return (
-    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8">
+    <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
       <div className="flex justify-between items-center mb-6">
         <div>
            <h2 className="text-2xl font-bold text-slate-900">Libro Diario</h2>
