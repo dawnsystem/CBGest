@@ -39,23 +39,11 @@ describe('Toast System', () => {
   });
 
   it('should throw when useToast is used outside provider', () => {
-    const ErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-      try {
-        return <>{children}</>;
-      } catch {
-        return <div>error</div>;
-      }
-    };
-
     // Suppress console.error for expected error
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(() => {
-      render(
-        <ErrorBoundary>
-          <TestConsumer />
-        </ErrorBoundary>
-      );
+      render(<TestConsumer />);
     }).toThrow('useToast must be used within ToastProvider');
 
     spy.mockRestore();
