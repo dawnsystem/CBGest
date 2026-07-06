@@ -23,8 +23,11 @@ interface LogEntry {
 // CONFIGURACIÓN
 // ============================================================================
 
-/** Nivel mínimo de logs a mostrar (en producción podría ser 'WARN') */
-const MIN_LOG_LEVEL: LogLevel = 'DEBUG';
+/** Nivel mínimo de logs según entorno (producción = WARN, desarrollo = DEBUG) */
+const MIN_LOG_LEVEL: LogLevel = typeof window !== 'undefined' &&
+  (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')
+  ? 'DEBUG'
+  : 'WARN';
 
 /** Colores para cada nivel de log */
 const LEVEL_COLORS: Record<LogLevel, string> = {

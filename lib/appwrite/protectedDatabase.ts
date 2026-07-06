@@ -389,6 +389,7 @@ class ProtectedDatabaseService {
       const result = await rateLimiter.enqueue(async () => {
         return await databaseService.updateUploadItem(item);
       }, priority);
+      cache.invalidateCollection('uploads');
       return result;
     });
   }
@@ -453,6 +454,7 @@ class ProtectedDatabaseService {
       return await databaseService.updateNotification(notification);
     }, priority);
 
+    cache.invalidateCollection('notifications');
     return result;
   }
 

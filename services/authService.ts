@@ -159,13 +159,13 @@ export const authService = {
       return user as AppUser;
     } catch (error) {
       const code = getErrorCode(error);
-      // 401 es esperado cuando no hay sesión - no es un error
+      // 401 is expected when no session exists — not an error
       if (code === 401) {
         return null;
       }
-      // Otros errores se loguean pero no se propagan
-      authLogger.warn(`getCurrentUser error: ${getErrorMessage(error)}`);
-      return null;
+      // Network/server errors should be distinguishable from "no user"
+      authLogger.warn(`getCurrentUser: error inesperado (code=${code}): ${getErrorMessage(error)}`);
+      throw error;
     }
   },
 
@@ -187,7 +187,12 @@ export const authService = {
   async login(email: string, password: string): Promise<AuthResult> {
     try {
       // 1. Verificar sesión existente
-      const existingUser = await this.getCurrentUser();
+      let existingUser = null;
+      try {
+        existingUser = await this.getCurrentUser();
+      } catch {
+        // Network error checking existing session — proceed with login anyway
+      }
       if (existingUser) {
         authLogger.info('Sesión existente detectada, cerrándola...');
         try {
@@ -207,7 +212,7 @@ export const authService = {
 
       // 4. Verificar usuario
       const user = await account.get();
-      authLogger.success(`Login exitoso: ${user.email}`);
+      authLogger.success('Login exitoso');
 
       // 5. Set grace period for 401 errors during initial data load
       // This prevents race conditions from triggering false session expiration
@@ -269,7 +274,7 @@ export const authService = {
         return loginResult;
       }
 
-      authLogger.success(`Registro exitoso: ${email}`);
+      authLogger.success('Registro exitoso');
 
       return {
         success: true,
@@ -440,11 +445,14 @@ export const authService = {
         return;
       }
     } catch (sessionCheckError: unknown) {
-      // If we can't verify the session, it's likely expired
-      if (getErrorCode(sessionCheckError) === 401) {
+      const sessionCheckCode = getErrorCode(sessionCheckError);
+      if (sessionCheckCode === 401) {
+        // Session is truly expired
         authLogger.warn('Sesión verificada como expirada');
       } else {
-        authLogger.warn(`Error verificando sesión: ${getErrorMessage(sessionCheckError)}`);
+        // Network error or other transient issue — do NOT expire session
+        authLogger.warn(`Error verificando sesión (no es 401, ignorando): ${getErrorMessage(sessionCheckError)}`);
+        return;
       }
     }
 
