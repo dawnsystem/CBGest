@@ -6,8 +6,9 @@ import { AppwriteException } from 'appwrite';
 import { authService, setAuthCallbacks } from '../authService';
 import { account } from '../../lib/appwrite/client';
 
+const AUTH_GRACE_PERIOD_BUFFER_MS = 5200;
 const waitForGracePeriodToExpire = (): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, 5200));
+  new Promise((resolve) => setTimeout(resolve, AUTH_GRACE_PERIOD_BUFFER_MS));
 
 describe('authService direct coverage', () => {
   const getMock = vi.mocked(account.get);

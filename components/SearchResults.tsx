@@ -157,7 +157,11 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   )}
                   {key === 'reservations' && (
                     <div className="flex flex-col gap-1">
-                      <span className="font-medium">{(entry as Reservation).guestName || 'Huésped sin nombre'} · {(entry as Reservation).reservationNumber}</span>
+                      <span className="font-medium">
+                        {(entry as Reservation).guestName || (
+                          <span aria-label="Reserva sin nombre de huésped">Huésped sin nombre</span>
+                        )} · {(entry as Reservation).reservationNumber}
+                      </span>
                       <span className="text-slate-500">{(entry as Reservation).apartmentName} · {(entry as Reservation).status}</span>
                     </div>
                   )}

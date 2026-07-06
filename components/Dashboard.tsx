@@ -41,6 +41,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, amount, type, icon: Icon, is
   </div>
 );
 
+const sanitizeFileNameSegment = (value: string): string =>
+  value.trim().replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
+
 interface DashboardProps {
   invoices: Invoice[];
   settings: AppSettings;
@@ -308,7 +311,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   };
 
   const handleDownloadPartnerDraft = (partner: Partner) => {
-      const fileName = `Borrador_IRPF_${partner.name.replace(/\s+/g, '_')}_${currentYear}.pdf`;
+      const fileName = `Borrador_IRPF_${sanitizeFileNameSegment(partner.name)}_${currentYear}.pdf`;
       const draft = generatePartnerCertificate(partner, settings, netResult, currentYear);
       downloadPDF(draft, fileName);
   };

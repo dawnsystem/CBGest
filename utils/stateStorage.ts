@@ -1,4 +1,7 @@
+import { createLogger } from '../services/logger';
+
 type PlainObject = Record<string, unknown>;
+const storageLogger = createLogger('StateStorage');
 
 const isPlainObject = (value: unknown): value is PlainObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -33,7 +36,7 @@ export const loadPersistedState = <T>(key: string, defaults: T): T => {
   try {
     return mergeWithDefaults(defaults, JSON.parse(saved));
   } catch (error) {
-    console.error(`Error parsing persisted state for ${key}`, error);
+    storageLogger.error(`Error parsing persisted state for ${key}`, error);
     return defaults;
   }
 };
