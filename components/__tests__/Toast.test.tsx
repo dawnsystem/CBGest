@@ -15,6 +15,7 @@ const TestConsumer: React.FC<{
   const api = useToast();
   React.useEffect(() => {
     if (onMount) onMount(api);
+    // Only run once on mount to expose the api to tests
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
   return <div data-testid="consumer">ready</div>;
 };
@@ -156,7 +157,7 @@ describe('Toast System', () => {
     expect(screen.queryByText('¿Eliminar?')).not.toBeInTheDocument();
   });
 
-  it('should limit displayed toasts to 5', () => {
+  it('should render multiple toasts simultaneously', () => {
     let toastApi: ReturnType<typeof useToast>;
 
     render(
@@ -171,8 +172,8 @@ describe('Toast System', () => {
       }
     });
 
-    // Should keep last 5 (sliced to -4 + newest = 5)
+    // The provider keeps the last 5 toasts (slices to -4 + adds new)
     const alerts = screen.getAllByRole('alert');
-    expect(alerts.length).toBeLessThanOrEqual(8);
+    expect(alerts.length).toBe(5);
   });
 });

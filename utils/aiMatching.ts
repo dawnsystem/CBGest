@@ -143,7 +143,6 @@ export const findMatchingInvoices = (
   const matches: Array<{ invoice: Invoice; confidence: number; reason: string }> = [];
   const txAmount = Math.abs(transaction.amount);
   const txDate = new Date(transaction.date);
-  const _txConcept = normalizeConcept(transaction.concept || '');
 
   // Validate transaction date
   const isTxDateValid = !isNaN(txDate.getTime());

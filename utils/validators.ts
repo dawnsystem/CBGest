@@ -56,7 +56,6 @@ export const isValidNIF = (nif: string): boolean => {
 
   // Validación CIF (Simplificada pero robusta para la mayoría de casos)
   if (cifRegex.test(str)) {
-    const _cifLetter = str.charAt(0);
     const digits = str.substr(1, 7);
     const control = str.charAt(8);
     
