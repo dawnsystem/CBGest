@@ -9,6 +9,7 @@ import { AccountSelector } from './AccountSelector';
 import { ApartmentSelector } from './ApartmentSelector';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 import { XlsxColumnMapper } from './XlsxColumnMapper';
+import { useToast } from './Toast';
 
 interface InvoiceUploaderProps {
   onInvoiceAdded: (invoice: Invoice) => void;
@@ -32,6 +33,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
   // XLSX Mapping State
   const [mappingItem, setMappingItem] = useState<QueueItem | null>(null);
+  const { showToast, showConfirm } = useToast();
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -57,7 +59,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
     }
   };
 
-  const startReview = (item: QueueItem) => {
+  const startReview = async (item: QueueItem) => {
     if (item.uploadType === 'INVOICE' && item.result) {
         setReviewItem(item);
         
@@ -86,7 +88,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
             setMappingItem(item);
         } else if (item.bankResult) {
             // PDF was processed by AI
-            if(window.confirm(`Se han detectado ${item.bankResult.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
+            if (await showConfirm(`Se han detectado ${item.bankResult.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
                 onBankTransactionsAdded(item.bankResult);
                 removeFromQueue(item.id);
             }
@@ -116,7 +118,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
     if (preview && reviewItem) {
       // Strict blocking unless forced
       if (nifError && !forceAcceptNif) {
-          alert("El NIF del emisor es inválido. Por favor, corrígelo o marca la casilla 'Forzar aceptación' si estás seguro.");
+          showToast("El NIF del emisor es inválido. Por favor, corrígelo o marca la casilla 'Forzar aceptación' si estás seguro.", "warning");
           return;
       }
 
@@ -142,7 +144,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   };
 
   // Handle XLSX mapping confirmation
-  const handleMappingConfirm = (transactions: { date: string; concept: string; amount: number }[]) => {
+  const handleMappingConfirm = async (transactions: { date: string; concept: string; amount: number }[]) => {
     if (!mappingItem) return;
 
     // Add IDs and status to transactions
@@ -153,7 +155,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
     }));
 
     // Confirm import
-    if (window.confirm(`Se han mapeado ${enrichedTransactions.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
+    if (await showConfirm(`Se han mapeado ${enrichedTransactions.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
       onBankTransactionsAdded(enrichedTransactions);
       removeFromQueue(mappingItem.id);
     }

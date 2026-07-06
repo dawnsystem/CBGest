@@ -10,6 +10,7 @@ import {
   calculateTaxData
 } from '../services/pdfService';
 import { TouristTaxPanel } from './TouristTaxPanel';
+import { useToast } from './Toast';
 
 interface TaxModelsProps {
   invoices: Invoice[];
@@ -30,6 +31,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
   const [generating184, setGenerating184] = useState(false);
   const [generatingCerts, setGeneratingCerts] = useState(false);
   const [activeTab, setActiveTab] = useState<'MODELS' | 'IEET'>('MODELS');
+  const { showToast, showConfirm } = useToast();
 
   // Usar servicio centralizado para cálculos
   const taxData = calculateTaxData(invoices, settings);
@@ -59,11 +61,11 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
       downloadPDF(blob, `Modelo303_${trimestre}_${currentYear}.pdf`);
     } catch (error) {
       console.error('Error generating PDF 303:', error);
-      alert('Error al generar el PDF. Por favor, inténtelo de nuevo.');
+      showToast('Error al generar el PDF. Por favor, inténtelo de nuevo.', 'error');
     } finally {
       setGenerating303(false);
     }
-  }, [trimestre, currentYear, ivaRepercutido, ivaSoportado, resultadoIVA, settings]);
+  }, [trimestre, currentYear, ivaRepercutido, ivaSoportado, resultadoIVA, settings, showToast]);
 
   // Handler para generar PDF del Modelo 184
   const handleGenerate184 = useCallback(() => {
@@ -79,11 +81,11 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
       downloadPDF(blob, `Modelo184_${currentYear}.pdf`);
     } catch (error) {
       console.error('Error generating PDF 184:', error);
-      alert('Error al generar el PDF. Por favor, inténtelo de nuevo.');
+      showToast('Error al generar el PDF. Por favor, inténtelo de nuevo.', 'error');
     } finally {
       setGenerating184(false);
     }
-  }, [currentYear, rendimientoNeto, totalIngresos, totalGastos, settings]);
+  }, [currentYear, rendimientoNeto, totalIngresos, totalGastos, settings, showToast]);
 
   // Handler para generar certificados de los partícipes
   const handleGenerateCertificates = useCallback(() => {
@@ -98,11 +100,11 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
       });
     } catch (error) {
       console.error('Error generating certificates:', error);
-      alert('Error al generar los certificados. Por favor, inténtelo de nuevo.');
+      showToast('Error al generar los certificados. Por favor, inténtelo de nuevo.', 'error');
     } finally {
       setTimeout(() => setGeneratingCerts(false), partners.length * 300 + 500);
     }
-  }, [partners, settings, rendimientoNeto, currentYear]);
+  }, [partners, settings, rendimientoNeto, currentYear, showToast]);
 
   // Check if tourist tax is enabled
   const showIEET = settings.fiscalRegime === 'ALQUILER_EXENTO' && 

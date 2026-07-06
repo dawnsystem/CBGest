@@ -4,6 +4,7 @@ import { Bell, Search, User, ShieldCheck, LogOut, X, FileText, BookOpen, DollarS
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useToast } from './Toast';
 import { NotificationType } from '../types';
 import { createLogger } from '../services/logger';
 
@@ -16,6 +17,7 @@ const headerLogger = createLogger('Header');
 export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
   const { user, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
+  const { showToast } = useToast();
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -44,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
       await logout();
     } catch (error) {
       headerLogger.error('Error al cerrar sesión', error);
-      alert('Error al cerrar sesión. Por favor, intenta de nuevo.');
+      showToast('Error al cerrar sesión. Por favor, intenta de nuevo.', 'error');
     }
   };
 

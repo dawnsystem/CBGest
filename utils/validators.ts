@@ -8,10 +8,6 @@ import { NifType } from '../types';
 export const VALID_VAT_RATES = [0, 4, 10, 21] as const;
 export type VatRate = typeof VALID_VAT_RATES[number];
 
-// Letters for DNI/NIE calculation
-const NIF_LETTERS = "TRWAGMYFPDXBNJZSQVHLCKE";
-const CIF_LETTERS = "JABCDEFGHI";
-
 /**
  * Detect the type of Spanish identification number
  */
@@ -49,18 +45,18 @@ export const isValidNIF = (nif: string): boolean => {
 
   // Validación NIE
   if (nieRegex.test(str)) {
-    let niePrefix = str.charAt(0);
-    let prefixMap: {[key: string]: string} = { 'X': '0', 'Y': '1', 'Z': '2' };
-    let numberStr = prefixMap[niePrefix] + str.substr(1, 7);
+    const niePrefix = str.charAt(0);
+    const prefixMap: {[key: string]: string} = { 'X': '0', 'Y': '1', 'Z': '2' };
+    const numberStr = prefixMap[niePrefix] + str.substr(1, 7);
     const number = parseInt(numberStr, 10);
-    const letter = str.substr(8, 1);
+    const expectedLetter = str.substr(8, 1);
     const letters = "TRWAGMYFPDXBNJZSQVHLCKE";
-    return letters.charAt(number % 23) === letter;
+    return letters.charAt(number % 23) === expectedLetter;
   }
 
   // Validación CIF (Simplificada pero robusta para la mayoría de casos)
   if (cifRegex.test(str)) {
-    const letter = str.charAt(0);
+    const _cifLetter = str.charAt(0);
     const digits = str.substr(1, 7);
     const control = str.charAt(8);
     

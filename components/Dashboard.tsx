@@ -11,6 +11,7 @@ import { ProfitabilityByApartment } from './ProfitabilityByApartment';
 import { useNavigate } from 'react-router-dom';
 import { downloadPDF, generatePartnerCertificate } from '../services/pdfService';
 import { sanitizeFileNameSegment } from '../utils/fileHelpers';
+import { useToast } from './Toast';
 
 // StatCard component moved OUTSIDE of Dashboard to prevent recreation on each render
 // This is critical for performance - components defined inside render functions lose their state on every render
@@ -54,6 +55,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartments, recurringExpenses, reservations = [], onUpdateSettings }) => {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { showToast, showConfirm } = useToast();
 
   // SAFE GUARD: Ensure partners array exists
   const partners = settings.partners || [];
@@ -292,7 +294,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
 
   const handleSavePartnerTaxInfo = (id: string, info: PartnerTaxInfo) => {
       if (!onUpdateSettings) {
-          alert("Error: No se puede guardar. Función de actualización no disponible.");
+          showToast("Error: No se puede guardar. Función de actualización no disponible.", "error");
           return;
       }
 

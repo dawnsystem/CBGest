@@ -4,6 +4,7 @@ import { RecurringExpense, ExpenseFrequency, Apartment, Supplier } from '../type
 import { ApartmentSelector, ApartmentBadge } from './ApartmentSelector';
 import { AccountSelector } from './AccountSelector';
 import { generateId } from '../utils/defaults';
+import { useToast } from './Toast';
 
 interface RecurringExpenseManagerProps {
   expenses: RecurringExpense[];
@@ -95,6 +96,7 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
   const [filterApartment, setFilterApartment] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showToast, showConfirm } = useToast();
 
   // Form state
   const [formData, setFormData] = useState<Partial<RecurringExpense>>({
@@ -180,18 +182,18 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
 
     // Validate required fields
     if (!trimmedName) {
-      alert('El nombre del gasto es obligatorio');
+      showToast('El nombre del gasto es obligatorio', 'warning');
       return;
     }
     if (amount === undefined || isNaN(amount) || amount <= 0) {
-      alert('El importe debe ser un número mayor que 0');
+      showToast('El importe debe ser un número mayor que 0', 'warning');
       return;
     }
 
     // Validate dayOfMonth
     const dayOfMonth = formData.dayOfMonth;
     if (dayOfMonth !== undefined && (isNaN(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31)) {
-      alert('El día del mes debe estar entre 1 y 31');
+      showToast('El día del mes debe estar entre 1 y 31', 'warning');
       return;
     }
 
@@ -227,12 +229,12 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar este gasto recurrente?')) {
+    if (await showConfirm('¿Estás seguro de eliminar este gasto recurrente?')) {
       try {
         await onDeleteExpense(id);
       } catch (error) {
         console.error('Error deleting expense:', error);
-        alert('Error al eliminar el gasto. Por favor, inténtalo de nuevo.');
+        showToast('Error al eliminar el gasto. Por favor, inténtalo de nuevo.', 'error');
       }
     }
   };

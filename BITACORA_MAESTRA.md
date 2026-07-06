@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-06 15:57:00 UTC*
+*Última actualización: 2026-07-06 17:08:00 UTC*
 
 ---
 
@@ -52,6 +52,7 @@ Errores 401 (Unauthorized) en la consola del navegador después de login:
 8. **CAPA DE CONFIGURACIÓN** - Configuración inmutable
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-06] - `TSK-041` - Toast Migration:** Sustitución de `alert()` y `window.confirm()` por `useToast()`/`showConfirm()` en componentes críticos y verificación de tipado satisfactoria.
 *   **[2026-07-06] - `TSK-040` - Consolidación Integral Fase 1:** Endurecimiento de CI/CD, búsqueda global operativa, acción real de borrador PDF en dashboard, utilidades compartidas de estado y ampliación de cobertura a 139 tests.
 *   **[2025-11-21] - `FIX-038` - CI/CD Pipeline Corrections:** Corrección de workflows de GitHub Actions, mocks completos de APIs del navegador para tests, fix crítico de sintaxis en AuthModal.tsx, documentación de configuración GitHub.
 *   **[2025-11-21] - `TSK-037` - Testing & CI/CD Infrastructure:** Sistema completo de testing unitario con Vitest, workflows de GitHub Actions para CI/CD y seguridad, ESLint configurado, 102 tests implementados con >80% coverage.
@@ -81,6 +82,18 @@ Errores 401 (Unauthorized) en la consola del navegador después de login:
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-06 17:08:00 UTC]
+*   **Directiva del Director:** Reemplazar todos los `alert()` y `window.confirm()` indicados por `showToast()` y `showConfirm()` en los ficheros especificados, sin alterar otra lógica.
+*   **Plan de Acción:** Verificar baseline de tipos, localizar cada llamada objetivo, inyectar `useToast` en cada componente, adaptar handlers asíncronos para confirmaciones y revalidar con `npm run type-check`.
+*   **Log de Acciones:**
+    - `[17:08:00]` - **TEST:** `npm run type-check`. **RESULTADO:** PASS sobre baseline antes de cambios.
+    - `[17:12:00]` - **MOD:** `components/Suppliers.tsx`, `components/Settings.tsx`, `components/InvoiceUploader.tsx`, `components/AccountingBooks.tsx`, `components/ApartmentManager.tsx`. **CAMBIOS:** Importado `useToast`, añadidos hooks y migrados `alert()/confirm()` a toasts y confirmaciones asíncronas.
+    - `[17:15:00]` - **MOD:** `components/RecurringExpenseManager.tsx`, `components/TaxModels.tsx`, `components/AppwriteConfig.tsx`, `components/Dashboard.tsx`, `components/ReservationManager.tsx`, `App.tsx`. **CAMBIOS:** Sustitución completa restante de mensajes bloqueantes y adaptación de callbacks `async` donde era necesario.
+    - `[17:17:00]` - **TEST:** `npm run type-check`. **RESULTADO:** PASS.
+*   **Resultado:** TSK-041 completada.
+*   **Commit Asociado:** `HEAD`
+*   **Observaciones/Decisiones de Diseño:** Se preservaron literalmente todos los mensajes existentes y solo se ajustaron imports, hooks y asincronía mínima para soportar `showConfirm()`.
+
 ### Sesión: [2026-07-06 15:39:00 UTC]
 *   **Directiva del Director:** Implementar la fase de consolidación seria del proyecto siguiendo el plan de baseline, CI/CD, arquitectura, tipado, testing, UX, observabilidad y documentación.
 *   **Plan de Acción:** Ejecutar baseline real, corregir inconsistencias visibles, extraer utilidades compartidas, reforzar workflows y cerrar validación completa.

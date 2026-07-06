@@ -15,6 +15,8 @@ import { loadPersistedState } from './utils/stateStorage';
 import * as appwriteService from './services/appwriteService';
 import { createDefaultSettings } from './config/defaultSettings';
 
+import { ToastProvider, useToast } from './components/Toast';
+
 // AUTH Integration
 import { AuthProvider, useAuth, useSessionReady } from './context/AuthContext';
 import { Login } from './components/Login';
@@ -69,6 +71,7 @@ const MainLayout: React.FC = () => {
   const { user, loading } = useAuth();
   const sessionReady = useSessionReady();
   const { addNotification } = useNotifications();
+  const { showToast, showConfirm } = useToast();
   // --- STATE ---
 
   // Initialize settings with Appwrite config PRE-FILLED to avoid setup loops
@@ -971,7 +974,7 @@ const MainLayout: React.FC = () => {
        reconciledWithEntryId: newEntry.id
      });
 
-     alert("Asiento creado con partida doble. Ve a 'Libros Contables' para editar las cuentas si es necesario.");
+     showToast("Asiento creado con partida doble. Ve a 'Libros Contables' para editar las cuentas si es necesario.", 'success');
   };
 
   // Reconcile a movement (imported transaction or accounting entry) with another entry
@@ -1486,7 +1489,7 @@ const MainLayout: React.FC = () => {
       } catch (error: any) {
           if (error.name === 'SecurityError' || error.name === 'NotAllowedError') {
              console.warn("File access denied in iframe");
-             alert("Tu navegador o este entorno de previsualización bloquea el acceso al disco. Usa la opción 'Descargar JSON' en la pestaña Datos.");
+             showToast("Tu navegador o este entorno de previsualización bloquea el acceso al disco. Usa la opción 'Descargar JSON' en la pestaña Datos.", 'warning');
           }
       }
   };
@@ -1503,7 +1506,7 @@ const MainLayout: React.FC = () => {
           setIsLocalFileMode(true);
       } catch (error: any) {
            console.warn("File access denied in iframe");
-           alert("Acceso denegado al sistema de archivos. Prueba en una ventana nueva.");
+           showToast("Acceso denegado al sistema de archivos. Prueba en una ventana nueva.", 'warning');
       }
   };
   const handleDisconnectFile = () => { setIsLocalFileMode(false); setFileHandle(null); setEncryptionKey(null); };
@@ -1746,8 +1749,8 @@ const MainLayout: React.FC = () => {
                                       <Eye className="w-4 h-4" />
                                     </button>
                                     <button
-                                      onClick={() => {
-                                        if (window.confirm('¿Eliminar esta factura?')) {
+                                      onClick={async () => {
+                                        if (await showConfirm('¿Eliminar esta factura?')) {
                                           handleDeleteInvoice(inv.id);
                                         }
                                       }}
@@ -1806,8 +1809,8 @@ const MainLayout: React.FC = () => {
                                   Ver PDF
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm('¿Eliminar esta factura?')) {
+                                  onClick={async () => {
+                                    if (await showConfirm('¿Eliminar esta factura?')) {
                                       handleDeleteInvoice(inv.id);
                                     }
                                   }}
@@ -1935,9 +1938,11 @@ const MainLayout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <NotificationProvider>
-        <MainLayout />
-      </NotificationProvider>
+      <ToastProvider>
+        <NotificationProvider>
+          <MainLayout />
+        </NotificationProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 };
