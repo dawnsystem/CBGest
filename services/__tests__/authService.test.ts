@@ -92,6 +92,25 @@ describe('authService direct coverage', () => {
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
   }, 15000);
 
+  it('should NOT expire session when verification fails with network error (non-401)', async () => {
+    const onSessionExpired = vi.fn();
+    setAuthCallbacks({ onSessionExpired });
+    await waitForGracePeriodToExpire();
+    // Simulate a network error (no code) during the account.get() verification
+    getMock.mockRejectedValueOnce(new Error('Failed to fetch'));
+
+    await authService.handleUnauthorizedError();
+
+    // Should NOT call onSessionExpired because the error is transient, not auth-related
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  }, 15000);
+
+  it('should propagate network errors from getCurrentUser', async () => {
+    getMock.mockRejectedValueOnce(new Error('Failed to fetch'));
+
+    await expect(authService.getCurrentUser()).rejects.toThrow('Failed to fetch');
+  });
+
   it('should map active sessions from Appwrite', async () => {
     const sessions = await authService.getSessions();
 
