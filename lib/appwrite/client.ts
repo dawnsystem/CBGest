@@ -11,6 +11,7 @@
 
 import { Client, Account, Databases, Storage } from 'appwrite';
 import { APPWRITE_CONFIG } from '../../config/appwrite';
+import { dataLogger } from '../../services/logger';
 
 // ============================================================================
 // CLIENTE SINGLETON
@@ -90,7 +91,7 @@ const getClientInfo = () => ({
 
 // Log de inicialización (solo en desarrollo)
 if (typeof window !== 'undefined' && import.meta.env?.DEV) {
-  console.log('🔧 Appwrite client initialized:', APPWRITE_CONFIG.endpoint);
+  dataLogger.debug(`Appwrite client initialized: ${APPWRITE_CONFIG.endpoint}`);
 }
 
 // ============================================================================

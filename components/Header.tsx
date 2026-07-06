@@ -1,19 +1,33 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Search, User, ShieldCheck, LogOut, X, FileText, BookOpen, DollarSign, Settings as SettingsIcon, UserPlus, LogIn } from 'lucide-react';
+import { Bell, Search, User, ShieldCheck, LogOut, X, FileText, BookOpen, DollarSign, Settings as SettingsIcon, LogIn } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { NotificationType } from '../types';
+import { createLogger } from '../services/logger';
 
 interface HeaderProps {
   isLocalFileMode?: boolean;
 }
 
+const headerLogger = createLogger('Header');
+
 export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
   const { user, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const notificationRef = useRef<HTMLDivElement>(null);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') ?? '');
+
+  useEffect(() => {
+    if (location.pathname === '/search') {
+      setSearchTerm(searchParams.get('q') ?? '');
+    }
+  }, [location.pathname, searchParams]);
 
   // Close notifications panel when clicking outside
   useEffect(() => {
@@ -36,9 +50,19 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
     try {
       await logout();
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
+      headerLogger.error('Error al cerrar sesión', error);
       alert('Error al cerrar sesión. Por favor, intenta de nuevo.');
     }
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = searchTerm.trim();
+    if (!trimmed) {
+      navigate('/');
+      return;
+    }
+    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
   };
 
   const getNotificationIcon = (type: NotificationType) => {
@@ -105,14 +129,17 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
         </div>
 
         {/* Search - hidden on very small screens, visible on larger mobile */}
-        <div className="relative flex-1 min-w-0 max-w-md hidden xs:block">
+        <form className="relative flex-1 min-w-0 max-w-md hidden xs:block" onSubmit={handleSearchSubmit}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
-            type="text"
+            type="search"
             placeholder="Buscar..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            aria-label="Buscar en la aplicación"
           />
-        </div>
+        </form>
       </div>
 
       <div className="flex items-center gap-1 md:gap-4 flex-shrink-0">

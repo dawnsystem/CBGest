@@ -9,6 +9,7 @@ import { ExpensesByApartment } from './ExpensesByApartment';
 import { ExpenseProjections } from './ExpenseProjections';
 import { ProfitabilityByApartment } from './ProfitabilityByApartment';
 import { useNavigate } from 'react-router-dom';
+import { downloadPDF, generatePartnerCertificate } from '../services/pdfService';
 
 // StatCard component moved OUTSIDE of Dashboard to prevent recreation on each render
 // This is critical for performance - components defined inside render functions lose their state on every render
@@ -288,7 +289,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
 
   // --- EVENT HANDLERS ---
 
-  const handleSavePartnerTaxInfo = (id: string, info: any) => {
+  const handleSavePartnerTaxInfo = (id: string, info: PartnerTaxInfo) => {
       if (!onUpdateSettings) {
           alert("Error: No se puede guardar. Función de actualización no disponible.");
           return;
@@ -304,6 +305,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
       });
 
       setSelectedPartnerId(null);
+  };
+
+  const handleDownloadPartnerDraft = (partner: Partner) => {
+      const fileName = `Borrador_IRPF_${partner.name.replace(/\s+/g, '_')}_${currentYear}.pdf`;
+      const draft = generatePartnerCertificate(partner, settings, netResult, currentYear);
+      downloadPDF(draft, fileName);
   };
 
   return (
@@ -435,7 +442,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
                                     <button onClick={() => setSelectedPartnerId(partner.id)} className="flex-1 text-xs text-slate-500 hover:text-slate-800 bg-white border border-slate-200 py-1 rounded">
                                         Editar Datos
                                     </button>
-                                    <button className="flex-1 text-xs text-purple-700 hover:text-purple-900 bg-purple-100 border border-purple-200 py-1 rounded flex items-center justify-center gap-1">
+                                    <button
+                                      onClick={() => handleDownloadPartnerDraft(partner)}
+                                      className="flex-1 text-xs text-purple-700 hover:text-purple-900 bg-purple-100 border border-purple-200 py-1 rounded flex items-center justify-center gap-1"
+                                    >
                                         <FileText className="w-3 h-3" /> Borrador PDF
                                     </button>
                                 </div>
