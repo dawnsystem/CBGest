@@ -190,10 +190,10 @@ describe('MyComponent', () => {
 
 El proyecto tiene configurados los siguientes umbrales mínimos en `vitest.config.ts`:
 
-- **Líneas**: 80%
-- **Funciones**: 75%
-- **Ramas**: 75%
-- **Statements**: 80%
+- **Líneas**: 40%
+- **Funciones**: 25%
+- **Ramas**: 29%
+- **Statements**: 40%
 
 ### Ver Reporte de Coverage
 

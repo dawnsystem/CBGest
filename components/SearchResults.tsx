@@ -75,7 +75,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     };
   }, [accountingEntries, apartments, invoices, reservations, suppliers, term]);
 
-  const totalResults = Object.values(results).reduce((sum, entries) => sum + entries.length, 0);
+  const totalResults = Object.values(results).reduce<number>(
+    (sum, entries) => sum + (Array.isArray(entries) ? entries.length : 0),
+    0
+  );
 
   const sections = [
     { key: 'invoices', title: 'Facturas', icon: FileText, route: '/invoices', entries: results.invoices },

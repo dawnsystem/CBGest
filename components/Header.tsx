@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Search, User, ShieldCheck, LogOut, X, FileText, BookOpen, DollarSign, Settings as SettingsIcon, LogIn } from 'lucide-react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { NotificationType } from '../types';
@@ -18,16 +18,9 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchParams] = useSearchParams();
-  const location = useLocation();
   const navigate = useNavigate();
   const notificationRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') ?? '');
-
-  useEffect(() => {
-    if (location.pathname === '/search') {
-      setSearchTerm(searchParams.get('q') ?? '');
-    }
-  }, [location.pathname, searchParams]);
 
   // Close notifications panel when clicking outside
   useEffect(() => {

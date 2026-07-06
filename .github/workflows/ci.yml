@@ -31,11 +31,9 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
-        continue-on-error: true
 
       - name: Type check
         run: npm run type-check
-        continue-on-error: true
 
   test:
     name: Run Tests
@@ -65,7 +63,6 @@ jobs:
           flags: unittests
           name: codecov-cbgest
           fail_ci_if_error: false
-        continue-on-error: true
 
       - name: Archive coverage artifacts
         uses: actions/upload-artifact@v4

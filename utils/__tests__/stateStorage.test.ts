@@ -57,4 +57,12 @@ describe('stateStorage', () => {
 
     expect(loadPersistedState('settings', { safe: true })).toEqual({ safe: true });
   });
+
+  it('should preserve default arrays when persisted value is not an array', () => {
+    expect(mergeWithDefaults(['a', 'b'], 'invalid')).toEqual(['a', 'b']);
+  });
+
+  it('should return defaults when there is no persisted value', () => {
+    expect(loadPersistedState('missing', { ready: true })).toEqual({ ready: true });
+  });
 });

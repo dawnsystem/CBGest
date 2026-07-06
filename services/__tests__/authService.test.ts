@@ -6,6 +6,9 @@ import { AppwriteException } from 'appwrite';
 import { authService, setAuthCallbacks } from '../authService';
 import { account } from '../../lib/appwrite/client';
 
+const waitForGracePeriodToExpire = (): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, 5200));
+
 describe('authService direct coverage', () => {
   const getMock = vi.mocked(account.get);
   const createSessionMock = vi.mocked(account.createEmailPasswordSession);
@@ -27,7 +30,7 @@ describe('authService direct coverage', () => {
       email: 'test@example.com',
       name: 'Test User',
       emailVerification: true,
-    });
+    } as Awaited<ReturnType<typeof account.get>>);
   });
 
   it('should return null when there is no active session', async () => {
@@ -59,11 +62,12 @@ describe('authService direct coverage', () => {
   it('should notify session expiration when verification fails outside grace period', async () => {
     const onSessionExpired = vi.fn();
     setAuthCallbacks({ onSessionExpired });
+    await waitForGracePeriodToExpire();
     getMock.mockRejectedValueOnce(new AppwriteException('expired', 401));
 
     await expect(authService.verifySession()).resolves.toBe(false);
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
-  });
+  }, 15000);
 
   it('should not expire session on unauthorized collection error if account is still valid', async () => {
     const onSessionExpired = vi.fn();
@@ -77,12 +81,13 @@ describe('authService direct coverage', () => {
   it('should expire session on unauthorized error when account check also fails', async () => {
     const onSessionExpired = vi.fn();
     setAuthCallbacks({ onSessionExpired });
+    await waitForGracePeriodToExpire();
     getMock.mockRejectedValueOnce(new AppwriteException('expired', 401));
 
     await authService.handleUnauthorizedError();
 
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
-  });
+  }, 15000);
 
   it('should map active sessions from Appwrite', async () => {
     const sessions = await authService.getSessions();
