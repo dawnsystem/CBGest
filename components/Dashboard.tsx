@@ -10,6 +10,7 @@ import { ExpenseProjections } from './ExpenseProjections';
 import { ProfitabilityByApartment } from './ProfitabilityByApartment';
 import { useNavigate } from 'react-router-dom';
 import { downloadPDF, generatePartnerCertificate } from '../services/pdfService';
+import { sanitizeFileNameSegment } from '../utils/fileHelpers';
 
 // StatCard component moved OUTSIDE of Dashboard to prevent recreation on each render
 // This is critical for performance - components defined inside render functions lose their state on every render
@@ -40,9 +41,6 @@ const StatCard: React.FC<StatCardProps> = ({ title, amount, type, icon: Icon, is
     </p>
   </div>
 );
-
-const sanitizeFileNameSegment = (value: string): string =>
-  value.trim().replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
 
 interface DashboardProps {
   invoices: Invoice[];
