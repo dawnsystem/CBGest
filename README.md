@@ -28,6 +28,7 @@ Sistema completo de gestión contable diseñado específicamente para **Comunida
 - Métricas en tiempo real: Ingresos, Gastos y Resultado Neto
 - Gráficos de evolución de tesorería por mes
 - Estimación de IRPF personalizada por cada comunero
+- Búsqueda global de facturas, asientos, proveedores, apartamentos y reservas
 - Soporte completo para régimen de **Alquiler Exento de IVA**
 - Panel de alertas y avisos fiscales importantes
 - Gastos desglosados por apartamento

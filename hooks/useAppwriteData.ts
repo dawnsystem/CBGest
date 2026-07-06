@@ -17,8 +17,9 @@ import {
 } from '../types';
 import * as appwriteService from '../services/appwriteService';
 import { useAuth, useSessionReady } from '../context/AuthContext';
-import { APPWRITE_CONFIG } from '../config/appwrite';
+import { createDefaultSettings } from '../config/defaultSettings';
 import { dataLogger } from '../services/logger';
+import { loadPersistedState, mergeWithDefaults } from '../utils/stateStorage';
 
 interface UseAppwriteDataOptions {
   onError: (message: string) => void;
@@ -50,22 +51,6 @@ interface UseAppwriteDataReturn extends DataState {
   setSettings: Dispatch<SetStateAction<AppSettings>>;
 }
 
-const defaultSettings: AppSettings = {
-  cbName: 'Nueva Comunidad de Bienes',
-  nif: '',
-  fiscalRegime: 'ALQUILER_EXENTO',
-  vatObligation: false,
-  partners: [{ id: '1', name: 'Socio Fundador', nif: '', participation: 100 }],
-  dataConfig: {
-    type: 'APPWRITE',
-    autoBackup: false,
-    appwriteProjectId: APPWRITE_CONFIG.projectId,
-    appwriteDatabaseId: APPWRITE_CONFIG.databaseId,
-    appwriteBucketId: APPWRITE_CONFIG.bucketId,
-    appwriteEndpoint: APPWRITE_CONFIG.endpoint
-  }
-};
-
 /**
  * Hook that manages all data operations with Appwrite
  * Includes real-time synchronization and offline support
@@ -74,6 +59,7 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
   const { onError, onConnectionChange } = options;
   const { user } = useAuth();
   const sessionReady = useSessionReady();
+  const defaultSettings = createDefaultSettings();
 
   // Data state
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -83,18 +69,9 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    const saved = localStorage.getItem('gestcb_settings');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return { ...defaultSettings, ...parsed };
-      } catch {
-        return defaultSettings;
-      }
-    }
-    return defaultSettings;
-  });
+  const [settings, setSettings] = useState<AppSettings>(() =>
+    loadPersistedState('gestcb_settings', defaultSettings)
+  );
 
   // Connection state
   const [isLoading, setIsLoading] = useState(true);
@@ -152,11 +129,10 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
       setReservations(remoteReservations);
 
       if (remoteSettings) {
-        const mergedSettings = {
+        const mergedSettings = mergeWithDefaults(defaultSettings, {
           ...remoteSettings,
-          partners: remoteSettings.partners || defaultSettings.partners,
-          dataConfig: settings.dataConfig
-        };
+          dataConfig: settings.dataConfig,
+        });
         setSettings(mergedSettings);
         localStorage.setItem('gestcb_settings', JSON.stringify(mergedSettings));
       }

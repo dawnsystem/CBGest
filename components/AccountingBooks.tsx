@@ -4,6 +4,7 @@ import { Filter, X, Plus, Edit3, Trash, Save, Paperclip, ChevronDown, ChevronRig
 import { AccountingEntry, AccountingEntryLine, getEntryLines, calculateEntryTotals } from '../types';
 import { AccountSelector } from './AccountSelector';
 import { getAccountName } from '../utils/accountingPlan';
+import { useToast } from './Toast';
 
 interface AccountingBooksProps {
   entries: AccountingEntry[];
@@ -39,6 +40,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   // Edit/Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<AccountingEntry | null>(null);
+  const { showToast, showConfirm } = useToast();
 
   // Get unique accounts from all entry lines
   const uniqueAccounts = useMemo(() => {
@@ -170,7 +172,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
     // Validate: must have at least one debit and one credit
     const totals = calculateEntryTotals(editingEntry);
     if (!totals.isBalanced) {
-      alert(`El asiento no cuadra. Debe: ${totals.totalDebit.toFixed(2)}€ | Haber: ${totals.totalCredit.toFixed(2)}€`);
+      showToast(`El asiento no cuadra. Debe: ${totals.totalDebit.toFixed(2)}€ | Haber: ${totals.totalCredit.toFixed(2)}€`, 'warning');
       return;
     }
 
@@ -180,7 +182,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
     );
 
     if (validLines.length < 2) {
-      alert('Un asiento debe tener al menos 2 líneas (debe y haber).');
+      showToast('Un asiento debe tener al menos 2 líneas (debe y haber).', 'warning');
       return;
     }
 

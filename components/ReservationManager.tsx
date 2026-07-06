@@ -5,6 +5,7 @@ import {
   Download, Trash2, Edit2, Save, XCircle, Receipt, Wallet, CalendarDays, Baby
 } from 'lucide-react';
 import { Reservation, ReservationChannel, ReservationStatus, Apartment, AppSettings, TouristTaxConfig } from '../types';
+import { useToast } from './Toast';
 
 interface ReservationManagerProps {
   reservations: Reservation[];
@@ -122,6 +123,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   onLinkApartment
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showToast, showConfirm } = useToast();
   const [importing, setImporting] = useState(false);
   const [importPreview, setImportPreview] = useState<Omit<Reservation, 'id'>[] | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -1033,8 +1035,8 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                           </div>
                         )}
                         <button
-                          onClick={() => {
-                            if (window.confirm('¿Estás seguro de eliminar esta reserva?')) {
+                          onClick={async () => {
+                            if (await showConfirm('¿Estás seguro de eliminar esta reserva?')) {
                               onDeleteReservation(reservation.id);
                             }
                           }}

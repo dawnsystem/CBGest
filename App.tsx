@@ -11,8 +11,11 @@ import { Eye, Trash, AlertTriangle, RefreshCw, XCircle, Check } from 'lucide-rea
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
 import { generateId } from './utils/defaults';
+import { loadPersistedState } from './utils/stateStorage';
 import * as appwriteService from './services/appwriteService';
-import { APPWRITE_CONFIG } from './config/appwrite';
+import { createDefaultSettings } from './config/defaultSettings';
+
+import { ToastProvider, useToast } from './components/Toast';
 
 // AUTH Integration
 import { AuthProvider, useAuth, useSessionReady } from './context/AuthContext';
@@ -38,6 +41,7 @@ const ApartmentManager = lazy(() => import('./components/ApartmentManager').then
 const RecurringExpenseManager = lazy(() => import('./components/RecurringExpenseManager').then(m => ({ default: m.RecurringExpenseManager })));
 const ReservationManager = lazy(() => import('./components/ReservationManager').then(m => ({ default: m.ReservationManager })));
 const DocumentViewer = lazy(() => import('./components/DocumentViewer').then(m => ({ default: m.DocumentViewer })));
+const SearchResults = lazy(() => import('./components/SearchResults').then(m => ({ default: m.SearchResults })));
 
 // Loading fallback component with skeleton for better LCP
 const PageLoader = () => (
@@ -63,72 +67,17 @@ const PageLoader = () => (
   </div>
 );
 
-// Helper for Lazy Initialization from LocalStorage with Safe Deep Merge
-const loadState = <T,>(key: string, fallback: T): T => {
-  const saved = localStorage.getItem(key);
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      // If it's an array, return it directly (assuming fallback is also array)
-      if (Array.isArray(fallback)) return parsed;
-
-      // If it's an object (like settings), do a DEEP merge to preserve nested defaults
-      if (typeof fallback === 'object' && fallback !== null) {
-          const result: any = { ...fallback };
-
-          // Merge top-level properties
-          for (const key in parsed) {
-            if (Object.prototype.hasOwnProperty.call(parsed, key)) {
-              // If both are objects (like dataConfig), merge them
-              if (
-                typeof parsed[key] === 'object' &&
-                parsed[key] !== null &&
-                !Array.isArray(parsed[key]) &&
-                typeof result[key] === 'object' &&
-                result[key] !== null &&
-                !Array.isArray(result[key])
-              ) {
-                result[key] = { ...result[key], ...parsed[key] };
-              } else {
-                result[key] = parsed[key];
-              }
-            }
-          }
-
-          return result as T;
-      }
-      return parsed;
-    } catch (e) {
-      console.error(`Error parsing ${key}`, e);
-    }
-  }
-  return fallback;
-};
-
 const MainLayout: React.FC = () => {
   const { user, loading } = useAuth();
   const sessionReady = useSessionReady();
   const { addNotification } = useNotifications();
+  const { showToast, showConfirm } = useToast();
   // --- STATE ---
-  
-  const defaultSettings: AppSettings = {
-    cbName: 'Nueva Comunidad de Bienes',
-    nif: '',
-    fiscalRegime: 'ALQUILER_EXENTO',
-    vatObligation: false,
-    partners: [{ id: '1', name: 'Socio Fundador', nif: '', participation: 100 }],
-    dataConfig: {
-        type: 'APPWRITE',
-        autoBackup: false,
-        appwriteProjectId: APPWRITE_CONFIG.projectId,
-        appwriteDatabaseId: APPWRITE_CONFIG.databaseId,
-        appwriteBucketId: APPWRITE_CONFIG.bucketId,
-        appwriteEndpoint: APPWRITE_CONFIG.endpoint
-    }
-  };
 
   // Initialize settings with Appwrite config PRE-FILLED to avoid setup loops
-  const [settings, setSettings] = useState<AppSettings>(() => loadState('gestcb_settings', defaultSettings));
+  const [settings, setSettings] = useState<AppSettings>(() =>
+    loadPersistedState('gestcb_settings', createDefaultSettings())
+  );
 
   // Initialize with empty arrays - data will be loaded from Appwrite or localStorage in useEffect
   // This prevents stale localStorage data from being shown when using Appwrite
@@ -197,7 +146,7 @@ const MainLayout: React.FC = () => {
   // --- SYNC SETTINGS FROM LOCALSTORAGE ---
   // Use refs to access current values without adding them as dependencies
   const settingsRef = useRef(settings);
-  const defaultSettingsRef = useRef(defaultSettings);
+  const defaultSettingsRef = useRef(createDefaultSettings());
   // Ref to prevent double initialization in React Strict Mode
   const dataLayerInitializedRef = useRef(false);
 
@@ -208,7 +157,7 @@ const MainLayout: React.FC = () => {
 
   useEffect(() => {
       // Re-read settings from LS in case Login changed them
-      const freshSettings = loadState<AppSettings>('gestcb_settings', settingsRef.current);
+      const freshSettings = loadPersistedState<AppSettings>('gestcb_settings', settingsRef.current);
 
       // Double check arrays exist in freshSettings
       if (!freshSettings.partners) freshSettings.partners = defaultSettingsRef.current.partners;
@@ -249,7 +198,7 @@ const MainLayout: React.FC = () => {
 
       const initDataLayer = async () => {
           // Use ref to get current settings as fallback, avoiding dependency issues
-          const freshSettings = loadState<AppSettings>('gestcb_settings', settingsRef.current);
+          const freshSettings = loadPersistedState<AppSettings>('gestcb_settings', settingsRef.current);
           setIsDataLoading(true);
 
           if (freshSettings.dataConfig?.type === 'APPWRITE') {
@@ -1025,7 +974,7 @@ const MainLayout: React.FC = () => {
        reconciledWithEntryId: newEntry.id
      });
 
-     alert("Asiento creado con partida doble. Ve a 'Libros Contables' para editar las cuentas si es necesario.");
+     showToast("Asiento creado con partida doble. Ve a 'Libros Contables' para editar las cuentas si es necesario.", 'success');
   };
 
   // Reconcile a movement (imported transaction or accounting entry) with another entry
@@ -1540,7 +1489,7 @@ const MainLayout: React.FC = () => {
       } catch (error: any) {
           if (error.name === 'SecurityError' || error.name === 'NotAllowedError') {
              console.warn("File access denied in iframe");
-             alert("Tu navegador o este entorno de previsualización bloquea el acceso al disco. Usa la opción 'Descargar JSON' en la pestaña Datos.");
+             showToast("Tu navegador o este entorno de previsualización bloquea el acceso al disco. Usa la opción 'Descargar JSON' en la pestaña Datos.", 'warning');
           }
       }
   };
@@ -1557,7 +1506,7 @@ const MainLayout: React.FC = () => {
           setIsLocalFileMode(true);
       } catch (error: any) {
            console.warn("File access denied in iframe");
-           alert("Acceso denegado al sistema de archivos. Prueba en una ventana nueva.");
+           showToast("Acceso denegado al sistema de archivos. Prueba en una ventana nueva.", 'warning');
       }
   };
   const handleDisconnectFile = () => { setIsLocalFileMode(false); setFileHandle(null); setEncryptionKey(null); };
@@ -1800,8 +1749,8 @@ const MainLayout: React.FC = () => {
                                       <Eye className="w-4 h-4" />
                                     </button>
                                     <button
-                                      onClick={() => {
-                                        if (window.confirm('¿Eliminar esta factura?')) {
+                                      onClick={async () => {
+                                        if (await showConfirm('¿Eliminar esta factura?')) {
                                           handleDeleteInvoice(inv.id);
                                         }
                                       }}
@@ -1860,8 +1809,8 @@ const MainLayout: React.FC = () => {
                                   Ver PDF
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm('¿Eliminar esta factura?')) {
+                                  onClick={async () => {
+                                    if (await showConfirm('¿Eliminar esta factura?')) {
                                       handleDeleteInvoice(inv.id);
                                     }
                                   }}
@@ -1942,6 +1891,15 @@ const MainLayout: React.FC = () => {
                 <Route path="/taxes" element={
                     <TaxModels invoices={invoices} settings={settings} />
                 } />
+                <Route path="/search" element={
+                    <SearchResults
+                        invoices={invoices}
+                        accountingEntries={accountingEntries}
+                        suppliers={suppliers}
+                        apartments={apartments}
+                        reservations={reservations}
+                    />
+                } />
                 <Route path="/settings" element={
                     <Settings 
                         settings={settings} 
@@ -1980,9 +1938,11 @@ const MainLayout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <NotificationProvider>
-        <MainLayout />
-      </NotificationProvider>
+      <ToastProvider>
+        <NotificationProvider>
+          <MainLayout />
+        </NotificationProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 };

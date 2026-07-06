@@ -3,6 +3,7 @@ import { Supplier, NifType } from '../types';
 import { Plus, Search, Edit2, Trash2, Save, X, Building2, AlertCircle } from 'lucide-react';
 import { isValidNIF, normalizeNif, detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
+import { useToast } from './Toast';
 
 interface SuppliersProps {
   suppliers: Supplier[];
@@ -33,13 +34,14 @@ export const Suppliers: React.FC<SuppliersProps> = ({
   });
 
   const [nifError, setNifError] = useState<string | null>(null);
+  const { showToast, showConfirm } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setNifError(null);
 
     if (!formData.name || !formData.nif) {
-      alert('El nombre y el NIF/CIF son obligatorios');
+      showToast('El nombre y el NIF/CIF son obligatorios', 'warning');
       return;
     }
 
@@ -123,8 +125,8 @@ export const Suppliers: React.FC<SuppliersProps> = ({
     setShowForm(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este proveedor?')) {
+  const handleDelete = async (id: string) => {
+    if (await showConfirm('¿Estás seguro de que quieres eliminar este proveedor?')) {
       onDeleteSupplier(id);
     }
   };

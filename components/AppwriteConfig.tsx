@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Save, Cloud, Database, Lock, Folder, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import { AppwriteConfig as AppwriteConfigType } from '../types';
+import { useToast } from './Toast';
 
 interface AppwriteConfigProps {
   config?: AppwriteConfigType;
@@ -23,6 +24,7 @@ export const AppwriteConfig: React.FC<AppwriteConfigProps> = ({ config, onSave, 
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const { showToast, showConfirm } = useToast();
 
   const handleChange = (field: keyof AppwriteConfigType, value: string) => {
     setFormData({ ...formData, [field]: value });
@@ -49,7 +51,7 @@ export const AppwriteConfig: React.FC<AppwriteConfigProps> = ({ config, onSave, 
   const handleSave = () => {
     // Validación básica
     if (!formData.projectId || !formData.databaseId) {
-      alert('Project ID y Database ID son obligatorios');
+      showToast('Project ID y Database ID son obligatorios', 'warning');
       return;
     }
 

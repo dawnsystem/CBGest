@@ -14,6 +14,7 @@ export class Account {
     $id: 'user123',
     email: 'test@example.com',
     name: 'Test User',
+    emailVerification: true,
   });
 
   create = vi.fn().mockResolvedValue({
@@ -29,6 +30,28 @@ export class Account {
   });
 
   deleteSession = vi.fn().mockResolvedValue({});
+  deleteSessions = vi.fn().mockResolvedValue({});
+
+  updateName = vi.fn().mockImplementation((name: string) => Promise.resolve({
+    $id: 'user123',
+    email: 'test@example.com',
+    name,
+    emailVerification: true,
+  }));
+
+  createRecovery = vi.fn().mockResolvedValue({});
+
+  listSessions = vi.fn().mockResolvedValue({
+    sessions: [{
+      $id: 'session123',
+      userId: 'user123',
+      provider: 'email',
+      expire: '2099-01-01T00:00:00.000Z',
+      current: true,
+    }],
+  });
+
+  createJWT = vi.fn().mockResolvedValue({ jwt: 'jwt-token' });
 
   getSession = vi.fn().mockResolvedValue({
     $id: 'session123',

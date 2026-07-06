@@ -20,6 +20,7 @@ import React, {
 } from 'react';
 import { authService, setAuthCallbacks, AuthState } from '../services/authService';
 import { cache } from '../lib/appwrite/cache';
+import { authLogger } from '../services/logger';
 import type { AppUser } from '../types';
 
 // ============================================================================
@@ -148,18 +149,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     setAuthCallbacks({
       onSessionReady: () => {
-        console.log('[AuthContext] Session ready event received');
+        authLogger.debug('Session ready event received');
         setSessionReady(true);
       },
       onSessionExpired: () => {
-        console.log('[AuthContext] Session expired event received');
+        authLogger.debug('Session expired event received');
         setUser(null);
         setAuthState('SESSION_EXPIRED');
         setSessionReady(false);
         setLastError('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
       },
       onAuthError: (error: string, code?: number) => {
-        console.error('[AuthContext] Auth error:', error, code);
+        authLogger.error(`Auth error: ${error} (code=${code})`);
         setLastError(error);
       },
     });
@@ -182,22 +183,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     sessionCheckStartedRef.current = true;
 
     const checkExistingSession = async () => {
-      console.log('[AuthContext] Checking existing session...');
+      authLogger.debug('Checking existing session...');
 
       try {
         const currentUser = await authService.getCurrentUser();
 
         if (currentUser) {
-          console.log('[AuthContext] Existing session found:', currentUser.email);
+          authLogger.debug('Existing session found');
           setUser(currentUser);
           setAuthState('AUTHENTICATED');
           setSessionReady(true);
         } else {
-          console.log('[AuthContext] No existing session');
+          authLogger.debug('No existing session');
           setAuthState('UNAUTHENTICATED');
         }
       } catch (error) {
-        console.error('[AuthContext] Error checking session:', error);
+        // Network/server error — no session could be verified, treat as unauthenticated
+        authLogger.warn(`Error checking session (network/server): ${error}`);
         setAuthState('UNAUTHENTICATED');
       }
     };
@@ -217,7 +219,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const resetTimer = () => {
       clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(async () => {
-        console.log('[AuthContext] Session timeout due to inactivity (15 min)');
+        authLogger.debug('Session timeout due to inactivity (15 min)');
         try {
           await authService.logout();
           setUser(null);
@@ -225,7 +227,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSessionReady(false);
           setLastError('Sesión cerrada por inactividad');
         } catch (error) {
-          console.error('[AuthContext] Auto-logout error:', error);
+          authLogger.error(`Auto-logout error: ${error}`);
         }
       }, INACTIVITY_TIMEOUT);
     };
@@ -255,20 +257,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user || !sessionReady) return;
 
     const refreshInterval = setInterval(async () => {
-      console.log('[AuthContext] Verificación proactiva de sesión...');
+      authLogger.debug('Verificación proactiva de sesión...');
       try {
         const isValid = await authService.verifySession();
         if (!isValid) {
-          console.log('[AuthContext] Sesión inválida detectada en verificación proactiva');
+          authLogger.debug('Sesión inválida detectada en verificación proactiva');
           setUser(null);
           setAuthState('SESSION_EXPIRED');
           setSessionReady(false);
           setLastError('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
         } else {
-          console.log('[AuthContext] Sesión válida confirmada');
+          authLogger.debug('Sesión válida confirmada');
         }
       } catch (error) {
-        console.error('[AuthContext] Error en verificación de sesión:', error);
+        authLogger.error(`Error en verificación de sesión: ${error}`);
         // No cerrar sesión por error de red - podría ser temporal
       }
     }, SESSION_REFRESH_INTERVAL);
@@ -291,7 +293,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setSessionReady(false);
 
     // Limpiar caché de usuario anterior antes de login
-    console.log('[AuthContext] Limpiando caché antes de login...');
+    authLogger.debug('Limpiando caché antes de login...');
     cache.clear();
 
     const result = await authService.login(email, password);
@@ -343,11 +345,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await authService.logout();
 
     // Limpiar caché de datos
-    console.log('[AuthContext] Limpiando caché en logout...');
+    authLogger.debug('Limpiando caché en logout...');
     cache.clear();
 
     // Limpiar localStorage selectivamente (mantener settings de UI)
-    console.log('[AuthContext] Limpiando localStorage selectivamente...');
+    authLogger.debug('Limpiando localStorage selectivamente...');
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -364,7 +366,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }
     keysToRemove.forEach(key => {
-      console.log('[AuthContext] Eliminando localStorage key:', key);
+      authLogger.debug(`Eliminando localStorage key: ${key}`);
       localStorage.removeItem(key);
     });
 

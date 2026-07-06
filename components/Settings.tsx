@@ -4,6 +4,7 @@ import { Save, Users, Building, Info, Plus, Trash2, Database, Cloud, HardDrive, 
 import { AppSettings, Partner, DataSourceType, TouristTaxConfig } from '../types';
 import { APPWRITE_CONFIG } from '../config/appwrite';
 import { createDefaultDataSourceConfig, generateId } from '../utils/defaults';
+import { useToast } from './Toast';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -60,6 +61,7 @@ export const Settings: React.FC<SettingsProps> = ({
   // Password Modal State
   const [showPasswordModal, setShowPasswordModal] = useState<'NONE' | 'CREATE' | 'OPEN'>('NONE');
   const [passwordInput, setPasswordInput] = useState('');
+  const { showToast, showConfirm } = useToast();
 
   // Handlers
   const handleInputChange = (field: keyof AppSettings, value: any) => {
@@ -93,7 +95,7 @@ export const Settings: React.FC<SettingsProps> = ({
     e.preventDefault();
     const totalParticipation = (formData.partners || []).reduce((acc, curr) => acc + Number(curr.participation), 0);
     if (Math.abs(totalParticipation - 100) > 0.1) {
-      alert(`La suma de participaciones debe ser 100%. Actual: ${totalParticipation}%`);
+      showToast(`La suma de participaciones debe ser 100%. Actual: ${totalParticipation}%`, 'warning');
       return;
     }
     onUpdateSettings(formData);
@@ -103,7 +105,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const handlePasswordSubmit = () => {
       if (!passwordInput) {
-          alert("La contraseña no puede estar vacía.");
+          showToast("La contraseña no puede estar vacía.", "warning");
           return;
       }
       if (showPasswordModal === 'CREATE') {
@@ -115,17 +117,17 @@ export const Settings: React.FC<SettingsProps> = ({
       setPasswordInput('');
   };
 
-  const handleLocalModeClick = () => {
+  const handleLocalModeClick = async () => {
       if (isLocalFileMode) {
-          if (window.confirm("¿Estás seguro de que quieres cambiar a 'Navegador Local'?")) {
+          if (await showConfirm("¿Estás seguro de que quieres cambiar a 'Navegador Local'?")) {
               onDisconnectFile();
           }
       }
   };
 
-  const handleFileModeClick = (action: 'CREATE' | 'OPEN') => {
+  const handleFileModeClick = async (action: 'CREATE' | 'OPEN') => {
        if (isLocalFileMode) {
-           if (!window.confirm("⚠️ Ya tienes un archivo abierto. ¿Cerrar sesión actual?")) {
+           if (!(await showConfirm("⚠️ Ya tienes un archivo abierto. ¿Cerrar sesión actual?"))) {
                return;
            }
        }

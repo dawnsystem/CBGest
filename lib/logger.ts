@@ -23,8 +23,10 @@ interface LogEntry {
 // CONFIGURACIÓN
 // ============================================================================
 
-/** Nivel mínimo de logs a mostrar (en producción podría ser 'WARN') */
-const MIN_LOG_LEVEL: LogLevel = 'DEBUG';
+/** Nivel mínimo de logs según entorno (producción = WARN, desarrollo = DEBUG) */
+const MIN_LOG_LEVEL: LogLevel = import.meta.env?.MODE === 'production'
+  ? 'WARN'
+  : 'DEBUG';
 
 /** Colores para cada nivel de log */
 const LEVEL_COLORS: Record<LogLevel, string> = {

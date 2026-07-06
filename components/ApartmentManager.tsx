@@ -6,6 +6,7 @@ import {
   Palmtree, Building
 } from 'lucide-react';
 import { generateId } from '../utils/defaults';
+import { useToast } from './Toast';
 
 interface ApartmentManagerProps {
   apartments: Apartment[];
@@ -38,6 +39,7 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Apartment>>(emptyFormData);
   const [showInactive, setShowInactive] = useState(false);
+  const { showToast, showConfirm } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,18 +47,18 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
     // Validate name (required and not just whitespace)
     const trimmedName = formData.name?.trim();
     if (!trimmedName) {
-      alert('El nombre del apartamento es obligatorio');
+      showToast('El nombre del apartamento es obligatorio', 'warning');
       return;
     }
 
     // Validate numeric fields if provided
     if (formData.surfaceArea !== undefined && (isNaN(formData.surfaceArea) || formData.surfaceArea <= 0)) {
-      alert('La superficie debe ser mayor a 0');
+      showToast('La superficie debe ser mayor a 0', 'warning');
       return;
     }
 
     if (formData.maxOccupancy !== undefined && (isNaN(formData.maxOccupancy) || formData.maxOccupancy < 1 || formData.maxOccupancy > 50)) {
-      alert('La capacidad máxima debe estar entre 1 y 50 personas');
+      showToast('La capacidad máxima debe estar entre 1 y 50 personas', 'warning');
       return;
     }
 
@@ -107,9 +109,9 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
     setShowForm(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const apartment = apartments.find(a => a.id === id);
-    if (window.confirm(`¿Estás seguro de que quieres eliminar "${apartment?.name}"?`)) {
+    if (await showConfirm(`¿Estás seguro de que quieres eliminar "${apartment?.name}"?`)) {
       onDeleteApartment(id);
     }
   };

@@ -11,6 +11,7 @@
 import { ID, AppwriteException } from 'appwrite';
 import { account } from '../lib/appwrite/client';
 import type { AppUser } from '../types';
+import { authLogger } from './logger';
 
 // ============================================================================
 // TIPOS
@@ -158,13 +159,13 @@ export const authService = {
       return user as AppUser;
     } catch (error) {
       const code = getErrorCode(error);
-      // 401 es esperado cuando no hay sesión - no es un error
+      // 401 is expected when no session exists — not an error
       if (code === 401) {
         return null;
       }
-      // Otros errores se loguean pero no se propagan
-      console.warn('[AuthService] getCurrentUser error:', getErrorMessage(error));
-      return null;
+      // Network/server errors should be distinguishable from "no user"
+      authLogger.warn(`getCurrentUser: error inesperado (code=${code}): ${getErrorMessage(error)}`);
+      throw error;
     }
   },
 
@@ -186,9 +187,15 @@ export const authService = {
   async login(email: string, password: string): Promise<AuthResult> {
     try {
       // 1. Verificar sesión existente
-      const existingUser = await this.getCurrentUser();
+      let existingUser = null;
+      try {
+        existingUser = await this.getCurrentUser();
+      } catch (e) {
+        // Network error checking existing session — proceed with login anyway
+        authLogger.warn('Error verificando sesión existente, continuando con login', e);
+      }
       if (existingUser) {
-        console.log('[AuthService] Sesión existente detectada, cerrándola...');
+        authLogger.info('Sesión existente detectada, cerrándola...');
         try {
           await account.deleteSession('current');
         } catch {
@@ -197,7 +204,7 @@ export const authService = {
       }
 
       // 2. Crear nueva sesión
-      console.log('[AuthService] Creando sesión...');
+      authLogger.info('Creando sesión...');
       await account.createEmailPasswordSession(email, password);
 
       // 3. Esperar estabilización de sesión
@@ -206,12 +213,12 @@ export const authService = {
 
       // 4. Verificar usuario
       const user = await account.get();
-      console.log('[AuthService] Login exitoso:', user.email);
+      authLogger.success('Login exitoso');
 
       // 5. Set grace period for 401 errors during initial data load
       // This prevents race conditions from triggering false session expiration
       loginGraceUntil = Date.now() + LOGIN_GRACE_PERIOD_MS;
-      console.log('[AuthService] Período de gracia establecido por', LOGIN_GRACE_PERIOD_MS, 'ms');
+      authLogger.debug(`Período de gracia establecido por ${LOGIN_GRACE_PERIOD_MS} ms`);
 
       // 6. Emitir evento sessionReady
       if (onSessionReady) {
@@ -226,7 +233,7 @@ export const authService = {
       const message = getErrorMessage(error);
       const code = getErrorCode(error);
 
-      console.error('[AuthService] Login error:', message);
+      authLogger.error(`Login error: ${message}`);
 
       if (onAuthError) {
         onAuthError(message, code);
@@ -257,18 +264,18 @@ export const authService = {
   async register(email: string, password: string, name: string): Promise<AuthResult> {
     try {
       // 1. Crear cuenta
-      console.log('[AuthService] Registrando usuario...');
+      authLogger.info('Registrando usuario...');
       await account.create(ID.unique(), email, password, name);
 
       // 2. Auto-login después de registro
-      console.log('[AuthService] Auto-login post-registro...');
+      authLogger.info('Auto-login post-registro...');
       const loginResult = await this.login(email, password);
 
       if (!loginResult.success) {
         return loginResult;
       }
 
-      console.log('[AuthService] Registro exitoso:', email);
+      authLogger.success('Registro exitoso');
 
       return {
         success: true,
@@ -278,7 +285,7 @@ export const authService = {
       const message = getErrorMessage(error);
       const code = getErrorCode(error);
 
-      console.error('[AuthService] Register error:', message);
+      authLogger.error(`Register error: ${message}`);
 
       if (onAuthError) {
         onAuthError(message, code);
@@ -300,12 +307,12 @@ export const authService = {
    */
   async logout(): Promise<boolean> {
     try {
-      console.log('[AuthService] Cerrando sesión...');
+      authLogger.info('Cerrando sesión...');
       await account.deleteSession('current');
-      console.log('[AuthService] Sesión cerrada');
+      authLogger.success('Sesión cerrada');
       return true;
     } catch (error) {
-      console.error('[AuthService] Logout error:', getErrorMessage(error));
+      authLogger.error(`Logout error: ${getErrorMessage(error)}`);
       // Considerar logout exitoso aunque falle (sesión ya inválida)
       return true;
     }
@@ -318,12 +325,12 @@ export const authService = {
    */
   async logoutAll(): Promise<boolean> {
     try {
-      console.log('[AuthService] Cerrando todas las sesiones...');
+      authLogger.info('Cerrando todas las sesiones...');
       await account.deleteSessions();
-      console.log('[AuthService] Todas las sesiones cerradas');
+      authLogger.success('Todas las sesiones cerradas');
       return true;
     } catch (error) {
-      console.error('[AuthService] LogoutAll error:', getErrorMessage(error));
+      authLogger.error(`LogoutAll error: ${getErrorMessage(error)}`);
       return false;
     }
   },
@@ -339,7 +346,7 @@ export const authService = {
       const user = await account.updateName(name);
       return user as AppUser;
     } catch (error) {
-      console.error('[AuthService] UpdateName error:', getErrorMessage(error));
+      authLogger.error(`UpdateName error: ${getErrorMessage(error)}`);
       return null;
     }
   },
@@ -356,7 +363,7 @@ export const authService = {
       await account.createRecovery(email, resetUrl);
       return true;
     } catch (error) {
-      console.error('[AuthService] RecoverPassword error:', getErrorMessage(error));
+      authLogger.error(`RecoverPassword error: ${getErrorMessage(error)}`);
       return false;
     }
   },
@@ -377,7 +384,7 @@ export const authService = {
         current: s.current,
       }));
     } catch (error) {
-      console.error('[AuthService] GetSessions error:', getErrorMessage(error));
+      authLogger.error(`GetSessions error: ${getErrorMessage(error)}`);
       return [];
     }
   },
@@ -400,7 +407,7 @@ export const authService = {
       if (SESSION_INVALID_CODES.includes(code || 0)) {
         // Check if we're in the grace period after login
         if (Date.now() < loginGraceUntil) {
-          console.warn('[AuthService] verifySession falló pero dentro del período de gracia - ignorando');
+          authLogger.warn('verifySession falló pero dentro del período de gracia - ignorando');
           return true; // Pretend session is valid during grace period
         }
 
@@ -425,7 +432,7 @@ export const authService = {
   async handleUnauthorizedError(): Promise<void> {
     // Check if we're in the grace period after login
     if (Date.now() < loginGraceUntil) {
-      console.warn('[AuthService] Error 401 detectado pero dentro del período de gracia post-login - ignorando');
+      authLogger.warn('Error 401 detectado pero dentro del período de gracia post-login - ignorando');
       return;
     }
 
@@ -435,19 +442,22 @@ export const authService = {
       const user = await account.get();
       if (user) {
         // Session is valid! The 401 was due to collection permissions, not session expiration
-        console.warn('[AuthService] Error 401 detectado pero la sesión sigue válida - probablemente es un problema de permisos de colección');
+        authLogger.warn('Error 401 detectado pero la sesión sigue válida - probablemente es un problema de permisos de colección');
         return;
       }
-    } catch (sessionCheckError: any) {
-      // If we can't verify the session, it's likely expired
-      if (sessionCheckError?.code === 401) {
-        console.warn('[AuthService] Sesión verificada como expirada');
+    } catch (sessionCheckError: unknown) {
+      const sessionCheckCode = getErrorCode(sessionCheckError);
+      if (sessionCheckCode === 401) {
+        // Session is truly expired
+        authLogger.warn('Sesión verificada como expirada');
       } else {
-        console.warn('[AuthService] Error verificando sesión:', sessionCheckError?.message);
+        // Network error or other transient issue — do NOT expire session
+        authLogger.warn(`Error verificando sesión (no es 401, ignorando): ${getErrorMessage(sessionCheckError)}`);
+        return;
       }
     }
 
-    console.warn('[AuthService] Error 401 confirmado - sesión expirada');
+    authLogger.warn('Error 401 confirmado - sesión expirada');
     if (onSessionExpired) {
       onSessionExpired();
     }
@@ -485,12 +495,12 @@ export const authService = {
    */
   async sendEmailVerification(verificationUrl: string): Promise<boolean> {
     try {
-      console.log('[AuthService] Enviando email de verificación...');
+      authLogger.info('Enviando email de verificación...');
       await account.createVerification(verificationUrl);
-      console.log('[AuthService] Email de verificación enviado');
+      authLogger.success('Email de verificación enviado');
       return true;
     } catch (error) {
-      console.error('[AuthService] SendEmailVerification error:', getErrorMessage(error));
+      authLogger.error(`SendEmailVerification error: ${getErrorMessage(error)}`);
       return false;
     }
   },
@@ -504,12 +514,12 @@ export const authService = {
    */
   async confirmEmailVerification(userId: string, secret: string): Promise<boolean> {
     try {
-      console.log('[AuthService] Confirmando verificación de email...');
+      authLogger.info('Confirmando verificación de email...');
       await account.updateVerification(userId, secret);
-      console.log('[AuthService] Email verificado correctamente');
+      authLogger.success('Email verificado correctamente');
       return true;
     } catch (error) {
-      console.error('[AuthService] ConfirmEmailVerification error:', getErrorMessage(error));
+      authLogger.error(`ConfirmEmailVerification error: ${getErrorMessage(error)}`);
       return false;
     }
   },
@@ -524,7 +534,7 @@ export const authService = {
       const user = await account.get();
       return user.emailVerification;
     } catch (error) {
-      console.error('[AuthService] IsEmailVerified error:', getErrorMessage(error));
+      authLogger.error(`IsEmailVerified error: ${getErrorMessage(error)}`);
       return false;
     }
   },
@@ -540,7 +550,7 @@ export const authService = {
       const jwt = await account.createJWT();
       return jwt.jwt;
     } catch (error) {
-      console.error('[AuthService] CreateJWT error:', getErrorMessage(error));
+      authLogger.error(`CreateJWT error: ${getErrorMessage(error)}`);
       return null;
     }
   },

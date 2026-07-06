@@ -63,7 +63,7 @@ const base642ab = (base64: string): Uint8Array => {
     // Devolver Uint8Array directamente en lugar de bytes.buffer
     // Esto garantiza compatibilidad con SubtleCrypto.decrypt
     return bytes;
-  } catch (error) {
+  } catch {
     throw new Error('Failed to decode base64 string');
   }
 };
