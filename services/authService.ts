@@ -190,8 +190,9 @@ export const authService = {
       let existingUser = null;
       try {
         existingUser = await this.getCurrentUser();
-      } catch {
+      } catch (e) {
         // Network error checking existing session — proceed with login anyway
+        authLogger.warn('Error verificando sesión existente, continuando con login', e);
       }
       if (existingUser) {
         authLogger.info('Sesión existente detectada, cerrándola...');

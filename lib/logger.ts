@@ -24,7 +24,7 @@ interface LogEntry {
 // ============================================================================
 
 /** Nivel mínimo de logs según entorno (producción = WARN, desarrollo = DEBUG) */
-const MIN_LOG_LEVEL: LogLevel = (typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'production')
+const MIN_LOG_LEVEL: LogLevel = import.meta.env?.MODE === 'production'
   ? 'WARN'
   : 'DEBUG';
 
