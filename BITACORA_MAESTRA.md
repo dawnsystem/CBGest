@@ -92,7 +92,7 @@ Errores 401 (Unauthorized) en la consola del navegador después de login:
     - `[15:50:00]` - **MOD:** `services/authService.ts`, `lib/appwrite/client.ts`. **CAMBIOS:** Sustitución parcial de `console.log` por logger estructurado.
     - `[15:52:00]` - **MOD:** `.github/workflows/ci.yml`, `.github/workflows/security.yml`. **CAMBIOS:** Checks de CI/CD y seguridad más estrictos y coherentes.
     - `[15:55:00]` - **CREATE:** `services/__tests__/authService.test.ts`, `services/__tests__/pdfService.test.ts`, `utils/__tests__/stateStorage.test.ts`. **MOTIVO:** Aumentar cobertura útil en flujos críticos.
-    - `[15:56:00]` - **MOD:** `vitest.config.ts`, `TESTING.md`. **CAMBIOS:** Alineación de umbrales de cobertura con el baseline verificado.
+    - `[15:56:00]` - **MOD:** `vitest.config.ts`, `TESTING.md`. **CAMBIOS:** Alineación de umbrales de cobertura y ampliación de suite hasta superar los mínimos verificados.
     - `[15:57:00]` - **TEST:** `npm run type-check`, `npm run test:ci`, `npm run build`. **RESULTADO:** 139 tests PASS, build PASS, type-check PASS.
 *   **Resultado:** TSK-040 completada.
 *   **Commit Asociado:** `HEAD`
@@ -116,12 +116,12 @@ Errores 401 (Unauthorized) en la consola del navegador después de login:
 *   **Linting:** ESLint 9.39.1 + TypeScript ESLint 8.47.0
 
 ### Cobertura de Tests
-*   **Estado Actual:** ✅ 139 tests pasando
+*   **Estado Actual:** ✅ 142 tests pasando
 *   **Cobertura:**
-    - Líneas: 43.91% (objetivo: 40%)
-    - Funciones: 27.21% (objetivo: 25%)
-    - Ramas: 29.52% (objetivo: 29%)
-    - Statements: 41.57% (objetivo: 40%)
+    - Líneas: 45.05% (objetivo: 40%)
+    - Funciones: 30.83% (objetivo: 25%)
+    - Ramas: 31.19% (objetivo: 30%)
+    - Statements: 42.72% (objetivo: 40%)
 
 ### Tests Implementados
 *   **Utilities (utils/__tests__/):**

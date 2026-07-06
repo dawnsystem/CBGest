@@ -6,6 +6,8 @@ import { AppwriteException } from 'appwrite';
 import { authService, setAuthCallbacks } from '../authService';
 import { account } from '../../lib/appwrite/client';
 
+// authService uses a 5000ms grace period after login; we wait slightly longer
+// so tests assert the post-grace behavior deterministically.
 const AUTH_GRACE_PERIOD_BUFFER_MS = 5200;
 const waitForGracePeriodToExpire = (): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, AUTH_GRACE_PERIOD_BUFFER_MS));

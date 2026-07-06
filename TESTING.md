@@ -192,7 +192,7 @@ El proyecto tiene configurados los siguientes umbrales mínimos en `vitest.confi
 
 - **Líneas**: 40%
 - **Funciones**: 25%
-- **Ramas**: 29%
+- **Ramas**: 30%
 - **Statements**: 40%
 
 ### Ver Reporte de Coverage

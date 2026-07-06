@@ -17,6 +17,11 @@ const normalize = (value: string): string => value.trim().toLowerCase();
 const includesTerm = (term: string, values: Array<string | number | undefined>): boolean =>
   values.some((value) => String(value ?? '').toLowerCase().includes(term));
 
+const getResultKey = (
+  section: string,
+  entry: Invoice | AccountingEntry | Supplier | Apartment | Reservation
+): string => `${section}-${entry.id}`;
+
 export const SearchResults: React.FC<SearchResultsProps> = ({
   invoices,
   accountingEntries,
@@ -129,8 +134,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
           {entries.length > 0 ? (
             <ul className="divide-y divide-slate-100">
-              {entries.slice(0, 5).map((entry, index) => (
-                <li key={`${key}-${index}`} className="px-5 py-4 text-sm text-slate-700">
+              {entries.slice(0, 5).map((entry) => (
+                <li key={getResultKey(key, entry)} className="px-5 py-4 text-sm text-slate-700">
                   {key === 'invoices' && (
                     <div className="flex flex-col gap-1">
                       <span className="font-medium">{(entry as Invoice).issuerName} · {(entry as Invoice).number}</span>
