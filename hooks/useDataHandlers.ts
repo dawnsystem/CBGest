@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
+import { buildEntryFromInvoice } from '../utils/invoiceUtils';
 
 interface DataSetters {
   setInvoices: Dispatch<SetStateAction<Invoice[]>>;
@@ -115,43 +116,10 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   }, [data.entries, data.settings, setters, showError]);
 
   // Helper to create entry from invoice
+  // DEBT-002: delegate to the shared utility in utils/invoiceUtils.ts
   const createEntryFromInvoice = useCallback((inv: Invoice) => {
-    let accountCode = inv.type === 'EXPENSE' ? '600' : '700';
-    let accountName = inv.type === 'EXPENSE' ? 'Compras' : 'Ventas';
-
-    if (inv.category) {
-      const parts = inv.category.split(' - ');
-      if (parts.length > 1) {
-        accountCode = parts[0].trim();
-        accountName = parts.slice(1).join(' - ').trim();
-      } else {
-        accountCode = parts[0].trim();
-      }
-    }
-
-    const debit = inv.type === 'EXPENSE' ? inv.totalAmount : 0;
-    const credit = inv.type === 'INCOME' ? inv.totalAmount : 0;
-    
-    const newEntry: AccountingEntry = {
-      id: `AUTO-${inv.id}`,
-      date: inv.date,
-      concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
-      lines: [{ accountCode, accountName, debit, credit }],
-      // Legacy fields for compatibility
-      accountCode,
-      accountName,
-      debit,
-      credit,
-      invoiceId: inv.id,
-      appwriteFileId: inv.appwriteFileId,
-      fileType: inv.fileType,
-      reconciled: false,
-      createdBy: inv.createdBy || user?.$id,
-      createdByName: inv.createdByName || user?.name,
-      createdAt: new Date().toISOString()
-    };
-
-    handleAddEntry(newEntry);
+    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name });
+    handleAddEntry(entry);
   }, [user, handleAddEntry]);
 
   // ============ SUPPLIER HANDLERS ============

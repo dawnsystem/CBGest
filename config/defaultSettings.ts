@@ -1,5 +1,13 @@
-import type { AppSettings } from '../types';
+import type { AppSettings, TouristTaxConfig } from '../types';
 import { APPWRITE_CONFIG } from './appwrite';
+
+/** Shared default for the tourist-tax configuration (DEBT-005). */
+export const DEFAULT_TAX_CONFIG: TouristTaxConfig = {
+  rate: 1,
+  maxNights: 7,
+  minAge: 17,
+  enabled: true,
+};
 
 export const createDefaultSettings = (): AppSettings => ({
   cbName: 'Nueva Comunidad de Bienes',

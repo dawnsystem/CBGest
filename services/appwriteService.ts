@@ -35,8 +35,41 @@ import type {
   Reservation
 } from '../types';
 
-// Re-export authService from the new location for backwards compatibility
+/**
+ * @deprecated Import directly from './authService' instead.
+ * This re-export exists for backwards compatibility only (DEBT-013).
+ * It will be removed once all consumers have been updated.
+ */
 export { authService } from './authService';
+
+// ============================================================================
+// ERROR HELPERS — DEBT-004
+// ============================================================================
+
+/**
+ * Safely extract a human-readable message from any caught value.
+ * Replaces the `(error: any).message` pattern so that catch blocks can use
+ * `catch (error: unknown)` without losing the error description.
+ */
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error);
+};
+
+/**
+ * Safely extract an HTTP-style numeric code from any caught value.
+ * Appwrite SDK errors carry a numeric `code` property.
+ */
+const getErrorCode = (error: unknown): number | undefined => {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const c = (error as { code: unknown }).code;
+    return typeof c === 'number' ? c : undefined;
+  }
+  return undefined;
+};
 
 // ============================================================================
 // CONNECTION STATE
@@ -89,7 +122,7 @@ const withRetry = async <T>(
   operationName: string,
   maxRetries: number = 3
 ): Promise<T> => {
-  let lastError: Error | null = null;
+  let lastError: unknown = null;
   const nonRetryableCodes = [401, 403, 404, 409];
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -99,18 +132,18 @@ const withRetry = async <T>(
         dataLogger.debug(`[${operationName}] Succeeded after ${attempt} retries`);
       }
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       lastError = error;
 
       // GLOBAL 401 HANDLER: Verificar si es sesión expirada o problema de permisos
-      if (error?.code === 401) {
+      if (getErrorCode(error) === 401) {
         console.warn(`[${operationName}] Error 401 detectado - verificando si es sesión expirada o permisos`);
         // Don't await - let it run in background to avoid blocking the error throw
         authService.handleUnauthorizedError().catch(() => {});
         throw error;
       }
 
-      if (nonRetryableCodes.includes(error?.code)) {
+      if (nonRetryableCodes.includes(getErrorCode(error))) {
         throw error;
       }
 
@@ -152,13 +185,13 @@ export const isAppwriteInitialized = (): boolean => true;
 export const testConnection = async (): Promise<boolean> => {
   try {
     await account.get().catch((error) => {
-      if (error?.code !== 401) throw error;
+      if (getErrorCode(error) !== 401) throw error;
     });
     connectionHealthy = true;
     dataLogger.success('Appwrite connection test successful');
     return true;
-  } catch (error: any) {
-    console.error('Connection test failed:', error?.message);
+  } catch (error: unknown) {
+    console.error('Connection test failed:', getErrorMessage(error));
     connectionHealthy = false;
     return false;
   }
@@ -191,18 +224,18 @@ export const verifyCollections = async (): Promise<{
       await databases.listDocuments(config.databaseId, col.id, [Query.limit(1)]);
       result.collections[col.name] = true;
       dataLogger.debug(`Colección '${col.name}' accesible`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       result.collections[col.name] = false;
       result.success = false;
 
-      if (error?.code === 404) {
+      if (getErrorCode(error) === 404) {
         result.errors.push(`Colección '${col.name}' no existe.`);
-      } else if (error?.code === 401) {
+      } else if (getErrorCode(error) === 401) {
         result.errors.push(`Sin permisos para '${col.name}'.`);
       } else {
-        result.errors.push(`Error en '${col.name}': ${error?.message}`);
+        result.errors.push(`Error en '${col.name}': ${getErrorMessage(error)}`);
       }
-      console.error(`Colección '${col.name}':`, error?.message);
+      console.error(`Colección '${col.name}':`, getErrorMessage(error));
     }
   }
 
@@ -232,8 +265,8 @@ export const performHealthCheck = async (): Promise<{
       result.errors.push('No se puede conectar con Appwrite');
       return result;
     }
-  } catch (error: any) {
-    result.errors.push(`Error de conexión: ${error?.message}`);
+  } catch (error: unknown) {
+    result.errors.push(`Error de conexión: ${getErrorMessage(error)}`);
     return result;
   }
 
@@ -241,11 +274,11 @@ export const performHealthCheck = async (): Promise<{
   try {
     const user = await account.get();
     result.authenticated = !!user;
-  } catch (error: any) {
-    if (error?.code === 401) {
+  } catch (error: unknown) {
+    if (getErrorCode(error) === 401) {
       result.errors.push('Sesión expirada o no autenticado');
     } else {
-      result.errors.push(`Error de autenticación: ${error?.message}`);
+      result.errors.push(`Error de autenticación: ${getErrorMessage(error)}`);
     }
     return result;
   }
@@ -257,8 +290,8 @@ export const performHealthCheck = async (): Promise<{
     if (!colCheck.success) {
       result.errors.push(...colCheck.errors);
     }
-  } catch (error: any) {
-    result.errors.push(`Error verificando colecciones: ${error?.message}`);
+  } catch (error: unknown) {
+    result.errors.push(`Error verificando colecciones: ${getErrorMessage(error)}`);
   }
 
   connectionHealthy = result.connected && result.authenticated && result.collectionsReady;
@@ -324,8 +357,8 @@ export const databaseService = {
         appwriteId: doc.$id,
         history: parsedHistory
       } as unknown as Invoice;
-    } catch (error: any) {
-      notifyError(error.message, 'createInvoice');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createInvoice');
       connectionHealthy = false;
       throw error;
     }
@@ -373,8 +406,8 @@ export const databaseService = {
           history: parsedHistory
         };
       }) as unknown as Invoice[];
-    } catch (error: any) {
-      notifyError(error.message, 'getInvoices');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'getInvoices');
       connectionHealthy = false;
       throw error;
     }
@@ -432,8 +465,8 @@ export const databaseService = {
         appwriteId: doc.$id,
         history: parsedHistory
       } as unknown as Invoice;
-    } catch (error: any) {
-      notifyError(error.message, 'updateInvoice');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateInvoice');
       connectionHealthy = false;
       throw error;
     }
@@ -447,8 +480,8 @@ export const databaseService = {
       );
       notifySuccess('Factura eliminada');
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteInvoice');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteInvoice');
       connectionHealthy = false;
       throw error;
     }
@@ -508,8 +541,8 @@ export const databaseService = {
           credit: doc.credit || 0
         }]
       } as unknown as AccountingEntry;
-    } catch (error: any) {
-      notifyError(error.message, 'createEntry');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createEntry');
       connectionHealthy = false;
       throw error;
     }
@@ -555,8 +588,8 @@ export const databaseService = {
           lines: parsedLines
         };
       }) as unknown as AccountingEntry[];
-    } catch (error: any) {
-      notifyError(error.message, 'getEntries');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'getEntries');
       connectionHealthy = false;
       throw error;
     }
@@ -610,8 +643,8 @@ export const databaseService = {
           credit: doc.credit || 0
         }]
       } as unknown as AccountingEntry;
-    } catch (error: any) {
-      notifyError(error.message, 'updateEntry');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateEntry');
       connectionHealthy = false;
       throw error;
     }
@@ -625,8 +658,8 @@ export const databaseService = {
       );
       notifySuccess('Asiento eliminado');
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteEntry');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteEntry');
       connectionHealthy = false;
       throw error;
     }
@@ -655,8 +688,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as BankTransaction;
-    } catch (error: any) {
-      notifyError(error.message, 'createTransaction');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createTransaction');
       connectionHealthy = false;
       throw error;
     }
@@ -679,8 +712,8 @@ export const databaseService = {
         id: doc.$id,
         appwriteId: doc.$id
       })) as unknown as BankTransaction[];
-    } catch (error: any) {
-      notifyError(error.message, 'getTransactions');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'getTransactions');
       connectionHealthy = false;
       throw error;
     }
@@ -704,8 +737,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as BankTransaction;
-    } catch (error: any) {
-      notifyError(error.message, 'updateTransaction');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateTransaction');
       connectionHealthy = false;
       throw error;
     }
@@ -754,8 +787,8 @@ export const databaseService = {
         partners: JSON.parse((doc as any).partners || '[]'),
         dataConfig
       } as unknown as AppSettings;
-    } catch (error: any) {
-      notifyError(error.message, 'saveSettings');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'saveSettings');
       connectionHealthy = false;
       throw error;
     }
@@ -783,7 +816,7 @@ export const databaseService = {
         } as unknown as AppSettings;
       }
       return null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Don't mark connection as unhealthy for settings - it's not critical
       console.error('Get settings error:', error);
       return null;
@@ -814,8 +847,8 @@ export const databaseService = {
       notifySuccess('Proveedor creado');
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Supplier;
-    } catch (error: any) {
-      notifyError(error.message, 'createSupplier');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createSupplier');
       connectionHealthy = false;
       throw error;
     }
@@ -838,8 +871,8 @@ export const databaseService = {
         id: doc.$id,
         appwriteId: doc.$id
       })) as unknown as Supplier[];
-    } catch (error: any) {
-      notifyError(error.message, 'getSuppliers');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'getSuppliers');
       connectionHealthy = false;
       throw error;
     }
@@ -869,8 +902,8 @@ export const databaseService = {
       notifySuccess('Proveedor actualizado');
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Supplier;
-    } catch (error: any) {
-      notifyError(error.message, 'updateSupplier');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateSupplier');
       connectionHealthy = false;
       throw error;
     }
@@ -884,8 +917,8 @@ export const databaseService = {
       );
       notifySuccess('Proveedor eliminado');
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteSupplier');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteSupplier');
       connectionHealthy = false;
       throw error;
     }
@@ -914,8 +947,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Notification;
-    } catch (error: any) {
-      notifyError(error.message, 'createNotification');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createNotification');
       connectionHealthy = false;
       throw error;
     }
@@ -940,9 +973,9 @@ export const databaseService = {
         id: doc.$id,
         appwriteId: doc.$id
       })) as unknown as Notification[];
-    } catch (error: any) {
-      if (error?.code === 404 || error?.code === 401) return [];
-      notifyError(error.message, 'getNotifications');
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 404 || getErrorCode(error) === 401) return [];
+      notifyError(getErrorMessage(error), 'getNotifications');
       connectionHealthy = false;
       throw error;
     }
@@ -971,8 +1004,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Notification;
-    } catch (error: any) {
-      notifyError(error.message, 'updateNotification');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateNotification');
       connectionHealthy = false;
       throw error;
     }
@@ -985,8 +1018,8 @@ export const databaseService = {
         'deleteNotification'
       );
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteNotification');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteNotification');
       connectionHealthy = false;
       throw error;
     }
@@ -1012,8 +1045,8 @@ export const databaseService = {
         )
       );
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteAllNotifications');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteAllNotifications');
       connectionHealthy = false;
       throw error;
     }
@@ -1067,8 +1100,8 @@ export const databaseService = {
         bankResult,
         // localFile no se devuelve - ya no existe
       } as unknown as QueueItem;
-    } catch (error: any) {
-      notifyError(error.message, 'createUploadItem');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createUploadItem');
       connectionHealthy = false;
       throw error;
     }
@@ -1110,9 +1143,9 @@ export const databaseService = {
         bankResult: doc.bankResult && typeof doc.bankResult === 'string' ? JSON.parse(doc.bankResult) : doc.bankResult,
         // localFile es undefined - se obtendría de Storage si se necesita
       })) as QueueItem[];
-    } catch (error: any) {
-      if (error?.code === 404 || error?.code === 401) return [];
-      notifyError(error.message, 'getUploadQueue');
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 404 || getErrorCode(error) === 401) return [];
+      notifyError(getErrorMessage(error), 'getUploadQueue');
       connectionHealthy = false;
       throw error;
     }
@@ -1161,8 +1194,8 @@ export const databaseService = {
         result, 
         bankResult 
       } as unknown as QueueItem;
-    } catch (error: any) {
-      notifyError(error.message, 'updateUploadItem');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateUploadItem');
       connectionHealthy = false;
       throw error;
     }
@@ -1193,13 +1226,13 @@ export const databaseService = {
         'deleteUploadItem'
       );
       connectionHealthy = true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Ignorar errores 404 - si el documento no existe, el objetivo ya se cumplió
-      if (error?.code === 404) {
+      if (getErrorCode(error) === 404) {
         dataLogger.debug(`[deleteUploadItem] Documento ${id} no encontrado - ya fue eliminado`);
         return;
       }
-      notifyError(error.message, 'deleteUploadItem');
+      notifyError(getErrorMessage(error), 'deleteUploadItem');
       connectionHealthy = false;
       throw error;
     }
@@ -1238,17 +1271,17 @@ export const databaseService = {
               () => databases.deleteDocument(config.databaseId, config.collections.uploads, doc.$id),
               'deleteCompletedUploadBatch'
             );
-          } catch (error: any) {
+          } catch (error: unknown) {
             // Ignorar errores 404 - el documento ya fue eliminado
-            if (error?.code !== 404) {
+            if (getErrorCode(error) !== 404) {
               throw error;
             }
           }
         })
       );
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteCompletedUploads');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteCompletedUploads');
       connectionHealthy = false;
       throw error;
     }
@@ -1277,8 +1310,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Apartment;
-    } catch (error: any) {
-      notifyError(error.message, 'createApartment');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createApartment');
       connectionHealthy = false;
       throw error;
     }
@@ -1301,9 +1334,9 @@ export const databaseService = {
         id: doc.$id,
         appwriteId: doc.$id
       })) as unknown as Apartment[];
-    } catch (error: any) {
-      if (error?.code === 404) return []; // Collection doesn't exist yet
-      notifyError(error.message, 'getApartments');
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 404) return []; // Collection doesn't exist yet
+      notifyError(getErrorMessage(error), 'getApartments');
       connectionHealthy = false;
       throw error;
     }
@@ -1332,8 +1365,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as Apartment;
-    } catch (error: any) {
-      notifyError(error.message, 'updateApartment');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateApartment');
       connectionHealthy = false;
       throw error;
     }
@@ -1346,8 +1379,8 @@ export const databaseService = {
         'deleteApartment'
       );
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteApartment');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteApartment');
       connectionHealthy = false;
       throw error;
     }
@@ -1376,8 +1409,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as RecurringExpense;
-    } catch (error: any) {
-      notifyError(error.message, 'createRecurringExpense');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createRecurringExpense');
       connectionHealthy = false;
       throw error;
     }
@@ -1400,9 +1433,9 @@ export const databaseService = {
         id: doc.$id,
         appwriteId: doc.$id
       })) as unknown as RecurringExpense[];
-    } catch (error: any) {
-      if (error?.code === 404) return []; // Collection doesn't exist yet
-      notifyError(error.message, 'getRecurringExpenses');
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 404) return []; // Collection doesn't exist yet
+      notifyError(getErrorMessage(error), 'getRecurringExpenses');
       connectionHealthy = false;
       throw error;
     }
@@ -1431,8 +1464,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as RecurringExpense;
-    } catch (error: any) {
-      notifyError(error.message, 'updateRecurringExpense');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateRecurringExpense');
       connectionHealthy = false;
       throw error;
     }
@@ -1445,8 +1478,8 @@ export const databaseService = {
         'deleteRecurringExpense'
       );
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteRecurringExpense');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteRecurringExpense');
       connectionHealthy = false;
       throw error;
     }
@@ -1475,8 +1508,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as AIMatchHistory;
-    } catch (error: any) {
-      notifyError(error.message, 'createAIMatchHistory');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createAIMatchHistory');
       connectionHealthy = false;
       throw error;
     }
@@ -1499,9 +1532,9 @@ export const databaseService = {
         id: doc.$id,
         appwriteId: doc.$id
       })) as unknown as AIMatchHistory[];
-    } catch (error: any) {
-      if (error?.code === 404) return []; // Collection doesn't exist yet
-      notifyError(error.message, 'getAIMatchHistory');
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 404) return []; // Collection doesn't exist yet
+      notifyError(getErrorMessage(error), 'getAIMatchHistory');
       connectionHealthy = false;
       throw error;
     }
@@ -1530,8 +1563,8 @@ export const databaseService = {
 
       connectionHealthy = true;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as AIMatchHistory;
-    } catch (error: any) {
-      notifyError(error.message, 'updateAIMatchHistory');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateAIMatchHistory');
       connectionHealthy = false;
       throw error;
     }
@@ -1544,8 +1577,8 @@ export const databaseService = {
         'deleteAIMatchHistory'
       );
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteAIMatchHistory');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteAIMatchHistory');
       connectionHealthy = false;
       throw error;
     }
@@ -1568,8 +1601,8 @@ export const databaseService = {
         return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as AIMatchHistory;
       }
       return null;
-    } catch (error: any) {
-      if (error?.code === 404) return null;
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 404) return null;
       console.error('Find match by bank concept error:', error);
       return null;
     }
@@ -1595,9 +1628,9 @@ export const databaseService = {
         } = doc;
         return { ...reservationData, id: $id, appwriteId: $id } as Reservation;
       });
-    } catch (error: any) {
-      if (error?.code === 404) return [];
-      notifyError(error.message, 'getReservations');
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 404) return [];
+      notifyError(getErrorMessage(error), 'getReservations');
       connectionHealthy = false;
       throw error;
     }
@@ -1627,8 +1660,8 @@ export const databaseService = {
         ...savedData
       } = savedDoc as any;
       return { ...savedData, id: savedId, appwriteId: savedId } as Reservation;
-    } catch (error: any) {
-      notifyError(error.message, 'createReservation');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createReservation');
       connectionHealthy = false;
       throw error;
     }
@@ -1675,8 +1708,8 @@ export const databaseService = {
         ...updatedData
       } = updatedDoc as any;
       return { ...updatedData, id: updatedId, appwriteId: updatedId } as Reservation;
-    } catch (error: any) {
-      notifyError(error.message, 'updateReservation');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateReservation');
       connectionHealthy = false;
       throw error;
     }
@@ -1689,8 +1722,8 @@ export const databaseService = {
         'deleteReservation'
       );
       connectionHealthy = true;
-    } catch (error: any) {
-      notifyError(error.message, 'deleteReservation');
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'deleteReservation');
       connectionHealthy = false;
       throw error;
     }
@@ -1706,7 +1739,7 @@ export const storageService = {
     try {
       const uploadedFile = await storage.createFile(config.bucketId, id || ID.unique(), file);
       return uploadedFile.$id;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Upload file error:', error);
       throw error;
     }
@@ -1751,7 +1784,7 @@ export const storageService = {
       }
       
       return await response.blob();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Download file error:', error);
       throw error;
     }
@@ -1760,7 +1793,7 @@ export const storageService = {
   async deleteFile(fileId: string): Promise<void> {
     try {
       await storage.deleteFile(config.bucketId, fileId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Delete file error:', error);
       throw error;
     }

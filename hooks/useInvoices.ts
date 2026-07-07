@@ -7,6 +7,7 @@ import { useState, useCallback, useRef, Dispatch, SetStateAction } from 'react';
 import { Invoice, AppSettings, Supplier, AccountingEntry } from '../types';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
+import { buildEntryFromInvoice } from '../utils/invoiceUtils';
 import * as appwriteService from '../services/appwriteService';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -43,48 +44,10 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
   // are processed concurrently (e.g. bulk upload).
   const pendingSupplierNifs = useRef<Set<string>>(new Set());
 
+  // DEBT-002: delegate to the shared utility in utils/invoiceUtils.ts
   const createEntryFromInvoice = useCallback((inv: Invoice) => {
-    let accountCode = inv.type === 'EXPENSE' ? '600' : '700';
-    let accountName = inv.type === 'EXPENSE' ? 'Compras' : 'Ventas';
-
-    if (inv.category) {
-      const parts = inv.category.split(' - ');
-      if (parts.length > 1) {
-        accountCode = parts[0].trim();
-        accountName = parts.slice(1).join(' - ').trim();
-      } else {
-        accountCode = parts[0].trim();
-      }
-    }
-
-    const newEntry: AccountingEntry = {
-      id: `AUTO-${inv.id}`,
-      date: inv.date,
-      concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
-      // Multi-line entry for double-entry bookkeeping
-      lines: [{
-        accountCode: accountCode,
-        accountName: accountName,
-        debit: inv.type === 'EXPENSE' ? inv.totalAmount : 0,
-        credit: inv.type === 'INCOME' ? inv.totalAmount : 0,
-      }],
-      // Legacy fields for compatibility
-      accountCode: accountCode,
-      accountName: accountName,
-      debit: inv.type === 'EXPENSE' ? inv.totalAmount : 0,
-      credit: inv.type === 'INCOME' ? inv.totalAmount : 0,
-      invoiceId: inv.id,
-      referenceDoc: inv.file,
-      fileData: inv.fileData,
-      fileType: inv.fileType,
-      appwriteFileId: inv.appwriteFileId,
-      reconciled: false,
-      createdBy: inv.createdBy || user?.$id,
-      createdByName: inv.createdByName || user?.name,
-      createdAt: new Date().toISOString()
-    };
-
-    onAddEntry(newEntry);
+    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name });
+    onAddEntry(entry);
   }, [user, onAddEntry]);
 
   const handleAddInvoice = useCallback(async (invoice: Invoice) => {

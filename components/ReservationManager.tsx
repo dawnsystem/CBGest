@@ -4,8 +4,9 @@ import {
   ChevronDown, ChevronUp, X, Check, AlertTriangle, FileText,
   Download, Trash2, Edit2, Save, XCircle, Receipt, Wallet, CalendarDays, Baby
 } from 'lucide-react';
-import { Reservation, ReservationChannel, ReservationStatus, Apartment, AppSettings, TouristTaxConfig } from '../types';
+import { Reservation, ReservationChannel, ReservationStatus, Apartment, AppSettings } from '../types';
 import { useToast } from './Toast';
+import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
 
 interface ReservationManagerProps {
   reservations: Reservation[];
@@ -16,14 +17,6 @@ interface ReservationManagerProps {
   onDeleteReservation: (id: string) => void;
   onLinkApartment: (reservationId: string, apartmentId: string) => void;
 }
-
-// Default tourist tax config
-const DEFAULT_TAX_CONFIG: TouristTaxConfig = {
-  rate: 1,
-  maxNights: 7,
-  minAge: 17,
-  enabled: true
-};
 
 type SortField = 'checkIn' | 'checkOut' | 'totalAmount' | 'nights' | 'apartmentName';
 type SortOrder = 'asc' | 'desc';

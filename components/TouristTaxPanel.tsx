@@ -3,7 +3,8 @@ import {
   Receipt, Calendar, Users, Euro, Download, Check, X,
   AlertTriangle, ChevronDown, ChevronUp, Palmtree, Building, Baby
 } from 'lucide-react';
-import { Reservation, Apartment, AppSettings, TouristTaxConfig } from '../types';
+import { Reservation, Apartment, AppSettings } from '../types';
+import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
 
 interface TouristTaxPanelProps {
   reservations: Reservation[];
@@ -11,14 +12,6 @@ interface TouristTaxPanelProps {
   settings: AppSettings;
   onUpdateReservation: (id: string, data: Partial<Reservation>) => void;
 }
-
-// Default tourist tax config
-const DEFAULT_TAX_CONFIG: TouristTaxConfig = {
-  rate: 1,
-  maxNights: 7,
-  minAge: 17,
-  enabled: true
-};
 
 // Helper to normalize guest names for comparison
 const normalizeGuestName = (name: string | undefined): string => {
