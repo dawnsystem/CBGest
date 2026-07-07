@@ -64,11 +64,11 @@
 *   **Directiva del Director:** "Ejecuta la tarea SIGUIENDO EL ORDEN QUE ME HAS DICHO. Busca vulnerabilidades compulsivamente solo en los archivos indicados. Cuando termines, registra los fallos en la sección de Deuda Técnica y marca la tarea con una [x] en el Plan Estratégico de la bitácora."
 *   **Plan de Acción:** Baseline técnica (lint/type-check/test/build), auditoría profunda de los 7 archivos indicados en el orden acordado, registro estricto de hallazgos y cierre de tarea en Plan Estratégico.
 *   **Log de Acciones:**
-    - `[21:25:00]` - **TEST:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (con warnings históricos de lint no bloqueantes).
+    - `[21:25:00]` - **TEST:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (warnings no bloqueantes: `@typescript-eslint/no-explicit-any`, `no-console`).
     - `[21:30:00]` - **AUDIT:** Revisión compulsiva de `package.json`, `App.tsx`, `config/appwrite.ts`, `lib/appwrite/client.ts`, `lib/appwrite/index.ts`, `services/authService.ts`, `services/geminiService.ts`.
     - `[21:42:00]` - **DOC:** Registro de 3 hallazgos nuevos en 🐛 Bugs Conocidos y Deuda Técnica (2 ALTOS, 1 MEDIO).
     - `[21:43:00]` - **DOC:** Marcada tarea `AUDIT-012` como completada `[x]` en Plan Estratégico.
-*   **Resultado:** AUDIT-012 completada. Total consolidado: 58 hallazgos (14 CRÍTICO, 23 ALTO, 17 MEDIO, 4 BAJO).
+*   **Resultado:** AUDIT-012 completada con 3 hallazgos nuevos (2 ALTOS, 1 MEDIO). Total consolidado: 58 hallazgos (14 CRÍTICO, 23 ALTO, 17 MEDIO, 4 BAJO).
 *   **Commit Asociado:** `HEAD`
 *   **Observaciones/Decisiones de Diseño:** Se mantiene protocolo del Artículo VII Sección 3: solo catalogación, sin aplicar correcciones.
 
@@ -292,11 +292,11 @@
 
 * **SEC-006:** `validators.ts:220-242` — `isSafeString()` y `sanitizeString()` no detectan XSS con entidades HTML codificadas (`&#60;script&#62;`). Estado: Pendiente.
 * **SEC-007:** `ReservationManager.tsx:76-94` — CSV parsing no escapa HTML en campos. Guest name con `<img onerror=...>` se renderiza sin sanitizar. Estado: Pendiente.
-* **SEC-008:** `scripts/add-missing-attributes.cjs:24` y similares — Credenciales de Appwrite (endpoint, projectId, databaseId) hardcodeadas en múltiples scripts. Deberían cargarse de `.env`. Estado: Pendiente.
+* **SEC-008:** `scripts/add-missing-attributes.cjs:21-23`, `scripts/migrate-uploads-collection.cjs:22-24`, `scripts/setup-all-collections.cjs:17-19`, `scripts/setup-appwrite-collections.js:23-25`, `scripts/verify-appwrite-fetch.cjs:8-10`, `scripts/verify-appwrite-setup.cjs:22-24` — Credenciales de Appwrite (endpoint, projectId, databaseId) hardcodeadas en scripts operativos. Deberían cargarse de `.env`. Estado: Pendiente.
 * **SEC-009:** `InvoiceUploader.tsx:201` — Bypass de validación NIF vía checkbox "Forzar aceptación" sin registro de auditoría. Estado: Pendiente.
 * **SEC-010:** `aiMatching.ts:195-204` — Match de NIF case-insensitive con `includes()` permite coincidencias parciales peligrosas. Estado: Pendiente.
-* **SEC-012:** `authService.ts:361-364` y `authService.ts:496-500` — `recoverPassword()` y `sendEmailVerification()` aceptan URLs arbitrarias sin validación de origen/allowlist. Riesgo de enlaces de recuperación/verificación enviados a dominios maliciosos (phishing / token leakage). Estado: Pendiente.
-* **SEC-013:** `App.tsx:275-276`, `App.tsx:393-395`, `App.tsx:436` — Persistencia en `localStorage` de `gestcb_settings` en claro (incluye NIF y datos fiscales de partícipes). Exposición ante XSS/extensiones maliciosas/equipos compartidos. Estado: Pendiente.
+* **SEC-014:** `authService.ts:361-364` y `authService.ts:496-500` — `recoverPassword()` y `sendEmailVerification()` aceptan URLs arbitrarias sin validación de origen/allowlist. Riesgo de enlaces de recuperación/verificación enviados a dominios maliciosos (phishing / token leakage). Estado: Pendiente.
+* **SEC-015:** `App.tsx:275-276`, `App.tsx:393-395`, `App.tsx:436` — Persistencia en `localStorage` de `gestcb_settings` en claro (incluye NIF y datos fiscales de partícipes). Exposición ante XSS/extensiones maliciosas/equipos compartidos. Estado: Pendiente.
 * **BUG-010:** `TrialBalance.tsx:105-106` — Error de precisión floating-point. `difference < 0.01` falla cuando difference es exactamente 0.009999999. Debe usar redondeo explícito. Estado: Pendiente.
 * **BUG-011:** `Dashboard.tsx:76` — Inconsistencia IVA: régimen alquiler usa `totalAmount` (base+IVA) pero régimen general usa `baseAmount`. Crea diferencias inexplicables en totales. Estado: Pendiente.
 * **BUG-012:** `ProfitabilityByApartment.tsx:65-71` — `incomeFromReservations` declarado pero nunca populado. Siempre muestra 0€ para ingresos de reservas en todos los apartamentos. Estado: Pendiente.
