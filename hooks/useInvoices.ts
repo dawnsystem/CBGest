@@ -3,7 +3,7 @@
  * @description Encapsula la lógica de estado y operaciones CRUD de facturas
  */
 
-import { useState, useCallback, Dispatch, SetStateAction } from 'react';
+import { useState, useCallback, useRef, Dispatch, SetStateAction } from 'react';
 import { Invoice, AppSettings, Supplier, AccountingEntry } from '../types';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
@@ -38,6 +38,10 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
   const { addNotification } = useNotifications();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  // BUG-006: in-flight lock for supplier auto-creation.
+  // Prevents duplicate suppliers when multiple invoices from the same issuer
+  // are processed concurrently (e.g. bulk upload).
+  const pendingSupplierNifs = useRef<Set<string>>(new Set());
 
   const createEntryFromInvoice = useCallback((inv: Invoice) => {
     let accountCode = inv.type === 'EXPENSE' ? '600' : '700';
@@ -125,16 +129,19 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
     }
 
     if ((originalStatus === 'PROCESSED' || originalStatus === 'PAID') && invoiceWithAudit.issuerNif && invoiceWithAudit.issuerName) {
+      const normalizedNif = invoiceWithAudit.issuerNif.toUpperCase().replace(/\s/g, '');
       const existingSupplier = suppliers.find(s =>
-        s.nif.toUpperCase().replace(/\s/g, '') === invoiceWithAudit.issuerNif.toUpperCase().replace(/\s/g, '')
+        s.nif.toUpperCase().replace(/\s/g, '') === normalizedNif
       );
 
-      if (!existingSupplier) {
+      if (!existingSupplier && !pendingSupplierNifs.current.has(normalizedNif)) {
+        // Acquire the in-flight lock before creating (BUG-006)
+        pendingSupplierNifs.current.add(normalizedNif);
         const now = new Date().toISOString();
         const newSupplier: Supplier = {
           id: generateId(),
           name: invoiceWithAudit.issuerName,
-          nif: invoiceWithAudit.issuerNif.toUpperCase(),
+          nif: normalizedNif,
           nifType: detectNifType(invoiceWithAudit.issuerNif),
           address: invoiceWithAudit.issuerAddress,
           city: invoiceWithAudit.issuerCity,
@@ -147,10 +154,13 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
 
         logger.info("Auto-creating supplier from invoice:", { name: newSupplier.name, nif: newSupplier.nif });
         onAddSupplier(newSupplier);
+        pendingSupplierNifs.current.delete(normalizedNif);
 
         const updatedInvoice = { ...originalInvoice, supplierId: newSupplier.id };
         setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? updatedInvoice : i));
-      } else if (!invoiceWithAudit.supplierId) {
+      } else if (!existingSupplier && pendingSupplierNifs.current.has(normalizedNif)) {
+        logger.debug("Supplier creation already in-flight for NIF:", normalizedNif);
+      } else if (existingSupplier && !invoiceWithAudit.supplierId) {
         const updatedInvoice = { ...originalInvoice, supplierId: existingSupplier.id };
         setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? updatedInvoice : i));
         logger.debug("Linked invoice to existing supplier:", existingSupplier.name);

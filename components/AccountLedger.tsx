@@ -136,22 +136,27 @@ export const AccountLedger: React.FC<AccountLedgerProps> = ({ entries }) => {
   const handleExportCSV = () => {
     if (!accountLedger) return;
 
-    const headers = ['Fecha', 'Concepto', 'Debe', 'Haber', 'Saldo'];
+    // BUG-016 fix: wrap every field in double-quotes and escape internal
+    // quotes, so that field values containing the separator (;) or commas
+    // never break the CSV parse.
+    const q = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+
+    const headers = ['Fecha', 'Concepto', 'Debe', 'Haber', 'Saldo'].map(q);
     const rows = accountLedger.movements.map(m => [
-      m.entryDate,
-      `"${m.entryConcept.replace(/"/g, '""')}"`,
-      m.debit.toFixed(2),
-      m.credit.toFixed(2),
-      m.balance.toFixed(2)
+      q(m.entryDate),
+      q(m.entryConcept),
+      q(m.debit.toFixed(2)),
+      q(m.credit.toFixed(2)),
+      q(m.balance.toFixed(2))
     ]);
 
     // Add totals row
     rows.push([
-      'TOTALES',
-      '',
-      accountLedger.totalDebit.toFixed(2),
-      accountLedger.totalCredit.toFixed(2),
-      `${accountLedger.balanceType === 'DEUDOR' ? '' : '-'}${accountLedger.balance.toFixed(2)}`
+      q('TOTALES'),
+      q(''),
+      q(accountLedger.totalDebit.toFixed(2)),
+      q(accountLedger.totalCredit.toFixed(2)),
+      q(`${accountLedger.balanceType === 'DEUDOR' ? '' : '-'}${accountLedger.balance.toFixed(2)}`)
     ]);
 
     const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');

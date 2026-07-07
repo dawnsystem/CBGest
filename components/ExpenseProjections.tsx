@@ -23,9 +23,15 @@ const getOccurrencesInMonth = (
   switch (expense.frequency) {
     case 'MONTHLY':
       return 1;
-    case 'BIMONTHLY':
-      // Occurs every 2 months - check if target month is even/odd relative to start
-      return targetMonth % 2 === 0 ? 1 : 0;
+    case 'BIMONTHLY': {
+      // BUG-002 fix: fire every 2 months relative to the expense's own start
+      // month, not against a global even/odd parity.  An expense starting in
+      // February fires in Feb, Apr, Jun ... not Jan, Mar, May.
+      const startMonth = expense.startDate
+        ? new Date(expense.startDate).getMonth()
+        : 0;
+      return (targetMonth - startMonth + 12) % 2 === 0 ? 1 : 0;
+    }
     case 'QUARTERLY':
       // Occurs in months 0, 3, 6, 9 (Jan, Apr, Jul, Oct)
       return targetMonth % 3 === 0 ? 1 : 0;

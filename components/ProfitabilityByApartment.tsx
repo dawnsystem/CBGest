@@ -166,7 +166,11 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
     filteredReservations.forEach(res => {
       const key = res.apartmentId || 'common';
       const metrics = metricsMap.get(key);
-      const amount = res.totalAmount || 0;
+      // BUG-012 fix: coerce to Number so that string values from Appwrite/CSV
+      // are handled correctly.  Fall back to pricePerNight × nights when
+      // totalAmount is missing or zero (e.g. reservations imported before the
+      // field was populated).
+      const amount = Number(res.totalAmount) || (Number(res.pricePerNight) || 0) * (res.nights || 0);
       const nights = res.nights || 0;
 
       if (metrics) {

@@ -92,18 +92,21 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
   };
 
   // useCallback ensures this function is stable across renders
-  // Date.now() is called when the function is invoked (not during render definition)
+  // BUG-019 fix: both Date.now() and the stored timestamp are UTC epoch
+  // milliseconds so the diff is already timezone-agnostic.  For older
+  // notifications (>24 h) we now render the full locale date so the user
+  // can tell exactly when the event occurred.
   const formatTimestamp = React.useCallback((timestamp: number) => {
     const now = Date.now();
     const diff = now - timestamp;
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
 
     if (minutes < 1) return 'Ahora';
     if (minutes < 60) return `Hace ${minutes}m`;
     if (hours < 24) return `Hace ${hours}h`;
-    return `Hace ${days}d`;
+    // For anything older than a day show the actual date in local time
+    return new Date(timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   }, []);
 
   return (

@@ -103,7 +103,9 @@ export const TrialBalance: React.FC<TrialBalanceProps> = ({ entries }) => {
     };
     
     totals.difference = Math.abs(totals.sumDebit - totals.sumCredit);
-    totals.isBalanced = totals.difference < 0.01;
+    // BUG-010 fix: round to 2 decimal places before comparing to avoid
+    // floating-point epsilon errors (e.g. 0.009999999 failing the < 0.01 check).
+    totals.isBalanced = Math.round(totals.difference * 100) / 100 < 0.01;
 
     // Group accounts by first digit
     const groupNames: Record<string, string> = {

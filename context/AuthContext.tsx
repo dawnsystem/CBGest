@@ -254,7 +254,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================================================
 
   useEffect(() => {
-    if (!user || !sessionReady) return;
+    // BUG-017 fix: start the refresh interval as soon as the user object is
+    // available, without requiring sessionReady.  sessionReady can be delayed
+    // (e.g. when the app initialises from a stored token) and waiting for it
+    // leaves a window where an expired session goes undetected.
+    if (!user) return;
 
     const refreshInterval = setInterval(async () => {
       authLogger.debug('Verificación proactiva de sesión...');
@@ -278,7 +282,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => {
       clearInterval(refreshInterval);
     };
-  }, [user, sessionReady]);
+  }, [user]);
 
   // ============================================================================
   // FUNCIONES DE AUTENTICACIÓN
