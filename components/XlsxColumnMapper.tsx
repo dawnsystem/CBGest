@@ -58,12 +58,15 @@ const parseDate = (value: unknown): string => {
   // Excel serial number (days since 1900-01-01)
   if (!isNaN(Number(str))) {
     const serial = Number(str);
-    // Excel serial date: days since 1899-12-30 (Excel's epoch with the 1900 leap year bug)
-    const excelEpoch = new Date(1899, 11, 30);
-    const date = new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    // Excel serial date: days since 1899-12-30 (accounts for Excel's fake leap year 1900).
+    // BUG-007 fix: use Date.UTC for epoch so that adding ms-per-day is always exactly
+    // 24 h regardless of DST transitions, preventing off-by-one around clock changes.
+    const excelEpochMs = Date.UTC(1899, 11, 30);
+    const dateMs = excelEpochMs + serial * 24 * 60 * 60 * 1000;
+    const date = new Date(dateMs);
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
 

@@ -101,7 +101,12 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
       const updated = { ...preview, [field]: value };
       if (field === 'baseAmount' || field === 'vatRate') {
          const base = field === 'baseAmount' ? Number(value) : updated.baseAmount;
-         const rate = field === 'vatRate' ? Number(value) : updated.vatRate;
+         const rawRate = field === 'vatRate' ? Number(value) : updated.vatRate;
+         // BUG-014 fix: normalise vatRate to a percentage integer.
+         // Gemini may return the rate as a decimal (0.21) instead of a
+         // percentage (21).  Rates ≤ 1 are assumed to be already in decimal
+         // form and are multiplied by 100 before the /100 division below.
+         const rate = rawRate > 0 && rawRate <= 1 ? rawRate * 100 : rawRate;
          updated.vatAmount = base * (rate / 100);
          updated.totalAmount = base + updated.vatAmount;
       }

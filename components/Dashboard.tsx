@@ -65,16 +65,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   const isRental = settings.fiscalRegime === 'ALQUILER_EXENTO';
 
   // Totals for Top Cards
+  // BUG-011 fix: apply the same amount selector to both income and expenses so
+  // that totals are consistent within each fiscal regime.
+  //   ALQUILER_EXENTO: income is VAT-exempt so totalAmount == baseAmount, but
+  //     expenses include non-deductible VAT → use totalAmount for expenses.
+  //   GENERAL: VAT is fully deductible; only the net base matters everywhere.
+  const invoiceAmount = (inv: { type: string; baseAmount: number; totalAmount: number }) =>
+    isRental && inv.type === 'EXPENSE' ? inv.totalAmount : inv.baseAmount;
+
   const totalIncome = invoices
     .filter(i => i.type === 'INCOME' && i.status !== 'PENDING')
-    .reduce((acc, curr) => acc + curr.baseAmount, 0);
+    .reduce((acc, curr) => acc + invoiceAmount(curr), 0);
   
   const totalExpense = invoices
     .filter(i => i.type === 'EXPENSE' && i.status !== 'PENDING')
-    .reduce((acc, curr) => {
-      // Rental regime: Deduct total (Base + VAT) because VAT is a cost
-      return acc + (isRental ? curr.totalAmount : curr.baseAmount);
-    }, 0);
+    .reduce((acc, curr) => acc + invoiceAmount(curr), 0);
 
   const netResult = totalIncome - totalExpense;
 
@@ -87,7 +92,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
         if (inv.status === 'PENDING') return;
         const date = new Date(inv.date);
         const monthIndex = date.getMonth();
-        const amount = isRental && inv.type === 'EXPENSE' ? inv.totalAmount : inv.baseAmount;
+        const amount = invoiceAmount(inv);
         
         if (inv.type === 'INCOME') {
             data[monthIndex].ingresos += amount;

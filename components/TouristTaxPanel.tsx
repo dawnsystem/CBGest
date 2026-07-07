@@ -26,13 +26,20 @@ const normalizeGuestName = (name: string | undefined): string => {
   return name.toLowerCase().trim().replace(/\s+/g, ' ');
 };
 
-// Helper to check if two dates are consecutive (same day)
+/**
+ * Check if two ISO date strings represent the same calendar day.
+ *
+ * BUG-003 fix: compare year/month/day components extracted directly from the
+ * YYYY-MM-DD string instead of using setHours(0,0,0,0) on a Date constructed
+ * via new Date(isoStr) — that constructor interprets YYYY-MM-DD as UTC midnight,
+ * so in UTC+2 the local day is shifted by two hours, breaking areDatesConsecutive
+ * for late-night check-outs.
+ */
 const areDatesConsecutive = (checkOut: string, checkIn: string): boolean => {
-  const d1 = new Date(checkOut);
-  const d2 = new Date(checkIn);
-  d1.setHours(0, 0, 0, 0);
-  d2.setHours(0, 0, 0, 0);
-  return d1.getTime() === d2.getTime();
+  // Extract YYYY-MM-DD part (handles full ISO datetimes too)
+  const d1Str = checkOut.substring(0, 10);
+  const d2Str = checkIn.substring(0, 10);
+  return d1Str === d2Str;
 };
 
 // Group consecutive stays by guest
@@ -120,8 +127,11 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
         if (currentGroup.length > 0) {
           const totalNights = currentGroup.reduce((sum, r) => sum + (r.nights || 0), 0);
           const taxableNights = Math.min(totalNights, taxConfig.maxNights);
-          const totalGuests = Math.max(...currentGroup.map(r => r.numberOfGuests || 1));
-          const totalChildren = Math.max(...currentGroup.map(r => r.numberOfChildren || 0));
+          // BUG-001 fix: SUM guests across all reservations in the stay group,
+          // not Math.max — a group of 3 reservations with 2 guests each has 6
+          // taxable person-nights, not 2.
+          const totalGuests = currentGroup.reduce((sum, r) => sum + (r.numberOfGuests || 1), 0);
+          const totalChildren = currentGroup.reduce((sum, r) => sum + (r.numberOfChildren || 0), 0);
           const taxableUnits = taxableNights * totalGuests;
           const exemptUnits = taxableNights * totalChildren;
           const totalTax = taxableUnits * taxConfig.rate;
@@ -150,8 +160,9 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
     if (currentGroup.length > 0) {
       const totalNights = currentGroup.reduce((sum, r) => sum + (r.nights || 0), 0);
       const taxableNights = Math.min(totalNights, taxConfig.maxNights);
-      const totalGuests = Math.max(...currentGroup.map(r => r.numberOfGuests || 1));
-      const totalChildren = Math.max(...currentGroup.map(r => r.numberOfChildren || 0));
+      // BUG-001 fix: SUM guests (same as above)
+      const totalGuests = currentGroup.reduce((sum, r) => sum + (r.numberOfGuests || 1), 0);
+      const totalChildren = currentGroup.reduce((sum, r) => sum + (r.numberOfChildren || 0), 0);
       const taxableUnits = taxableNights * totalGuests;
       const exemptUnits = taxableNights * totalChildren;
       const totalTax = taxableUnits * taxConfig.rate;
