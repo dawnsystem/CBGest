@@ -4,7 +4,7 @@
  *              Usa optimistic updates con rollback en caso de error.
  */
 
-import { useCallback, Dispatch, SetStateAction } from 'react';
+import { useCallback, useMemo, Dispatch, SetStateAction } from 'react';
 import {
   Invoice, AccountingEntry, BankTransaction, Supplier,
   Apartment, RecurringExpense, Reservation, AppSettings
@@ -190,7 +190,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
 
   // ============ SUPPLIER HANDLERS ============
   // DEBT-006: update/delete use the generic factory; add wraps it to inject audit fields.
-  const _supplierCrud = makeOptimisticCrud<Supplier>({
+  const _supplierCrud = useMemo(() => makeOptimisticCrud<Supplier>({
     items: data.suppliers,
     setItems: setters.setSuppliers,
     isAppwrite: data.settings.dataConfig?.type === 'APPWRITE',
@@ -199,7 +199,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     update: appwriteService.updateSupplier,
     remove: appwriteService.deleteSupplier,
     showError,
-  });
+  }), [data.suppliers, setters.setSuppliers, data.settings.dataConfig?.type, showError]);
 
   const handleAddSupplier = useCallback(async (supplier: Supplier) => {
     const supplierWithAudit: Supplier = {
@@ -376,7 +376,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
 
   // ============ APARTMENT HANDLERS ============
   // ============ APARTMENT HANDLERS — DEBT-006 factory ============
-  const _aptCrud = makeOptimisticCrud<Apartment>({
+  const _aptCrud = useMemo(() => makeOptimisticCrud<Apartment>({
     items: data.apartments,
     setItems: setters.setApartments,
     isAppwrite: data.settings.dataConfig?.type === 'APPWRITE',
@@ -385,7 +385,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     update: appwriteService.updateApartment,
     remove: appwriteService.deleteApartment,
     showError,
-  });
+  }), [data.apartments, setters.setApartments, data.settings.dataConfig?.type, showError]);
   const handleAddApartment = useCallback(
     (apt: Apartment) => _aptCrud.handleAdd(apt), [_aptCrud]
   );
@@ -397,7 +397,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   );
 
   // ============ RECURRING EXPENSE HANDLERS — DEBT-006 factory ============
-  const _expCrud = makeOptimisticCrud<RecurringExpense>({
+  const _expCrud = useMemo(() => makeOptimisticCrud<RecurringExpense>({
     items: data.recurringExpenses,
     setItems: setters.setRecurringExpenses,
     isAppwrite: data.settings.dataConfig?.type === 'APPWRITE',
@@ -406,7 +406,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     update: appwriteService.updateRecurringExpense,
     remove: appwriteService.deleteRecurringExpense,
     showError,
-  });
+  }), [data.recurringExpenses, setters.setRecurringExpenses, data.settings.dataConfig?.type, showError]);
   const handleAddRecurringExpense = useCallback(
     (exp: RecurringExpense) => _expCrud.handleAdd(exp), [_expCrud]
   );

@@ -118,7 +118,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
               <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
               <h4 className="font-semibold text-slate-900 text-sm md:text-base">Revisión de Factura</h4>
             </div>
-            <button onClick={() => cancelReview} className="text-slate-400 hover:text-slate-600 p-1">
+            <button onClick={cancelReview} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
             </button>
           </div>
@@ -263,7 +263,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
           <div className="px-4 md:px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0">
              <button
-                onClick={() => cancelReview}
+                onClick={cancelReview}
                 className="order-3 sm:order-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
              >
                 Cancelar
