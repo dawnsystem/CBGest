@@ -472,11 +472,14 @@ class ProtectedDatabaseService {
     const notifications = await this.getNotifications();
     const unreadNotifs = notifications.filter(n => !n.read);
 
-    for (const notif of unreadNotifs) {
-      await rateLimiter.enqueue(async () => {
-        await databaseService.updateNotification({ ...notif, read: true });
-      }, 'low');
-    }
+    // PERF-002: Run all updates in parallel instead of sequential await-in-loop.
+    await Promise.all(
+      unreadNotifs.map(notif =>
+        rateLimiter.enqueue(async () => {
+          await databaseService.updateNotification({ ...notif, read: true });
+        }, 'low')
+      )
+    );
 
     cache.invalidateCollection('notifications');
   }

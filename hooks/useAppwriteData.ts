@@ -216,8 +216,20 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
       }
 
       if (events.some(e => e.includes('suppliers'))) {
-        // Refresh suppliers on any change
-        appwriteService.fetchSuppliers().then(setSuppliers).catch(err => dataLogger.error('Error fetching suppliers:', err));
+        // PERF-001: Delta-sync instead of full reload on every Realtime event.
+        // Apply the same create/update/delete pattern used for other collections.
+        if (events.some(e => e.includes('.create'))) {
+          setSuppliers(prev => {
+            if (prev.some(s => s.id === docId)) return prev;
+            return [...prev, { ...doc, id: docId, appwriteId: docId } as unknown as Supplier];
+          });
+        } else if (events.some(e => e.includes('.update'))) {
+          setSuppliers(prev => prev.map(s =>
+            s.id === docId ? { ...doc, id: docId, appwriteId: docId } as unknown as Supplier : s
+          ));
+        } else if (events.some(e => e.includes('.delete'))) {
+          setSuppliers(prev => prev.filter(s => s.id !== docId));
+        }
       }
     });
 

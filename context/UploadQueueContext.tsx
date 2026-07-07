@@ -24,8 +24,8 @@ export const useUploadQueue = () => {
 /** Número máximo de subidas paralelas a Storage */
 const MAX_CONCURRENT_UPLOADS = 5;
 
-/** Intervalo para actualizar progreso visual (ms) */
-const PROGRESS_UPDATE_INTERVAL = 500;
+/** Intervalo para actualizar progreso visual (ms) — PERF-006: increased to 1 s to reduce re-renders with concurrent uploads */
+const PROGRESS_UPDATE_INTERVAL = 1000;
 
 // ============================================================================
 // PROVIDER

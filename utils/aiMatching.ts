@@ -151,14 +151,18 @@ export const findMatchingInvoices = (
     // Skip already reconciled invoices
     if (invoice.status === 'PAID') continue;
 
+    // PERF-005: Early exit — skip invoices whose amount is more than 50% off.
+    // This avoids the expensive string similarity call for clearly non-matching invoices.
+    const invAmount = invoice.totalAmount;
+    const maxAmount = Math.max(txAmount, invAmount);
+    if (maxAmount > 0 && Math.abs(txAmount - invAmount) / maxAmount > 0.50) continue;
+
     let confidence = 0;
     const reasons: string[] = [];
 
     // Amount matching (most important)
-    const invAmount = invoice.totalAmount;
     const amountDiff = Math.abs(txAmount - invAmount);
     // Prevent division by zero - if both amounts are 0, consider them equal
-    const maxAmount = Math.max(txAmount, invAmount);
     const amountPercent = maxAmount > 0 ? amountDiff / maxAmount : (amountDiff === 0 ? 0 : 1);
 
     if (amountDiff < 0.05) {
@@ -210,6 +214,9 @@ export const findMatchingInvoices = (
         confidence: Math.min(confidence, 100),
         reason: reasons.join(' • ')
       });
+
+      // PERF-005: Early exit — stop scanning once we have a perfect match.
+      if (confidence >= 90) break;
     }
   }
 

@@ -126,13 +126,22 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
     [entries]
   );
 
+  // PERF-004: Pre-compute entry totals once so getMatches is O(1) per entry
+  // instead of recomputing them on every movement comparison.
+  const nonBankEntryAmounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of nonBankEntries) {
+      const totals = calculateEntryTotals(entry);
+      map.set(entry.id, Math.max(totals.totalDebit, totals.totalCredit));
+    }
+    return map;
+  }, [nonBankEntries]);
+
   // Find potential matches - entries without bank accounts with matching total amount
   const getMatches = (movement: BankMovement) => {
     const movementAmountAbs = Math.abs(movement.amount);
     return nonBankEntries.filter(entry => {
-      const totals = calculateEntryTotals(entry);
-      // Use the larger of debit/credit totals as the entry amount
-      const entryAmount = Math.max(totals.totalDebit, totals.totalCredit);
+      const entryAmount = nonBankEntryAmounts.get(entry.id) ?? 0;
       return Math.abs(movementAmountAbs - entryAmount) < 0.05; // 5 cent tolerance
     });
   };
