@@ -6,6 +6,8 @@ interface PartnerTaxFormProps {
   partner: Partner;
   onSave: (partnerId: string, taxInfo: PartnerTaxInfo) => void;
   onClose: () => void;
+  /** Override current year — useful for deterministic tests. Defaults to `new Date().getFullYear()`. */
+  currentYear?: number;
 }
 
 // Helper component for tooltips
@@ -47,8 +49,8 @@ const FormSection: React.FC<{
   </div>
 );
 
-// Get current year for age calculation
-const currentYear = new Date().getFullYear();
+// Get current year for age calculation (module-level fallback)
+const DEFAULT_CURRENT_YEAR = new Date().getFullYear();
 
 // Migrate old data format to new format
 // Uses LegacyPartnerTaxInfo to handle deprecated fields (childrenCount, disability)
@@ -85,7 +87,7 @@ const migrateOldTaxInfo = (oldInfo: LegacyPartnerTaxInfo): PartnerTaxInfo => {
   };
 };
 
-export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave, onClose }) => {
+export const PartnerTaxForm: React.FC<PartnerTaxFormProps> = ({ partner, onSave, onClose, currentYear = DEFAULT_CURRENT_YEAR }) => {
   const [info, setInfo] = useState<PartnerTaxInfo>(
     migrateOldTaxInfo(partner.taxInfo || {})
   );

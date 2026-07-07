@@ -84,7 +84,20 @@ export const saveMapping = (
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(mappings));
   } catch (e) {
-    console.warn('Failed to save XLSX mapping:', e);
+    // localStorage may be full — evict the oldest mapping and retry once
+    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      const oldest = Object.values(mappings).sort((a, b) => a.lastUsedAt - b.lastUsedAt)[0];
+      if (oldest) {
+        delete mappings[oldest.headerSignature];
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(mappings));
+        } catch (e2) {
+          console.warn('Failed to save XLSX mapping even after eviction:', e2);
+        }
+      }
+    } else {
+      console.warn('Failed to save XLSX mapping:', e);
+    }
   }
 };
 

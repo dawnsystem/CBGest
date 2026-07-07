@@ -217,7 +217,7 @@ const parseStandardError = (error: Error): ParsedError => {
       category: 'NETWORK',
       recoverable: true,
       action: 'Verifica tu conexión e inténtalo de nuevo',
-      technical: error.message,
+      technical: error.stack || error.message,
     };
   }
 
@@ -228,7 +228,7 @@ const parseStandardError = (error: Error): ParsedError => {
       category: 'NETWORK',
       recoverable: true,
       action: 'Inténtalo de nuevo',
-      technical: error.message,
+      technical: error.stack || error.message,
     };
   }
 
