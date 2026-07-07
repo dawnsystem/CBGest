@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-07 21:24:47 UTC*
+*Última actualización: 2026-07-07 21:43:00 UTC*
 
 ---
 
@@ -8,10 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `AUDIT-EXEC-001`
-- **Objetivo Principal:** `Ejecutar auditoría compulsiva completa del proyecto (11 sprints) según Artículo VII.`
-- **Estado Detallado:** `Auditoría completa ejecutada sobre los 11 sprints. Todos los hallazgos catalogados y registrados en la sección 🐛 Bugs Conocidos y Deuda Técnica. Pendiente aprobación del Director para aplicar correcciones.`
-- **Próximo Micro-Paso Planificado:** `Esperar directiva del Director indicando qué hallazgos corregir primero (se recomienda empezar por los CRÍTICOS).`
+- **Identificador de Tarea:** `AUDIT-EXEC-002`
+- **Objetivo Principal:** `Ejecutar auditoría dirigida en el orden acordado sobre los archivos indicados por el Director.`
+- **Estado Detallado:** `Auditoría dirigida completada sobre 7 archivos objetivo (AUDIT-012). Hallazgos nuevos catalogados en Deuda Técnica.`
+- **Próximo Micro-Paso Planificado:** `Esperar directiva del Director para priorizar correcciones de hallazgos CRÍTICOS/ALTOS.`
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -26,6 +26,7 @@
 - [x] **AUDIT-009: Observabilidad, mensajes de error y utilidades transversales** — COMPLETADO
 - [x] **AUDIT-010: Automatizaciones Appwrite/cron y funciones auxiliares** — COMPLETADO
 - [x] **AUDIT-011: CI/CD, scripts operativos y cadena de suministro** — COMPLETADO
+- [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
 *   **[2026-07-06] - `TSK-042` - Consolidación Integral Fase 2:** Hardening de auth, sistema Toast, sanitización de logs, cobertura a 152 tests.
@@ -59,6 +60,18 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-07 21:43:00 UTC]
+*   **Directiva del Director:** "Ejecuta la tarea SIGUIENDO EL ORDEN QUE ME HAS DICHO. Busca vulnerabilidades compulsivamente solo en los archivos indicados. Cuando termines, registra los fallos en la sección de Deuda Técnica y marca la tarea con una [x] en el Plan Estratégico de la bitácora."
+*   **Plan de Acción:** Baseline técnica (lint/type-check/test/build), auditoría profunda de los 7 archivos indicados en el orden acordado, registro estricto de hallazgos y cierre de tarea en Plan Estratégico.
+*   **Log de Acciones:**
+    - `[21:25:00]` - **TEST:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (con warnings históricos de lint no bloqueantes).
+    - `[21:30:00]` - **AUDIT:** Revisión compulsiva de `package.json`, `App.tsx`, `config/appwrite.ts`, `lib/appwrite/client.ts`, `lib/appwrite/index.ts`, `services/authService.ts`, `services/geminiService.ts`.
+    - `[21:42:00]` - **DOC:** Registro de 3 hallazgos nuevos en 🐛 Bugs Conocidos y Deuda Técnica (2 ALTOS, 1 MEDIO).
+    - `[21:43:00]` - **DOC:** Marcada tarea `AUDIT-012` como completada `[x]` en Plan Estratégico.
+*   **Resultado:** AUDIT-012 completada. Total consolidado: 58 hallazgos (14 CRÍTICO, 23 ALTO, 17 MEDIO, 4 BAJO).
+*   **Commit Asociado:** `HEAD`
+*   **Observaciones/Decisiones de Diseño:** Se mantiene protocolo del Artículo VII Sección 3: solo catalogación, sin aplicar correcciones.
+
 ### Sesión: [2026-07-07 21:02:52 UTC]
 *   **Directiva del Director:** "Implement the plan: ejecutar auditoría completa de los 11 sprints AUDIT-001 a AUDIT-011."
 *   **Plan de Acción:** Lectura profunda de cada archivo en alcance, análisis compulsivo por vectores de seguridad/lógica/rendimiento/deuda según Artículo VII, catalogación de hallazgos con severidad e ID único, registro en bitácora.
@@ -255,7 +268,7 @@
 ## 🐛 Bugs Conocidos y Deuda Técnica
 
 > **Resultado de la Auditoría Completa ejecutada el 2026-07-07.**
-> Protocolo: Artículo VII del Manifiesto. 11 sprints, 55 hallazgos.
+> Protocolo: Artículo VII del Manifiesto. 11 sprints + 1 re-auditoría dirigida, 58 hallazgos.
 > **Ningún hallazgo ha sido corregido todavía.** Pendiente aprobación del Director.
 
 ### 🔴 CRÍTICOS (14 hallazgos) — Impacto directo en seguridad, datos financieros o integridad
@@ -275,13 +288,15 @@
 * **BUG-008:** `useBankTransactions.ts:89-116` — Creación de asientos hardcodea cuentas contables 626/769 independientemente del tipo real de transacción. Todo se categoriza como "Servicios bancarios" o "Ingresos financieros". Estado: Pendiente.
 * **BUG-009:** `XlsxColumnMapper.tsx:255-278` — Lógica débito/crédito invertida. Débitos almacenados como negativos pero transacciones bancarias esperan positivos para salidas. Crea conciliación invertida. Estado: Pendiente.
 
-### 🟠 ALTOS (21 hallazgos) — Bugs funcionales, riesgos de seguridad moderados o degradación significativa
+### 🟠 ALTOS (23 hallazgos) — Bugs funcionales, riesgos de seguridad moderados o degradación significativa
 
 * **SEC-006:** `validators.ts:220-242` — `isSafeString()` y `sanitizeString()` no detectan XSS con entidades HTML codificadas (`&#60;script&#62;`). Estado: Pendiente.
 * **SEC-007:** `ReservationManager.tsx:76-94` — CSV parsing no escapa HTML en campos. Guest name con `<img onerror=...>` se renderiza sin sanitizar. Estado: Pendiente.
 * **SEC-008:** `scripts/add-missing-attributes.cjs:24` y similares — Credenciales de Appwrite (endpoint, projectId, databaseId) hardcodeadas en múltiples scripts. Deberían cargarse de `.env`. Estado: Pendiente.
 * **SEC-009:** `InvoiceUploader.tsx:201` — Bypass de validación NIF vía checkbox "Forzar aceptación" sin registro de auditoría. Estado: Pendiente.
 * **SEC-010:** `aiMatching.ts:195-204` — Match de NIF case-insensitive con `includes()` permite coincidencias parciales peligrosas. Estado: Pendiente.
+* **SEC-012:** `authService.ts:361-364` y `authService.ts:496-500` — `recoverPassword()` y `sendEmailVerification()` aceptan URLs arbitrarias sin validación de origen/allowlist. Riesgo de enlaces de recuperación/verificación enviados a dominios maliciosos (phishing / token leakage). Estado: Pendiente.
+* **SEC-013:** `App.tsx:275-276`, `App.tsx:393-395`, `App.tsx:436` — Persistencia en `localStorage` de `gestcb_settings` en claro (incluye NIF y datos fiscales de partícipes). Exposición ante XSS/extensiones maliciosas/equipos compartidos. Estado: Pendiente.
 * **BUG-010:** `TrialBalance.tsx:105-106` — Error de precisión floating-point. `difference < 0.01` falla cuando difference es exactamente 0.009999999. Debe usar redondeo explícito. Estado: Pendiente.
 * **BUG-011:** `Dashboard.tsx:76` — Inconsistencia IVA: régimen alquiler usa `totalAmount` (base+IVA) pero régimen general usa `baseAmount`. Crea diferencias inexplicables en totales. Estado: Pendiente.
 * **BUG-012:** `ProfitabilityByApartment.tsx:65-71` — `incomeFromReservations` declarado pero nunca populado. Siempre muestra 0€ para ingresos de reservas en todos los apartamentos. Estado: Pendiente.
@@ -299,7 +314,7 @@
 * **DEBT-003:** `package.json:24` — `node-appwrite` (SDK de servidor) listado como dependencia pero nunca importado en el código cliente. Infla el bundle innecesariamente. Estado: Pendiente.
 * **DEBT-004:** `services/appwriteService.ts` — Tipo `error: any` usado 40+ veces en todo el archivo. Elimina type-safety en el manejo de errores. Estado: Pendiente.
 
-### 🟡 MEDIOS (16 hallazgos) — Inconsistencias, deuda técnica acumulada o mejoras de robustez
+### 🟡 MEDIOS (17 hallazgos) — Inconsistencias, deuda técnica acumulada o mejoras de robustez
 
 * **SEC-011:** `context/UploadQueueContext.tsx:412` — mimeType del archivo confiado sin validación server-side antes de enviar a Gemini. Estado: Pendiente.
 * **BUG-017:** `context/AuthContext.tsx:259-275` — Refresh de sesión solo se activa si `user && sessionReady` son truthy, pero sessionReady puede retrasarse. Sesión puede expirar antes del primer refresh. Estado: Pendiente.
@@ -307,6 +322,7 @@
 * **BUG-019:** `Header.tsx:96-107` — `formatTimestamp()` usa `Date.now()` sin considerar timezone del usuario. Tiempos relativos ("Hace 5h") pueden ser imprecisos. Estado: Pendiente.
 * **PERF-006:** `UploadQueueContext.tsx:355-362` — Intervalo de progreso cada 500ms por archivo. Con 5 uploads concurrentes, 10 actualizaciones/segundo causan re-renders excesivos. Estado: Pendiente.
 * **PERF-007:** `validators.ts:18-20, 34-36` — Regex compilados en cada invocación de función en vez de ser constantes de módulo. Estado: Pendiente.
+* **PERF-008:** `geminiService.ts:273-287` — `parseXlsxBankStatement()` decodifica base64 completo en memoria y procesa hoja completa sin límite de tamaño/filas. Un XLSX grande o malicioso puede bloquear la UI (DoS cliente). Estado: Pendiente.
 * **DEBT-005:** `ReservationManager.tsx:20-26` y `TouristTaxPanel.tsx:15-21` — `DEFAULT_TAX_CONFIG` duplicado en 2 archivos. Debe extraerse a constantes compartidas. Estado: Pendiente.
 * **DEBT-006:** `hooks/useDataHandlers.ts:52-115` — Todos los handlers CRUD siguen patrón idéntico (update optimista, try Appwrite, rollback). 200+ líneas repetitivas. Debe usar factory o reducer. Estado: Pendiente.
 * **DEBT-007:** `DocumentViewer.tsx:1-469` — Componente monolítico que mezcla rendering PDF, zoom, descargas y gestión de estado. Debe dividirse. Estado: Pendiente.
