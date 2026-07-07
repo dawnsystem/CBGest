@@ -261,3 +261,46 @@ export const ACCOUNT_PLAN: AccountOption[] = [
   { code: '574', name: 'Bancos e instituciones de crédito, cuentas de ahorro, euros' },
   { code: '575', name: 'Bancos e instituciones de crédito, cuentas de ahorro, moneda extranjera' },
 ];
+
+// ============================================================================
+// ACCOUNTING ENTRY HELPERS — DEBT-011
+// These helpers are centralised here so all consumers share a single
+// implementation and tests only need to cover one location.
+// ============================================================================
+
+import type { AccountingEntry } from '../types';
+import { getEntryLines } from '../types';
+
+/**
+ * Returns true if the entry contains at least one treasury/bank account line.
+ */
+export const entryHasBankLine = (entry: AccountingEntry): boolean => {
+  const lines = getEntryLines(entry);
+  return lines.some(line => isTreasuryAccount(line.accountCode));
+};
+
+/**
+ * Returns the net bank movement amount from the entry.
+ * Debit on a bank account → positive (money in).
+ * Credit on a bank account → negative (money out).
+ */
+export const getBankLineAmount = (entry: AccountingEntry): number => {
+  const lines = getEntryLines(entry);
+  for (const line of lines) {
+    if (isTreasuryAccount(line.accountCode)) {
+      return line.debit > 0 ? line.debit : -line.credit;
+    }
+  }
+  return 0;
+};
+
+/**
+ * Returns the first treasury account code found in the entry, or empty string.
+ */
+export const getBankAccountCode = (entry: AccountingEntry): string => {
+  const lines = getEntryLines(entry);
+  for (const line of lines) {
+    if (isTreasuryAccount(line.accountCode)) return line.accountCode;
+  }
+  return '';
+};

@@ -2,37 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { BankTransaction, AccountingEntry, Invoice, Supplier, RecurringExpense, AIMatchSuggestion, getEntryLines, calculateEntryTotals } from '../types';
 import { ArrowRightLeft, Check, AlertCircle, Plus, BookOpen, Building2, Sparkles, Zap, FileText, RefreshCw } from 'lucide-react';
 import { generateMatchSuggestions } from '../utils/aiMatching';
-import { isTreasuryAccount } from '../utils/accountingPlan';
-
-// Helper to check if an entry has any treasury/bank lines
-const entryHasBankLine = (entry: AccountingEntry): boolean => {
-  const lines = getEntryLines(entry);
-  return lines.some(line => isTreasuryAccount(line.accountCode));
-};
-
-// Get the bank line amount from an entry (positive for debit, negative for credit)
-const getBankLineAmount = (entry: AccountingEntry): number => {
-  const lines = getEntryLines(entry);
-  for (const line of lines) {
-    if (isTreasuryAccount(line.accountCode)) {
-      // Debit on bank = money coming in (positive)
-      // Credit on bank = money going out (negative)
-      return line.debit > 0 ? line.debit : -line.credit;
-    }
-  }
-  return 0;
-};
-
-// Get the bank account code from an entry
-const getBankAccountCode = (entry: AccountingEntry): string => {
-  const lines = getEntryLines(entry);
-  for (const line of lines) {
-    if (isTreasuryAccount(line.accountCode)) {
-      return line.accountCode;
-    }
-  }
-  return '';
-};
+import { entryHasBankLine, getBankLineAmount, getBankAccountCode } from '../utils/accountingPlan';
 
 // Union type for bank movements (imported or from accounting entries)
 interface BankMovement {

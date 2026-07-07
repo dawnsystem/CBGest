@@ -153,6 +153,11 @@ export const createDefaultSupplier = (id?: string): Supplier => ({
  * Format: timestamp + random suffix for uniqueness.
  */
 export const generateId = (): string => {
+  // DEBT-010: Use crypto.randomUUID() for collision-free IDs in all modern browsers
+  // and Node 19+. Falls back to the timestamp+random approach for old environments.
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
   const timestamp = Date.now().toString(36);
   const randomSuffix = Math.random().toString(36).substring(2, 9);
   return `${timestamp}-${randomSuffix}`;
