@@ -6,8 +6,10 @@ import { MobileNavigation } from './components/MobileNavigation';
 import { Header } from './components/Header';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
+import { FiscalYearProvider, useFiscalYear } from './context/FiscalYearContext';
+import { FiscalYearManager } from './components/FiscalYearManager';
 import { Invoice, AppSettings, AccountingEntry, AccountingEntryLine, BankTransaction, Supplier, Apartment, RecurringExpense, Reservation } from './types';
-import { Eye, Trash, AlertTriangle, RefreshCw, XCircle, Check } from 'lucide-react';
+import { Eye, Trash, AlertTriangle, RefreshCw, XCircle, Check, Lock } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { detectNifType } from './utils/validators';
 import { generateId } from './utils/defaults';
@@ -72,6 +74,7 @@ const MainLayout: React.FC = () => {
   const sessionReady = useSessionReady();
   const { addNotification } = useNotifications();
   const { showToast, showConfirm } = useToast();
+  const { activeFiscalYear, isReadOnly } = useFiscalYear();
   // --- STATE ---
 
   // Initialize settings with Appwrite config PRE-FILLED to avoid setup loops
@@ -278,14 +281,15 @@ const MainLayout: React.FC = () => {
 
                 // Load all data in parallel for better performance
                 // Each fetch has its own catch handler to prevent partial failures from breaking the entire load
+                const activeFiscalYearId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
                 const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses, remoteReservations] = await Promise.all([
-                    appwriteService.fetchInvoices().catch((e) => { console.warn('Failed to fetch invoices:', e); return []; }),
-                    appwriteService.fetchEntries().catch((e) => { console.warn('Failed to fetch entries:', e); return []; }),
-                    appwriteService.fetchTransactions().catch((e) => { console.warn('Failed to fetch transactions:', e); return []; }),
-                    appwriteService.fetchSuppliers().catch((e) => { console.warn('Failed to fetch suppliers:', e); return []; }),
-                    appwriteService.fetchApartments().catch((e) => { console.warn('Failed to fetch apartments:', e); return []; }),
+                    appwriteService.fetchInvoices(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch invoices:', e); return []; }),
+                    appwriteService.fetchEntries(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch entries:', e); return []; }),
+                    appwriteService.fetchTransactions(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch transactions:', e); return []; }),
+                    appwriteService.fetchSuppliers(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch suppliers:', e); return []; }),
+                    appwriteService.fetchApartments(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch apartments:', e); return []; }),
                     appwriteService.fetchRecurringExpenses().catch((e) => { console.warn('Failed to fetch recurring expenses:', e); return []; }),
-                    appwriteService.fetchReservations().catch((e) => { console.warn('Failed to fetch reservations:', e); return []; })
+                    appwriteService.fetchReservations(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch reservations:', e); return []; })
                 ]);
 
                 // Update state with remote data
@@ -343,7 +347,7 @@ const MainLayout: React.FC = () => {
           }
       };
       initDataLayer();
-  }, [user, sessionReady]); // Depend on user AND sessionReady to re-init on login
+  }, [user, sessionReady, activeFiscalYear]); // Depend on user, sessionReady, and activeFiscalYear
 
   // --- HEALTH CHECK PERIÓDICO (cada 5 min) ---
   // Verifica conexión con Appwrite cuando hay usuario autenticado
@@ -447,6 +451,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleAddInvoice = async (invoice: Invoice) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden añadir facturas', 'error'); return; }
       // IMPORTANT: Save original status BEFORE calling Appwrite
       // This ensures we use the correct status for creating accounting entries
       const originalStatus = invoice.status;
@@ -454,6 +459,7 @@ const MainLayout: React.FC = () => {
       // Add audit fields
       const invoiceWithAudit: Invoice = {
           ...invoice,
+          fiscalYearId: activeFiscalYear?.appwriteId || activeFiscalYear?.id,
           createdBy: user?.$id,
           createdByName: user?.name,
           createdAt: new Date().toISOString()
@@ -669,6 +675,8 @@ const MainLayout: React.FC = () => {
         appwriteFileId: inv.appwriteFileId,
         fileType: inv.fileType,
         reconciled: false,
+        // Fiscal year assignment follows the invoice
+        fiscalYearId: inv.fiscalYearId || activeFiscalYear?.appwriteId || activeFiscalYear?.id,
         // Audit fields
         createdBy: inv.createdBy || user?.$id,
         createdByName: inv.createdByName || user?.name,
@@ -679,6 +687,7 @@ const MainLayout: React.FC = () => {
   };
   
   const handleUpdateInvoice = async (invoice: Invoice) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden editar facturas', 'error'); return; }
       const oldInvoice = invoices.find(i => i.id === invoice.id);
 
       // Optimistic update
@@ -725,6 +734,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleDeleteInvoice = async (id: string) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden eliminar facturas', 'error'); return; }
       const invoice = invoices.find(i => i.id === id);
 
       // Optimistic delete
@@ -766,9 +776,11 @@ const MainLayout: React.FC = () => {
   };
 
   const handleAddEntry = async (entry: AccountingEntry) => {
+      if (isReadOnly && !entry.id.startsWith('AUTO-')) { showToast('Ejercicio cerrado — no se pueden añadir asientos', 'error'); return; }
       // Add audit fields if not already present
       const entryWithAudit: AccountingEntry = {
           ...entry,
+          fiscalYearId: entry.fiscalYearId || activeFiscalYear?.appwriteId || activeFiscalYear?.id,
           createdBy: entry.createdBy || user?.$id,
           createdByName: entry.createdByName || user?.name,
           createdAt: entry.createdAt || new Date().toISOString()
@@ -805,6 +817,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleUpdateEntry = async (entry: AccountingEntry) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden editar asientos', 'error'); return; }
       const oldEntry = accountingEntries.find(e => e.id === entry.id);
 
       // Optimistic update
@@ -839,6 +852,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleDeleteEntry = async (id: string) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden eliminar asientos', 'error'); return; }
       const entry = accountingEntries.find(e => e.id === id);
 
       // Optimistic delete
@@ -874,9 +888,11 @@ const MainLayout: React.FC = () => {
   };
 
   const handleAddBankTransactions = async (txs: BankTransaction[]) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden añadir transacciones', 'error'); return; }
       // Add audit fields to all transactions
       const txsWithAudit: BankTransaction[] = txs.map(tx => ({
           ...tx,
+          fiscalYearId: activeFiscalYear?.appwriteId || activeFiscalYear?.id,
           createdBy: user?.$id,
           createdByName: user?.name,
           createdAt: new Date().toISOString()
@@ -1064,6 +1080,7 @@ const MainLayout: React.FC = () => {
 
   // NEW: Update Bank Transaction
   const handleUpdateBankTransaction = async (transaction: BankTransaction) => {
+    if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden editar transacciones', 'error'); return; }
     setBankTransactions(prev => prev.map(t => t.id === transaction.id ? transaction : t));
 
     // Use id directly - in Appwrite mode, id comes from $id
@@ -1084,9 +1101,11 @@ const MainLayout: React.FC = () => {
 
   // Supplier Handlers
   const handleAddSupplier = async (supplier: Supplier) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden añadir proveedores', 'error'); return; }
       // Add audit fields if not already present
       const supplierWithAudit: Supplier = {
           ...supplier,
+          fiscalYearId: supplier.fiscalYearId || activeFiscalYear?.appwriteId || activeFiscalYear?.id,
           createdBy: supplier.createdBy || user?.$id,
           createdByName: supplier.createdByName || user?.name
       };
@@ -1111,6 +1130,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleUpdateSupplier = async (supplier: Supplier) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden editar proveedores', 'error'); return; }
       const oldSupplier = suppliers.find(s => s.id === supplier.id);
 
       // Optimistic update
@@ -1139,6 +1159,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleDeleteSupplier = async (id: string) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden eliminar proveedores', 'error'); return; }
       const supplier = suppliers.find(s => s.id === id);
 
       // Optimistic delete
@@ -1162,18 +1183,23 @@ const MainLayout: React.FC = () => {
 
   // Apartment Handlers
   const handleAddApartment = async (apartment: Apartment) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden añadir apartamentos', 'error'); return; }
+      const apartmentWithFiscalYear: Apartment = {
+          ...apartment,
+          fiscalYearId: apartment.fiscalYearId || activeFiscalYear?.appwriteId || activeFiscalYear?.id
+      };
       // Optimistic add
-      setApartments(prev => [apartment, ...prev]);
+      setApartments(prev => [apartmentWithFiscalYear, ...prev]);
 
       if (settings.dataConfig?.type === 'APPWRITE') {
           try {
-              const savedApartment = await appwriteService.createApartment(apartment);
+              const savedApartment = await appwriteService.createApartment(apartmentWithFiscalYear);
               // Update with Appwrite ID
-              setApartments(prev => prev.map(a => a.id === apartment.id ? savedApartment : a));
+              setApartments(prev => prev.map(a => a.id === apartmentWithFiscalYear.id ? savedApartment : a));
               console.log('✅ Apartamento guardado en Appwrite:', savedApartment.id);
           } catch (error: unknown) {
               // ROLLBACK: Remove the apartment from local state
-              setApartments(prev => prev.filter(a => a.id !== apartment.id));
+              setApartments(prev => prev.filter(a => a.id !== apartmentWithFiscalYear.id));
               const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
               showError(`Error al crear apartamento: ${errorMessage}. Los cambios no se han guardado.`);
               console.error('Error saving apartment to Appwrite:', error);
@@ -1182,6 +1208,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleUpdateApartment = async (apartment: Apartment) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden editar apartamentos', 'error'); return; }
       const oldApartment = apartments.find(a => a.id === apartment.id);
 
       // Optimistic update
@@ -1208,6 +1235,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleDeleteApartment = async (id: string) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden eliminar apartamentos', 'error'); return; }
       const apartment = apartments.find(a => a.id === id);
 
       // Optimistic delete
@@ -1299,6 +1327,7 @@ const MainLayout: React.FC = () => {
   // --- RESERVATION HANDLERS ---
   // Sistema de UPSERT: Crea nuevas reservas o actualiza las existentes por reservationNumber
   const handleAddReservations = async (newReservations: Omit<Reservation, 'id'>[]) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden añadir reservas', 'error'); return; }
       // Crear mapa de reservas existentes por reservationNumber
       const existingByNumber = new Map<string, Reservation>();
       reservations.forEach(r => {
@@ -1326,7 +1355,8 @@ const MainLayout: React.FC = () => {
               // Nueva: preparar para CREATE
               toCreate.push({
                   ...newRes,
-                  id: generateId()
+                  id: generateId(),
+                  fiscalYearId: (newRes as any).fiscalYearId || activeFiscalYear?.appwriteId || activeFiscalYear?.id
               });
           }
       });
@@ -1406,6 +1436,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleUpdateReservation = async (id: string, data: Partial<Reservation>) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden editar reservas', 'error'); return; }
       const oldReservation = reservations.find(r => r.id === id);
       if (!oldReservation) return;
 
@@ -1429,6 +1460,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleDeleteReservation = async (id: string) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden eliminar reservas', 'error'); return; }
       const reservation = reservations.find(r => r.id === id);
 
       // Optimistic delete
@@ -1665,6 +1697,15 @@ const MainLayout: React.FC = () => {
                     <XCircle className="w-5 h-5" />
                   </button>
                 </div>
+              </div>
+            )}
+            {/* Read-Only Banner */}
+            {isReadOnly && activeFiscalYear && (
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-3 mx-4 mt-4 rounded-r-lg flex items-center gap-3">
+                <Lock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span className="text-amber-800 text-sm font-medium">
+                  Ejercicio {activeFiscalYear.year} cerrado — <strong>Solo consulta</strong>. No se pueden añadir, editar ni eliminar datos.
+                </span>
               </div>
             )}
             {/* Reconnecting Indicator */}
@@ -1912,6 +1953,7 @@ const MainLayout: React.FC = () => {
                         currentFileName={fileHandle?.name}
                     />
                 } />
+                <Route path="/fiscal-years" element={<FiscalYearManager />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
               </Suspense>
@@ -1940,7 +1982,9 @@ const App: React.FC = () => {
     <AuthProvider>
       <ToastProvider>
         <NotificationProvider>
-          <MainLayout />
+          <FiscalYearProvider>
+            <MainLayout />
+          </FiscalYearProvider>
         </NotificationProvider>
       </ToastProvider>
     </AuthProvider>

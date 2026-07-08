@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, PlusCircle, BookOpen, MoreHorizontal, Settings, Building2, Scale, X, CalendarCheck, Home, RefreshCw, Bookmark, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, BookOpen, MoreHorizontal, Settings, Building2, Scale, X, CalendarCheck, Home, RefreshCw, Bookmark, BarChart3, CalendarRange } from 'lucide-react';
 
 export const MobileNavigation: React.FC = () => {
   const location = useLocation();
@@ -8,7 +8,7 @@ export const MobileNavigation: React.FC = () => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) => location.pathname === path;
-  const isMoreActive = ['/settings', '/suppliers', '/reconciliation', '/reservations', '/apartments', '/recurring', '/ledger', '/trial-balance'].includes(location.pathname);
+  const isMoreActive = ['/settings', '/suppliers', '/reconciliation', '/reservations', '/apartments', '/recurring', '/ledger', '/trial-balance', '/fiscal-years'].includes(location.pathname);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -115,6 +115,16 @@ export const MobileNavigation: React.FC = () => {
             >
               <Scale className="w-5 h-5" />
               <span className="text-sm font-medium">Conciliación</span>
+            </Link>
+            <Link
+              to="/fiscal-years"
+              onClick={closeMenu}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive('/fiscal-years') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <CalendarRange className="w-5 h-5" />
+              <span className="text-sm font-medium">Ejercicios</span>
             </Link>
             <Link
               to="/settings"

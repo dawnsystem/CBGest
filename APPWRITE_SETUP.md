@@ -361,4 +361,63 @@ Una vez configurado:
 
 ---
 
+## FASE 1 — Ejercicios Contables (⚠️ ACCIÓN REQUERIDA)
+
+> Esta sección debe completarse **antes** de usar la funcionalidad de Ejercicios Contables.
+> Mientras no lo hagas, la app funciona con normalidad pero sin filtrar por ejercicio.
+
+### 1.1 — Crear nueva colección `fiscal_years`
+
+En la base de datos `691f288100019843d43e`, crea una colección con:
+
+- **Collection ID:** `fiscal_years`
+- **Name:** `fiscal_years`
+- **Permisos:** igual al resto — `read("users")`, `write("users")`
+
+**Atributos:**
+
+| Atributo | Tipo | Tamaño | Requerido |
+|----------|------|--------|-----------|
+| `year` | Integer | — | ✅ Sí |
+| `status` | String | 10 | ✅ Sí |
+| `openedAt` | String | 30 | No |
+| `closedAt` | String | 30 | No |
+| `notes` | String | 500 | No |
+
+**Índice:**
+- Atributo: `year`, Tipo: `key`, Unique: `true`, Order: `ASC`
+
+---
+
+### 1.2 — Añadir `fiscalYearId` a colecciones existentes
+
+En cada una de estas colecciones, añade el atributo:
+
+| Atributo | Tipo | Tamaño | Requerido | Default |
+|----------|------|--------|-----------|---------|
+| `fiscalYearId` | String | 36 | No | `null` |
+
+**Colecciones donde añadirlo:** `invoices`, `entries`, `transactions`, `reservations`, `suppliers`, `apartments`
+
+**Índice en cada colección:**
+- Atributo: `fiscalYearId`, Tipo: `key`, Unique: `false`
+
+> **¿Por qué "No requerido"?** Los documentos existentes no tienen este campo.
+> Ponlo opcional para que no rompan. La herramienta de migración en la app
+> los asignará al ejercicio correcto.
+
+---
+
+### 1.3 — Migración de datos existentes
+
+Una vez creado el setup en Appwrite:
+
+1. Abre la app → Ve a **Ejercicios** (en el sidebar o menú)
+2. Crea el **Ejercicio 2025** (o el año que corresponda)
+3. Selecciónalo como ejercicio activo
+4. Usa el botón **"Migrar al Ejercicio 2025"** en la sección de migración
+5. La herramienta asignará automáticamente todos los documentos sin ejercicio
+
+---
+
 ¡Disfruta de CBGest con Appwrite! 🎉

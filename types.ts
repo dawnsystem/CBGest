@@ -5,6 +5,19 @@ export enum UserRole {
   GESTOR = "GESTOR"
 }
 
+// --- FISCAL YEAR (EJERCICIO CONTABLE) ---
+export type FiscalYearStatus = 'OPEN' | 'CLOSED';
+
+export interface FiscalYear {
+  id: string;
+  year: number;           // Año natural: 2025, 2026, etc.
+  status: FiscalYearStatus;
+  openedAt?: string;      // ISO fecha de apertura
+  closedAt?: string;      // ISO fecha de cierre
+  notes?: string;         // Comentarios opcionales
+  appwriteId?: string;    // Document ID en Appwrite
+}
+
 // --- COMMON TYPES (used across multiple interfaces) ---
 // NifType includes all Spanish tax ID types plus VAT for EU intra-community operations
 export type NifType = 'NIF' | 'CIF' | 'NIE' | 'DNI' | 'PASAPORTE' | 'VAT' | 'PASSPORT' | 'OTHER';
@@ -58,9 +71,11 @@ export interface Invoice {
   createdBy?: string; // User ID who created this
   createdByName?: string; // User name who created this
   createdAt?: string; // ISO timestamp
+
+  // Ejercicio contable
+  fiscalYearId?: string; // ID del ejercicio al que pertenece esta factura
 }
 
-// Línea individual de un asiento contable (partida doble)
 export interface AccountingEntryLine {
   accountCode: string;    // Ej: 628, 472, 410
   accountName: string;    // Ej: Suministros, IVA soportado, Acreedores
@@ -101,9 +116,11 @@ export interface AccountingEntry {
   createdBy?: string;     // User ID who created this
   createdByName?: string; // User name who created this
   createdAt?: string;     // ISO timestamp
+
+  // Ejercicio contable
+  fiscalYearId?: string;  // ID del ejercicio al que pertenece este asiento
 }
 
-// Helper type para calcular totales de un asiento
 export interface EntryTotals {
   totalDebit: number;
   totalCredit: number;
@@ -167,6 +184,9 @@ export interface BankTransaction {
   createdBy?: string; // User ID who created this
   createdByName?: string; // User name who created this
   createdAt?: string; // ISO timestamp
+
+  // Ejercicio contable
+  fiscalYearId?: string; // ID del ejercicio al que pertenece esta transacción
 }
 
 // --- TAX INFO FOR PARTNERS ---
@@ -245,6 +265,9 @@ export interface Supplier {
   // Audit fields
   createdBy?: string; // User ID who created this
   createdByName?: string; // User name who created this
+
+  // Ejercicio contable (se copia de un ejercicio al siguiente)
+  fiscalYearId?: string; // ID del ejercicio al que pertenece este proveedor
 }
 
 // --- APARTMENT TYPES (NEW - for per-property tracking) ---
@@ -267,6 +290,9 @@ export interface Apartment {
 
   // Cloud fields
   appwriteId?: string;
+
+  // Ejercicio contable (se copia de un ejercicio al siguiente)
+  fiscalYearId?: string; // ID del ejercicio al que pertenece este apartamento
 }
 
 // --- RECURRING EXPENSE TYPES (NEW - for expense projections) ---
@@ -388,6 +414,9 @@ export interface Reservation {
 
   // Cloud fields
   appwriteId?: string;
+
+  // Ejercicio contable
+  fiscalYearId?: string; // ID del ejercicio al que pertenece esta reserva
 }
 
 // Data Source Types

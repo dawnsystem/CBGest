@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, FileText, BookOpen, PieChart, Settings, FileCheck, Scale, Cloud, HardDrive, Wifi, Building2, Home, RefreshCw, CalendarCheck, Bookmark, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, FileText, BookOpen, PieChart, Settings, FileCheck, Scale, Cloud, HardDrive, Wifi, Building2, Home, RefreshCw, CalendarCheck, Bookmark, BarChart3, CalendarRange } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
@@ -44,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus, connectionHe
     { icon: BarChart3, label: 'Balance Sumas/Saldos', path: '/trial-balance' },
     { icon: Scale, label: 'Conciliación Banco', path: '/reconciliation' },
     { icon: FileCheck, label: 'Modelos Fiscales', path: '/taxes' },
+    { icon: CalendarRange, label: 'Ejercicios', path: '/fiscal-years' },
     { icon: Settings, label: 'Configuración', path: '/settings' },
   ];
 
