@@ -255,8 +255,15 @@ export const useFiscalYear = (): FiscalYearContextType => {
   return ctx;
 };
 
-/** Hook de conveniencia: solo devuelve isReadOnly */
+/**
+ * Hook de conveniencia que devuelve `isReadOnly`.
+ * Si se usa fuera del provider (ctx es null), lanza un error para
+ * evitar que componentes ignoren silenciosamente la protección de escritura.
+ */
 export const useIsReadOnly = (): boolean => {
   const ctx = useContext(FiscalYearContext);
-  return ctx?.isReadOnly ?? false;
+  if (!ctx) {
+    throw new Error('useIsReadOnly must be used within a FiscalYearProvider');
+  }
+  return ctx.isReadOnly;
 };

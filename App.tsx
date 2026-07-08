@@ -281,15 +281,16 @@ const MainLayout: React.FC = () => {
 
                 // Load all data in parallel for better performance
                 // Each fetch has its own catch handler to prevent partial failures from breaking the entire load
-                const activeFiscalYearId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
+                // Note: initial load is unfiltered — the fiscal-year-change effect will re-fetch filtered data
+                // once FiscalYearContext has loaded the active fiscal year from Appwrite.
                 const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses, remoteReservations] = await Promise.all([
-                    appwriteService.fetchInvoices(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch invoices:', e); return []; }),
-                    appwriteService.fetchEntries(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch entries:', e); return []; }),
-                    appwriteService.fetchTransactions(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch transactions:', e); return []; }),
-                    appwriteService.fetchSuppliers(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch suppliers:', e); return []; }),
-                    appwriteService.fetchApartments(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch apartments:', e); return []; }),
+                    appwriteService.fetchInvoices().catch((e) => { console.warn('Failed to fetch invoices:', e); return []; }),
+                    appwriteService.fetchEntries().catch((e) => { console.warn('Failed to fetch entries:', e); return []; }),
+                    appwriteService.fetchTransactions().catch((e) => { console.warn('Failed to fetch transactions:', e); return []; }),
+                    appwriteService.fetchSuppliers().catch((e) => { console.warn('Failed to fetch suppliers:', e); return []; }),
+                    appwriteService.fetchApartments().catch((e) => { console.warn('Failed to fetch apartments:', e); return []; }),
                     appwriteService.fetchRecurringExpenses().catch((e) => { console.warn('Failed to fetch recurring expenses:', e); return []; }),
-                    appwriteService.fetchReservations(activeFiscalYearId).catch((e) => { console.warn('Failed to fetch reservations:', e); return []; })
+                    appwriteService.fetchReservations().catch((e) => { console.warn('Failed to fetch reservations:', e); return []; })
                 ]);
 
                 // Update state with remote data
@@ -347,7 +348,42 @@ const MainLayout: React.FC = () => {
           }
       };
       initDataLayer();
-  }, [user, sessionReady, activeFiscalYear]); // Depend on user, sessionReady, and activeFiscalYear
+  }, [user, sessionReady]); // Only re-init on login/logout — fiscal year changes handled below
+
+  // --- RELOAD DATA WHEN ACTIVE FISCAL YEAR CHANGES ---
+  // Separate from the heavy initDataLayer so health checks are not repeated.
+  // Runs only AFTER the initial data layer is initialized (guard via ref).
+  useEffect(() => {
+    if (!user || !sessionReady || !dataLayerInitializedRef.current) return;
+
+    const fetchForYear = async () => {
+      const fyId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
+      setIsDataLoading(true);
+      try {
+        const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteReservations] = await Promise.all([
+          appwriteService.fetchInvoices(fyId).catch((e) => { console.warn('Failed to fetch invoices on year change:', e); return []; }),
+          appwriteService.fetchEntries(fyId).catch((e) => { console.warn('Failed to fetch entries on year change:', e); return []; }),
+          appwriteService.fetchTransactions(fyId).catch((e) => { console.warn('Failed to fetch transactions on year change:', e); return []; }),
+          appwriteService.fetchSuppliers(fyId).catch((e) => { console.warn('Failed to fetch suppliers on year change:', e); return []; }),
+          appwriteService.fetchApartments(fyId).catch((e) => { console.warn('Failed to fetch apartments on year change:', e); return []; }),
+          appwriteService.fetchReservations(fyId).catch((e) => { console.warn('Failed to fetch reservations on year change:', e); return []; }),
+        ]);
+        setInvoices(remoteInvoices);
+        setAccountingEntries(remoteEntries);
+        setBankTransactions(remoteTransactions);
+        setSuppliers(remoteSuppliers);
+        setApartments(remoteApartments);
+        setReservations(remoteReservations);
+        console.log(`[App] Data reloaded for fiscal year: ${activeFiscalYear?.year ?? 'all'}`);
+      } catch (e: any) {
+        console.warn('[App] Failed to reload data for fiscal year:', e);
+      } finally {
+        setIsDataLoading(false);
+      }
+    };
+
+    fetchForYear();
+  }, [activeFiscalYear, user, sessionReady]); // Lightweight reload on year switch
 
   // --- HEALTH CHECK PERIÓDICO (cada 5 min) ---
   // Verifica conexión con Appwrite cuando hay usuario autenticado
@@ -776,7 +812,11 @@ const MainLayout: React.FC = () => {
   };
 
   const handleAddEntry = async (entry: AccountingEntry) => {
-      if (isReadOnly && !entry.id.startsWith('AUTO-')) { showToast('Ejercicio cerrado — no se pueden añadir asientos', 'error'); return; }
+      // Auto-generated entries (created from invoices) bypass the isReadOnly guard
+      // because they are created as a side-effect of handleAddInvoice which already guards.
+      // They are identified by having an `invoiceId` field pointing to the originating invoice.
+      const isAutoGenerated = Boolean(entry.invoiceId);
+      if (isReadOnly && !isAutoGenerated) { showToast('Ejercicio cerrado — no se pueden añadir asientos', 'error'); return; }
       // Add audit fields if not already present
       const entryWithAudit: AccountingEntry = {
           ...entry,
