@@ -5,6 +5,7 @@ import { AccountingEntry, AccountingEntryLine, getEntryLines, calculateEntryTota
 import { AccountSelector } from './AccountSelector';
 import { getAccountName } from '../utils/accountingPlan';
 import { useToast } from './Toast';
+import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface AccountingBooksProps {
   entries: AccountingEntry[];
@@ -40,7 +41,8 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   // Edit/Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<AccountingEntry | null>(null);
-  const { showToast, showConfirm } = useToast();
+  const { showToast } = useToast();
+  const isReadOnly = useIsReadOnly();
 
   // Get unique accounts from all entry lines
   const uniqueAccounts = useMemo(() => {
@@ -221,7 +223,8 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
         </div>
         <button 
           onClick={openNewEntryModal}
-          className="bg-slate-900 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-800 transition-colors text-sm font-medium"
+          disabled={isReadOnly}
+          className="bg-slate-900 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-800 transition-colors text-sm font-medium disabled:bg-slate-300 disabled:cursor-not-allowed"
         >
             <Plus className="w-4 h-4" /> Nuevo Asiento
         </button>
@@ -352,8 +355,8 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                                 )}
                             </td>
                             <td className="px-4 py-4 flex justify-center gap-2">
-                                <button onClick={() => openEditModal(entry)} className="p-1 text-slate-400 hover:text-amber-600"><Edit3 className="w-4 h-4"/></button>
-                                <button onClick={() => onDeleteEntry(entry.id)} className="p-1 text-slate-400 hover:text-red-600"><Trash className="w-4 h-4"/></button>
+                                <button onClick={() => openEditModal(entry)} disabled={isReadOnly} className="p-1 text-slate-400 hover:text-amber-600 disabled:opacity-40 disabled:cursor-not-allowed"><Edit3 className="w-4 h-4"/></button>
+                                <button onClick={() => onDeleteEntry(entry.id)} disabled={isReadOnly} className="p-1 text-slate-400 hover:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed"><Trash className="w-4 h-4"/></button>
                             </td>
                         </tr>
                         
@@ -439,8 +442,8 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                         <span className="text-emerald-600">H: {entryTotals.totalCredit.toFixed(2)}€</span>
                       </div>
                       <div className="flex gap-3">
-                          <button onClick={() => openEditModal(entry)} className="text-blue-600 text-xs font-medium uppercase">Editar</button>
-                          <button onClick={() => onDeleteEntry(entry.id)} className="text-red-500 text-xs font-medium uppercase">Borrar</button>
+                          <button onClick={() => openEditModal(entry)} disabled={isReadOnly} className="text-blue-600 text-xs font-medium uppercase disabled:opacity-40 disabled:cursor-not-allowed">Editar</button>
+                          <button onClick={() => onDeleteEntry(entry.id)} disabled={isReadOnly} className="text-red-500 text-xs font-medium uppercase disabled:opacity-40 disabled:cursor-not-allowed">Borrar</button>
                       </div>
                   </div>
               </div>

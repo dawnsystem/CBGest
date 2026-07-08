@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Apartment, ApartmentType } from '../types';
+import { Apartment } from '../types';
 import {
   Plus, Search, Edit2, Trash2, Save, X, Building2,
   Home, MapPin, Hash, Users, FileText, CheckCircle, XCircle,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { generateId } from '../utils/defaults';
 import { useToast } from './Toast';
+import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface ApartmentManagerProps {
   apartments: Apartment[];
@@ -40,6 +41,7 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
   const [formData, setFormData] = useState<Partial<Apartment>>(emptyFormData);
   const [showInactive, setShowInactive] = useState(false);
   const { showToast, showConfirm } = useToast();
+  const isReadOnly = useIsReadOnly();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,7 +188,8 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
               setEditingId(null);
               setShowForm(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={isReadOnly}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
           >
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">Nuevo Apartamento</span>
@@ -552,7 +555,8 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
               <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
                 <button
                   onClick={() => handleToggleActive(apartment)}
-                  className={`text-sm ${
+                  disabled={isReadOnly}
+                  className={`text-sm disabled:opacity-40 disabled:cursor-not-allowed ${
                     apartment.isActive
                       ? 'text-slate-500 hover:text-amber-600'
                       : 'text-emerald-600 hover:text-emerald-700'
@@ -563,14 +567,16 @@ export const ApartmentManager: React.FC<ApartmentManagerProps> = ({
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEdit(apartment)}
-                    className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    disabled={isReadOnly}
+                    className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     title="Editar"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(apartment.id)}
-                    className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    disabled={isReadOnly}
+                    className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     title="Eliminar"
                   >
                     <Trash2 className="w-4 h-4" />
