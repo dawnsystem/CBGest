@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, TrendingDown, Wallet, AlertCircle, Calculator, FileText, LucideIcon } from 'lucide-react';
 import { ChartWrapper } from './ChartWrapper';
@@ -70,8 +70,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   //   ALQUILER_EXENTO: income is VAT-exempt so totalAmount == baseAmount, but
   //     expenses include non-deductible VAT → use totalAmount for expenses.
   //   GENERAL: VAT is fully deductible; only the net base matters everywhere.
-  const invoiceAmount = (inv: { type: string; baseAmount: number; totalAmount: number }) =>
-    isRental && inv.type === 'EXPENSE' ? inv.totalAmount : inv.baseAmount;
+  const invoiceAmount = useCallback(
+    (inv: { type: string; baseAmount: number; totalAmount: number }) =>
+      isRental && inv.type === 'EXPENSE' ? inv.totalAmount : inv.baseAmount,
+    [isRental]
+  );
 
   const totalIncome = invoices
     .filter(i => i.type === 'INCOME' && i.status !== 'PENDING')
@@ -104,7 +107,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
     // Filter out future months or empty tail if desired, or keep full year
     const currentMonth = new Date().getMonth();
     return data.slice(0, currentMonth + 1);
-  }, [invoices, isRental]);
+  }, [invoices, invoiceAmount]);
 
 
   // --- 2. TAX ESTIMATION LOGIC (COMPLETE IRPF 2024) ---

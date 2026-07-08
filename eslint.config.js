@@ -101,6 +101,7 @@ export default [
         ResizeObserver: 'readonly',
         AbortController: 'readonly',
         AbortSignal: 'readonly',
+        DOMException: 'readonly',
         TextEncoder: 'readonly',
         TextDecoder: 'readonly',
 

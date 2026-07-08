@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-07 23:10:00 UTC*
+*Última actualización: 2026-07-08 07:28:56 UTC*
 
 ---
 
@@ -26,6 +26,7 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-08] - `FIX-039` - CI Lint Pipeline:** Corregido el fallo bloqueante de ESLint en PRs declarando `DOMException` como global del entorno browser y estabilizando la memoización de `Dashboard`.
 *   **[2026-07-07] - `IMPL-006` - Sprint 6 (Deuda baja + SEC-004):** DEBT-007 split `DocumentViewer` → `useDocumentFile` hook. DEBT-008 split `InvoiceUploader` → `useInvoiceReview` hook. DEBT-015 `frameId=0` init. DEBT-016 stack traces en all parseStandardError branches. DEBT-017 `currentYear` injectable prop en PartnerTaxForm. DEBT-018 `QuotaExceededError` eviction en xlsxMappingService. SEC-004 `--audit-level=critical` en ci.yml.
 *   **[2026-07-07] - `IMPL-005` - Sprint 5 (Deuda técnica refactoring):** `makeOptimisticCrud` factory, constantes PDF, `crypto.randomUUID`, helpers accountingPlan, confirmación readline en migrate script, per-partner try/catch en TaxModels.
 *   **[2026-07-07] - `IMPL-004` - Sprint 4 (Performance):** Delta-sync Realtime, `Promise.all` notificaciones, pre-compute Map BankReconciliation, early exit aiMatching, throttle UploadQueue, regex module-level, límite 5000 filas XLSX.
@@ -63,6 +64,18 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-08 07:28:56 UTC]
+*   **Directiva del Director:** "Fix the failing GitHub Actions job 'CI/CD Pipeline / Lint Code (pull_request)'. Analyze the Actions logs, identify the root cause of the failure, and implement a fix. Job ID: 85797882621."
+*   **Plan de Acción:** Inspeccionar logs de Actions y baseline local, reproducir el lint, aplicar la corrección mínima en los archivos afectados y revalidar con lint, type-check, test:ci y build.
+*   **Log de Acciones:**
+    - `[07:26:00]` - **AUDIT:** Inspección del job 85797882621. **HALLAZGO:** error bloqueante `no-undef` para `DOMException` en `services/xlsxMappingService.ts` y error de React Compiler por memoización en `components/Dashboard.tsx`.
+    - `[07:27:00]` - **MOD:** `eslint.config.js`. **CAMBIOS:** Añadido `DOMException` a los globals readonly del entorno browser para alinear ESLint con el runtime utilizado por el frontend.
+    - `[07:27:00]` - **MOD:** `components/Dashboard.tsx`. **CAMBIOS:** `invoiceAmount` convertido en `useCallback([isRental])` y `useMemo(chartData)` actualizado para depender de `invoiceAmount`.
+    - `[07:28:00]` - **TEST:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS. El job de lint deja de fallar; permanecen warnings/de avisos no bloqueantes históricos.
+*   **Resultado:** FIX-039 completado.
+*   **Commit Asociado:** `HEAD`
+*   **Observaciones/Decisiones de Diseño:** Se evita tocar la lógica de negocio de importes; la corrección se limita a declarar el global browser faltante y a hacer explícita la dependencia memoizada que exige el compilador de React.
+
 ### Sesión: [2026-07-07 23:10:00 UTC]
 *   **Directiva del Director:** "Implement the plan: Sprints 1–6 (bugs financieros críticos, bugs funcionales, deuda estructural terrain-SEC, performance, refactoring, deuda baja + SEC-004)."
 *   **Plan de Acción:** Ejecución secuencial Sprint 1 → 6 con validación type-check + 152 tests tras cada sprint.
