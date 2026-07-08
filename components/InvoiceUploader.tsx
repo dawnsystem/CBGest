@@ -3,13 +3,12 @@ import React, { useState, useRef } from 'react';
 import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus, Landmark, ShieldAlert, FileSpreadsheet } from 'lucide-react';
 import { useUploadQueue } from '../context/UploadQueueContext';
 import { Invoice, AppSettings, QueueItem, UploadType, BankTransaction, Apartment } from '../types';
-import { isValidNIF } from '../utils/validators';
 import { generateId } from '../utils/defaults';
 import { AccountSelector } from './AccountSelector';
 import { ApartmentSelector } from './ApartmentSelector';
-import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 import { XlsxColumnMapper } from './XlsxColumnMapper';
 import { useToast } from './Toast';
+import { useInvoiceReview } from '../hooks/useInvoiceReview';
 
 interface InvoiceUploaderProps {
   onInvoiceAdded: (invoice: Invoice) => void;
@@ -24,16 +23,24 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   const [uploadType, setUploadType] = useState<UploadType>('INVOICE');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Review States
-  const [reviewItem, setReviewItem] = useState<QueueItem | null>(null);
-  const [preview, setPreview] = useState<Invoice | null>(null);
-  const [nifError, setNifError] = useState<boolean>(false);
-  const [forceAcceptNif, setForceAcceptNif] = useState(false); // User override
-  const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null); // Apartment assignment
-
   // XLSX Mapping State
   const [mappingItem, setMappingItem] = useState<QueueItem | null>(null);
   const { showToast, showConfirm } = useToast();
+
+  // DEBT-008: Invoice review logic extracted to useInvoiceReview hook
+  const {
+    reviewItem,
+    preview,
+    nifError,
+    forceAcceptNif,
+    setForceAcceptNif,
+    selectedApartmentId,
+    setSelectedApartmentId,
+    startInvoiceReview,
+    handleFieldChange,
+    confirmInvoice,
+    cancelReview,
+  } = useInvoiceReview({ onInvoiceAdded, removeFromQueue, showToast });
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -61,85 +68,18 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
   const startReview = async (item: QueueItem) => {
     if (item.uploadType === 'INVOICE' && item.result) {
-        setReviewItem(item);
-        
-        // Auto-map suggested code to "Code - Name" format
-        let category = '';
-        const suggestedCode = (item.result as any).suggestedAccountCode;
-        if (suggestedCode) {
-            const match = ACCOUNT_PLAN.find(a => a.code === suggestedCode);
-            if (match) {
-                category = `${match.code} - ${match.name}`;
-            } else {
-                // If code exists but not in our plan, keep code at least
-                category = `${suggestedCode} - (Cuenta detectada)`;
-            }
-        }
-
-        const initialPreview = { ...item.result, category };
-        setPreview(initialPreview);
-        setNifError(initialPreview.issuerNif ? !isValidNIF(initialPreview.issuerNif) : false);
-        setForceAcceptNif(false); // Reset override
-        setSelectedApartmentId(null); // Reset apartment selection
-
+      startInvoiceReview(item);
     } else if (item.uploadType === 'BANK_STATEMENT') {
-        // Check if XLSX needs mapping
-        if (item.needsMapping && item.storageFileId) {
-            setMappingItem(item);
-        } else if (item.bankResult) {
-            // PDF was processed by AI
-            if (await showConfirm(`Se han detectado ${item.bankResult.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
-                onBankTransactionsAdded(item.bankResult);
-                removeFromQueue(item.id);
-            }
+      // Check if XLSX needs mapping
+      if (item.needsMapping && item.storageFileId) {
+        setMappingItem(item);
+      } else if (item.bankResult) {
+        // PDF was processed by AI
+        if (await showConfirm(`Se han detectado ${item.bankResult.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
+          onBankTransactionsAdded(item.bankResult);
+          removeFromQueue(item.id);
         }
-    }
-  };
-
-  const handleFieldChange = (field: keyof Invoice, value: string | number) => {
-    if (preview) {
-      const updated = { ...preview, [field]: value };
-      if (field === 'baseAmount' || field === 'vatRate') {
-         const base = field === 'baseAmount' ? Number(value) : updated.baseAmount;
-         const rate = field === 'vatRate' ? Number(value) : updated.vatRate;
-         updated.vatAmount = base * (rate / 100);
-         updated.totalAmount = base + updated.vatAmount;
       }
-      setPreview(updated);
-      if (field === 'issuerNif') {
-          const isValid = isValidNIF(value as string);
-          setNifError(!isValid);
-          if (isValid) setForceAcceptNif(false); // Reset override if it becomes valid
-      }
-    }
-  };
-
-  const confirmInvoice = (markAsProcessed: boolean) => {
-    if (preview && reviewItem) {
-      // Strict blocking unless forced
-      if (nifError && !forceAcceptNif) {
-          showToast("El NIF del emisor es inválido. Por favor, corrígelo o marca la casilla 'Forzar aceptación' si estás seguro.", "warning");
-          return;
-      }
-
-      const finalInvoice: Invoice = {
-        ...preview,
-        apartmentId: selectedApartmentId || undefined,
-        status: markAsProcessed ? 'PROCESSED' : 'PENDING',
-        // Usar storageFileId en lugar de file/base64Data
-        // El archivo está en Appwrite Storage, referenciado por appwriteFileId
-        appwriteFileId: reviewItem.storageFileId,
-        fileType: reviewItem.mimeType,
-        history: [...preview.history, {
-            date: new Date().toISOString(),
-            action: markAsProcessed ? 'Factura procesada y asiento contable creado' : 'Factura guardada como borrador (pendiente de revisión)',
-            user: 'Admin Gestor'
-        }]
-      };
-      onInvoiceAdded(finalInvoice);
-      removeFromQueue(reviewItem.id);
-      setReviewItem(null);
-      setPreview(null);
     }
   };
 
@@ -178,7 +118,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
               <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
               <h4 className="font-semibold text-slate-900 text-sm md:text-base">Revisión de Factura</h4>
             </div>
-            <button onClick={() => { setReviewItem(null); setPreview(null); }} className="text-slate-400 hover:text-slate-600 p-1">
+            <button onClick={cancelReview} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
             </button>
           </div>
@@ -323,7 +263,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
           <div className="px-4 md:px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0">
              <button
-                onClick={() => { setReviewItem(null); setPreview(null); }}
+                onClick={cancelReview}
                 className="order-3 sm:order-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
              >
                 Cancelar

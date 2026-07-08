@@ -54,6 +54,21 @@ function sleep(ms) {
 }
 
 /**
+ * DEBT-012: Ask the user for confirmation before any destructive (bulk-delete) operation.
+ * Returns a Promise that resolves to true if the user types 'y' or 'yes'.
+ */
+function confirm(question) {
+  const readline = require('readline');
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => {
+    rl.question(`${question} [y/N] `, answer => {
+      rl.close();
+      resolve(answer.trim().toLowerCase() === 'y' || answer.trim().toLowerCase() === 'yes');
+    });
+  });
+}
+
+/**
  * Check if attribute exists
  */
 async function attributeExists(collectionId, attributeKey) {
@@ -284,24 +299,29 @@ async function migrate() {
         console.log('');
         
         // Option 1: Delete all old uploads (recommended for clean start)
-        console.log('  🗑️  Deleting old uploads (they use base64Data which is deprecated)...');
-        
-        for (const doc of existingDocs) {
-          try {
-            await databases.deleteDocument(
-              CONFIG.databaseId,
-              CONFIG.collectionId,
-              doc.$id
-            );
-            console.log(`    - Deleted: ${doc.fileName || doc.$id}`);
-          } catch (err) {
-            console.log(`    ⚠️  Could not delete ${doc.$id}: ${err.message}`);
+        console.log(`  🗑️  About to delete ${existingDocs.length} upload(s) that use the deprecated base64Data field.`);
+        const proceed = await confirm('  ⚠️  This is IRREVERSIBLE. Proceed with deletion?');
+        if (!proceed) {
+          console.log('  ⏭️  Skipping deletion of old uploads.');
+        } else {
+          console.log('  🗑️  Deleting old uploads...');
+          for (const doc of existingDocs) {
+            try {
+              await databases.deleteDocument(
+                CONFIG.databaseId,
+                CONFIG.collectionId,
+                doc.$id
+              );
+              console.log(`    - Deleted: ${doc.fileName || doc.$id}`);
+            } catch (err) {
+              console.log(`    ⚠️  Could not delete ${doc.$id}: ${err.message}`);
+            }
+            await sleep(200);
           }
-          await sleep(200);
+
+          console.log('');
+          console.log('  ✅ Old uploads cleaned up');
         }
-        
-        console.log('');
-        console.log('  ✅ Old uploads cleaned up');
       }
     } catch (error) {
       console.log('  ⚠️  Could not list existing uploads:', error.message);

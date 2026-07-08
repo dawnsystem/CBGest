@@ -36,7 +36,15 @@ export const loadPersistedState = <T>(key: string, defaults: T): T => {
   try {
     return mergeWithDefaults(defaults, JSON.parse(saved));
   } catch (error) {
-    storageLogger.error(`Error parsing persisted state for ${key}`, error);
+    // BUG-018 fix: corrupt state is not silently ignored — log a warning and
+    // remove the invalid entry so the app starts clean rather than in a broken
+    // partially-loaded state.
+    storageLogger.error(`Estado guardado corrupto para '${key}' — eliminando y usando valores por defecto.`, error);
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // If removeItem also fails (e.g. storage unavailable), ignore silently.
+    }
     return defaults;
   }
 };

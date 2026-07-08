@@ -153,6 +153,11 @@ export const createDefaultSupplier = (id?: string): Supplier => ({
  * Format: timestamp + random suffix for uniqueness.
  */
 export const generateId = (): string => {
+  // DEBT-010: Use crypto.randomUUID() for collision-free IDs in all modern browsers
+  // and Node 19+. Falls back to the timestamp+random approach for old environments.
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
   const timestamp = Date.now().toString(36);
   const randomSuffix = Math.random().toString(36).substring(2, 9);
   return `${timestamp}-${randomSuffix}`;
@@ -161,34 +166,46 @@ export const generateId = (): string => {
 /**
  * Parse a date string safely, returning a valid Date or null.
  * Handles YYYY-MM-DD, DD/MM/YYYY, and ISO formats.
+ *
+ * BUG-005 fix: YYYY-MM-DD strings are parsed as **local** time to avoid the
+ * UTC-midnight interpretation that shifts the date one day backward in UTC+N
+ * time zones (e.g. Spain UTC+1/UTC+2).
  */
 export const parseDate = (dateStr: string | undefined | null): Date | null => {
   if (!dateStr) return null;
 
-  // Try ISO format first (YYYY-MM-DD or full ISO)
-  const isoDate = new Date(dateStr);
-  if (!isNaN(isoDate.getTime())) {
-    return isoDate;
+  // YYYY-MM-DD — parse as local midnight to avoid UTC date shift (BUG-005)
+  const yyyymmdd = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (yyyymmdd) {
+    const parsed = new Date(parseInt(yyyymmdd[1]), parseInt(yyyymmdd[2]) - 1, parseInt(yyyymmdd[3]));
+    if (!isNaN(parsed.getTime())) return parsed;
   }
 
   // Try DD/MM/YYYY format (common in Spain)
   const ddmmyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (ddmmyyyy) {
-    const [, day, month, year] = ddmmyyyy;
-    const parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    if (!isNaN(parsed.getTime())) {
-      return parsed;
-    }
+    const parsed = new Date(parseInt(ddmmyyyy[3]), parseInt(ddmmyyyy[2]) - 1, parseInt(ddmmyyyy[1]));
+    if (!isNaN(parsed.getTime())) return parsed;
   }
+
+  // Fallback: full ISO-8601 datetime strings (include time zone info)
+  const isoDate = new Date(dateStr);
+  if (!isNaN(isoDate.getTime())) return isoDate;
 
   return null;
 };
 
 /**
  * Format a date as YYYY-MM-DD string (standard format used in the app).
+ *
+ * BUG-004 fix: use local date components instead of toISOString() which
+ * returns the UTC date — at 23:00 Spanish time the UTC date is the next day.
  */
 export const formatDateYYYYMMDD = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 /**

@@ -50,13 +50,18 @@ const getNextPaymentDate = (expense: RecurringExpense): Date | null => {
   const today = new Date();
   const dayOfMonth = expense.dayOfMonth || 1;
 
-  // Clamp day to valid range for the target month
+  // BUG-013 fix: build candidate dates from year/month/day components without
+  // relying on the local-time constructor (new Date(y, m, d)), which can shift
+  // by one day around DST transitions.  We use a helper that returns midnight
+  // UTC for a given calendar date so all comparisons are time-zone stable.
+  const utcDate = (y: number, m: number, d: number): Date =>
+    new Date(Date.UTC(y, m, Math.min(d, new Date(Date.UTC(y, m + 1, 0)).getUTCDate())));
+
   const year = today.getFullYear();
   const month = today.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const clampedDay = Math.min(dayOfMonth, daysInMonth);
+  const clampedDay = Math.min(dayOfMonth, new Date(year, month + 1, 0).getDate());
 
-  let nextDate = new Date(year, month, clampedDay);
+  let nextDate = utcDate(year, month, clampedDay);
 
   // If day has passed this month, move to next occurrence
   if (nextDate <= today) {
@@ -72,11 +77,7 @@ const getNextPaymentDate = (expense: RecurringExpense): Date | null => {
     const newYear = year + Math.floor(newMonth / 12);
     const adjustedMonth = newMonth % 12;
 
-    // Clamp day for the new target month
-    const daysInNewMonth = new Date(newYear, adjustedMonth + 1, 0).getDate();
-    const newClampedDay = Math.min(dayOfMonth, daysInNewMonth);
-
-    nextDate = new Date(newYear, adjustedMonth, newClampedDay);
+    nextDate = utcDate(newYear, adjustedMonth, dayOfMonth);
   }
 
   return nextDate;

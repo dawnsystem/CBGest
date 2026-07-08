@@ -2,37 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { BankTransaction, AccountingEntry, Invoice, Supplier, RecurringExpense, AIMatchSuggestion, getEntryLines, calculateEntryTotals } from '../types';
 import { ArrowRightLeft, Check, AlertCircle, Plus, BookOpen, Building2, Sparkles, Zap, FileText, RefreshCw } from 'lucide-react';
 import { generateMatchSuggestions } from '../utils/aiMatching';
-import { isTreasuryAccount } from '../utils/accountingPlan';
-
-// Helper to check if an entry has any treasury/bank lines
-const entryHasBankLine = (entry: AccountingEntry): boolean => {
-  const lines = getEntryLines(entry);
-  return lines.some(line => isTreasuryAccount(line.accountCode));
-};
-
-// Get the bank line amount from an entry (positive for debit, negative for credit)
-const getBankLineAmount = (entry: AccountingEntry): number => {
-  const lines = getEntryLines(entry);
-  for (const line of lines) {
-    if (isTreasuryAccount(line.accountCode)) {
-      // Debit on bank = money coming in (positive)
-      // Credit on bank = money going out (negative)
-      return line.debit > 0 ? line.debit : -line.credit;
-    }
-  }
-  return 0;
-};
-
-// Get the bank account code from an entry
-const getBankAccountCode = (entry: AccountingEntry): string => {
-  const lines = getEntryLines(entry);
-  for (const line of lines) {
-    if (isTreasuryAccount(line.accountCode)) {
-      return line.accountCode;
-    }
-  }
-  return '';
-};
+import { entryHasBankLine, getBankLineAmount, getBankAccountCode } from '../utils/accountingPlan';
 
 // Union type for bank movements (imported or from accounting entries)
 interface BankMovement {
@@ -126,13 +96,22 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
     [entries]
   );
 
+  // PERF-004: Pre-compute entry totals once so getMatches is O(1) per entry
+  // instead of recomputing them on every movement comparison.
+  const nonBankEntryAmounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of nonBankEntries) {
+      const totals = calculateEntryTotals(entry);
+      map.set(entry.id, Math.max(totals.totalDebit, totals.totalCredit));
+    }
+    return map;
+  }, [nonBankEntries]);
+
   // Find potential matches - entries without bank accounts with matching total amount
   const getMatches = (movement: BankMovement) => {
     const movementAmountAbs = Math.abs(movement.amount);
     return nonBankEntries.filter(entry => {
-      const totals = calculateEntryTotals(entry);
-      // Use the larger of debit/credit totals as the entry amount
-      const entryAmount = Math.max(totals.totalDebit, totals.totalCredit);
+      const entryAmount = nonBankEntryAmounts.get(entry.id) ?? 0;
       return Math.abs(movementAmountAbs - entryAmount) < 0.05; // 5 cent tolerance
     });
   };

@@ -53,7 +53,7 @@ export const ChartWrapper: React.FC<ChartWrapperProps> = ({
     }
 
     // Fallback: requestAnimationFrame check
-    let frameId: number;
+    let frameId = 0;
     const checkWithRAF = () => {
       if (!checkDimensions()) {
         frameId = requestAnimationFrame(checkWithRAF);

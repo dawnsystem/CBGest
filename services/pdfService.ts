@@ -7,6 +7,26 @@
 import { jsPDF } from 'jspdf';
 import { Invoice, AppSettings } from '../types';
 
+// ============================================================================
+// LAYOUT CONSTANTS — DEBT-009
+// A4 portrait page: 210 × 297 mm.  All values are in mm.
+// ============================================================================
+const PAGE_CENTER_X = 105;  // horizontal center of A4
+const MARGIN_LEFT   = 20;
+const MARGIN_RIGHT  = 170;  // right-align text target
+const BOX_LEFT      = 15;   // left edge of full-width boxes
+const BOX_WIDTH     = 180;  // width of full-width boxes
+const FOOTER_Y1     = 280;  // first footer line
+const FOOTER_Y2     = 285;  // second footer line
+
+const FONT_TITLE    = 16;
+const FONT_SUBTITLE = 14;
+const FONT_SECTION  = 12;
+const FONT_HEADER   = 11;
+const FONT_BODY     = 10;
+const FONT_SMALL    = 9;
+const FONT_TINY     = 8;
+
 interface TaxData303 {
   trimestre: string;
   year: number;
@@ -32,14 +52,14 @@ export function generatePDF303(data: TaxData303): Blob {
   const { settings, trimestre, year, ivaRepercutido, ivaSoportado, resultado } = data;
 
   // Header
-  doc.setFontSize(16);
+  doc.setFontSize(FONT_TITLE);
   doc.setFont('helvetica', 'bold');
-  doc.text('MODELO 303', 105, 20, { align: 'center' });
-  doc.setFontSize(12);
-  doc.text('Autoliquidación IVA - Régimen General', 105, 28, { align: 'center' });
+  doc.text('MODELO 303', PAGE_CENTER_X, 20, { align: 'center' });
+  doc.setFontSize(FONT_SECTION);
+  doc.text('Autoliquidación IVA - Régimen General', PAGE_CENTER_X, 28, { align: 'center' });
 
   // Period info
-  doc.setFontSize(10);
+  doc.setFontSize(FONT_BODY);
   doc.setFont('helvetica', 'normal');
   doc.text(`Período: ${trimestre} ${year}`, 20, 45);
 
@@ -48,11 +68,11 @@ export function generatePDF303(data: TaxData303): Blob {
   doc.setLineWidth(0.5);
   doc.rect(15, 55, 180, 35);
 
-  doc.setFontSize(11);
+  doc.setFontSize(FONT_HEADER);
   doc.setFont('helvetica', 'bold');
   doc.text('IDENTIFICACIÓN DEL DECLARANTE', 20, 63);
 
-  doc.setFontSize(10);
+  doc.setFontSize(FONT_BODY);
   doc.setFont('helvetica', 'normal');
   doc.text(`Razón Social: ${settings.cbName}`, 20, 72);
   doc.text(`NIF: ${settings.nif || 'No especificado'}`, 20, 80);
@@ -60,11 +80,11 @@ export function generatePDF303(data: TaxData303): Blob {
   // IVA calculations box
   doc.rect(15, 100, 180, 70);
 
-  doc.setFontSize(11);
+  doc.setFontSize(FONT_HEADER);
   doc.setFont('helvetica', 'bold');
   doc.text('LIQUIDACIÓN', 20, 108);
 
-  doc.setFontSize(10);
+  doc.setFontSize(FONT_BODY);
   doc.setFont('helvetica', 'normal');
 
   // IVA Devengado
@@ -83,18 +103,18 @@ export function generatePDF303(data: TaxData303): Blob {
   doc.line(20, 145, 190, 145);
 
   // Result
-  doc.setFontSize(12);
+  doc.setFontSize(FONT_SECTION);
   doc.setFont('helvetica', 'bold');
   const resultLabel = resultado >= 0 ? 'A INGRESAR' : 'A COMPENSAR/DEVOLVER';
   doc.text(`RESULTADO: ${resultLabel}`, 20, 158);
-  doc.setFontSize(14);
+  doc.setFontSize(FONT_SUBTITLE);
   doc.text(`${Math.abs(resultado).toFixed(2)} €`, 170, 158, { align: 'right' });
 
   // Footer
-  doc.setFontSize(8);
+  doc.setFontSize(FONT_TINY);
   doc.setFont('helvetica', 'italic');
-  doc.text('Documento generado por CBGest - Solo para uso informativo', 105, 280, { align: 'center' });
-  doc.text(`Generado el: ${new Date().toLocaleString('es-ES')}`, 105, 285, { align: 'center' });
+  doc.text('Documento generado por CBGest - Solo para uso informativo', PAGE_CENTER_X, FOOTER_Y1, { align: 'center' });
+  doc.text(`Generado el: ${new Date().toLocaleString('es-ES')}`, PAGE_CENTER_X, FOOTER_Y2, { align: 'center' });
 
   return doc.output('blob');
 }
@@ -108,14 +128,14 @@ export function generatePDF184(data: TaxData184): Blob {
   const partners = settings.partners || [];
 
   // Header
-  doc.setFontSize(16);
+  doc.setFontSize(FONT_TITLE);
   doc.setFont('helvetica', 'bold');
-  doc.text('MODELO 184', 105, 20, { align: 'center' });
-  doc.setFontSize(12);
-  doc.text('Declaración Informativa - Entidades en Atribución de Rentas', 105, 28, { align: 'center' });
+  doc.text('MODELO 184', PAGE_CENTER_X, 20, { align: 'center' });
+  doc.setFontSize(FONT_SECTION);
+  doc.text('Declaración Informativa - Entidades en Atribución de Rentas', PAGE_CENTER_X, 28, { align: 'center' });
 
   // Period info
-  doc.setFontSize(10);
+  doc.setFontSize(FONT_BODY);
   doc.setFont('helvetica', 'normal');
   doc.text(`Ejercicio: ${year}`, 20, 45);
 
@@ -124,11 +144,11 @@ export function generatePDF184(data: TaxData184): Blob {
   doc.setLineWidth(0.5);
   doc.rect(15, 55, 180, 35);
 
-  doc.setFontSize(11);
+  doc.setFontSize(FONT_HEADER);
   doc.setFont('helvetica', 'bold');
   doc.text('IDENTIFICACIÓN DE LA ENTIDAD', 20, 63);
 
-  doc.setFontSize(10);
+  doc.setFontSize(FONT_BODY);
   doc.setFont('helvetica', 'normal');
   doc.text(`Denominación: ${settings.cbName}`, 20, 72);
   doc.text(`NIF: ${settings.nif || 'No especificado'}`, 20, 80);
@@ -136,11 +156,11 @@ export function generatePDF184(data: TaxData184): Blob {
   // Income summary box
   doc.rect(15, 100, 180, 45);
 
-  doc.setFontSize(11);
+  doc.setFontSize(FONT_HEADER);
   doc.setFont('helvetica', 'bold');
   doc.text('RESUMEN DE RENDIMIENTOS', 20, 108);
 
-  doc.setFontSize(10);
+  doc.setFontSize(FONT_BODY);
   doc.setFont('helvetica', 'normal');
 
   doc.text('Total Ingresos (Rentas de alquiler)', 20, 118);
@@ -154,18 +174,18 @@ export function generatePDF184(data: TaxData184): Blob {
 
   doc.setFont('helvetica', 'bold');
   doc.text('RENDIMIENTO NETO TOTAL', 20, 140);
-  doc.setFontSize(12);
+  doc.setFontSize(FONT_SECTION);
   doc.text(`${rendimientoNeto.toFixed(2)} €`, 170, 140, { align: 'right' });
 
   // Partners section
   const partnersStartY = 155;
-  doc.setFontSize(11);
+  doc.setFontSize(FONT_HEADER);
   doc.setFont('helvetica', 'bold');
   doc.text('ATRIBUCIÓN A LOS PARTÍCIPES', 20, partnersStartY);
 
   // Partners table header
   const tableY = partnersStartY + 10;
-  doc.setFontSize(9);
+  doc.setFontSize(FONT_SMALL);
   doc.setFont('helvetica', 'bold');
   doc.rect(15, tableY - 5, 180, 10);
   doc.text('Nombre', 20, tableY + 2);
@@ -190,7 +210,7 @@ export function generatePDF184(data: TaxData184): Blob {
   });
 
   // Info box
-  doc.setFontSize(8);
+  doc.setFontSize(FONT_TINY);
   doc.setFillColor(240, 253, 244); // Light green
   doc.rect(15, currentY + 10, 180, 20, 'F');
   doc.setFont('helvetica', 'normal');
@@ -198,10 +218,10 @@ export function generatePDF184(data: TaxData184): Blob {
   doc.text('en la declaración del IRPF de cada partícipe según su porcentaje de participación.', 20, currentY + 25);
 
   // Footer
-  doc.setFontSize(8);
+  doc.setFontSize(FONT_TINY);
   doc.setFont('helvetica', 'italic');
-  doc.text('Documento generado por CBGest - Solo para uso informativo', 105, 280, { align: 'center' });
-  doc.text(`Generado el: ${new Date().toLocaleString('es-ES')}`, 105, 285, { align: 'center' });
+  doc.text('Documento generado por CBGest - Solo para uso informativo', PAGE_CENTER_X, FOOTER_Y1, { align: 'center' });
+  doc.text(`Generado el: ${new Date().toLocaleString('es-ES')}`, PAGE_CENTER_X, FOOTER_Y2, { align: 'center' });
 
   return doc.output('blob');
 }
@@ -219,14 +239,14 @@ export function generatePartnerCertificate(
   const atributed = rendimientoNeto * (partner.participation / 100);
 
   // Header
-  doc.setFontSize(14);
+  doc.setFontSize(FONT_SUBTITLE);
   doc.setFont('helvetica', 'bold');
-  doc.text('CERTIFICADO DE RENDIMIENTOS', 105, 20, { align: 'center' });
-  doc.setFontSize(10);
-  doc.text(`Ejercicio ${year}`, 105, 28, { align: 'center' });
+  doc.text('CERTIFICADO DE RENDIMIENTOS', PAGE_CENTER_X, 20, { align: 'center' });
+  doc.setFontSize(FONT_BODY);
+  doc.text(`Ejercicio ${year}`, PAGE_CENTER_X, 28, { align: 'center' });
 
   // Entity info
-  doc.setFontSize(10);
+  doc.setFontSize(FONT_BODY);
   doc.setFont('helvetica', 'normal');
   doc.text(`Entidad: ${entitySettings.cbName}`, 20, 50);
   doc.text(`NIF Entidad: ${entitySettings.nif || 'No especificado'}`, 20, 58);
@@ -236,11 +256,11 @@ export function generatePartnerCertificate(
   doc.line(20, 70, 190, 70);
 
   // Partner info
-  doc.setFontSize(12);
+  doc.setFontSize(FONT_SECTION);
   doc.setFont('helvetica', 'bold');
   doc.text('DATOS DEL PARTÍCIPE', 20, 85);
 
-  doc.setFontSize(10);
+  doc.setFontSize(FONT_BODY);
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre: ${partner.name}`, 20, 95);
   doc.text(`NIF: ${partner.nif || 'Pendiente'}`, 20, 103);
@@ -251,21 +271,21 @@ export function generatePartnerCertificate(
   doc.setLineWidth(0.5);
   doc.rect(15, 125, 180, 40);
 
-  doc.setFontSize(11);
+  doc.setFontSize(FONT_HEADER);
   doc.setFont('helvetica', 'bold');
   doc.text('RENDIMIENTO ATRIBUIDO', 20, 135);
 
-  doc.setFontSize(10);
+  doc.setFontSize(FONT_BODY);
   doc.setFont('helvetica', 'normal');
   doc.text(`Rendimiento neto total de la entidad: ${rendimientoNeto.toFixed(2)} €`, 20, 147);
   doc.text(`Porcentaje de atribución: ${partner.participation}%`, 20, 155);
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(FONT_SECTION);
   doc.text(`IMPORTE A DECLARAR EN IRPF: ${atributed.toFixed(2)} €`, 20, 163);
 
   // Legal text
-  doc.setFontSize(8);
+  doc.setFontSize(FONT_TINY);
   doc.setFont('helvetica', 'normal');
   doc.text('Este certificado acredita la renta atribuida al partícipe para su inclusión', 20, 185);
   doc.text('en la declaración del Impuesto sobre la Renta de las Personas Físicas (IRPF).', 20, 192);
@@ -276,9 +296,9 @@ export function generatePartnerCertificate(
   doc.text('Firma y sello de la entidad', 20, 258);
 
   // Footer
-  doc.setFontSize(8);
+  doc.setFontSize(FONT_TINY);
   doc.setFont('helvetica', 'italic');
-  doc.text('Documento generado por CBGest - Solo para uso informativo', 105, 280, { align: 'center' });
+  doc.text('Documento generado por CBGest - Solo para uso informativo', PAGE_CENTER_X, FOOTER_Y1, { align: 'center' });
 
   return doc.output('blob');
 }

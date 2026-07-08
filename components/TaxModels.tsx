@@ -90,20 +90,31 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
   // Handler para generar certificados de los partícipes
   const handleGenerateCertificates = useCallback(() => {
     setGeneratingCerts(true);
-    try {
-      partners.forEach((partner, index) => {
+    const errors: string[] = [];
+
+    partners.forEach((partner, index) => {
+      try {
         const blob = generatePartnerCertificate(partner, settings, rendimientoNeto, currentYear);
         // Small delay between downloads to prevent browser blocking
+        // DEBT-014: each download wrapped individually to surface per-partner errors
         setTimeout(() => {
-          downloadPDF(blob, `Certificado_${partner.name.replace(/\s+/g, '_')}_${currentYear}.pdf`);
+          try {
+            downloadPDF(blob, `Certificado_${partner.name.replace(/\s+/g, '_')}_${currentYear}.pdf`);
+          } catch (err) {
+            console.error(`Error descargando certificado de ${partner.name}:`, err);
+            errors.push(partner.name);
+            if (errors.length === 1) {
+              showToast(`Error al descargar el certificado de ${partner.name}.`, 'error');
+            }
+          }
         }, index * 300);
-      });
-    } catch (error) {
-      console.error('Error generating certificates:', error);
-      showToast('Error al generar los certificados. Por favor, inténtelo de nuevo.', 'error');
-    } finally {
-      setTimeout(() => setGeneratingCerts(false), partners.length * 300 + 500);
-    }
+      } catch (error) {
+        console.error(`Error generando certificado de ${partner.name}:`, error);
+        showToast(`Error al generar el certificado de ${partner.name}.`, 'error');
+      }
+    });
+
+    setTimeout(() => setGeneratingCerts(false), partners.length * 300 + 500);
   }, [partners, settings, rendimientoNeto, currentYear, showToast]);
 
   // Check if tourist tax is enabled

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { X, Download, FileText, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, Maximize, ArrowLeftRight } from 'lucide-react';
 import { pdfjsLib } from '../utils/pdfLoader';
-import { storageService } from '../services/appwriteService';
+import { useDocumentFile } from '../hooks/useDocumentFile';
 
 declare global {
   interface Window {
@@ -33,8 +33,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 }) => {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [isPdf, setIsPdf] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadedFile, setDownloadedFile] = useState<File | null>(null);
+
+  // DEBT-007: File download/resolution extracted to useDocumentFile hook
+  const { effectiveFile, isDownloading, downloadError } = useDocumentFile({
+    file, appwriteFileId, mimeType, title, isOpen,
+  });
 
   // PDF State
   const [pdfDoc, setPdfDoc] = useState<any>(null);
@@ -86,35 +89,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     }
   }, [baseViewport]);
 
-  // Download file from Storage if appwriteFileId is provided
+  // Sync download errors from the hook into the local render error state
   useEffect(() => {
-    if (!isOpen) return;
-    if (!appwriteFileId) {
-      setDownloadedFile(null);
-      return;
-    }
-
-    const downloadFile = async () => {
-      setIsDownloading(true);
-      setRenderError(null);
-      try {
-        const blob = await storageService.downloadFile(appwriteFileId);
-        const downloadedMimeType = mimeType || blob.type || 'application/octet-stream';
-        const downloadedFileObj = new File([blob], title || 'document', { type: downloadedMimeType });
-        setDownloadedFile(downloadedFileObj);
-      } catch (error) {
-        console.error('Error downloading file from Storage:', error);
-        setRenderError('Error al descargar el archivo');
-      } finally {
-        setIsDownloading(false);
-      }
-    };
-
-    downloadFile();
-  }, [appwriteFileId, isOpen, mimeType, title]);
-
-  // Determine which file to use (direct file or downloaded)
-  const effectiveFile = file || downloadedFile;
+    if (downloadError) setRenderError(downloadError);
+  }, [downloadError]);
 
   // Initialize Object URL
   useEffect(() => {

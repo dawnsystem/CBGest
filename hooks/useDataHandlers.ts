@@ -4,7 +4,7 @@
  *              Usa optimistic updates con rollback en caso de error.
  */
 
-import { useCallback, Dispatch, SetStateAction } from 'react';
+import { useCallback, useMemo, Dispatch, SetStateAction } from 'react';
 import {
   Invoice, AccountingEntry, BankTransaction, Supplier,
   Apartment, RecurringExpense, Reservation, AppSettings
@@ -14,6 +14,73 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
+import { buildEntryFromInvoice } from '../utils/invoiceUtils';
+
+// ============================================================================
+// DEBT-006: Generic optimistic-CRUD factory
+// Reduces the ~200 lines of identical create/update/delete boilerplate for
+// simple entities into a single reusable helper.
+// ============================================================================
+
+interface EntityBase { id: string; appwriteId?: string }
+
+interface OptimisticCrudOptions<T extends EntityBase> {
+  items: T[];
+  setItems: Dispatch<SetStateAction<T[]>>;
+  isAppwrite: boolean;
+  label: string;  // human-readable name for error messages, e.g. 'proveedor'
+  create: (item: T) => Promise<T>;
+  update: (item: T) => Promise<T | void>;
+  remove: (appwriteId: string) => Promise<void>;
+  showError: (msg: string) => void;
+}
+
+function makeOptimisticCrud<T extends EntityBase>(opts: OptimisticCrudOptions<T>) {
+  const { items, setItems, isAppwrite, label, create, update, remove, showError } = opts;
+
+  const handleAdd = async (item: T): Promise<void> => {
+    setItems(prev => [item, ...prev]);
+    if (!isAppwrite) return;
+    try {
+      const saved = await create(item);
+      setItems(prev => prev.map(i => i.id === item.id ? saved : i));
+    } catch (error: unknown) {
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      showError(`Error al crear ${label}: ${msg}`);
+    }
+  };
+
+  const handleUpdate = async (item: T): Promise<void> => {
+    const old = items.find(i => i.id === item.id);
+    setItems(prev => prev.map(i => i.id === item.id ? item : i));
+    if (!isAppwrite) return;
+    try {
+      await update({ ...item, appwriteId: item.appwriteId || item.id });
+    } catch (error: unknown) {
+      if (old) setItems(prev => prev.map(i => i.id === item.id ? old : i));
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      showError(`Error al actualizar ${label}: ${msg}`);
+    }
+  };
+
+  const handleDelete = async (id: string): Promise<void> => {
+    const item = items.find(i => i.id === id);
+    setItems(prev => prev.filter(i => i.id !== id));
+    if (!isAppwrite || !item) return;
+    try {
+      await remove(item.appwriteId || item.id);
+    } catch (error: unknown) {
+      setItems(prev => [item, ...prev]);
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      showError(`Error al eliminar ${label}: ${msg}`);
+    }
+  };
+
+  return { handleAdd, handleUpdate, handleDelete };
+}
+
+// ============================================================================
 
 interface DataSetters {
   setInvoices: Dispatch<SetStateAction<Invoice[]>>;
@@ -115,96 +182,42 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   }, [data.entries, data.settings, setters, showError]);
 
   // Helper to create entry from invoice
+  // DEBT-002: delegate to the shared utility in utils/invoiceUtils.ts
   const createEntryFromInvoice = useCallback((inv: Invoice) => {
-    let accountCode = inv.type === 'EXPENSE' ? '600' : '700';
-    let accountName = inv.type === 'EXPENSE' ? 'Compras' : 'Ventas';
-
-    if (inv.category) {
-      const parts = inv.category.split(' - ');
-      if (parts.length > 1) {
-        accountCode = parts[0].trim();
-        accountName = parts.slice(1).join(' - ').trim();
-      } else {
-        accountCode = parts[0].trim();
-      }
-    }
-
-    const debit = inv.type === 'EXPENSE' ? inv.totalAmount : 0;
-    const credit = inv.type === 'INCOME' ? inv.totalAmount : 0;
-    
-    const newEntry: AccountingEntry = {
-      id: `AUTO-${inv.id}`,
-      date: inv.date,
-      concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
-      lines: [{ accountCode, accountName, debit, credit }],
-      // Legacy fields for compatibility
-      accountCode,
-      accountName,
-      debit,
-      credit,
-      invoiceId: inv.id,
-      appwriteFileId: inv.appwriteFileId,
-      fileType: inv.fileType,
-      reconciled: false,
-      createdBy: inv.createdBy || user?.$id,
-      createdByName: inv.createdByName || user?.name,
-      createdAt: new Date().toISOString()
-    };
-
-    handleAddEntry(newEntry);
+    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name });
+    handleAddEntry(entry);
   }, [user, handleAddEntry]);
 
   // ============ SUPPLIER HANDLERS ============
+  // DEBT-006: update/delete use the generic factory; add wraps it to inject audit fields.
+  const _supplierCrud = useMemo(() => makeOptimisticCrud<Supplier>({
+    items: data.suppliers,
+    setItems: setters.setSuppliers,
+    isAppwrite: data.settings.dataConfig?.type === 'APPWRITE',
+    label: 'proveedor',
+    create: appwriteService.createSupplier,
+    update: appwriteService.updateSupplier,
+    remove: appwriteService.deleteSupplier,
+    showError,
+  }), [data.suppliers, setters.setSuppliers, data.settings.dataConfig?.type, showError]);
+
   const handleAddSupplier = useCallback(async (supplier: Supplier) => {
     const supplierWithAudit: Supplier = {
       ...supplier,
       createdBy: supplier.createdBy || user?.$id,
       createdByName: supplier.createdByName || user?.name
     };
+    await _supplierCrud.handleAdd(supplierWithAudit);
+  }, [user, _supplierCrud]);
 
-    setters.setSuppliers(prev => [supplierWithAudit, ...prev]);
-
-    if (data.settings.dataConfig?.type === 'APPWRITE') {
-      try {
-        const saved = await appwriteService.createSupplier(supplierWithAudit);
-        setters.setSuppliers(prev => prev.map(s => s.id === supplierWithAudit.id ? saved : s));
-      } catch (error: unknown) {
-        setters.setSuppliers(prev => prev.filter(s => s.id !== supplierWithAudit.id));
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        showError(`Error al crear proveedor: ${errorMessage}`);
-      }
-    }
-  }, [user, data.settings, setters, showError]);
-
-  const handleUpdateSupplier = useCallback(async (supplier: Supplier) => {
-    const oldSupplier = data.suppliers.find(s => s.id === supplier.id);
-    setters.setSuppliers(prev => prev.map(s => s.id === supplier.id ? supplier : s));
-
-    if (data.settings.dataConfig?.type === 'APPWRITE') {
-      try {
-        await appwriteService.updateSupplier({ ...supplier, appwriteId: supplier.appwriteId || supplier.id });
-      } catch (error: unknown) {
-        if (oldSupplier) setters.setSuppliers(prev => prev.map(s => s.id === supplier.id ? oldSupplier : s));
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        showError(`Error al actualizar proveedor: ${errorMessage}`);
-      }
-    }
-  }, [data.suppliers, data.settings, setters, showError]);
-
-  const handleDeleteSupplier = useCallback(async (id: string) => {
-    const supplier = data.suppliers.find(s => s.id === id);
-    setters.setSuppliers(prev => prev.filter(s => s.id !== id));
-
-    if (data.settings.dataConfig?.type === 'APPWRITE' && supplier) {
-      try {
-        await appwriteService.deleteSupplier(supplier.appwriteId || supplier.id);
-      } catch (error: unknown) {
-        setters.setSuppliers(prev => [supplier, ...prev]);
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        showError(`Error al eliminar proveedor: ${errorMessage}`);
-      }
-    }
-  }, [data.suppliers, data.settings, setters, showError]);
+  const handleUpdateSupplier = useCallback(
+    (supplier: Supplier) => _supplierCrud.handleUpdate(supplier),
+    [_supplierCrud]
+  );
+  const handleDeleteSupplier = useCallback(
+    (id: string) => _supplierCrud.handleDelete(id),
+    [_supplierCrud]
+  );
 
   // ============ INVOICE HANDLERS ============
   const handleAddInvoice = useCallback(async (invoice: Invoice) => {
@@ -362,96 +375,47 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   }, [data.settings, setters]);
 
   // ============ APARTMENT HANDLERS ============
-  const handleAddApartment = useCallback(async (apt: Apartment) => {
-    setters.setApartments(prev => [apt, ...prev]);
+  // ============ APARTMENT HANDLERS — DEBT-006 factory ============
+  const _aptCrud = useMemo(() => makeOptimisticCrud<Apartment>({
+    items: data.apartments,
+    setItems: setters.setApartments,
+    isAppwrite: data.settings.dataConfig?.type === 'APPWRITE',
+    label: 'apartamento',
+    create: appwriteService.createApartment,
+    update: appwriteService.updateApartment,
+    remove: appwriteService.deleteApartment,
+    showError,
+  }), [data.apartments, setters.setApartments, data.settings.dataConfig?.type, showError]);
+  const handleAddApartment = useCallback(
+    (apt: Apartment) => _aptCrud.handleAdd(apt), [_aptCrud]
+  );
+  const handleUpdateApartment = useCallback(
+    (apt: Apartment) => _aptCrud.handleUpdate(apt), [_aptCrud]
+  );
+  const handleDeleteApartment = useCallback(
+    (id: string) => _aptCrud.handleDelete(id), [_aptCrud]
+  );
 
-    if (data.settings.dataConfig?.type === 'APPWRITE') {
-      try {
-        const saved = await appwriteService.createApartment(apt);
-        setters.setApartments(prev => prev.map(a => a.id === apt.id ? saved : a));
-      } catch (error: unknown) {
-        setters.setApartments(prev => prev.filter(a => a.id !== apt.id));
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        showError(`Error al crear apartamento: ${errorMessage}`);
-      }
-    }
-  }, [data.settings, setters, showError]);
-
-  const handleUpdateApartment = useCallback(async (apt: Apartment) => {
-    const old = data.apartments.find(a => a.id === apt.id);
-    setters.setApartments(prev => prev.map(a => a.id === apt.id ? apt : a));
-
-    if (data.settings.dataConfig?.type === 'APPWRITE') {
-      try {
-        await appwriteService.updateApartment({ ...apt, appwriteId: apt.appwriteId || apt.id });
-      } catch (error: unknown) {
-        if (old) setters.setApartments(prev => prev.map(a => a.id === apt.id ? old : a));
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        showError(`Error al actualizar apartamento: ${errorMessage}`);
-      }
-    }
-  }, [data.apartments, data.settings, setters, showError]);
-
-  const handleDeleteApartment = useCallback(async (id: string) => {
-    const apt = data.apartments.find(a => a.id === id);
-    setters.setApartments(prev => prev.filter(a => a.id !== id));
-
-    if (data.settings.dataConfig?.type === 'APPWRITE' && apt) {
-      try {
-        await appwriteService.deleteApartment(apt.appwriteId || apt.id);
-      } catch (error: unknown) {
-        setters.setApartments(prev => [apt, ...prev]);
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        showError(`Error al eliminar apartamento: ${errorMessage}`);
-      }
-    }
-  }, [data.apartments, data.settings, setters, showError]);
-
-  // ============ RECURRING EXPENSE HANDLERS ============
-  const handleAddRecurringExpense = useCallback(async (exp: RecurringExpense) => {
-    setters.setRecurringExpenses(prev => [exp, ...prev]);
-
-    if (data.settings.dataConfig?.type === 'APPWRITE') {
-      try {
-        const saved = await appwriteService.createRecurringExpense(exp);
-        setters.setRecurringExpenses(prev => prev.map(e => e.id === exp.id ? saved : e));
-      } catch (error: unknown) {
-        setters.setRecurringExpenses(prev => prev.filter(e => e.id !== exp.id));
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        showError(`Error al crear gasto recurrente: ${errorMessage}`);
-      }
-    }
-  }, [data.settings, setters, showError]);
-
-  const handleUpdateRecurringExpense = useCallback(async (exp: RecurringExpense) => {
-    const old = data.recurringExpenses.find(e => e.id === exp.id);
-    setters.setRecurringExpenses(prev => prev.map(e => e.id === exp.id ? exp : e));
-
-    if (data.settings.dataConfig?.type === 'APPWRITE') {
-      try {
-        await appwriteService.updateRecurringExpense({ ...exp, appwriteId: exp.appwriteId || exp.id });
-      } catch (error: unknown) {
-        if (old) setters.setRecurringExpenses(prev => prev.map(e => e.id === exp.id ? old : e));
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        showError(`Error al actualizar gasto recurrente: ${errorMessage}`);
-      }
-    }
-  }, [data.recurringExpenses, data.settings, setters, showError]);
-
-  const handleDeleteRecurringExpense = useCallback(async (id: string) => {
-    const exp = data.recurringExpenses.find(e => e.id === id);
-    setters.setRecurringExpenses(prev => prev.filter(e => e.id !== id));
-
-    if (data.settings.dataConfig?.type === 'APPWRITE' && exp) {
-      try {
-        await appwriteService.deleteRecurringExpense(exp.appwriteId || exp.id);
-      } catch (error: unknown) {
-        setters.setRecurringExpenses(prev => [exp, ...prev]);
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        showError(`Error al eliminar gasto recurrente: ${errorMessage}`);
-      }
-    }
-  }, [data.recurringExpenses, data.settings, setters, showError]);
+  // ============ RECURRING EXPENSE HANDLERS — DEBT-006 factory ============
+  const _expCrud = useMemo(() => makeOptimisticCrud<RecurringExpense>({
+    items: data.recurringExpenses,
+    setItems: setters.setRecurringExpenses,
+    isAppwrite: data.settings.dataConfig?.type === 'APPWRITE',
+    label: 'gasto recurrente',
+    create: appwriteService.createRecurringExpense,
+    update: appwriteService.updateRecurringExpense,
+    remove: appwriteService.deleteRecurringExpense,
+    showError,
+  }), [data.recurringExpenses, setters.setRecurringExpenses, data.settings.dataConfig?.type, showError]);
+  const handleAddRecurringExpense = useCallback(
+    (exp: RecurringExpense) => _expCrud.handleAdd(exp), [_expCrud]
+  );
+  const handleUpdateRecurringExpense = useCallback(
+    (exp: RecurringExpense) => _expCrud.handleUpdate(exp), [_expCrud]
+  );
+  const handleDeleteRecurringExpense = useCallback(
+    (id: string) => _expCrud.handleDelete(id), [_expCrud]
+  );
 
   // ============ RESERVATION HANDLERS ============
   const handleAddReservations = useCallback(async (newReservations: Omit<Reservation, 'id'>[]) => {

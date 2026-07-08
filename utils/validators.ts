@@ -8,6 +8,11 @@ import { NifType } from '../types';
 export const VALID_VAT_RATES = [0, 4, 10, 21] as const;
 export type VatRate = typeof VALID_VAT_RATES[number];
 
+// PERF-007: Compile regexes once at module level instead of inside each function call.
+const DNI_REGEX = /^[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]$/;
+const NIE_REGEX = /^[XYZ][0-9]{7}[TRWAGMYFPDXBNJZSQVHLCKE]$/;
+const CIF_REGEX = /^[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J]$/;
+
 /**
  * Detect the type of Spanish identification number
  */
@@ -15,13 +20,9 @@ export const detectNifType = (nif: string): NifType => {
   if (!nif) return 'NIF';
   const str = nif.toUpperCase().replace(/\s/g, '');
 
-  const dniRegex = /^[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]$/;
-  const nieRegex = /^[XYZ][0-9]{7}[TRWAGMYFPDXBNJZSQVHLCKE]$/;
-  const cifRegex = /^[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J]$/;
-
-  if (dniRegex.test(str)) return 'DNI';
-  if (nieRegex.test(str)) return 'NIE';
-  if (cifRegex.test(str)) return 'CIF';
+  if (DNI_REGEX.test(str)) return 'DNI';
+  if (NIE_REGEX.test(str)) return 'NIE';
+  if (CIF_REGEX.test(str)) return 'CIF';
 
   return 'NIF';
 };
@@ -29,14 +30,9 @@ export const detectNifType = (nif: string): NifType => {
 export const isValidNIF = (nif: string): boolean => {
   if (!nif) return false;
   const str = nif.toUpperCase().replace(/\s/g, '');
-  
-  // Expresiones regulares básicas
-  const dniRegex = /^[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]$/;
-  const nieRegex = /^[XYZ][0-9]{7}[TRWAGMYFPDXBNJZSQVHLCKE]$/;
-  const cifRegex = /^[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J]$/;
 
   // Validación DNI
-  if (dniRegex.test(str)) {
+  if (DNI_REGEX.test(str)) {
     const number = parseInt(str.substr(0, 8), 10);
     const letter = str.substr(8, 1);
     const letters = "TRWAGMYFPDXBNJZSQVHLCKE";
@@ -44,7 +40,7 @@ export const isValidNIF = (nif: string): boolean => {
   }
 
   // Validación NIE
-  if (nieRegex.test(str)) {
+  if (NIE_REGEX.test(str)) {
     const niePrefix = str.charAt(0);
     const prefixMap: {[key: string]: string} = { 'X': '0', 'Y': '1', 'Z': '2' };
     const numberStr = prefixMap[niePrefix] + str.substr(1, 7);
@@ -55,7 +51,7 @@ export const isValidNIF = (nif: string): boolean => {
   }
 
   // Validación CIF (Simplificada pero robusta para la mayoría de casos)
-  if (cifRegex.test(str)) {
+  if (CIF_REGEX.test(str)) {
     const digits = str.substr(1, 7);
     const control = str.charAt(8);
     

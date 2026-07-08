@@ -35,6 +35,11 @@ jobs:
       - name: Type check
         run: npm run type-check
 
+      - name: Dependency audit (SEC-004)
+        # Block only on critical vulnerabilities during normal development.
+        # Sprint 7 will raise this to --audit-level=high once SEC-* items are fixed.
+        run: npm audit --audit-level=critical
+
   test:
     name: Run Tests
     runs-on: ubuntu-latest

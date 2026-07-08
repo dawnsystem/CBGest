@@ -87,21 +87,36 @@ export function useBankTransactions(options: UseBankTransactionsOptions): UseBan
   }, [settings]);
 
   const handleCreateEntryFromTransaction = useCallback((tx: BankTransaction) => {
-    const accountCode = tx.amount < 0 ? '626' : '769';
-    const accountName = tx.amount < 0 ? 'Servicios bancarios' : 'Ingresos financieros';
-    const debit = tx.amount < 0 ? Math.abs(tx.amount) : 0;
-    const credit = tx.amount > 0 ? tx.amount : 0;
-    
+    // BUG-008 fix: create a proper double-entry (two lines) instead of a single line
+    // with hardcoded category accounts. The bank account (572) is always one leg;
+    // the default counter-account (626 or 769) is the other — the user should review
+    // and adjust the counter-account in "Libros Contables" as needed.
+    const absAmount = Math.abs(tx.amount);
+    const isExpense = tx.amount < 0;
+
+    const bankLine = {
+      accountCode: '572',
+      accountName: 'Bancos e instituciones de crédito c/c',
+      debit: isExpense ? 0 : absAmount,
+      credit: isExpense ? absAmount : 0,
+    };
+    const counterLine = {
+      accountCode: isExpense ? '626' : '769',
+      accountName: isExpense ? 'Servicios bancarios y similares' : 'Otros ingresos financieros',
+      debit: isExpense ? absAmount : 0,
+      credit: isExpense ? 0 : absAmount,
+    };
+
+    // Legacy scalar fields use the counter-account for backward compatibility
     const newEntry: AccountingEntry = {
       id: `BANK-${tx.id}`,
       date: tx.date,
       concept: tx.concept,
-      lines: [{ accountCode, accountName, debit, credit }],
-      // Legacy fields for compatibility
-      accountCode,
-      accountName,
-      debit,
-      credit,
+      lines: [counterLine, bankLine],
+      accountCode: counterLine.accountCode,
+      accountName: counterLine.accountName,
+      debit: counterLine.debit,
+      credit: counterLine.credit,
       reconciled: true
     };
     onAddEntry(newEntry);
@@ -112,8 +127,8 @@ export function useBankTransactions(options: UseBankTransactionsOptions): UseBan
       reconciledWithEntryId: newEntry.id
     });
 
-    alert("Asiento creado. Ve a 'Libros Contables' para editar la cuenta si es necesario.");
-  }, [onAddEntry, handleUpdateBankTransaction]);
+    showError("Asiento creado. Revisa y ajusta la cuenta de contrapartida en 'Libros Contables' si es necesario.");
+  }, [onAddEntry, handleUpdateBankTransaction, showError]);
 
   const handleReconcileTransaction = useCallback(async (
     sourceId: string,

@@ -289,6 +289,12 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       throw new Error("El archivo XLSX no contiene suficientes datos");
     }
 
+    // PERF-008: Guard against excessively large files to keep the browser responsive.
+    const MAX_ROWS = 5000;
+    if (rows.length > MAX_ROWS) {
+      throw new Error(`El archivo XLSX supera el límite de ${MAX_ROWS} filas. Divídalo en partes más pequeñas.`);
+    }
+
     // Convert to our expected format
     const rawData: any[][] = rows.map(row => [...row]);
 
