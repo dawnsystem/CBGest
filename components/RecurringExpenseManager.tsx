@@ -357,7 +357,8 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
           {!searchTerm && !filterApartment && (
             <button
               onClick={() => openModal()}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              disabled={isReadOnly}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:text-slate-400 disabled:cursor-not-allowed"
             >
               + Crear primer gasto recurrente
             </button>
