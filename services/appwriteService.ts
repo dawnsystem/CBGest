@@ -32,7 +32,8 @@ import type {
   Apartment,
   RecurringExpense,
   AIMatchHistory,
-  Reservation
+  Reservation,
+  FiscalYear
 } from '../types';
 
 /**
@@ -364,13 +365,20 @@ export const databaseService = {
     }
   },
 
-  async getInvoices(): Promise<Invoice[]> {
+  async getInvoices(fiscalYearId?: string): Promise<Invoice[]> {
     try {
+      const queries: Parameters<typeof databases.listDocuments>[2] = [
+        Query.orderDesc('date'),
+        Query.limit(1000)
+      ];
+      if (fiscalYearId) {
+        queries.push(Query.equal('fiscalYearId', fiscalYearId));
+      }
       const response = await withRetry(
         () => databases.listDocuments(
           config.databaseId,
           config.collections.invoices,
-          [Query.orderDesc('date'), Query.limit(1000)]
+          queries
         ),
         'getInvoices'
       );
@@ -548,13 +556,20 @@ export const databaseService = {
     }
   },
 
-  async getEntries(): Promise<AccountingEntry[]> {
+  async getEntries(fiscalYearId?: string): Promise<AccountingEntry[]> {
     try {
+      const queries: Parameters<typeof databases.listDocuments>[2] = [
+        Query.orderDesc('date'),
+        Query.limit(1000)
+      ];
+      if (fiscalYearId) {
+        queries.push(Query.equal('fiscalYearId', fiscalYearId));
+      }
       const response = await withRetry(
         () => databases.listDocuments(
           config.databaseId,
           config.collections.entries,
-          [Query.orderDesc('date'), Query.limit(1000)]
+          queries
         ),
         'getEntries'
       );
@@ -695,13 +710,20 @@ export const databaseService = {
     }
   },
 
-  async getTransactions(): Promise<BankTransaction[]> {
+  async getTransactions(fiscalYearId?: string): Promise<BankTransaction[]> {
     try {
+      const queries: Parameters<typeof databases.listDocuments>[2] = [
+        Query.orderDesc('date'),
+        Query.limit(1000)
+      ];
+      if (fiscalYearId) {
+        queries.push(Query.equal('fiscalYearId', fiscalYearId));
+      }
       const response = await withRetry(
         () => databases.listDocuments(
           config.databaseId,
           config.collections.transactions,
-          [Query.orderDesc('date'), Query.limit(1000)]
+          queries
         ),
         'getTransactions'
       );
@@ -854,13 +876,20 @@ export const databaseService = {
     }
   },
 
-  async getSuppliers(): Promise<Supplier[]> {
+  async getSuppliers(fiscalYearId?: string): Promise<Supplier[]> {
     try {
+      const queries: Parameters<typeof databases.listDocuments>[2] = [
+        Query.orderAsc('name'),
+        Query.limit(1000)
+      ];
+      if (fiscalYearId) {
+        queries.push(Query.equal('fiscalYearId', fiscalYearId));
+      }
       const response = await withRetry(
         () => databases.listDocuments(
           config.databaseId,
           config.collections.suppliers,
-          [Query.orderAsc('name'), Query.limit(1000)]
+          queries
         ),
         'getSuppliers'
       );
@@ -1317,13 +1346,20 @@ export const databaseService = {
     }
   },
 
-  async getApartments(): Promise<Apartment[]> {
+  async getApartments(fiscalYearId?: string): Promise<Apartment[]> {
     try {
+      const queries: Parameters<typeof databases.listDocuments>[2] = [
+        Query.orderAsc('name'),
+        Query.limit(100)
+      ];
+      if (fiscalYearId) {
+        queries.push(Query.equal('fiscalYearId', fiscalYearId));
+      }
       const response = await withRetry(
         () => databases.listDocuments(
           config.databaseId,
           config.collections.apartments,
-          [Query.orderAsc('name'), Query.limit(100)]
+          queries
         ),
         'getApartments'
       );
@@ -1609,13 +1645,20 @@ export const databaseService = {
   },
 
   // --- RESERVATIONS ---
-  async getReservations(): Promise<Reservation[]> {
+  async getReservations(fiscalYearId?: string): Promise<Reservation[]> {
     try {
+      const queries: Parameters<typeof databases.listDocuments>[2] = [
+        Query.orderDesc('checkIn'),
+        Query.limit(5000)
+      ];
+      if (fiscalYearId) {
+        queries.push(Query.equal('fiscalYearId', fiscalYearId));
+      }
       const response = await withRetry(
         () => databases.listDocuments(
           config.databaseId,
           config.collections.reservations,
-          [Query.orderDesc('checkIn'), Query.limit(5000)]
+          queries
         ),
         'getReservations'
       );
@@ -1727,6 +1770,221 @@ export const databaseService = {
       connectionHealthy = false;
       throw error;
     }
+  },
+
+  // --- FISCAL YEARS (EJERCICIOS CONTABLES) ---
+
+  async createFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYear> {
+    try {
+      const {
+        id, appwriteId,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...data
+      } = fiscalYear as any;
+
+      const doc = await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.fiscalYears,
+          id || ID.unique(),
+          data
+        ),
+        'createFiscalYear'
+      );
+
+      notifySuccess('Ejercicio creado');
+      connectionHealthy = true;
+      return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as FiscalYear;
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'createFiscalYear');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async getFiscalYears(): Promise<FiscalYear[]> {
+    try {
+      const response = await withRetry(
+        () => databases.listDocuments(
+          config.databaseId,
+          config.collections.fiscalYears,
+          [Query.orderDesc('year'), Query.limit(100)]
+        ),
+        'getFiscalYears'
+      );
+
+      connectionHealthy = true;
+      return response.documents.map((doc: any) => ({
+        ...doc,
+        id: doc.$id,
+        appwriteId: doc.$id
+      })) as unknown as FiscalYear[];
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 404) return []; // Collection not created yet
+      notifyError(getErrorMessage(error), 'getFiscalYears');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  async updateFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYear> {
+    try {
+      const {
+        id, appwriteId,
+        $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
+        ...data
+      } = fiscalYear as any;
+      const docId = appwriteId || id;
+      if (!docId) {
+        throw new Error('Fiscal year document id is required to update');
+      }
+
+      const doc = await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          config.collections.fiscalYears,
+          docId,
+          data
+        ),
+        'updateFiscalYear'
+      );
+
+      notifySuccess('Ejercicio actualizado');
+      connectionHealthy = true;
+      return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as FiscalYear;
+    } catch (error: unknown) {
+      notifyError(getErrorMessage(error), 'updateFiscalYear');
+      connectionHealthy = false;
+      throw error;
+    }
+  },
+
+  /**
+   * Asigna un ejercicio a todos los documentos transaccionales que no tienen fiscalYearId.
+   * Utilizado para migrar datos históricos al crear el primer ejercicio.
+   * Procesa los documentos en lotes para no superar los límites de Appwrite.
+   */
+  async migrateLegacyData(
+    fiscalYearId: string,
+    onProgress?: (done: number, total: number) => void
+  ): Promise<{ invoices: number; entries: number; transactions: number; reservations: number; suppliers: number; apartments: number }> {
+    const BATCH = 100;
+    const counts = { invoices: 0, entries: 0, transactions: 0, reservations: 0, suppliers: 0, apartments: 0 };
+
+    const migrateCollection = async (
+      collectionId: string,
+      countKey: keyof typeof counts
+    ) => {
+      let cursor: string | undefined;
+      let hasMore = true;
+
+      while (hasMore) {
+        const queries: Parameters<typeof databases.listDocuments>[2] = [
+          Query.isNull('fiscalYearId'),
+          Query.limit(BATCH)
+        ];
+        if (cursor) queries.push(Query.cursorAfter(cursor));
+
+        const response = await withRetry(
+          () => databases.listDocuments(config.databaseId, collectionId, queries),
+          `migrateLegacyData_${collectionId}`
+        );
+
+        if (response.documents.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        for (const doc of response.documents) {
+          await withRetry(
+            () => databases.updateDocument(config.databaseId, collectionId, doc.$id, { fiscalYearId }),
+            `migrateLegacyData_update_${collectionId}`
+          );
+        }
+
+        counts[countKey] += response.documents.length;
+        onProgress?.(
+          counts.invoices + counts.entries + counts.transactions + counts.reservations + counts.suppliers + counts.apartments,
+          -1
+        );
+
+        if (response.documents.length < BATCH) {
+          hasMore = false;
+        } else {
+          cursor = response.documents[response.documents.length - 1].$id;
+        }
+      }
+    };
+
+    await migrateCollection(config.collections.invoices, 'invoices');
+    await migrateCollection(config.collections.entries, 'entries');
+    await migrateCollection(config.collections.transactions, 'transactions');
+    await migrateCollection(config.collections.reservations, 'reservations');
+    await migrateCollection(config.collections.suppliers, 'suppliers');
+    await migrateCollection(config.collections.apartments, 'apartments');
+
+    return counts;
+  },
+
+  /**
+   * Copia los datos maestros (proveedores y apartamentos) desde un ejercicio anterior
+   * al nuevo ejercicio recién creado.
+   * Esta es la operación estándar al abrir un nuevo ejercicio contable.
+   */
+  async copyMasterDataToFiscalYear(
+    sourceFiscalYearId: string,
+    targetFiscalYearId: string,
+    onProgress?: (phase: string, done: number, total: number) => void
+  ): Promise<{ suppliers: number; apartments: number }> {
+    const counts = { suppliers: 0, apartments: 0 };
+
+    // --- Copiar Proveedores ---
+    const sourceSuppliers = await this.getSuppliers(sourceFiscalYearId);
+    onProgress?.('Proveedores', 0, sourceSuppliers.length);
+
+    for (const supplier of sourceSuppliers) {
+      try {
+        const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...supplierData } = supplier as any;
+        await withRetry(
+          () => databases.createDocument(
+            config.databaseId,
+            config.collections.suppliers,
+            ID.unique(),
+            { ...supplierData, fiscalYearId: targetFiscalYearId }
+          ),
+          'copySupplierToFiscalYear'
+        );
+        counts.suppliers++;
+        onProgress?.('Proveedores', counts.suppliers, sourceSuppliers.length);
+      } catch (err) {
+        dataLogger.debug(`[copyMasterData] Error copiando proveedor ${supplier.name}:`, err);
+      }
+    }
+
+    // --- Copiar Apartamentos ---
+    const sourceApartments = await this.getApartments(sourceFiscalYearId);
+    onProgress?.('Apartamentos', 0, sourceApartments.length);
+
+    for (const apartment of sourceApartments) {
+      try {
+        const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, createdAt, updatedAt, ...apartmentData } = apartment as any;
+        await withRetry(
+          () => databases.createDocument(
+            config.databaseId,
+            config.collections.apartments,
+            ID.unique(),
+            { ...apartmentData, fiscalYearId: targetFiscalYearId }
+          ),
+          'copyApartmentToFiscalYear'
+        );
+        counts.apartments++;
+        onProgress?.('Apartamentos', counts.apartments, sourceApartments.length);
+      } catch (err) {
+        dataLogger.debug(`[copyMasterData] Error copiando apartamento ${apartment.name}:`, err);
+      }
+    }
+
+    return counts;
   }
 };
 
@@ -1927,17 +2185,17 @@ export const loadAllData = async () => {
   return { invoices, entries, transactions };
 };
 
-export const fetchInvoices = () => databaseService.getInvoices();
-export const fetchEntries = () => databaseService.getEntries();
-export const fetchTransactions = () => databaseService.getTransactions();
-export const fetchSuppliers = () => databaseService.getSuppliers();
+export const fetchInvoices = (fiscalYearId?: string) => databaseService.getInvoices(fiscalYearId);
+export const fetchEntries = (fiscalYearId?: string) => databaseService.getEntries(fiscalYearId);
+export const fetchTransactions = (fiscalYearId?: string) => databaseService.getTransactions(fiscalYearId);
+export const fetchSuppliers = (fiscalYearId?: string) => databaseService.getSuppliers(fiscalYearId);
 
 export const createSupplier = (supplier: Supplier) => databaseService.createSupplier(supplier);
 export const updateSupplier = (supplier: Supplier) => databaseService.updateSupplier(supplier);
 export const deleteSupplier = (id: string) => databaseService.deleteSupplier(id);
 
 // --- APARTMENTS (NEW) ---
-export const fetchApartments = () => databaseService.getApartments();
+export const fetchApartments = (fiscalYearId?: string) => databaseService.getApartments(fiscalYearId);
 export const createApartment = (apartment: Apartment) => databaseService.createApartment(apartment);
 export const updateApartment = (apartment: Apartment) => databaseService.updateApartment(apartment);
 export const deleteApartment = (id: string) => databaseService.deleteApartment(id);
@@ -1956,11 +2214,23 @@ export const deleteAIMatchHistory = (id: string) => databaseService.deleteAIMatc
 export const findMatchByBankConcept = (concept: string) => databaseService.findMatchByBankConcept(concept);
 
 // --- RESERVATIONS (NEW) ---
-export const fetchReservations = () => databaseService.getReservations();
+export const fetchReservations = (fiscalYearId?: string) => databaseService.getReservations(fiscalYearId);
 export const createReservation = (reservation: Reservation) => databaseService.createReservation(reservation);
 export const createReservations = (reservations: Reservation[]) => databaseService.createReservations(reservations);
 export const updateReservation = (reservation: Reservation) => databaseService.updateReservation(reservation);
 export const deleteReservation = (id: string) => databaseService.deleteReservation(id);
+
+// --- FISCAL YEARS (EJERCICIOS CONTABLES) ---
+export const fetchFiscalYears = () => databaseService.getFiscalYears();
+export const createFiscalYearDoc = (fiscalYear: FiscalYear) => databaseService.createFiscalYear(fiscalYear);
+export const updateFiscalYearDoc = (fiscalYear: FiscalYear) => databaseService.updateFiscalYear(fiscalYear);
+export const migrateLegacyData = (fiscalYearId: string, onProgress?: (done: number, total: number) => void) =>
+  databaseService.migrateLegacyData(fiscalYearId, onProgress);
+export const copyMasterDataToFiscalYear = (
+  sourceFiscalYearId: string,
+  targetFiscalYearId: string,
+  onProgress?: (phase: string, done: number, total: number) => void
+) => databaseService.copyMasterDataToFiscalYear(sourceFiscalYearId, targetFiscalYearId, onProgress);
 
 export default {
   initialize: initializeAppwrite,

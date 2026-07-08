@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-08 07:28:56 UTC*
+*Última actualización: 2026-07-08 09:00:00 UTC*
 
 ---
 
@@ -8,7 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **A la espera de nuevas directivas del Director.**
+- **Identificador de Tarea:** `TSK-043`
+- **Objetivo Principal:** Implementación de Ejercicios Contables — particionar todos los datos de la app por año fiscal, con estados Abierto/Cerrado y protección de escritura.
+- **Estado Detallado:** Código 100% implementado. Pendiente que el Director complete la Fase 1 (crear colección `fiscal_years` y añadir atributo `fiscalYearId` en Appwrite Console).
+- **Próximo Micro-Paso Planificado:** El Director completa el setup de Appwrite Console (ver APPWRITE_SETUP.md sección "FASE 1 — Ejercicios Contables"). Tras ello, crear el primer ejercicio desde la app en `/fiscal-years` y ejecutar la migración de datos legacy.
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -26,6 +29,7 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-08] - `TSK-043` - Ejercicios Contables (código completo):** Sistema completo de ejercicios fiscales anuales. Tipos TypeScript, colección `fiscal_years`, CRUD en servicio Appwrite, contexto global `FiscalYearContext`, selector en Header, página de gestión `/fiscal-years`, protección `isReadOnly` en todos los handlers CRUD, inyección de `fiscalYearId` en todos los documentos creados, herramienta de migración de datos legacy, copia automática de proveedores/apartamentos al crear nuevo ejercicio.
 *   **[2026-07-08] - `FIX-039` - CI Lint Pipeline:** Corregido el fallo bloqueante de ESLint en PRs declarando `DOMException` como global del entorno browser y estabilizando la memoización de `Dashboard`.
 *   **[2026-07-07] - `IMPL-006` - Sprint 6 (Deuda baja + SEC-004):** DEBT-007 split `DocumentViewer` → `useDocumentFile` hook. DEBT-008 split `InvoiceUploader` → `useInvoiceReview` hook. DEBT-015 `frameId=0` init. DEBT-016 stack traces en all parseStandardError branches. DEBT-017 `currentYear` injectable prop en PartnerTaxForm. DEBT-018 `QuotaExceededError` eviction en xlsxMappingService. SEC-004 `--audit-level=critical` en ci.yml.
 *   **[2026-07-07] - `IMPL-005` - Sprint 5 (Deuda técnica refactoring):** `makeOptimisticCrud` factory, constantes PDF, `crypto.randomUUID`, helpers accountingPlan, confirmación readline en migrate script, per-partner try/catch en TaxModels.

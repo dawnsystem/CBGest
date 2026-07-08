@@ -22,6 +22,8 @@ export const APPWRITE_CONFIG = {
     apartments: 'apartments',
     recurringExpenses: 'recurring_expenses',
     aiMatchHistory: 'ai_match_history',
-    reservations: 'reservations'
+    reservations: 'reservations',
+    // Ejercicios contables
+    fiscalYears: 'fiscal_years'
   }
 } as const;
