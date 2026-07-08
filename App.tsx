@@ -152,6 +152,7 @@ const MainLayout: React.FC = () => {
   const defaultSettingsRef = useRef(createDefaultSettings());
   // Ref to prevent double initialization in React Strict Mode
   const dataLayerInitializedRef = useRef(false);
+  const [isDataLayerInitialized, setIsDataLayerInitialized] = useState(false);
 
   // Keep refs in sync
   useEffect(() => {
@@ -181,6 +182,7 @@ const MainLayout: React.FC = () => {
           setIsDataLoading(false);
           // Reset initialization flag on logout so we can re-initialize on next login
           dataLayerInitializedRef.current = false;
+          setIsDataLayerInitialized(false);
           return;
       }
 
@@ -198,6 +200,7 @@ const MainLayout: React.FC = () => {
           return;
       }
       dataLayerInitializedRef.current = true;
+      setIsDataLayerInitialized(true);
 
       const initDataLayer = async () => {
           // Use ref to get current settings as fallback, avoiding dependency issues
@@ -354,7 +357,7 @@ const MainLayout: React.FC = () => {
   // Separate from the heavy initDataLayer so health checks are not repeated.
   // Runs only AFTER the initial data layer is initialized (guard via ref).
   useEffect(() => {
-    if (!user || !sessionReady || !dataLayerInitializedRef.current) return;
+    if (!user || !sessionReady || !isDataLayerInitialized) return;
 
     const fetchForYear = async () => {
       const fyId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
@@ -383,7 +386,7 @@ const MainLayout: React.FC = () => {
     };
 
     fetchForYear();
-  }, [activeFiscalYear, user, sessionReady]); // Lightweight reload on year switch
+  }, [activeFiscalYear, user, sessionReady, isDataLayerInitialized]); // Lightweight reload on year switch
 
   // --- HEALTH CHECK PERIÓDICO (cada 5 min) ---
   // Verifica conexión con Appwrite cuando hay usuario autenticado
@@ -1396,7 +1399,7 @@ const MainLayout: React.FC = () => {
               toCreate.push({
                   ...newRes,
                   id: generateId(),
-                  fiscalYearId: (newRes as any).fiscalYearId || activeFiscalYear?.appwriteId || activeFiscalYear?.id
+                  fiscalYearId: newRes.fiscalYearId || activeFiscalYear?.appwriteId || activeFiscalYear?.id
               });
           }
       });

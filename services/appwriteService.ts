@@ -1835,6 +1835,9 @@ export const databaseService = {
         ...data
       } = fiscalYear as any;
       const docId = appwriteId || id;
+      if (!docId) {
+        throw new Error('Fiscal year document id is required to update');
+      }
 
       const doc = await withRetry(
         () => databases.updateDocument(
@@ -1892,14 +1895,12 @@ export const databaseService = {
           break;
         }
 
-        await Promise.all(
-          response.documents.map((doc: any) =>
-            withRetry(
-              () => databases.updateDocument(config.databaseId, collectionId, doc.$id, { fiscalYearId }),
-              `migrateLegacyData_update_${collectionId}`
-            )
-          )
-        );
+        for (const doc of response.documents) {
+          await withRetry(
+            () => databases.updateDocument(config.databaseId, collectionId, doc.$id, { fiscalYearId }),
+            `migrateLegacyData_update_${collectionId}`
+          );
+        }
 
         counts[countKey] += response.documents.length;
         onProgress?.(

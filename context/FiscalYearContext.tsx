@@ -20,6 +20,7 @@ import React, {
 import { FiscalYear } from '../types';
 import * as appwriteService from '../services/appwriteService';
 import { generateId } from '../utils/defaults';
+import { useAuth } from './AuthContext';
 
 const LS_KEY = 'gestcb_active_fiscal_year_id';
 
@@ -71,6 +72,7 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   children,
   onFiscalYearChange
 }) => {
+  const { user, sessionReady } = useAuth();
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
   const [activeFiscalYear, setActiveFiscalYear] = useState<FiscalYear | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,8 +113,21 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!user) {
+      setFiscalYears([]);
+      setActiveFiscalYear(null);
+      setIsLoading(false);
+      localStorage.removeItem(LS_KEY);
+      return;
+    }
+
+    if (!sessionReady) {
+      setIsLoading(true);
+      return;
+    }
+
     refreshFiscalYears();
-  }, [refreshFiscalYears]);
+  }, [refreshFiscalYears, user, sessionReady]);
 
   // ------------------------------------------------------------------
   // SELECCIONAR EJERCICIO ACTIVO

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Search, User, ShieldCheck, LogOut, X, FileText, BookOpen, DollarSign, Settings as SettingsIcon, LogIn, Lock, LockOpen, ChevronDown, CalendarDays } from 'lucide-react';
+import { Bell, Search, User, ShieldCheck, LogOut, X, FileText, BookOpen, DollarSign, Settings as SettingsIcon, LogIn, Lock, LockOpen, ChevronDown } from 'lucide-react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
