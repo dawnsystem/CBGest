@@ -1301,6 +1301,7 @@ const MainLayout: React.FC = () => {
 
   // --- RECURRING EXPENSE HANDLERS ---
   const handleAddRecurringExpense = async (expense: RecurringExpense) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden añadir gastos recurrentes', 'error'); return; }
       // Optimistic add
       setRecurringExpenses(prev => [expense, ...prev]);
 
@@ -1321,6 +1322,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleUpdateRecurringExpense = async (expense: RecurringExpense) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden editar gastos recurrentes', 'error'); return; }
       const oldExpense = recurringExpenses.find(e => e.id === expense.id);
 
       // Optimistic update
@@ -1347,6 +1349,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleDeleteRecurringExpense = async (id: string) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden eliminar gastos recurrentes', 'error'); return; }
       const expense = recurringExpenses.find(e => e.id === id);
 
       // Optimistic delete
@@ -1525,6 +1528,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleLinkApartmentToReservation = async (reservationId: string, apartmentId: string) => {
+      if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden editar reservas', 'error'); return; }
       const reservation = reservations.find(r => r.id === reservationId);
       if (!reservation) return;
 

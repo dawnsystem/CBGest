@@ -5,6 +5,7 @@ import { ApartmentSelector, ApartmentBadge } from './ApartmentSelector';
 import { AccountSelector } from './AccountSelector';
 import { generateId } from '../utils/defaults';
 import { useToast } from './Toast';
+import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface RecurringExpenseManagerProps {
   expenses: RecurringExpense[];
@@ -98,6 +99,7 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
   const [showInactive, setShowInactive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast, showConfirm } = useToast();
+  const isReadOnly = useIsReadOnly();
 
   // Form state
   const [formData, setFormData] = useState<Partial<RecurringExpense>>({
@@ -262,7 +264,8 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
         </div>
         <button
           onClick={() => openModal()}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          disabled={isReadOnly}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />
           Nuevo Gasto
@@ -399,13 +402,15 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
                     <div className="flex gap-1 ml-2">
                       <button
                         onClick={() => openModal(expense)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        disabled={isReadOnly}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(expense.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        disabled={isReadOnly}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

@@ -7,6 +7,7 @@ import {
 import { Reservation, ReservationChannel, ReservationStatus, Apartment, AppSettings } from '../types';
 import { useToast } from './Toast';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
+import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface ReservationManagerProps {
   reservations: Reservation[];
@@ -117,6 +118,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast, showConfirm } = useToast();
+  const isReadOnly = useIsReadOnly();
   const [importing, setImporting] = useState(false);
   const [importPreview, setImportPreview] = useState<Omit<Reservation, 'id'>[] | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -446,8 +448,8 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="flex items-center gap-2 px-3 py-2 md:px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 text-sm"
+            disabled={importing || isReadOnly}
+            className="flex items-center gap-2 px-3 py-2 md:px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">{importing ? 'Importando...' : 'Importar CSV'}</span>
@@ -912,11 +914,14 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                       ) : (
                         <button
                           onClick={() => {
-                            setEditingGuestsId(reservation.id);
-                            setEditingGuestsValue(reservation.numberOfGuests || 1);
+                            if (!isReadOnly) {
+                              setEditingGuestsId(reservation.id);
+                              setEditingGuestsValue(reservation.numberOfGuests || 1);
+                            }
                           }}
-                          className="flex items-center justify-center gap-1 px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded transition-colors group"
-                          title="Clic para editar adultos (≥17 años)"
+                          disabled={isReadOnly}
+                          className="flex items-center justify-center gap-1 px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded transition-colors group disabled:cursor-default disabled:hover:bg-transparent"
+                          title={isReadOnly ? undefined : 'Clic para editar adultos (≥17 años)'}
                         >
                           <Users className="w-3 h-3 text-purple-400 group-hover:text-purple-600" />
                           {reservation.numberOfGuests || 1}
@@ -954,15 +959,18 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                       ) : (
                         <button
                           onClick={() => {
-                            setEditingChildrenId(reservation.id);
-                            setEditingChildrenValue(reservation.numberOfChildren || 0);
+                            if (!isReadOnly) {
+                              setEditingChildrenId(reservation.id);
+                              setEditingChildrenValue(reservation.numberOfChildren || 0);
+                            }
                           }}
-                          className={`flex items-center justify-center gap-1 px-2 py-1 text-sm rounded transition-colors group ${
+                          disabled={isReadOnly}
+                          className={`flex items-center justify-center gap-1 px-2 py-1 text-sm rounded transition-colors group disabled:cursor-default ${
                             (reservation.numberOfChildren || 0) > 0 
                               ? 'text-cyan-700 hover:bg-cyan-50' 
                               : 'text-slate-400 hover:bg-slate-100'
-                          }`}
-                          title="Clic para editar menores (≤16 años, exentos de tasa turística)"
+                          } ${isReadOnly ? 'disabled:hover:bg-transparent' : ''}`}
+                          title={isReadOnly ? undefined : 'Clic para editar menores (≤16 años, exentos de tasa turística)'}
                         >
                           <Baby className={`w-3 h-3 ${
                             (reservation.numberOfChildren || 0) > 0 
@@ -996,7 +1004,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        {!reservation.apartmentId && (
+                        {!reservation.apartmentId && !isReadOnly && (
                           <div className="relative">
                             <button
                               onClick={() => setLinkingId(linkingId === reservation.id ? null : reservation.id)}
@@ -1033,7 +1041,8 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                               onDeleteReservation(reservation.id);
                             }
                           }}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                          disabled={isReadOnly}
+                          className="p-1.5 text-red-500 hover:bg-red-50 rounded disabled:opacity-40 disabled:cursor-not-allowed"
                           title="Eliminar"
                         >
                           <Trash2 className="w-4 h-4" />

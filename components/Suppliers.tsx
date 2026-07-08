@@ -4,6 +4,7 @@ import { Plus, Search, Edit2, Trash2, Save, X, Building2, AlertCircle } from 'lu
 import { isValidNIF, normalizeNif, detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
 import { useToast } from './Toast';
+import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface SuppliersProps {
   suppliers: Supplier[];
@@ -35,6 +36,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
 
   const [nifError, setNifError] = useState<string | null>(null);
   const { showToast, showConfirm } = useToast();
+  const isReadOnly = useIsReadOnly();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,10 +169,13 @@ export const Suppliers: React.FC<SuppliersProps> = ({
         </div>
         <button
           onClick={() => {
-            setShowForm(!showForm);
-            if (showForm) handleCancelEdit();
+            if (!isReadOnly) {
+              setShowForm(!showForm);
+              if (showForm) handleCancelEdit();
+            }
           }}
-          className="flex items-center justify-center gap-2 px-4 py-2 md:px-6 md:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm md:text-base whitespace-nowrap"
+          disabled={isReadOnly && !showForm}
+          className="flex items-center justify-center gap-2 px-4 py-2 md:px-6 md:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm md:text-base whitespace-nowrap disabled:bg-slate-300 disabled:cursor-not-allowed"
         >
           {showForm ? (
             <>
@@ -452,14 +457,16 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleEdit(supplier)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            disabled={isReadOnly}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Editar"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(supplier.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            disabled={isReadOnly}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Eliminar"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -486,13 +493,15 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                     <div className="flex gap-1">
                       <button
                         onClick={() => handleEdit(supplier)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        disabled={isReadOnly}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(supplier.id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        disabled={isReadOnly}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Reservation, Apartment, AppSettings } from '../types';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
+import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface TouristTaxPanelProps {
   reservations: Reservation[];
@@ -66,6 +67,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   
   const taxConfig = settings.touristTaxConfig || DEFAULT_TAX_CONFIG;
+  const isReadOnly = useIsReadOnly();
 
   // Filter reservations for selected period and tourist apartments only
   const filteredReservations = useMemo(() => {
@@ -540,7 +542,8 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
                             e.stopPropagation();
                             markGroupNotCollected(group);
                           }}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors"
+                          disabled={isReadOnly}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           <Check className="w-4 h-4" />
                           Cobrada
@@ -551,7 +554,8 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
                             e.stopPropagation();
                             markGroupCollected(group);
                           }}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-rose-100 text-rose-700 rounded-lg text-sm font-medium hover:bg-rose-200 transition-colors"
+                          disabled={isReadOnly}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-rose-100 text-rose-700 rounded-lg text-sm font-medium hover:bg-rose-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           <X className="w-4 h-4" />
                           Pendiente
