@@ -4,14 +4,13 @@ import {
   ChevronDown, ChevronUp, X, Check, AlertTriangle, FileText,
   Trash2, CalendarDays, Baby
 } from 'lucide-react';
-import { Reservation, ReservationChannel, ReservationStatus, Apartment, AppSettings } from '../types';
+import { Reservation, ReservationChannel, ReservationStatus, Apartment } from '../types';
 import { useToast } from './Toast';
 import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface ReservationManagerProps {
   reservations: Reservation[];
   apartments: Apartment[];
-  settings?: AppSettings;
   onAddReservations: (reservations: Omit<Reservation, 'id'>[]) => void;
   onUpdateReservation: (id: string, data: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
