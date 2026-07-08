@@ -169,9 +169,11 @@ export const Suppliers: React.FC<SuppliersProps> = ({
         </div>
         <button
           onClick={() => {
-            if (!isReadOnly) {
-              setShowForm(!showForm);
-              if (showForm) handleCancelEdit();
+            if (showForm) {
+              setShowForm(false);
+              handleCancelEdit();
+            } else if (!isReadOnly) {
+              setShowForm(true);
             }
           }}
           disabled={isReadOnly && !showForm}

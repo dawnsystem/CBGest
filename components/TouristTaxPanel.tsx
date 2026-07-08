@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Receipt, Calendar, Users, Euro, Download, Check, X,
-  AlertTriangle, ChevronDown, ChevronUp, Palmtree, Building, Baby
+  AlertTriangle, ChevronDown, ChevronUp, Palmtree, Baby
 } from 'lucide-react';
 import { Reservation, Apartment, AppSettings } from '../types';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';

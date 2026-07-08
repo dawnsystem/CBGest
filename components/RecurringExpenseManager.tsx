@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, X, Save, Calendar, DollarSign, RefreshCw, Search, Filter, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Calendar, DollarSign, RefreshCw, Search, Filter, CheckCircle } from 'lucide-react';
 import { RecurringExpense, ExpenseFrequency, Apartment, Supplier } from '../types';
 import { ApartmentSelector, ApartmentBadge } from './ApartmentSelector';
 import { AccountSelector } from './AccountSelector';
@@ -240,12 +240,6 @@ export const RecurringExpenseManager: React.FC<RecurringExpenseManagerProps> = (
         showToast('Error al eliminar el gasto. Por favor, inténtalo de nuevo.', 'error');
       }
     }
-  };
-
-  const getApartmentName = (apartmentId?: string) => {
-    if (!apartmentId) return 'Comunitario';
-    const apt = apartments.find(a => a.id === apartmentId);
-    return apt?.name || 'Desconocido';
   };
 
   const getSupplierName = (supplierId?: string) => {

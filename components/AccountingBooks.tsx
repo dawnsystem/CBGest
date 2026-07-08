@@ -41,7 +41,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   // Edit/Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<AccountingEntry | null>(null);
-  const { showToast, showConfirm } = useToast();
+  const { showToast } = useToast();
   const isReadOnly = useIsReadOnly();
 
   // Get unique accounts from all entry lines

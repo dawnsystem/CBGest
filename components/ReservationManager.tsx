@@ -2,11 +2,10 @@ import React, { useState, useRef, useMemo } from 'react';
 import {
   Upload, Calendar, Home, Users, Euro, Search, Filter,
   ChevronDown, ChevronUp, X, Check, AlertTriangle, FileText,
-  Download, Trash2, Edit2, Save, XCircle, Receipt, Wallet, CalendarDays, Baby
+  Trash2, CalendarDays, Baby
 } from 'lucide-react';
 import { Reservation, ReservationChannel, ReservationStatus, Apartment, AppSettings } from '../types';
 import { useToast } from './Toast';
-import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
 import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface ReservationManagerProps {
@@ -110,14 +109,13 @@ const statusColors: Record<ReservationStatus, string> = {
 export const ReservationManager: React.FC<ReservationManagerProps> = ({
   reservations,
   apartments,
-  settings,
   onAddReservations,
   onUpdateReservation,
   onDeleteReservation,
   onLinkApartment
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { showToast, showConfirm } = useToast();
+  const { showConfirm } = useToast();
   const isReadOnly = useIsReadOnly();
   const [importing, setImporting] = useState(false);
   const [importPreview, setImportPreview] = useState<Omit<Reservation, 'id'>[] | null>(null);
@@ -128,7 +126,6 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   const [filterStatus, setFilterStatus] = useState<ReservationStatus | 'ALL'>('ALL');
   const [sortField, setSortField] = useState<SortField>('checkIn');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false); // Ocultar canceladas por defecto
@@ -144,9 +141,6 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   // Editing children state (minors ≤16 years - exempt from tourist tax)
   const [editingChildrenId, setEditingChildrenId] = useState<string | null>(null);
   const [editingChildrenValue, setEditingChildrenValue] = useState<number>(0);
-  
-  // Get tax config
-  const taxConfig = settings?.touristTaxConfig || DEFAULT_TAX_CONFIG;
 
   // Parse CSV file
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

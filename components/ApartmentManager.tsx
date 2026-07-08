@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Apartment, ApartmentType } from '../types';
+import { Apartment } from '../types';
 import {
   Plus, Search, Edit2, Trash2, Save, X, Building2,
   Home, MapPin, Hash, Users, FileText, CheckCircle, XCircle,

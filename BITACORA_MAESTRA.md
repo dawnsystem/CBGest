@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-08 09:00:00 UTC*
+*Última actualización: 2026-07-08 22:50:00 UTC*
 
 ---
 
@@ -8,10 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `TSK-043`
-- **Objetivo Principal:** Implementación de Ejercicios Contables — particionar todos los datos de la app por año fiscal, con estados Abierto/Cerrado y protección de escritura.
-- **Estado Detallado:** Código 100% implementado. Pendiente que el Director complete la Fase 1 (crear colección `fiscal_years` y añadir atributo `fiscalYearId` en Appwrite Console).
-- **Próximo Micro-Paso Planificado:** El Director completa el setup de Appwrite Console (ver APPWRITE_SETUP.md sección "FASE 1 — Ejercicios Contables"). Tras ello, crear el primer ejercicio desde la app en `/fiscal-years` y ejecutar la migración de datos legacy.
+- **Identificador de Tarea:** `FIX-040`
+- **Objetivo Principal:** Enforcing `isReadOnly` en todos los componentes para ejercicios fiscales cerrados.
+- **Estado Detallado:** Completado. Guards de backend añadidos en App.tsx (4 handlers). Guards de UI añadidos en 6 componentes. Advertencias de lint eliminadas en todos los ficheros modificados. Bug de botón Cancelar en Suppliers.tsx corregido. tsconfig.json actualizado para excluir `coverage/` y `dist/`.
+- **Próximo Micro-Paso Planificado:** El Director completa el setup de Appwrite Console (ver APPWRITE_SETUP.md sección "FASE 1 — Ejercicios Contables").
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -29,6 +29,7 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-08] - `FIX-040` - isReadOnly enforcement completo + limpieza de código:** Guards de backend en App.tsx (4 handlers sin protección). Guards de UI en 6 componentes (RecurringExpenseManager, ReservationManager, AccountingBooks, ApartmentManager, Suppliers, TouristTaxPanel). Bug corregido en Suppliers.tsx (botón Cancelar no funcionaba en modo solo-lectura). 15 advertencias de lint eliminadas de ficheros modificados. `tsconfig.json` actualizado para excluir `coverage/` y `dist/`.
 *   **[2026-07-08] - `TSK-043` - Ejercicios Contables (código completo):** Sistema completo de ejercicios fiscales anuales. Tipos TypeScript, colección `fiscal_years`, CRUD en servicio Appwrite, contexto global `FiscalYearContext`, selector en Header, página de gestión `/fiscal-years`, protección `isReadOnly` en todos los handlers CRUD, inyección de `fiscalYearId` en todos los documentos creados, herramienta de migración de datos legacy, copia automática de proveedores/apartamentos al crear nuevo ejercicio.
 *   **[2026-07-08] - `FIX-039` - CI Lint Pipeline:** Corregido el fallo bloqueante de ESLint en PRs declarando `DOMException` como global del entorno browser y estabilizando la memoización de `Dashboard`.
 *   **[2026-07-07] - `IMPL-006` - Sprint 6 (Deuda baja + SEC-004):** DEBT-007 split `DocumentViewer` → `useDocumentFile` hook. DEBT-008 split `InvoiceUploader` → `useInvoiceReview` hook. DEBT-015 `frameId=0` init. DEBT-016 stack traces en all parseStandardError branches. DEBT-017 `currentYear` injectable prop en PartnerTaxForm. DEBT-018 `QuotaExceededError` eviction en xlsxMappingService. SEC-004 `--audit-level=critical` en ci.yml.
@@ -68,6 +69,23 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-08 22:14:00 UTC]
+*   **Directiva del Director:** "@copilot arregla todos estos fallos"
+*   **Plan de Acción:** Investigar CI (action_required = approval gate, no fallo de código), identificar advertencias de lint en ficheros modificados, corregir bug en Suppliers.tsx, limpiar código muerto, y corregir tsconfig.json.
+*   **Log de Acciones:**
+    - `[22:20:00]` - **AUDIT:** Inspección de CI runs (28979350255, 28979350290). Estado: `action_required` (aprobación requerida para workflows de bot). Lint local: 0 errores. Tests: 152/152. Build: OK.
+    - `[22:30:00]` - **AUDIT:** Identificadas 15 advertencias lint en 6 ficheros modificados. Todas pre-existentes pero en alcance del PR.
+    - `[22:35:00]` - **FIX BUG:** `components/Suppliers.tsx`. **CAMBIOS:** Botón Cancelar/Nuevo Proveedor: onClick ahora permite cerrar el formulario incluso en modo `isReadOnly`. Antes el handler tenía guard `if (!isReadOnly)` que impedía cancelar cuando el ejercicio se cerraba con el formulario abierto.
+    - `[22:36:00]` - **MOD:** `components/AccountingBooks.tsx`. **CAMBIOS:** Eliminado `showConfirm` no usado del destructuring de `useToast()`.
+    - `[22:37:00]` - **MOD:** `components/ApartmentManager.tsx`. **CAMBIOS:** Eliminado import `ApartmentType` no usado.
+    - `[22:38:00]` - **MOD:** `components/TouristTaxPanel.tsx`. **CAMBIOS:** Eliminado import `Building` no usado.
+    - `[22:39:00]` - **MOD:** `components/RecurringExpenseManager.tsx`. **CAMBIOS:** Eliminados `AlertTriangle` (import no usado) y función `getApartmentName` (definida pero nunca llamada).
+    - `[22:40:00]` - **MOD:** `components/ReservationManager.tsx`. **CAMBIOS:** Eliminados `Download`, `Edit2`, `Save`, `XCircle`, `Receipt`, `Wallet` (imports no usados); `showToast` del destructuring; estado `editingId`/`setEditingId` no usado; variable `taxConfig` + import `DEFAULT_TAX_CONFIG` no usados; parámetro `settings` no usado ni pasado desde App.tsx.
+    - `[22:45:00]` - **MOD:** `tsconfig.json`. **CAMBIOS:** Añadido `"exclude": ["node_modules", "dist", "coverage"]` para prevenir error `TS6053` cuando `coverage/` existe tras ejecutar tests.
+    - `[22:50:00]` - **TEST:** `npm run lint && npm run type-check && npm run test:ci`. **RESULTADO:** 0 errores lint (457 warnings vs 472 antes), type-check PASS, 152/152 tests PASS.
+*   **Resultado:** FIX-040 completado. 15 advertencias lint eliminadas. Bug Suppliers Cancelar corregido. tsconfig.json robusto.
+*   **Observaciones/Decisiones de Diseño:** La lógica correcta para el botón dual (Nuevo/Cancelar) en Suppliers es: si el formulario está abierto, permitir siempre cerrarlo; si está cerrado, solo abrir si `!isReadOnly`. El `disabled={isReadOnly && !showForm}` ya era correcto; solo faltaba corregir el `onClick`.
+
 ### Sesión: [2026-07-08 07:28:56 UTC]
 *   **Directiva del Director:** "Fix the failing GitHub Actions job 'CI/CD Pipeline / Lint Code (pull_request)'. Analyze the Actions logs, identify the root cause of the failure, and implement a fix. Job ID: 85797882621."
 *   **Plan de Acción:** Inspeccionar logs de Actions y baseline local, reproducir el lint, aplicar la corrección mínima en los archivos afectados y revalidar con lint, type-check, test:ci y build.
