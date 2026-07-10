@@ -1938,9 +1938,14 @@ export const databaseService = {
   ): Promise<{ suppliers: number; apartments: number }> {
     const counts = { suppliers: 0, apartments: 0 };
 
+    // Guardia de idempotencia: verificar en paralelo si el ejercicio destino ya tiene datos.
+    // Si ya existen registros, la copia se omite para evitar duplicados.
+    const [existingSuppliers, existingApartments] = await Promise.all([
+      this.getSuppliers(targetFiscalYearId),
+      this.getApartments(targetFiscalYearId)
+    ]);
+
     // --- Copiar Proveedores ---
-    // Guardia de idempotencia: si el ejercicio destino ya tiene proveedores, omitir la copia
-    const existingSuppliers = await this.getSuppliers(targetFiscalYearId);
     if (existingSuppliers.length > 0) {
       dataLogger.debug(`[copyMasterData] El ejercicio destino ya tiene ${existingSuppliers.length} proveedores, omitiendo copia.`);
       counts.suppliers = existingSuppliers.length;
@@ -1974,8 +1979,6 @@ export const databaseService = {
     }
 
     // --- Copiar Apartamentos ---
-    // Guardia de idempotencia: si el ejercicio destino ya tiene apartamentos, omitir la copia
-    const existingApartments = await this.getApartments(targetFiscalYearId);
     if (existingApartments.length > 0) {
       dataLogger.debug(`[copyMasterData] El ejercicio destino ya tiene ${existingApartments.length} apartamentos, omitiendo copia.`);
       counts.apartments = existingApartments.length;
