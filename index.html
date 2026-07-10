@@ -25,7 +25,7 @@
     
     <!-- Favicon & PWA -->
     <link rel="icon" type="image/png" href="/assets/logo.png">
-    <link rel="apple-touch-icon" href="/logo.png">
+    <link rel="apple-touch-icon" href="/icon-192x192-maskable.png">
     <link rel="manifest" href="/manifest.webmanifest">
     <meta name="theme-color" content="#1e3a5f">
     <meta name="mobile-web-app-capable" content="yes">
@@ -265,8 +265,13 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('/sw.js').then(function (registration) {
-            // SW registered — check for updates every time the page loads
-            registration.update();
+            // Check for SW updates once per hour to avoid excessive network requests
+            var SW_UPDATE_INTERVAL = 60 * 60 * 1000; // 1 hour in ms
+            var lastCheck = parseInt(sessionStorage.getItem('sw_last_check') || '0', 10);
+            if (Date.now() - lastCheck > SW_UPDATE_INTERVAL) {
+              registration.update();
+              sessionStorage.setItem('sw_last_check', String(Date.now()));
+            }
           }).catch(function (err) {
             console.warn('Service Worker registration failed:', err);
           });

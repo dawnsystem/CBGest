@@ -49,7 +49,10 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   // 1. index.html y rutas SPA → Network-first (NUNCA sirve desde caché)
-  if (url.pathname === '/' || url.pathname === '/index.html' || !url.pathname.includes('.')) {
+  //    Detectamos navegación HTML comprobando la extensión: si no tiene extensión
+  //    de fichero estático (js, css, png, etc.) asumimos que es una ruta SPA.
+  const hasSafeStaticExtension = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|json|webmanifest|map)$/i.test(url.pathname);
+  if (!hasSafeStaticExtension) {
     event.respondWith(networkFirst(request));
     return;
   }
