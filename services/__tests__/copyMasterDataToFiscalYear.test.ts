@@ -140,26 +140,28 @@ describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
   it('does not count a supplier when createDocument throws a non-409 error on all attempts', async () => {
     vi.useFakeTimers();
 
-    mockListDocuments
-      .mockResolvedValueOnce({ total: 0, documents: [] })
-      .mockResolvedValueOnce({ total: 0, documents: [] })
-      .mockResolvedValueOnce({ total: 1, documents: [makeSupplier()] })
-      .mockResolvedValueOnce({ total: 0, documents: [] });
+    try {
+      mockListDocuments
+        .mockResolvedValueOnce({ total: 0, documents: [] })
+        .mockResolvedValueOnce({ total: 0, documents: [] })
+        .mockResolvedValueOnce({ total: 1, documents: [makeSupplier()] })
+        .mockResolvedValueOnce({ total: 0, documents: [] });
 
-    // Generic 500 error on every attempt — should NOT be treated as success.
-    mockCreateDocument.mockRejectedValue(
-      new AppwriteException('Internal Server Error', 500, 'general_unknown', '')
-    );
+      // Generic 500 error on every attempt — should NOT be treated as success.
+      mockCreateDocument.mockRejectedValue(
+        new AppwriteException('Internal Server Error', 500, 'general_unknown', '')
+      );
 
-    const promise = databaseService.copyMasterDataToFiscalYear('source-fy', 'target-fy');
+      const promise = databaseService.copyMasterDataToFiscalYear('source-fy', 'target-fy');
 
-    // Advance through all retry delays (2s + 4s + 8s).
-    await vi.runAllTimersAsync();
-    const result = await promise;
+      // Advance through all retry delays (2s + 4s + 8s).
+      await vi.runAllTimersAsync();
+      const result = await promise;
 
-    vi.useRealTimers();
-
-    expect(result.suppliers).toBe(0);
-    expect(result.apartments).toBe(0);
+      expect(result.suppliers).toBe(0);
+      expect(result.apartments).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
