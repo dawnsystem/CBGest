@@ -1948,7 +1948,7 @@ export const databaseService = {
     // --- Copiar Proveedores ---
     if (existingSuppliers.length > 0) {
       dataLogger.debug(`[copyMasterData] El ejercicio destino ya tiene ${existingSuppliers.length} proveedores, omitiendo copia.`);
-      counts.suppliers = existingSuppliers.length;
+      counts.suppliers = 0;
     } else {
       const sourceSuppliers = await this.getSuppliers(sourceFiscalYearId);
       onProgress?.('Proveedores', 0, sourceSuppliers.length);
@@ -1973,7 +1973,14 @@ export const databaseService = {
           counts.suppliers++;
           onProgress?.('Proveedores', counts.suppliers, sourceSuppliers.length);
         } catch (err) {
-          dataLogger.debug(`[copyMasterData] Error copiando proveedor ${supplier.name}:`, err);
+          // 409: el documento ya existe (el primer intento llegó pero la respuesta se perdió).
+          // Se trata como éxito para mantener idempotencia.
+          if (getErrorCode(err) === 409) {
+            counts.suppliers++;
+            onProgress?.('Proveedores', counts.suppliers, sourceSuppliers.length);
+          } else {
+            dataLogger.debug(`[copyMasterData] Error copiando proveedor ${supplier.name}:`, err);
+          }
         }
       }
     }
@@ -1981,7 +1988,7 @@ export const databaseService = {
     // --- Copiar Apartamentos ---
     if (existingApartments.length > 0) {
       dataLogger.debug(`[copyMasterData] El ejercicio destino ya tiene ${existingApartments.length} apartamentos, omitiendo copia.`);
-      counts.apartments = existingApartments.length;
+      counts.apartments = 0;
     } else {
       const sourceApartments = await this.getApartments(sourceFiscalYearId);
       onProgress?.('Apartamentos', 0, sourceApartments.length);
@@ -2003,7 +2010,14 @@ export const databaseService = {
           counts.apartments++;
           onProgress?.('Apartamentos', counts.apartments, sourceApartments.length);
         } catch (err) {
-          dataLogger.debug(`[copyMasterData] Error copiando apartamento ${apartment.name}:`, err);
+          // 409: el documento ya existe (el primer intento llegó pero la respuesta se perdió).
+          // Se trata como éxito para mantener idempotencia.
+          if (getErrorCode(err) === 409) {
+            counts.apartments++;
+            onProgress?.('Apartamentos', counts.apartments, sourceApartments.length);
+          } else {
+            dataLogger.debug(`[copyMasterData] Error copiando apartamento ${apartment.name}:`, err);
+          }
         }
       }
     }
