@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-08 22:50:00 UTC*
+*Última actualización: 2026-07-10 10:50:00 UTC*
 
 ---
 
@@ -8,10 +8,7 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `FIX-040`
-- **Objetivo Principal:** Enforcing `isReadOnly` en todos los componentes para ejercicios fiscales cerrados.
-- **Estado Detallado:** Completado. Guards de backend añadidos en App.tsx (4 handlers). Guards de UI añadidos en 6 componentes. Advertencias de lint eliminadas en todos los ficheros modificados. Bug de botón Cancelar en Suppliers.tsx corregido. tsconfig.json actualizado para excluir `coverage/` y `dist/`.
-- **Próximo Micro-Paso Planificado:** El Director completa el setup de Appwrite Console (ver APPWRITE_SETUP.md sección "FASE 1 — Ejercicios Contables").
+Estado actual: **A la espera de nuevas directivas del Director.**
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -29,6 +26,7 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-10] - `FIX-041` - Caché móvil + PWA Installability:** Resuelto el problema de cambios no visibles en iOS Safari y Android Chrome. (1) Meta tags `no-cache` en `index.html` (fix inmediato para cualquier servidor). (2) `deployment/nginx.conf` con política de caché diferenciada: `no-store` para HTML, `max-age=31536000 immutable` para assets hasheados. (3) Service Worker (`public/sw.js`) con estrategia Network-first para HTML y Cache-first para assets, garantizando que el móvil siempre obtiene el `index.html` fresco. (4) Web App Manifest (`public/manifest.webmanifest`) + iconos PWA (192px, 512px, maskable) generados desde el logo. (5) Meta tags Apple PWA y registro del SW en `index.html`. La app ya muestra el prompt de instalación en móvil.
 *   **[2026-07-08] - `FIX-040` - isReadOnly enforcement completo + limpieza de código:** Guards de backend en App.tsx (4 handlers sin protección). Guards de UI en 6 componentes (RecurringExpenseManager, ReservationManager, AccountingBooks, ApartmentManager, Suppliers, TouristTaxPanel). Bug corregido en Suppliers.tsx (botón Cancelar no funcionaba en modo solo-lectura). 15 advertencias de lint eliminadas de ficheros modificados. `tsconfig.json` actualizado para excluir `coverage/` y `dist/`.
 *   **[2026-07-08] - `TSK-043` - Ejercicios Contables (código completo):** Sistema completo de ejercicios fiscales anuales. Tipos TypeScript, colección `fiscal_years`, CRUD en servicio Appwrite, contexto global `FiscalYearContext`, selector en Header, página de gestión `/fiscal-years`, protección `isReadOnly` en todos los handlers CRUD, inyección de `fiscalYearId` en todos los documentos creados, herramienta de migración de datos legacy, copia automática de proveedores/apartamentos al crear nuevo ejercicio.
 *   **[2026-07-08] - `FIX-039` - CI Lint Pipeline:** Corregido el fallo bloqueante de ESLint en PRs declarando `DOMException` como global del entorno browser y estabilizando la memoización de `Dashboard`.
@@ -69,7 +67,23 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
-### Sesión: [2026-07-08 22:14:00 UTC]
+### Sesión: [2026-07-10 10:30:00 UTC]
+*   **Directiva del Director:** "Los cambios en la app no se ven reflejados en dispositivo móvil (Android/iOS). La app tampoco solicita instalarse al usuario."
+*   **Plan de Acción:** (1) Diagnóstico: confirmar que es problema de caché HTTP agresiva en móvil (iOS Safari / Android Chrome cachean `index.html` sin expiración). (2) Fix inmediato con meta tags no-cache. (3) Configuración nginx definitiva. (4) Service Worker Network-first para intercept de HTML. (5) Web App Manifest + iconos PWA para habilitar instalación.
+*   **Log de Acciones:**
+    - `[10:32:00]` - **AUDIT:** Revisado `vite.config.ts`, `index.html`, `browser-compatibility.css`, `tailwind.config.js`, `package.json`. Sin service worker, sin manifest, sin cabeceras `Cache-Control`. Confirmado dominio Tailscale en vite.config → VPS privado, probablemente nginx.
+    - `[10:36:00]` - **MOD:** `index.html`. **CAMBIOS:** Añadidos meta tags `Cache-Control: no-cache, no-store, must-revalidate`, `Pragma: no-cache`, `Expires: 0` en `<head>`.
+    - `[10:38:00]` - **CREACIÓN:** `deployment/nginx.conf`. **DETALLE:** Configuración nginx completa con política de caché diferenciada: `no-store` para `index.html` y rutas SPA, `max-age=31536000 immutable` para `/assets/*` hasheados, `max-age=86400` para imágenes/fuentes. Includes GZIP, security headers, SPA fallback.
+    - `[10:40:00]` - **MOD:** `vite.config.ts`. **CAMBIOS:** Añadido bloque `preview` + `headers: { 'Cache-Control': 'no-cache' }` tanto en `server` como en `preview`.
+    - `[10:42:00]` - **CREACIÓN:** Iconos PWA `assets/icon-192x192.png`, `icon-512x512.png`, `icon-192x192-maskable.png`, `icon-512x512-maskable.png` generados con Pillow desde `assets/logo.png`. Copiados a `public/`.
+    - `[10:44:00]` - **CREACIÓN:** `public/manifest.webmanifest`. Web App Manifest completo con `display: standalone`, `theme_color: #1e3a5f`, 4 iconos (any + maskable, 192/512).
+    - `[10:46:00]` - **CREACIÓN:** `public/sw.js`. Service Worker con estrategia Network-first para HTML (garantiza siempre versión fresca) y Cache-first para `/assets/*` (inmutables por hash). Limpieza de cachés antiguas en activación. `skipWaiting` + `clients.claim` para activación inmediata.
+    - `[10:48:00]` - **MOD:** `index.html`. **CAMBIOS:** `<link rel="manifest">`, meta tags PWA para iOS (`apple-mobile-web-app-capable`, `apple-touch-icon`, `theme-color`), registro del SW con `registration.update()` en cada carga.
+    - `[10:50:00]` - **TEST:** `npm run build && npm run lint && npm run test:ci`. **RESULTADO:** Build OK, 0 errores lint (solo warnings pre-existentes), 152/152 tests PASS.
+*   **Resultado:** FIX-041 completado. Los cambios ahora serán visibles en móvil tras cada deploy. La app puede instalarse como PWA en Android y iOS.
+*   **Observaciones/Decisiones de Diseño:** El SW tiene la clave del fix: intercepta la petición de `index.html` y **siempre** va a la red primero. Aunque el navegador tenga caché, el SW la ignora para HTML. Para los assets `/assets/*` sí usa caché (Cache-first) porque el hash garantiza que son inmutables. La combinación meta tags + SW + nginx es triple cobertura: meta tags para navegadores sin SW, SW para los que sí lo soportan, nginx como fuente de verdad absoluta en el servidor.
+
+
 *   **Directiva del Director:** "@copilot arregla todos estos fallos"
 *   **Plan de Acción:** Investigar CI (action_required = approval gate, no fallo de código), identificar advertencias de lint en ficheros modificados, corregir bug en Suppliers.tsx, limpiar código muerto, y corregir tsconfig.json.
 *   **Log de Acciones:**

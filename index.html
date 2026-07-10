@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light">
+    <!-- Cache control: prevent stale HTML on mobile browsers -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>CBGest - Contabilidad Comunidades de Bienes</title>
     
     <!-- DNS Prefetch & Preconnect for faster resource loading -->
@@ -19,9 +23,15 @@
     <!-- Preload critical assets -->
     <link rel="preload" href="/assets/logo.png" as="image" type="image/png">
     
-    <!-- Favicon -->
+    <!-- Favicon & PWA -->
     <link rel="icon" type="image/png" href="/assets/logo.png">
-    <link rel="apple-touch-icon" href="/assets/logo.png">
+    <link rel="apple-touch-icon" href="/icon-192x192-maskable.png">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#1e3a5f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="CBGest">
     
     <!-- Google Fonts with display=swap for non-blocking load -->
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -249,5 +259,24 @@
     </div>
     
     <script type="module" src="/index.tsx"></script>
+
+    <!-- Service Worker registration for PWA installability and cache management -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').then(function (registration) {
+            // Check for SW updates once per hour to avoid excessive network requests
+            var SW_UPDATE_INTERVAL = 60 * 60 * 1000; // 1 hour in ms
+            var lastCheck = parseInt(sessionStorage.getItem('sw_last_check') || '0', 10);
+            if (Date.now() - lastCheck > SW_UPDATE_INTERVAL) {
+              registration.update();
+              sessionStorage.setItem('sw_last_check', String(Date.now()));
+            }
+          }).catch(function (err) {
+            console.warn('Service Worker registration failed:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

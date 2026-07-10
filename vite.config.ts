@@ -9,6 +9,18 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
         allowedHosts: ['.tail1c095e.ts.net'],
+        // Prevent browser caching of all served files during development
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      },
+      preview: {
+        port: 4173,
+        host: '0.0.0.0',
+        // Prevent browser caching of all served files during production preview
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
       },
       plugins: [react()],
       define: {
