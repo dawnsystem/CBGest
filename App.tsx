@@ -356,8 +356,19 @@ const MainLayout: React.FC = () => {
   // --- RELOAD DATA WHEN ACTIVE FISCAL YEAR CHANGES ---
   // Separate from the heavy initDataLayer so health checks are not repeated.
   // Runs only AFTER the initial data layer is initialized (guard via ref).
+  //
+  // BUG-021 FIX: Race condition guard.
+  // Without the cleanup function, if the user switches exercises rapidly (or if
+  // a new exercise is created and they immediately switch back), two concurrent
+  // fetches can be in flight at the same time.  Whichever resolves last wins and
+  // overwrites the state, so the user can end up seeing data from the WRONG
+  // exercise (e.g. 2027 apartments shown while 2026 is selected in the header).
+  // The `cancelled` flag ensures that only the fetch belonging to the CURRENT
+  // render cycle can commit its results to state.
   useEffect(() => {
     if (!user || !sessionReady || !isDataLayerInitialized) return;
+
+    let cancelled = false;
 
     const fetchForYear = async () => {
       const fyId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
@@ -371,6 +382,10 @@ const MainLayout: React.FC = () => {
           appwriteService.fetchApartments(fyId).catch((e) => { console.warn('Failed to fetch apartments on year change:', e); return []; }),
           appwriteService.fetchReservations(fyId).catch((e) => { console.warn('Failed to fetch reservations on year change:', e); return []; }),
         ]);
+
+        // Discard results if the exercise changed again while this fetch was in flight.
+        if (cancelled) return;
+
         setInvoices(remoteInvoices);
         setAccountingEntries(remoteEntries);
         setBankTransactions(remoteTransactions);
@@ -379,13 +394,22 @@ const MainLayout: React.FC = () => {
         setReservations(remoteReservations);
         console.log(`[App] Data reloaded for fiscal year: ${activeFiscalYear?.year ?? 'all'}`);
       } catch (e: any) {
-        console.warn('[App] Failed to reload data for fiscal year:', e);
+        if (!cancelled) {
+          console.warn('[App] Failed to reload data for fiscal year:', e);
+        }
       } finally {
-        setIsDataLoading(false);
+        if (!cancelled) {
+          setIsDataLoading(false);
+        }
       }
     };
 
     fetchForYear();
+
+    // Cleanup: mark this effect's fetch as stale when the exercise changes again.
+    return () => {
+      cancelled = true;
+    };
   }, [activeFiscalYear, user, sessionReady, isDataLayerInitialized]); // Lightweight reload on year switch
 
   // --- HEALTH CHECK PERIÓDICO (cada 5 min) ---
