@@ -2,7 +2,7 @@
  * CBGest Service Worker
  *
  * Estrategia:
- * - index.html → Network-first (siempre fresco, nunca cacheado)
+ * - index.html → Network-first (fresco con red, fallback a caché si está offline)
  * - Assets con hash (/assets/*) → Cache-first con fallback a red (inmutables por diseño)
  * - Resto → Network-first con fallback a caché offline
  *
@@ -47,13 +47,15 @@ self.addEventListener('fetch', (event) => {
 
   // Solo manejamos peticiones del mismo origen
   if (url.origin !== self.location.origin) return;
+  // No interceptar métodos no idempotentes
+  if (request.method !== 'GET') return;
 
-  // 1. index.html y rutas SPA → Network-first (NUNCA sirve desde caché)
+  // 1. index.html y rutas SPA → Network-first (con fallback a caché offline)
   //    Detectamos navegación HTML comprobando la extensión: si no tiene extensión
   //    de fichero estático (js, css, png, etc.) asumimos que es una ruta SPA.
   const hasSafeStaticExtension = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|json|webmanifest|map)$/i.test(url.pathname);
   if (!hasSafeStaticExtension) {
-    event.respondWith(networkFirst(request));
+    event.respondWith(networkFirst(request, { bypassHttpCache: true }));
     return;
   }
 
@@ -73,13 +75,19 @@ self.addEventListener('fetch', (event) => {
  * Network-first: intenta la red; si falla, sirve desde caché.
  * Garantiza contenido fresco cuando hay conexión.
  */
-async function networkFirst(request) {
+async function networkFirst(request, options = {}) {
+  const { bypassHttpCache = false } = options;
   try {
-    const networkResponse = await fetch(request);
+    const networkRequest = bypassHttpCache ? new Request(request, { cache: 'no-store' }) : request;
+    const networkResponse = await fetch(networkRequest);
     // Cachea la respuesta fresca para uso offline futuro
     if (networkResponse.ok) {
-      const cache = await caches.open(ASSETS_CACHE);
-      cache.put(request, networkResponse.clone());
+      try {
+        const cache = await caches.open(ASSETS_CACHE);
+        await cache.put(request, networkResponse.clone());
+      } catch {
+        // Ignora errores de almacenamiento y entrega la respuesta de red
+      }
     }
     return networkResponse;
   } catch {
