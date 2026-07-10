@@ -9,6 +9,18 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
         allowedHosts: ['.tail1c095e.ts.net'],
+        // Prevent browser caching of index.html during development
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      },
+      preview: {
+        port: 4173,
+        host: '0.0.0.0',
+        // Same no-cache policy for `vite preview` (production build preview)
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
       },
       plugins: [react()],
       define: {
