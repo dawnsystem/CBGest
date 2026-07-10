@@ -174,6 +174,9 @@ describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
 
       expect(result.suppliers).toBe(0);
       expect(result.apartments).toBe(0);
+      expect(setTimeoutSpy).toHaveBeenNthCalledWith(1, expect.any(Function), 2000);
+      expect(setTimeoutSpy).toHaveBeenNthCalledWith(2, expect.any(Function), 4000);
+      expect(setTimeoutSpy).toHaveBeenNthCalledWith(3, expect.any(Function), 8000);
     } finally {
       setTimeoutSpy.mockRestore();
     }

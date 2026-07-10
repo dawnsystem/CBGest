@@ -90,7 +90,9 @@ export const buildMasterDataCopyDocumentId = async (
 ): Promise<string> => {
   const prefix = collection === 'suppliers' ? 'ms' : 'ma';
   const hash = await hashMasterDataCopyKey(`${collection}:${targetFiscalYearId}:${sourceDocumentId}`);
-  return `${prefix}-${hash.slice(0, 32)}`;
+  // Appwrite custom IDs are capped at 36 chars, so keep the 3-char prefix plus
+  // 33 hex chars (132 bits) from SHA-256.
+  return `${prefix}-${hash.slice(0, 33)}`;
 };
 
 const getCopySourceDocumentId = (
