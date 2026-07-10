@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-10 21:35:00 UTC*
+*Última actualización: 2026-07-10 23:40:00 UTC*
 
 ---
 
@@ -8,7 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **A la espera de nuevas directivas del Director.**
+- **Identificador de Tarea:** `FIX-043`
+- **Objetivo Principal:** Corregir race condition en el cambio de ejercicio que hacía desaparecer los alojamientos de 2026 y daba la impresión de que el selector de ejercicio no funcionaba.
+- **Estado Detallado:** `FIX-043` completado. Race condition corregida en `App.tsx` mediante guardia de cancelación (`cancelled` flag) en el efecto `fetchForYear`.
+- **Próximo Micro-Paso Planificado:** A la espera de nuevas directivas del Director.
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -26,6 +29,7 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-10] - `FIX-043` - Race condition en cambio de ejercicio (alojamientos 2026 desaparecen al crear 2027):** `BUG-021` y `BUG-022` corregidos. Añadida guardia de cancelación (`cancelled` flag + cleanup function) en el efecto `fetchForYear` de `App.tsx`. Previene que un fetch de ejercicio anterior (en vuelo) sobreescriba el estado del ejercicio recién seleccionado.
 *   **[2026-07-10] - `FIX-042` - Duplicación de alojamientos al crear ejercicio:** `BUG-020` corregido. `ID.unique()` movido fuera del lambda en `withRetry` para proveedores y apartamentos en `copyMasterDataToFiscalYear`. Añadida guardia de idempotencia: si el ejercicio destino ya contiene alojamientos/proveedores, la copia se omite. Previene duplicación tanto por reintento de red como por doble invocación.
 *   **[2026-07-10] - `FIX-041` - Caché móvil + PWA Installability:** Resuelto el problema de cambios no visibles en iOS Safari y Android Chrome. (1) Meta tags `no-cache` en `index.html` (fix inmediato para cualquier servidor). (2) `deployment/nginx.conf` con política de caché diferenciada: `no-store` para HTML, `max-age=31536000 immutable` para assets hasheados. (3) Service Worker (`public/sw.js`) con estrategia Network-first para HTML y Cache-first para assets, garantizando que el móvil siempre obtiene el `index.html` fresco. (4) Web App Manifest (`public/manifest.webmanifest`) + iconos PWA (192px, 512px, maskable) generados desde el logo. (5) Meta tags Apple PWA y registro del SW en `index.html`. La app ya muestra el prompt de instalación en móvil.
 *   **[2026-07-08] - `FIX-040` - isReadOnly enforcement completo + limpieza de código:** Guards de backend en App.tsx (4 handlers sin protección). Guards de UI en 6 componentes (RecurringExpenseManager, ReservationManager, AccountingBooks, ApartmentManager, Suppliers, TouristTaxPanel). Bug corregido en Suppliers.tsx (botón Cancelar no funcionaba en modo solo-lectura). 15 advertencias de lint eliminadas de ficheros modificados. `tsconfig.json` actualizado para excluir `coverage/` y `dist/`.
@@ -68,6 +72,19 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-10 23:28:00 UTC]
+*   **Directiva del Director:** "Hay que seguir con la auditoría de ejercicios. Al crear el ejercicio 2027, no puedo ver en el 2026 los alojamientos, como si se hubiesen eliminado de la app. Además, cuando se cambia de ejercicio desde el desplegable del selector de ejercicio, da la sensación que no se selecciona correctamente y no cambia de ejercicio."
+*   **Plan de Acción:** Rastrear el flujo completo: creación de 2027 → copia maestros → cambio de activeFiscalYear → efecto fetchForYear → selector de ejercicio. Verificar si hay race conditions entre peticiones Appwrite en vuelo simultáneas.
+*   **Log de Acciones:**
+    - `[23:30:00]` - **AUDIT:** Lectura de `FiscalYearContext.tsx`, `Header.tsx`, `FiscalYearManager.tsx`, `App.tsx` (efecto fetchForYear, initDataLayer), `services/appwriteService.ts` (getApartments, copyMasterDataToFiscalYear).
+    - `[23:35:00]` - **HALLAZGO:** `BUG-021` identificado en `App.tsx:359-389`. El efecto `fetchForYear` NO tiene cleanup function ni guardia de cancelación. Al crear 2027: (1) `setActiveFiscalYear(2027)` dispara un fetch asíncrono para 2027 (T1). (2) El usuario cambia a 2026 → `setActiveFiscalYear(2026)` dispara un segundo fetch para 2026 (T2). (3) Si T1 > T2 (el fetch de 2027 llega más tarde), sobreescribe el estado con datos de 2027 mientras la UI muestra 2026. Resultado: selector parece no funcionar, alojamientos de 2026 "desaparecen". Severidad: **ALTO**.
+    - `[23:36:00]` - **HALLAZGO:** `BUG-022` como consecuencia directa de BUG-021. Los alojamientos del ejercicio 2026 desaparecen porque el fetch en vuelo de 2027 llega tarde y sobreescribe el estado con los alojamientos copiados (2027), haciendo creer que 2026 está vacío. Severidad: **ALTO**.
+    - `[23:38:00]` - **FIX:** `App.tsx`. **CAMBIOS:** Añadida variable `cancelled` (boolean) al efecto `fetchForYear` con cleanup `return () => { cancelled = true; }`. Guardias `if (cancelled) return` antes de cada `setState` (incluyendo el bloque `catch` y el `finally`). El efecto ya no puede sobreescribir datos de un ejercicio distinto al que está activo cuando el fetch resuelve.
+    - `[23:40:00]` - **DOC:** Registrados `BUG-021` y `BUG-022` en sección de Bugs (✅ Resueltos). Actualizada `BITACORA_MAESTRA.md`.
+*   **Resultado:** `FIX-043` completado. La race condition queda eliminada: cualquier fetch en vuelo que pertenezca a un ejercicio ya obsoleto es descartado silenciosamente sin tocar el estado.
+*   **Commit Asociado:** `fix(app): prevenir race condition al cambiar de ejercicio en fetchForYear`
+*   **Observaciones/Decisiones de Diseño:** El patrón `cancelled` flag es el estándar React para cancelar efectos asíncronos. La alternativa (AbortController + fetch) no aplica aquí porque las llamadas van a través de la SDK de Appwrite, que no expone señal de abort. La flag `cancelled` es equivalente funcional y cubre el 100% del caso. NOTA ADICIONAL: Si los alojamientos de 2026 siguen sin aparecer tras este fix, la causa sería que los documentos en Appwrite tienen `fiscalYearId = null` (creados antes de la migración al sistema de ejercicios). La herramienta "Migrar datos sin ejercicio" en `/fiscal-years` asigna el `fiscalYearId` a todos los documentos sin él. Debe ejecutarse con el ejercicio 2026 activo.
+
 ### Sesión: [2026-07-10 21:35:00 UTC]
 *   **Directiva del Director:** "Debes auditar la creación de nuevos ejercicios ya que veo que al crear el ejercicio 2026 se han duplicado los alojamientos."
 *   **Plan de Acción:** Rastrear el flujo completo de creación de ejercicio (FiscalYearManager → FiscalYearContext → appwriteService), identificar el punto donde se crean los alojamientos en el nuevo ejercicio, verificar la lógica de reintentos y posibles race conditions.
@@ -370,6 +387,8 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 
 ### 🟠 ALTOS (23 hallazgos) — Bugs funcionales, riesgos de seguridad moderados o degradación significativa
 
+* **BUG-021:** `App.tsx:359-389` — **Race condition en `fetchForYear` effect.** Al crear el ejercicio 2027, `setActiveFiscalYear(2027)` dispara un fetch asíncrono para 2027. Si el usuario cambia inmediatamente a 2026, se lanza un segundo fetch para 2026. Si el fetch de 2027 termina DESPUÉS del de 2026, sobreescribe el estado con datos de 2027 mientras la UI muestra 2026 — haciendo parecer que el selector no funciona y que los alojamientos de 2026 "desaparecen". Estado: ✅ Resuelto (FIX-043).
+* **BUG-022:** `App.tsx:359-389` (consecuencia de BUG-021) — Los alojamientos del ejercicio 2026 parecen eliminados tras crear 2027, porque el fetch en vuelo de 2027 sobreescribe el estado con los alojamientos copiados (2027) mientras el usuario está en la vista de 2026. Estado: ✅ Resuelto (FIX-043).
 * **BUG-020:** `services/appwriteService.ts:1948-1979` — `ID.unique()` evaluado **dentro** del lambda de `withRetry` en `copyMasterDataToFiscalYear`. Un error de red post-creación (timeout, dropped response) provoca reintento con nuevo ID → alojamientos/proveedores duplicados en Appwrite al crear un nuevo ejercicio. Estado: ✅ Resuelto (FIX-042).
 * **SEC-006:** `validators.ts:220-242` — `isSafeString()` y `sanitizeString()` no detectan XSS con entidades HTML codificadas (`&#60;script&#62;`). Estado: Pendiente.
 * **SEC-007:** `ReservationManager.tsx:76-94` — CSV parsing no escapa HTML en campos. Guest name con `<img onerror=...>` se renderiza sin sanitizar. Estado: Pendiente.
