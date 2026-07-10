@@ -1,12 +1,5 @@
 /**
- * @fileoverview Tests for copyMasterDataToFiscalYear — idempotency under 409 responses.
- *
- * Scenario covered:
- *   1. First createDocument call succeeds silently (document created in Appwrite)
- *      but the response is lost (e.g. network timeout) so withRetry triggers.
- *   2. The retry uses the same pre-generated document ID, so Appwrite returns 409.
- *   3. The 409 must be treated as a success: counts and onProgress must be updated
- *      just as if the first attempt had returned normally.
+ * @fileoverview Tests for copyMasterDataToFiscalYear idempotency paths.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -70,6 +63,20 @@ const makeApartment = (id = 'src-apartment-1') => ({
 /** Creates a 409 Appwrite exception (document already exists). */
 const make409 = () => new AppwriteException('Document with the requested ID already exists.', 409, 'document_already_exists', '');
 
+const buildExpectedCopyDocumentId = async (
+  collection: 'suppliers' | 'apartments',
+  targetFiscalYearId: string,
+  sourceDocumentId: string
+) => {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${collection}:${targetFiscalYearId}:${sourceDocumentId}`)
+  );
+  const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  const prefix = collection === 'suppliers' ? 'ms' : 'ma';
+  return `${prefix}-${hash.slice(0, 33)}`;
+};
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
@@ -77,7 +84,7 @@ describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
     vi.clearAllMocks();
   });
 
-  it('counts a supplier as copied when createDocument returns 409 on retry', async () => {
+  it('counts a supplier as copied when createDocument returns 409', async () => {
     // Target fiscal year has no existing suppliers or apartments.
     mockListDocuments
       .mockResolvedValueOnce({ total: 0, documents: [] })  // existingSuppliers (target)
@@ -100,7 +107,7 @@ describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
     expect(onProgress).toHaveBeenCalledWith('Proveedores', 1, 1);
   });
 
-  it('counts an apartment as copied when createDocument returns 409 on retry', async () => {
+  it('counts an apartment as copied when createDocument returns 409', async () => {
     // Target fiscal year has no existing suppliers or apartments.
     mockListDocuments
       .mockResolvedValueOnce({ total: 0, documents: [] })  // existingSuppliers (target)
@@ -121,24 +128,49 @@ describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
     expect(onProgress).toHaveBeenCalledWith('Apartamentos', 1, 1);
   });
 
-  it('returns counts { suppliers: 0, apartments: 0 } when target already has data', async () => {
-    // Target already has existing suppliers and apartments — copy is skipped.
+  it('returns counts { suppliers: 0, apartments: 0 } when target already has all copied master data', async () => {
+    const existingSupplierId = await buildExpectedCopyDocumentId('suppliers', 'target-fy', 'src-supplier-1');
+    const existingApartmentId = await buildExpectedCopyDocumentId('apartments', 'target-fy', 'src-apartment-1');
+
     mockListDocuments
-      .mockResolvedValueOnce({ total: 2, documents: [makeSupplier('e1'), makeSupplier('e2')] }) // existingSuppliers
-      .mockResolvedValueOnce({ total: 1, documents: [makeApartment('ea1')] });                  // existingApartments
+      .mockResolvedValueOnce({ total: 1, documents: [{ ...makeSupplier('src-supplier-1'), $id: existingSupplierId }] })
+      .mockResolvedValueOnce({ total: 1, documents: [{ ...makeApartment('src-apartment-1'), $id: existingApartmentId }] })
+      .mockResolvedValueOnce({ total: 1, documents: [makeSupplier('src-supplier-1')] })
+      .mockResolvedValueOnce({ total: 1, documents: [makeApartment('src-apartment-1')] });
 
     const result = await databaseService.copyMasterDataToFiscalYear('source-fy', 'target-fy');
 
-    // When skipping copy, returned counts should be 0 (nothing was copied).
     expect(result.suppliers).toBe(0);
     expect(result.apartments).toBe(0);
-
-    // createDocument must not have been called.
     expect(mockCreateDocument).not.toHaveBeenCalled();
   });
 
+  it('copies missing suppliers when the target fiscal year already contains a partial previous copy', async () => {
+    const existingSupplierId = await buildExpectedCopyDocumentId('suppliers', 'target-fy', 'src-supplier-1');
+
+    mockListDocuments
+      .mockResolvedValueOnce({ total: 1, documents: [{ ...makeSupplier('src-supplier-1'), $id: existingSupplierId }] })
+      .mockResolvedValueOnce({ total: 0, documents: [] })
+      .mockResolvedValueOnce({ total: 2, documents: [makeSupplier('src-supplier-1'), makeSupplier('src-supplier-2')] })
+      .mockResolvedValueOnce({ total: 0, documents: [] });
+
+    const result = await databaseService.copyMasterDataToFiscalYear('source-fy', 'target-fy');
+
+    expect(result.suppliers).toBe(1);
+    expect(result.apartments).toBe(0);
+    expect(mockCreateDocument).toHaveBeenCalledTimes(1);
+    expect(mockCreateDocument.mock.calls[0][2]).toBe(
+      await buildExpectedCopyDocumentId('suppliers', 'target-fy', 'src-supplier-2')
+    );
+  });
+
   it('does not count a supplier when createDocument throws a non-409 error on all attempts', async () => {
-    vi.useFakeTimers();
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((callback: Parameters<typeof setTimeout>[0]) => {
+      if (typeof callback === 'function') {
+        callback();
+      }
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }) as typeof setTimeout);
 
     try {
       mockListDocuments
@@ -152,16 +184,12 @@ describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
         new AppwriteException('Internal Server Error', 500, 'general_unknown', '')
       );
 
-      const promise = databaseService.copyMasterDataToFiscalYear('source-fy', 'target-fy');
-
-      // Advance through all retry delays (2s + 4s + 8s).
-      await vi.runAllTimersAsync();
-      const result = await promise;
+      const result = await databaseService.copyMasterDataToFiscalYear('source-fy', 'target-fy');
 
       expect(result.suppliers).toBe(0);
       expect(result.apartments).toBe(0);
     } finally {
-      vi.useRealTimers();
+      setTimeoutSpy.mockRestore();
     }
   });
 });
