@@ -75,28 +75,33 @@ const getErrorCode = (error: unknown): number | undefined => {
 const MASTER_DATA_COPY_BATCH_SIZE = 100;
 
 const hashMasterDataCopyKey = async (value: string): Promise<string> => {
-  if (typeof crypto !== 'undefined' && crypto.subtle) {
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new Error('Web Crypto API is required to generate deterministic master-data copy IDs.');
   }
 
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  const fallback = (hash >>> 0).toString(16).padStart(8, '0');
-  return `${fallback}${fallback}${fallback}${fallback}`;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 };
 
-const buildMasterDataCopyDocumentId = async (
+export const buildMasterDataCopyDocumentId = async (
   collection: 'suppliers' | 'apartments',
   targetFiscalYearId: string,
   sourceDocumentId: string
 ): Promise<string> => {
   const prefix = collection === 'suppliers' ? 'ms' : 'ma';
   const hash = await hashMasterDataCopyKey(`${collection}:${targetFiscalYearId}:${sourceDocumentId}`);
-  return `${prefix}-${hash.slice(0, 33)}`;
+  return `${prefix}-${hash.slice(0, 32)}`;
+};
+
+const getCopySourceDocumentId = (
+  collection: 'suppliers' | 'apartments',
+  doc: { appwriteId?: string; id?: string; $id?: string }
+): string => {
+  const sourceDocumentId = doc.appwriteId || doc.id || doc.$id;
+  if (!sourceDocumentId) {
+    throw new Error(`[copyMasterData] Cannot copy ${collection}: source document is missing an ID.`);
+  }
+  return sourceDocumentId;
 };
 
 const listFiscalYearDocumentIds = async (
@@ -2021,7 +2026,7 @@ export const databaseService = {
       const newDocId = await buildMasterDataCopyDocumentId(
         'suppliers',
         targetFiscalYearId,
-        supplier.appwriteId || supplier.id || supplier.$id
+        getCopySourceDocumentId('suppliers', supplier)
       );
 
       if (existingSupplierIds.has(newDocId)) {
@@ -2061,7 +2066,7 @@ export const databaseService = {
       const newDocId = await buildMasterDataCopyDocumentId(
         'apartments',
         targetFiscalYearId,
-        apartment.appwriteId || apartment.id || apartment.$id
+        getCopySourceDocumentId('apartments', apartment)
       );
 
       if (existingApartmentIds.has(newDocId)) {

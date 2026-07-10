@@ -29,7 +29,7 @@ vi.mock('../../lib/appwrite/client', () => ({
 vi.mock('appwrite');
 
 // ── Import after mocks are set up ────────────────────────────────────────────
-import { databaseService } from '../appwriteService';
+import { buildMasterDataCopyDocumentId, databaseService } from '../appwriteService';
 import { AppwriteException } from 'appwrite';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -62,20 +62,6 @@ const makeApartment = (id = 'src-apartment-1') => ({
 
 /** Creates a 409 Appwrite exception (document already exists). */
 const make409 = () => new AppwriteException('Document with the requested ID already exists.', 409, 'document_already_exists', '');
-
-const buildExpectedCopyDocumentId = async (
-  collection: 'suppliers' | 'apartments',
-  targetFiscalYearId: string,
-  sourceDocumentId: string
-) => {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(`${collection}:${targetFiscalYearId}:${sourceDocumentId}`)
-  );
-  const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-  const prefix = collection === 'suppliers' ? 'ms' : 'ma';
-  return `${prefix}-${hash.slice(0, 33)}`;
-};
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
@@ -129,8 +115,8 @@ describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
   });
 
   it('returns counts { suppliers: 0, apartments: 0 } when target already has all copied master data', async () => {
-    const existingSupplierId = await buildExpectedCopyDocumentId('suppliers', 'target-fy', 'src-supplier-1');
-    const existingApartmentId = await buildExpectedCopyDocumentId('apartments', 'target-fy', 'src-apartment-1');
+    const existingSupplierId = await buildMasterDataCopyDocumentId('suppliers', 'target-fy', 'src-supplier-1');
+    const existingApartmentId = await buildMasterDataCopyDocumentId('apartments', 'target-fy', 'src-apartment-1');
 
     mockListDocuments
       .mockResolvedValueOnce({ total: 1, documents: [{ ...makeSupplier('src-supplier-1'), $id: existingSupplierId }] })
@@ -146,7 +132,7 @@ describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
   });
 
   it('copies missing suppliers when the target fiscal year already contains a partial previous copy', async () => {
-    const existingSupplierId = await buildExpectedCopyDocumentId('suppliers', 'target-fy', 'src-supplier-1');
+    const existingSupplierId = await buildMasterDataCopyDocumentId('suppliers', 'target-fy', 'src-supplier-1');
 
     mockListDocuments
       .mockResolvedValueOnce({ total: 1, documents: [{ ...makeSupplier('src-supplier-1'), $id: existingSupplierId }] })
@@ -160,7 +146,7 @@ describe('copyMasterDataToFiscalYear — 409 idempotency', () => {
     expect(result.apartments).toBe(0);
     expect(mockCreateDocument).toHaveBeenCalledTimes(1);
     expect(mockCreateDocument.mock.calls[0][2]).toBe(
-      await buildExpectedCopyDocumentId('suppliers', 'target-fy', 'src-supplier-2')
+      await buildMasterDataCopyDocumentId('suppliers', 'target-fy', 'src-supplier-2')
     );
   });
 
