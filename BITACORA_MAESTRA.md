@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-10 10:50:00 UTC*
+*Última actualización: 2026-07-10 21:35:00 UTC*
 
 ---
 
@@ -26,6 +26,7 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-10] - `FIX-042` - Duplicación de alojamientos al crear ejercicio:** `BUG-020` corregido. `ID.unique()` movido fuera del lambda en `withRetry` para proveedores y apartamentos en `copyMasterDataToFiscalYear`. Añadida guardia de idempotencia: si el ejercicio destino ya contiene alojamientos/proveedores, la copia se omite. Previene duplicación tanto por reintento de red como por doble invocación.
 *   **[2026-07-10] - `FIX-041` - Caché móvil + PWA Installability:** Resuelto el problema de cambios no visibles en iOS Safari y Android Chrome. (1) Meta tags `no-cache` en `index.html` (fix inmediato para cualquier servidor). (2) `deployment/nginx.conf` con política de caché diferenciada: `no-store` para HTML, `max-age=31536000 immutable` para assets hasheados. (3) Service Worker (`public/sw.js`) con estrategia Network-first para HTML y Cache-first para assets, garantizando que el móvil siempre obtiene el `index.html` fresco. (4) Web App Manifest (`public/manifest.webmanifest`) + iconos PWA (192px, 512px, maskable) generados desde el logo. (5) Meta tags Apple PWA y registro del SW en `index.html`. La app ya muestra el prompt de instalación en móvil.
 *   **[2026-07-08] - `FIX-040` - isReadOnly enforcement completo + limpieza de código:** Guards de backend en App.tsx (4 handlers sin protección). Guards de UI en 6 componentes (RecurringExpenseManager, ReservationManager, AccountingBooks, ApartmentManager, Suppliers, TouristTaxPanel). Bug corregido en Suppliers.tsx (botón Cancelar no funcionaba en modo solo-lectura). 15 advertencias de lint eliminadas de ficheros modificados. `tsconfig.json` actualizado para excluir `coverage/` y `dist/`.
 *   **[2026-07-08] - `TSK-043` - Ejercicios Contables (código completo):** Sistema completo de ejercicios fiscales anuales. Tipos TypeScript, colección `fiscal_years`, CRUD en servicio Appwrite, contexto global `FiscalYearContext`, selector en Header, página de gestión `/fiscal-years`, protección `isReadOnly` en todos los handlers CRUD, inyección de `fiscalYearId` en todos los documentos creados, herramienta de migración de datos legacy, copia automática de proveedores/apartamentos al crear nuevo ejercicio.
@@ -67,7 +68,19 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 ---
 
 ## 🔬 Registro Forense de Sesiones
-### Sesión: [2026-07-10 10:30:00 UTC]
+### Sesión: [2026-07-10 21:35:00 UTC]
+*   **Directiva del Director:** "Debes auditar la creación de nuevos ejercicios ya que veo que al crear el ejercicio 2026 se han duplicado los alojamientos."
+*   **Plan de Acción:** Rastrear el flujo completo de creación de ejercicio (FiscalYearManager → FiscalYearContext → appwriteService), identificar el punto donde se crean los alojamientos en el nuevo ejercicio, verificar la lógica de reintentos y posibles race conditions.
+*   **Log de Acciones:**
+    - `[21:34:00]` - **AUDIT:** Lectura de `FiscalYearManager.tsx`, `FiscalYearContext.tsx`, `appwriteService.ts` (funciones `copyMasterDataToFiscalYear`, `withRetry`, `getApartments`, `createFiscalYear`). Lectura de `App.tsx` (effects de carga de datos).
+    - `[21:35:00]` - **HALLAZGO:** `BUG-020` identificado en `appwriteService.ts:1971-1979` (y análogamente para suppliers en :1948-1956). `ID.unique()` se evalúa **dentro** del lambda pasado a `withRetry`. Si Appwrite crea el documento correctamente pero la respuesta de red se pierde (timeout), `withRetry` detecta una excepción no-4xx y reintenta. El reintento genera un nuevo `ID.unique()` → segundo documento idéntico en Appwrite → alojamiento duplicado. Severidad: **ALTO**.
+    - `[21:36:00]` - **FIX:** `services/appwriteService.ts`. **CAMBIOS:** (1) ID estable por documento para suppliers y apartments: los reintentos reutilizan el mismo ID y Appwrite responde 409 sin duplicar. (2) La copia se reanuda por documento: los registros ya presentes en destino se omiten sin contarse como copiados y solo se crean los faltantes.
+    - `[21:37:00]` - **DOC:** Registrado `BUG-020` en sección de Bugs (✅ Resuelto). Actualizada `BITACORA_MAESTRA.md`.
+*   **Resultado:** `FIX-042` completado. La duplicación de alojamientos al crear ejercicio queda corregida con doble protección: idempotencia en el ID y guardia pre-copia.
+*   **Commit Asociado:** `fix(fiscal-year): prevenir duplicación de alojamientos en copyMasterDataToFiscalYear`
+*   **Observaciones/Decisiones de Diseño:** El patrón correcto con `withRetry` para operaciones no idempotentes (como `createDocument`) es siempre generar el ID ANTES del lambda. Así, un reintento con el mismo ID → 409 (conflicto) que es no-reintentable por diseño, convirtiendo la operación de mutación en efectivamente idempotente. La guardia adicional de "ya existen datos en el destino" es una segunda línea de defensa independiente para el caso de doble invocación de la función completa.
+
+
 *   **Directiva del Director:** "Los cambios en la app no se ven reflejados en dispositivo móvil (Android/iOS). La app tampoco solicita instalarse al usuario."
 *   **Plan de Acción:** (1) Diagnóstico: confirmar que es problema de caché HTTP agresiva en móvil (iOS Safari / Android Chrome cachean `index.html` sin expiración). (2) Fix inmediato con meta tags no-cache. (3) Configuración nginx definitiva. (4) Service Worker Network-first para intercept de HTML. (5) Web App Manifest + iconos PWA para habilitar instalación.
 *   **Log de Acciones:**
@@ -357,6 +370,7 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 
 ### 🟠 ALTOS (23 hallazgos) — Bugs funcionales, riesgos de seguridad moderados o degradación significativa
 
+* **BUG-020:** `services/appwriteService.ts:1948-1979` — `ID.unique()` evaluado **dentro** del lambda de `withRetry` en `copyMasterDataToFiscalYear`. Un error de red post-creación (timeout, dropped response) provoca reintento con nuevo ID → alojamientos/proveedores duplicados en Appwrite al crear un nuevo ejercicio. Estado: ✅ Resuelto (FIX-042).
 * **SEC-006:** `validators.ts:220-242` — `isSafeString()` y `sanitizeString()` no detectan XSS con entidades HTML codificadas (`&#60;script&#62;`). Estado: Pendiente.
 * **SEC-007:** `ReservationManager.tsx:76-94` — CSV parsing no escapa HTML en campos. Guest name con `<img onerror=...>` se renderiza sin sanitizar. Estado: Pendiente.
 * **SEC-008:** `scripts/add-missing-attributes.cjs:21-23`, `scripts/migrate-uploads-collection.cjs:22-24`, `scripts/setup-all-collections.cjs:17-19`, `scripts/setup-appwrite-collections.js:23-25`, `scripts/verify-appwrite-fetch.cjs:8-10`, `scripts/verify-appwrite-setup.cjs:22-24` — Credenciales de Appwrite (endpoint, projectId, databaseId) hardcodeadas en scripts operativos. Deberían cargarse de `.env`. Estado: Pendiente.

@@ -72,6 +72,74 @@ const getErrorCode = (error: unknown): number | undefined => {
   return undefined;
 };
 
+const MASTER_DATA_COPY_BATCH_SIZE = 100;
+
+const hashMasterDataCopyKey = async (value: string): Promise<string> => {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new Error('Web Crypto API is required to generate deterministic master-data copy IDs.');
+  }
+
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+};
+
+export const buildMasterDataCopyDocumentId = async (
+  collection: 'suppliers' | 'apartments',
+  targetFiscalYearId: string,
+  sourceDocumentId: string
+): Promise<string> => {
+  const prefix = collection === 'suppliers' ? 'ms' : 'ma';
+  const hash = await hashMasterDataCopyKey(`${collection}:${targetFiscalYearId}:${sourceDocumentId}`);
+  // Appwrite custom IDs are capped at 36 chars, so keep the 3-char prefix plus
+  // 33 hex chars (132 bits) from SHA-256.
+  return `${prefix}-${hash.slice(0, 33)}`;
+};
+
+const getCopySourceDocumentId = (
+  collection: 'suppliers' | 'apartments',
+  doc: { appwriteId?: string; id?: string; $id?: string }
+): string => {
+  const sourceDocumentId = doc.appwriteId || doc.id || doc.$id;
+  if (!sourceDocumentId) {
+    throw new Error(`[copyMasterData] Cannot copy ${collection}: source document is missing an ID.`);
+  }
+  return sourceDocumentId;
+};
+
+const listFiscalYearDocumentIds = async (
+  collectionId: string,
+  fiscalYearId: string,
+  operation: string
+): Promise<Set<string>> => {
+  const documentIds = new Set<string>();
+  let offset = 0;
+
+  while (true) {
+    const response = await withRetry(
+      () => databases.listDocuments(
+        config.databaseId,
+        collectionId,
+        [
+          Query.equal('fiscalYearId', fiscalYearId),
+          Query.limit(MASTER_DATA_COPY_BATCH_SIZE),
+          Query.offset(offset)
+        ]
+      ),
+      operation
+    );
+
+    for (const doc of response.documents) {
+      documentIds.add(doc.$id);
+    }
+
+    if (response.documents.length < MASTER_DATA_COPY_BATCH_SIZE) {
+      return documentIds;
+    }
+
+    offset += response.documents.length;
+  }
+};
+
 // ============================================================================
 // CONNECTION STATE
 // ============================================================================
@@ -1937,19 +2005,43 @@ export const databaseService = {
     onProgress?: (phase: string, done: number, total: number) => void
   ): Promise<{ suppliers: number; apartments: number }> {
     const counts = { suppliers: 0, apartments: 0 };
+    const [existingSupplierIds, existingApartmentIds] = await Promise.all([
+      listFiscalYearDocumentIds(
+        config.collections.suppliers,
+        targetFiscalYearId,
+        'copyMasterData_existingSuppliers'
+      ),
+      listFiscalYearDocumentIds(
+        config.collections.apartments,
+        targetFiscalYearId,
+        'copyMasterData_existingApartments'
+      )
+    ]);
 
     // --- Copiar Proveedores ---
     const sourceSuppliers = await this.getSuppliers(sourceFiscalYearId);
     onProgress?.('Proveedores', 0, sourceSuppliers.length);
 
     for (const supplier of sourceSuppliers) {
+      // Generar un ID determinista por documento permite reanudar copias parciales
+      // sin duplicar registros ya creados en ejecuciones anteriores.
+      const newDocId = await buildMasterDataCopyDocumentId(
+        'suppliers',
+        targetFiscalYearId,
+        getCopySourceDocumentId('suppliers', supplier)
+      );
+
+      if (existingSupplierIds.has(newDocId)) {
+        continue;
+      }
+
       try {
         const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...supplierData } = supplier as any;
         await withRetry(
           () => databases.createDocument(
             config.databaseId,
             config.collections.suppliers,
-            ID.unique(),
+            newDocId,
             { ...supplierData, fiscalYearId: targetFiscalYearId }
           ),
           'copySupplierToFiscalYear'
@@ -1957,7 +2049,14 @@ export const databaseService = {
         counts.suppliers++;
         onProgress?.('Proveedores', counts.suppliers, sourceSuppliers.length);
       } catch (err) {
-        dataLogger.debug(`[copyMasterData] Error copiando proveedor ${supplier.name}:`, err);
+        // 409: el documento ya existe (el primer intento llegó pero la respuesta se perdió).
+        // Se trata como éxito para mantener idempotencia.
+        if (getErrorCode(err) === 409) {
+          counts.suppliers++;
+          onProgress?.('Proveedores', counts.suppliers, sourceSuppliers.length);
+        } else {
+          dataLogger.debug(`[copyMasterData] Error copiando proveedor ${supplier.name}:`, err);
+        }
       }
     }
 
@@ -1966,13 +2065,23 @@ export const databaseService = {
     onProgress?.('Apartamentos', 0, sourceApartments.length);
 
     for (const apartment of sourceApartments) {
+      const newDocId = await buildMasterDataCopyDocumentId(
+        'apartments',
+        targetFiscalYearId,
+        getCopySourceDocumentId('apartments', apartment)
+      );
+
+      if (existingApartmentIds.has(newDocId)) {
+        continue;
+      }
+
       try {
         const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, createdAt, updatedAt, ...apartmentData } = apartment as any;
         await withRetry(
           () => databases.createDocument(
             config.databaseId,
             config.collections.apartments,
-            ID.unique(),
+            newDocId,
             { ...apartmentData, fiscalYearId: targetFiscalYearId }
           ),
           'copyApartmentToFiscalYear'
@@ -1980,7 +2089,14 @@ export const databaseService = {
         counts.apartments++;
         onProgress?.('Apartamentos', counts.apartments, sourceApartments.length);
       } catch (err) {
-        dataLogger.debug(`[copyMasterData] Error copiando apartamento ${apartment.name}:`, err);
+        // 409: el documento ya existe (el primer intento llegó pero la respuesta se perdió).
+        // Se trata como éxito para mantener idempotencia.
+        if (getErrorCode(err) === 409) {
+          counts.apartments++;
+          onProgress?.('Apartamentos', counts.apartments, sourceApartments.length);
+        } else {
+          dataLogger.debug(`[copyMasterData] Error copiando apartamento ${apartment.name}:`, err);
+        }
       }
     }
 
