@@ -1939,48 +1939,69 @@ export const databaseService = {
     const counts = { suppliers: 0, apartments: 0 };
 
     // --- Copiar Proveedores ---
-    const sourceSuppliers = await this.getSuppliers(sourceFiscalYearId);
-    onProgress?.('Proveedores', 0, sourceSuppliers.length);
+    // Guardia de idempotencia: si el ejercicio destino ya tiene proveedores, omitir la copia
+    const existingSuppliers = await this.getSuppliers(targetFiscalYearId);
+    if (existingSuppliers.length > 0) {
+      dataLogger.debug(`[copyMasterData] El ejercicio destino ya tiene ${existingSuppliers.length} proveedores, omitiendo copia.`);
+      counts.suppliers = existingSuppliers.length;
+    } else {
+      const sourceSuppliers = await this.getSuppliers(sourceFiscalYearId);
+      onProgress?.('Proveedores', 0, sourceSuppliers.length);
 
-    for (const supplier of sourceSuppliers) {
-      try {
-        const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...supplierData } = supplier as any;
-        await withRetry(
-          () => databases.createDocument(
-            config.databaseId,
-            config.collections.suppliers,
-            ID.unique(),
-            { ...supplierData, fiscalYearId: targetFiscalYearId }
-          ),
-          'copySupplierToFiscalYear'
-        );
-        counts.suppliers++;
-        onProgress?.('Proveedores', counts.suppliers, sourceSuppliers.length);
-      } catch (err) {
-        dataLogger.debug(`[copyMasterData] Error copiando proveedor ${supplier.name}:`, err);
+      for (const supplier of sourceSuppliers) {
+        // Generar el ID fuera del lambda para que sea el mismo en cada reintento.
+        // Si el primer intento creó el documento pero la respuesta se perdió por un error
+        // de red, el reintento recibirá un 409 (documento ya existe) que es no reintentable,
+        // evitando así la duplicación.
+        const newDocId = ID.unique();
+        try {
+          const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...supplierData } = supplier as any;
+          await withRetry(
+            () => databases.createDocument(
+              config.databaseId,
+              config.collections.suppliers,
+              newDocId,
+              { ...supplierData, fiscalYearId: targetFiscalYearId }
+            ),
+            'copySupplierToFiscalYear'
+          );
+          counts.suppliers++;
+          onProgress?.('Proveedores', counts.suppliers, sourceSuppliers.length);
+        } catch (err) {
+          dataLogger.debug(`[copyMasterData] Error copiando proveedor ${supplier.name}:`, err);
+        }
       }
     }
 
     // --- Copiar Apartamentos ---
-    const sourceApartments = await this.getApartments(sourceFiscalYearId);
-    onProgress?.('Apartamentos', 0, sourceApartments.length);
+    // Guardia de idempotencia: si el ejercicio destino ya tiene apartamentos, omitir la copia
+    const existingApartments = await this.getApartments(targetFiscalYearId);
+    if (existingApartments.length > 0) {
+      dataLogger.debug(`[copyMasterData] El ejercicio destino ya tiene ${existingApartments.length} apartamentos, omitiendo copia.`);
+      counts.apartments = existingApartments.length;
+    } else {
+      const sourceApartments = await this.getApartments(sourceFiscalYearId);
+      onProgress?.('Apartamentos', 0, sourceApartments.length);
 
-    for (const apartment of sourceApartments) {
-      try {
-        const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, createdAt, updatedAt, ...apartmentData } = apartment as any;
-        await withRetry(
-          () => databases.createDocument(
-            config.databaseId,
-            config.collections.apartments,
-            ID.unique(),
-            { ...apartmentData, fiscalYearId: targetFiscalYearId }
-          ),
-          'copyApartmentToFiscalYear'
-        );
-        counts.apartments++;
-        onProgress?.('Apartamentos', counts.apartments, sourceApartments.length);
-      } catch (err) {
-        dataLogger.debug(`[copyMasterData] Error copiando apartamento ${apartment.name}:`, err);
+      for (const apartment of sourceApartments) {
+        // Generar el ID fuera del lambda para que sea el mismo en cada reintento (ver comentario anterior).
+        const newDocId = ID.unique();
+        try {
+          const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, createdAt, updatedAt, ...apartmentData } = apartment as any;
+          await withRetry(
+            () => databases.createDocument(
+              config.databaseId,
+              config.collections.apartments,
+              newDocId,
+              { ...apartmentData, fiscalYearId: targetFiscalYearId }
+            ),
+            'copyApartmentToFiscalYear'
+          );
+          counts.apartments++;
+          onProgress?.('Apartamentos', counts.apartments, sourceApartments.length);
+        } catch (err) {
+          dataLogger.debug(`[copyMasterData] Error copiando apartamento ${apartment.name}:`, err);
+        }
       }
     }
 
