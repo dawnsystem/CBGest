@@ -12,7 +12,10 @@ export type { GeminiInvoiceResponse, GeminiBankTransaction } from '../types/gemi
 // at module load time (SEC-002).  A new client is created on each call so that
 // the key is always read from the environment at invocation time.
 function getAiClient(): GoogleGenAI {
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || '';
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing Gemini API key: define API_KEY or GEMINI_API_KEY in your environment.');
+  }
   return new GoogleGenAI({ apiKey });
 }
 
