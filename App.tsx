@@ -15,7 +15,7 @@ import { detectNifType } from './utils/validators';
 import { generateId } from './utils/defaults';
 import { loadPersistedState } from './utils/stateStorage';
 import * as appwriteService from './services/appwriteService';
-import { createDefaultSettings } from './config/defaultSettings';
+import { useAppSettings } from './hooks/useAppSettings';
 
 import { ToastProvider, useToast } from './components/Toast';
 
@@ -77,10 +77,8 @@ const MainLayout: React.FC = () => {
   const { activeFiscalYear, isReadOnly } = useFiscalYear();
   // --- STATE ---
 
-  // Initialize settings with Appwrite config PRE-FILLED to avoid setup loops
-  const [settings, setSettings] = useState<AppSettings>(() =>
-    loadPersistedState('gestcb_settings', createDefaultSettings())
-  );
+  // Settings, persistence and Appwrite sync are managed by useAppSettings.
+  const { settings, setSettings, handleUpdateSettings, settingsRef, defaultSettingsRef } = useAppSettings(user, isLocalFileMode);
 
   // Initialize with empty arrays - data will be loaded from Appwrite or localStorage in useEffect
   // This prevents stale localStorage data from being shown when using Appwrite
@@ -147,29 +145,10 @@ const MainLayout: React.FC = () => {
   }, [showError]);
 
   // --- SYNC SETTINGS FROM LOCALSTORAGE ---
-  // Use refs to access current values without adding them as dependencies
-  const settingsRef = useRef(settings);
-  const defaultSettingsRef = useRef(createDefaultSettings());
+  // Refs are now managed by useAppSettings.
   // Ref to prevent double initialization in React Strict Mode
   const dataLayerInitializedRef = useRef(false);
   const [isDataLayerInitialized, setIsDataLayerInitialized] = useState(false);
-
-  // Keep refs in sync
-  useEffect(() => {
-    settingsRef.current = settings;
-  }, [settings]);
-
-  useEffect(() => {
-      // Re-read settings from LS in case Login changed them
-      const freshSettings = loadPersistedState<AppSettings>('gestcb_settings', settingsRef.current);
-
-      // Double check arrays exist in freshSettings
-      if (!freshSettings.partners) freshSettings.partners = defaultSettingsRef.current.partners;
-
-      if(JSON.stringify(freshSettings.dataConfig) !== JSON.stringify(settingsRef.current.dataConfig)) {
-          setSettings(freshSettings);
-      }
-  }, [user]); // Re-sync when user changes
 
   // --- DATA LAYER INITIALIZATION & REALTIME ---
   // NOTE: This effect depends on `user` AND `sessionReady` to ensure:
@@ -453,14 +432,7 @@ const MainLayout: React.FC = () => {
   }, [user, sessionReady, settings.dataConfig?.type, connectionError]);
 
   // --- PERSISTENCE EFFECTS ---
-  // Settings are saved to localStorage for initial load detection
-  // All data is stored in Appwrite - no local storage of invoices, entries, etc.
-  useEffect(() => {
-      if (!isLocalFileMode) {
-        // Only save settings to localStorage (for mode detection on reload)
-        localStorage.setItem('gestcb_settings', JSON.stringify(settings));
-      }
-  }, [settings, isLocalFileMode]);
+  // Settings persistence is handled by useAppSettings.
 
   // Encrypted File Auto-Save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -497,22 +469,6 @@ const MainLayout: React.FC = () => {
 
 
   // --- HANDLERS ---
-  const handleUpdateSettings = async (newSettings: AppSettings) => {
-      setSettings(newSettings);
-      // Always save settings to localStorage (for mode detection on reload)
-      localStorage.setItem('gestcb_settings', JSON.stringify(newSettings));
-
-      // If using Appwrite, sync settings to cloud
-      if (newSettings.dataConfig?.type === 'APPWRITE') {
-          try {
-              await appwriteService.saveSettings(newSettings);
-              console.log('✅ Settings sincronizados con Appwrite');
-          } catch (error) {
-              console.error('Error syncing settings to Appwrite:', error);
-          }
-      }
-  };
-
   const handleAddInvoice = async (invoice: Invoice) => {
       if (isReadOnly) { showToast('Ejercicio cerrado — no se pueden añadir facturas', 'error'); return; }
       // IMPORTANT: Save original status BEFORE calling Appwrite

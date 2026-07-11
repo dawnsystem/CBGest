@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, TrendingDown, Wallet, AlertCircle, Calculator, FileText, LucideIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, AlertCircle, Calculator, FileText, LucideIcon, CalendarDays, Lock } from 'lucide-react';
 import { ChartWrapper } from './ChartWrapper';
 import { Invoice, AppSettings, Partner, PartnerTaxInfo, DisabilityLevel, Apartment, RecurringExpense, Reservation } from '../types';
 import { PartnerTaxForm } from './PartnerTaxForm';
@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { downloadPDF, generatePartnerCertificate } from '../services/pdfService';
 import { sanitizeFileNameSegment } from '../utils/fileHelpers';
 import { useToast } from './Toast';
+import { useFiscalYear } from '../context/FiscalYearContext';
 
 // StatCard component moved OUTSIDE of Dashboard to prevent recreation on each render
 // This is critical for performance - components defined inside render functions lose their state on every render
@@ -56,6 +57,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { showToast, showConfirm } = useToast();
+  const { activeFiscalYear, isReadOnly } = useFiscalYear();
 
   // SAFE GUARD: Ensure partners array exists
   const partners = settings.partners || [];
@@ -328,7 +330,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in pb-24 md:pb-8">
       <div className="flex flex-col gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-900">Panel General</h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-xl md:text-2xl font-bold text-slate-900">Panel General</h2>
+            {activeFiscalYear && (
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                isReadOnly
+                  ? 'bg-slate-100 text-slate-600 border-slate-200'
+                  : 'bg-blue-50 text-blue-700 border-blue-200'
+              }`}>
+                {isReadOnly ? <Lock className="w-3 h-3" /> : <CalendarDays className="w-3 h-3" />}
+                Ejercicio {activeFiscalYear.year}
+                {isReadOnly && <span className="ml-0.5 text-slate-500">(cerrado)</span>}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-500 mt-0.5">
               {isRental ? 'Gestión de Patrimonio Inmobiliario' : 'Resumen financiero y estado de la CB'}
           </p>

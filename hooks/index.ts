@@ -21,6 +21,9 @@ export { useAuth, useUser, useSessionReady, useAuthState } from '../context/Auth
 export { useAppwriteData } from './useAppwriteData';
 export { useDataHandlers } from './useDataHandlers';
 
+// Settings hook
+export { useAppSettings } from './useAppSettings';
+
 // Individual entity hooks (for fine-grained control)
 export { useInvoices } from './useInvoices';
 export { useAccountingEntries } from './useAccountingEntries';

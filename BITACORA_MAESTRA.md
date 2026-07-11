@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-10 23:40:00 UTC*
+*Última actualización: 2026-07-11 14:45:00 UTC*
 
 ---
 
@@ -8,9 +8,9 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `FIX-043`
-- **Objetivo Principal:** Corregir race condition en el cambio de ejercicio que hacía desaparecer los alojamientos de 2026 y daba la impresión de que el selector de ejercicio no funcionaba.
-- **Estado Detallado:** `FIX-043` completado. Race condition corregida en `App.tsx` mediante guardia de cancelación (`cancelled` flag) en el efecto `fetchForYear`.
+- **Identificador de Tarea:** `IMPL-007`
+- **Objetivo Principal:** Implementar Plan de Acción (Bloque 1+2+3): bugs funcionales pendientes, seguridad con impacto real y mejoras de estabilidad.
+- **Estado Detallado:** `IMPL-007` completado. 7 ítems implementados: BUG-015 (ya estaba corregido, marcado), SEC-003, BUG-009, SEC-010, SEC-002, indicador de ejercicio en Dashboard, hook `useAppSettings`.
 - **Próximo Micro-Paso Planificado:** A la espera de nuevas directivas del Director.
 
 ## 📋 Plan Estratégico de Auditoría
@@ -29,6 +29,7 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-11] - `IMPL-007` - Plan de Acción VPS Privado (Bloque 1+2+3):** BUG-015 verificado (ya corregido, `mapChannel()` ya tenía `.toLowerCase()`). SEC-003 corregido (`==` → `===` en validación CIF). BUG-009 parcialmente corregido (defensivo: `Math.abs()` en columnas de débito/crédito para soportar extractos bancarios con valores ya firmados). SEC-010 corregido (NIF match por word-boundary regex en lugar de `includes()`). SEC-002 corregido (lazy init de `GoogleGenAI` en `geminiService.ts`). Indicador visual de ejercicio activo en Dashboard (badge con año y estado abierto/cerrado). Hook `useAppSettings` extraído de `App.tsx` con settings state, persistencia localStorage y sync Appwrite.
 *   **[2026-07-10] - `FIX-043` - Race condition en cambio de ejercicio (alojamientos 2026 desaparecen al crear 2027):** `BUG-021` y `BUG-022` corregidos. Añadida guardia de cancelación (`cancelled` flag + cleanup function) en el efecto `fetchForYear` de `App.tsx`. Previene que un fetch de ejercicio anterior (en vuelo) sobreescriba el estado del ejercicio recién seleccionado.
 *   **[2026-07-10] - `FIX-042` - Duplicación de alojamientos al crear ejercicio:** `BUG-020` corregido. `ID.unique()` movido fuera del lambda en `withRetry` para proveedores y apartamentos en `copyMasterDataToFiscalYear`. Añadida guardia de idempotencia: si el ejercicio destino ya contiene alojamientos/proveedores, la copia se omite. Previene duplicación tanto por reintento de red como por doble invocación.
 *   **[2026-07-10] - `FIX-041` - Caché móvil + PWA Installability:** Resuelto el problema de cambios no visibles en iOS Safari y Android Chrome. (1) Meta tags `no-cache` en `index.html` (fix inmediato para cualquier servidor). (2) `deployment/nginx.conf` con política de caché diferenciada: `no-store` para HTML, `max-age=31536000 immutable` para assets hasheados. (3) Service Worker (`public/sw.js`) con estrategia Network-first para HTML y Cache-first para assets, garantizando que el móvil siempre obtiene el `index.html` fresco. (4) Web App Manifest (`public/manifest.webmanifest`) + iconos PWA (192px, 512px, maskable) generados desde el logo. (5) Meta tags Apple PWA y registro del SW en `index.html`. La app ya muestra el prompt de instalación en móvil.
@@ -72,6 +73,24 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-11 14:10:00 UTC]
+*   **Directiva del Director:** "Implement the plan: Plan de Acción CBGest — Uso Personal/VPS Privado (Bloque 1+2+3). Para SEC-001/002 no eliminar la clave de Gemini del repo."
+*   **Plan de Acción:** Implementar 7 ítems del plan en orden de menor a mayor esfuerzo: verificar BUG-015, corregir SEC-003, BUG-009, SEC-010, SEC-002 (lazy init únicamente), añadir indicador de ejercicio en Dashboard, extraer `useAppSettings` hook.
+*   **Log de Acciones:**
+    - `[14:15:00]` - **AUDIT:** Lectura de `ReservationManager.tsx`, `validators.ts`, `XlsxColumnMapper.tsx`, `aiMatching.ts`, `geminiService.ts`, `Dashboard.tsx`, `App.tsx`.
+    - `[14:20:00]` - **VERIFICADO:** `BUG-015` — `mapChannel()` en `ReservationManager.tsx:46` ya llama `.toLowerCase().trim()`. Bug resuelto en sprint anterior. Marcado como ✅ Resuelto.
+    - `[14:22:00]` - **FIX:** `SEC-003` — `validators.ts:76`. Cambiado `control == controlDigit.toString()` a `control === controlDigit.toString()`. Elimina coerción de tipos en validación CIF.
+    - `[14:23:00]` - **FIX:** `BUG-009` — `XlsxColumnMapper.tsx:273-274`. Añadido `Math.abs()` al leer columnas de débito/crédito separadas. Soporta extractos bancarios con valores ya firmados (e.g. BBVA exporta -150 en cargo). Convención de signos (negativo=gasto) ya era correcta.
+    - `[14:25:00]` - **FIX:** `SEC-010` — `aiMatching.ts:257-265`. Reemplazado `txConcept.includes(nif)` por regex `(?<![A-Z0-9])NIF(?![A-Z0-9])` para evitar matches parciales peligrosos.
+    - `[14:27:00]` - **FIX:** `SEC-002` — `geminiService.ts:12`. Eliminada instancia global `const ai = new GoogleGenAI(...)`. Creada función `getAiClient()` que instancia bajo demanda. Todas las llamadas `ai.models.generateContent` migradas a `getAiClient().models.generateContent`.
+    - `[14:30:00]` - **FEAT:** `Dashboard.tsx`. Añadido import de `useFiscalYear`. Badge de ejercicio activo junto al título "Panel General" con año y estado (abierto=azul con CalendarDays, cerrado=gris con Lock).
+    - `[14:35:00]` - **REFACTOR:** Creado `hooks/useAppSettings.ts`. Extraído de `App.tsx`: settings state, settingsRef, defaultSettingsRef, sync desde LS al cambiar user, persistencia en LS, `handleUpdateSettings`. App.tsx actualizado para usar el hook. Eliminadas ~35 líneas de App.tsx.
+    - `[14:40:00]` - **TEST:** `npm run test:ci`. **RESULTADO:** 157/157 PASS.
+    - `[14:42:00]` - **BUILD:** `npm run build`. **RESULTADO:** Build OK, 0 errores.
+*   **Resultado:** `IMPL-007` completado. 6 correcciones + 1 feature + 1 refactor. 157 tests verdes.
+*   **Commit Asociado:** `fix+feat: BUG-009/015 SEC-002/003/010 Dashboard fiscal badge useAppSettings hook`
+*   **Observaciones/Decisiones de Diseño:** Para SEC-001 (clave Gemini en bundle) el Director acepta el riesgo de forma explícita (repo privado, VPS personal). Solo se implementó SEC-002 (lazy init). La convención de signos en BankTransaction (negativo=gasto) era correcta — el BUG-009 original describía el estado anterior al código actual. El fix defensivo con Math.abs() cubre el caso de extractos bancarios que exportan el signo en la columna de cargo.
+
 ### Sesión: [2026-07-10 23:28:00 UTC]
 *   **Directiva del Director:** "Hay que seguir con la auditoría de ejercicios. Al crear el ejercicio 2027, no puedo ver en el 2026 los alojamientos, como si se hubiesen eliminado de la app. Además, cuando se cambia de ejercicio desde el desplegable del selector de ejercicio, da la sensación que no se selecciona correctamente y no cambia de ejercicio."
 *   **Plan de Acción:** Rastrear el flujo completo: creación de 2027 → copia maestros → cambio de activeFiscalYear → efecto fetchForYear → selector de ejercicio. Verificar si hay race conditions entre peticiones Appwrite en vuelo simultáneas.
@@ -370,9 +389,9 @@
 
 ### 🔴 CRÍTICOS (14 hallazgos) — Impacto directo en seguridad, datos financieros o integridad
 
-* **SEC-001:** API key de Gemini embebida en el bundle del cliente. `vite.config.ts:14-16` reemplaza `process.env.API_KEY` con la cadena literal de la clave en el JS compilado. Cualquier usuario puede extraerla de las DevTools. Estado: Pendiente.
-* **SEC-002:** `geminiService.ts:12` — GoogleGenAI se inicializa a nivel de módulo con `process.env.API_KEY || ''`, creando instancia con clave vacía si la variable falta. Luego la verifica de nuevo dentro de cada función (líneas 20, 160), pero el cliente ya existe con clave incorrecta. Estado: Pendiente.
-* **SEC-003:** `validators.ts:80` — Comparación con `==` en lugar de `===` en validación de CIF. Permite coerción de tipos en la verificación del dígito de control. Estado: Pendiente.
+* **SEC-001:** API key de Gemini embebida en el bundle del cliente. `vite.config.ts:14-16` reemplaza `process.env.API_KEY` con la cadena literal de la clave en el JS compilado. Estado: **Aceptado conscientemente** (repo privado en VPS propio).
+* **SEC-002:** `geminiService.ts:12` — GoogleGenAI se inicializa a nivel de módulo con `process.env.API_KEY || ''`, creando instancia con clave vacía si la variable falta. Estado: ✅ Resuelto (IMPL-007). Inicialización movida a función `getAiClient()` (lazy init).
+* **SEC-003:** `validators.ts:80` — Comparación con `==` en lugar de `===` en validación de CIF. Estado: ✅ Resuelto (IMPL-007).
 * **SEC-004:** `security.yml:50` — CI/CD permite hasta 3 vulnerabilidades HIGH en `npm audit`. Demasiado permisivo para una app financiera. Estado: ✅ Resuelto (IMPL-006).
 * **SEC-005:** `ReservationManager.tsx:32-40` — `parseSpanishNumber()` sin validación de límites. Input extremo causa Infinity via `parseFloat`. Estado: Pendiente.
 * **BUG-001:** `TouristTaxPanel.tsx:123-124` — **Cálculo incorrecto de huéspedes para tasa turística.** Usa `Math.max()` en vez de `SUM` para contar huéspedes. Grupo con 3 reservas de 2 huéspedes calcula impuesto para 2 en vez de 6. Impacto fiscal directo. Estado: ✅ Resuelto (IMPL-001).
@@ -383,7 +402,7 @@
 * **BUG-006:** `useInvoices.ts:127-158` — Race condition: auto-creación de proveedor y asiento contable sin mutex. Múltiples facturas concurrentes del mismo emisor crean proveedores duplicados. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-007:** `XlsxColumnMapper.tsx:62-67` — Cálculo de fecha serial de Excel incorrecto. Usa época 1899-12-30 sin compensar el bug del año bisiesto 1900 de Excel. Produce fechas off-by-1 en ciertos rangos. Estado: ✅ Resuelto (IMPL-001).
 * **BUG-008:** `useBankTransactions.ts:89-116` — Creación de asientos hardcodea cuentas contables 626/769 independientemente del tipo real de transacción. Todo se categoriza como "Servicios bancarios" o "Ingresos financieros". Estado: ✅ Resuelto (IMPL-001).
-* **BUG-009:** `XlsxColumnMapper.tsx:255-278` — Lógica débito/crédito invertida. Débitos almacenados como negativos pero transacciones bancarias esperan positivos para salidas. Crea conciliación invertida. Estado: Pendiente.
+* **BUG-009:** `XlsxColumnMapper.tsx:255-278` — Lógica débito/crédito en modo separado. Estado: ✅ Parcialmente resuelto (IMPL-007). Añadido `Math.abs()` en lectura de columnas debit/credit para soportar extractos donde el banco ya incluye el signo. La convención de signos (negativo=gasto) ya era correcta.
 
 ### 🟠 ALTOS (23 hallazgos) — Bugs funcionales, riesgos de seguridad moderados o degradación significativa
 
@@ -394,7 +413,7 @@
 * **SEC-007:** `ReservationManager.tsx:76-94` — CSV parsing no escapa HTML en campos. Guest name con `<img onerror=...>` se renderiza sin sanitizar. Estado: Pendiente.
 * **SEC-008:** `scripts/add-missing-attributes.cjs:21-23`, `scripts/migrate-uploads-collection.cjs:22-24`, `scripts/setup-all-collections.cjs:17-19`, `scripts/setup-appwrite-collections.js:23-25`, `scripts/verify-appwrite-fetch.cjs:8-10`, `scripts/verify-appwrite-setup.cjs:22-24` — Credenciales de Appwrite (endpoint, projectId, databaseId) hardcodeadas en scripts operativos. Deberían cargarse de `.env`. Estado: Pendiente.
 * **SEC-009:** `InvoiceUploader.tsx:201` — Bypass de validación NIF vía checkbox "Forzar aceptación" sin registro de auditoría. Estado: Pendiente.
-* **SEC-010:** `aiMatching.ts:195-204` — Match de NIF case-insensitive con `includes()` permite coincidencias parciales peligrosas. Estado: Pendiente.
+* **SEC-010:** `aiMatching.ts:195-204` — Match de NIF case-insensitive con `includes()` permite coincidencias parciales peligrosas. Estado: ✅ Resuelto (IMPL-007). Cambiado a regex con lookbehind/lookahead `(?<![A-Z0-9])NIF(?![A-Z0-9])` para match exacto de palabra.
 * **SEC-014:** `authService.ts:361-364` y `authService.ts:496-500` — `recoverPassword()` y `sendEmailVerification()` aceptan URLs arbitrarias sin validación de origen/allowlist. Riesgo de enlaces de recuperación/verificación enviados a dominios maliciosos (phishing / token leakage). Estado: Pendiente.
 * **SEC-015:** `App.tsx:275-276`, `App.tsx:393-395`, `App.tsx:436` — Persistencia en `localStorage` de `gestcb_settings` en claro (incluye NIF y datos fiscales de partícipes). Exposición ante XSS/extensiones maliciosas/equipos compartidos. Estado: Pendiente.
 * **BUG-010:** `TrialBalance.tsx:105-106` — Error de precisión floating-point. `difference < 0.01` falla cuando difference es exactamente 0.009999999. Debe usar redondeo explícito. Estado: ✅ Resuelto (IMPL-002).
@@ -402,7 +421,7 @@
 * **BUG-012:** `ProfitabilityByApartment.tsx:65-71` — `incomeFromReservations` declarado pero nunca populado. Siempre muestra 0€ para ingresos de reservas en todos los apartamentos. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-013:** `RecurringExpenseManager.tsx:46-83` — `getNextPaymentDate()` no gestiona transiciones DST. `new Date(year, month, day)` puede desplazar fecha inesperadamente en cambios de hora. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-014:** `InvoiceUploader.tsx:102-107` — Cálculo IVA asume tasa en porcentaje (21), pero si viene como decimal (0.21) el resultado es incorrecto. Sin validación de formato. Estado: ✅ Resuelto (IMPL-001).
-* **BUG-015:** `ReservationManager.tsx:54-60` — `mapChannel()` no normaliza a lowercase antes de comparar. "BOOKING" (mayúsculas) retorna 'Other' en vez de 'Booking.com'. Estado: Pendiente.
+* **BUG-015:** `ReservationManager.tsx:54-60` — `mapChannel()` no normaliza a lowercase antes de comparar. Estado: ✅ Resuelto (ya estaba corregido: `channel.toLowerCase().trim()` en línea 46). Verificado en IMPL-007.
 * **BUG-016:** `AccountLedger.tsx:142` — Export CSV no escapa comas dentro de campos. Concepto "Comisión, gastos bancarios" rompe el parsing del CSV. Estado: ✅ Resuelto (IMPL-002).
 * **PERF-001:** `hooks/useAppwriteData.ts:220` — Patrón N+1: cada cambio en colección suppliers vía Realtime dispara `fetchSuppliers()` que recarga TODOS los proveedores. Debería usar delta-sync. Estado: ✅ Resuelto (IMPL-004).
 * **PERF-002:** `lib/appwrite/protectedDatabase.ts:471-481` — `markAllNotificationsRead()` actualiza notificaciones en bucle con rate limiting. 1000 notificaciones × 2s debounce = ~2000s. Necesita batch endpoint. Estado: ✅ Resuelto (IMPL-004).

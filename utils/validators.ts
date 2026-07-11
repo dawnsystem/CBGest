@@ -73,7 +73,7 @@ export const isValidNIF = (nif: string): boolean => {
     const controlDigit = unit === 0 ? 0 : 10 - unit;
     const controlLetter = "JABCDEFGHI".charAt(controlDigit);
     
-    return control == controlDigit.toString() || control === controlLetter;
+    return control === controlDigit.toString() || control === controlLetter;
   }
 
   return false;

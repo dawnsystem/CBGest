@@ -254,10 +254,15 @@ export const findMatchingSuppliers = (
       reasons.push('Nombre similar');
     }
 
-    // NIF/CIF in concept (rare but possible)
-    if (supplier.nif && txConcept.toUpperCase().includes(supplier.nif.toUpperCase())) {
-      confidence += 40;
-      reasons.push('NIF detectado');
+    // NIF/CIF in concept (rare but possible) — use word-boundary check to avoid
+    // partial matches (e.g. supplier NIF "B123" matching inside "B1234567").
+    if (supplier.nif) {
+      const escapedNif = supplier.nif.toUpperCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const nifPattern = new RegExp(`(?<![A-Z0-9])${escapedNif}(?![A-Z0-9])`);
+      if (nifPattern.test(txConcept.toUpperCase())) {
+        confidence += 40;
+        reasons.push('NIF detectado');
+      }
     }
 
     // Utility company match

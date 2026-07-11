@@ -8,8 +8,13 @@ import type { GeminiInvoiceResponse, GeminiBankTransaction } from '../types/gemi
 // Re-export types for consumers
 export type { GeminiInvoiceResponse, GeminiBankTransaction } from '../types/gemini';
 
-// Initialize Gemini client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Initialize Gemini client lazily to avoid creating an instance with an empty key
+// at module load time (SEC-002).  A new client is created on each call so that
+// the key is always read from the environment at invocation time.
+function getAiClient(): GoogleGenAI {
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || '';
+  return new GoogleGenAI({ apiKey });
+}
 
 export const analyzeInvoiceImage = async (
   base64Data: string,
@@ -98,7 +103,7 @@ export const analyzeInvoiceImage = async (
       - suggestedAccountCode (string) - SOLO EL CÓDIGO (ej: "628")
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: modelName,
       contents: {
         parts: [
@@ -184,7 +189,7 @@ export const analyzeBankStatement = async (base64Data: string, mimeType: string)
       ]
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: modelName,
       contents: {
         parts: [
