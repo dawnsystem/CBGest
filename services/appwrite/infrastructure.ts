@@ -6,7 +6,7 @@
  */
 
 import { Query } from 'appwrite';
-import { client as _client, account, databases, config } from '../../lib/appwrite/client';
+import { account, databases, config } from '../../lib/appwrite/client';
 import { authService } from '../authService';
 import { dataLogger } from '../logger';
 

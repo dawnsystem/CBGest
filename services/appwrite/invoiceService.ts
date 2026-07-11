@@ -2,7 +2,7 @@
  * @fileoverview Servicio de facturas para Appwrite
  */
 
-import { ID } from 'appwrite';
+import { ID, Query } from 'appwrite';
 import { databases, storage, config } from '../../lib/appwrite/client';
 import { dataLogger } from '../logger';
 import {
@@ -63,7 +63,6 @@ export async function createInvoice(invoice: Invoice): Promise<Invoice> {
 }
 
 export async function getInvoices(fiscalYearId?: string): Promise<Invoice[]> {
-  const { Query } = await import('appwrite');
   try {
     const queries: Parameters<typeof databases.listDocuments>[2] = [
       Query.orderDesc('date'),
