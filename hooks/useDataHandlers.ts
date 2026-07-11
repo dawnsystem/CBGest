@@ -14,7 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
-import { buildEntryFromInvoice } from '../utils/invoiceUtils';
+import { buildEntryFromInvoice, buildClosingEntry } from '../utils/invoiceUtils';
 
 // ============================================================================
 // DEBT-006: Generic optimistic-CRUD factory
@@ -212,6 +212,11 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     handleAddEntry(entry);
   }, [user, data.settings.fiscalRegime, handleAddEntry]);
 
+  const createClosingEntry = useCallback((inv: Invoice) => {
+    const entry = buildClosingEntry(inv, { userId: user?.$id, userName: user?.name });
+    handleAddEntry(entry);
+  }, [user, handleAddEntry]);
+
   // ============ SUPPLIER HANDLERS ============
   // DEBT-006: update/delete use the generic factory; add wraps it to inject audit fields.
   const _supplierCrud = useMemo(() => makeOptimisticCrud<Supplier>({
@@ -357,7 +362,11 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         createEntryFromInvoice(invoice);
       }
     }
-  }, [isReadOnly, showToast, data.invoices, data.entries, data.settings, setters, showError, createEntryFromInvoice]);
+
+    if (oldInvoice?.status === 'PROCESSED' && invoice.status === 'PAID' && data.settings.fiscalRegime === 'ALQUILER_EXENTO') {
+      createClosingEntry(invoice);
+    }
+  }, [isReadOnly, showToast, data.invoices, data.entries, data.settings, setters, showError, createEntryFromInvoice, createClosingEntry]);
 
   const handleDeleteInvoice = useCallback(async (id: string) => {
     if (isReadOnly) {

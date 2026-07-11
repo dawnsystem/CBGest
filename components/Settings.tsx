@@ -69,6 +69,15 @@ export const Settings: React.FC<SettingsProps> = ({
     setIsSaved(false);
   };
 
+  const handleFiscalRegimeChange = (regime: 'GENERAL' | 'ALQUILER_EXENTO') => {
+    setFormData(prev => ({
+      ...prev,
+      fiscalRegime: regime,
+      vatObligation: regime === 'GENERAL',
+    }));
+    setIsSaved(false);
+  };
+
   const handlePartnerChange = (id: string, field: keyof Partner, value: string | number) => {
     const updatedPartners = (formData.partners || []).map(p => 
       p.id === id ? { ...p, [field]: value } : p
@@ -281,11 +290,11 @@ export const Settings: React.FC<SettingsProps> = ({
                     </div>
                     <div className="flex flex-col md:flex-row gap-4 md:gap-6">
                         <label htmlFor="settings-fiscalregime-general-radio" className="flex items-center gap-2 cursor-pointer">
-                        <input id="settings-fiscalregime-general-radio" type="radio" name="fiscalRegime" checked={formData.fiscalRegime === 'GENERAL'} onChange={() => handleInputChange('fiscalRegime', 'GENERAL')} className="text-blue-600 focus:ring-blue-500 bg-white" />
+                        <input id="settings-fiscalregime-general-radio" type="radio" name="fiscalRegime" checked={formData.fiscalRegime === 'GENERAL'} onChange={() => handleFiscalRegimeChange('GENERAL')} className="text-blue-600 focus:ring-blue-500 bg-white" />
                         <span className="text-sm text-slate-700">General (IVA Trimestral)</span>
                         </label>
                         <label htmlFor="settings-fiscalregime-alquiler-radio" className="flex items-center gap-2 cursor-pointer">
-                        <input id="settings-fiscalregime-alquiler-radio" type="radio" name="fiscalRegime" checked={formData.fiscalRegime === 'ALQUILER_EXENTO'} onChange={() => handleInputChange('fiscalRegime', 'ALQUILER_EXENTO')} className="text-blue-600 focus:ring-blue-500 bg-white" />
+                        <input id="settings-fiscalregime-alquiler-radio" type="radio" name="fiscalRegime" checked={formData.fiscalRegime === 'ALQUILER_EXENTO'} onChange={() => handleFiscalRegimeChange('ALQUILER_EXENTO')} className="text-blue-600 focus:ring-blue-500 bg-white" />
                         <span className="text-sm font-semibold text-emerald-700">IRPF Simplificado — Arrendamiento Exento IVA</span>
                         </label>
                     </div>
@@ -293,7 +302,7 @@ export const Settings: React.FC<SettingsProps> = ({
                       <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 space-y-1">
                         <p className="font-semibold">Flujo contable IRPF activo:</p>
                         <p>📄 <strong>Factura emitida/recibida</strong> → asiento 2 líneas: cuenta de ingreso/gasto + cuenta pendiente (430 clientes / 410 acreedores)</p>
-                        <p>🏦 <strong>Cobro/Pago bancario</strong> → cierra la cuenta pendiente contra 572 Bancos</p>
+                        <p>🏦 <strong>Cobro/Pago bancario</strong> → genera asiento con 572 Bancos; ajusta manualmente la contrapartida a 430/410 para cerrar el pendiente</p>
                         <p>⚠️ Las cuentas <strong>472 (IVA soportado)</strong> y <strong>477 (IVA repercutido)</strong> no se usan en este régimen.</p>
                       </div>
                     )}

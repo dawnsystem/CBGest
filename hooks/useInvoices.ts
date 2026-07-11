@@ -7,7 +7,7 @@ import { useState, useCallback, useRef, Dispatch, SetStateAction } from 'react';
 import { Invoice, AppSettings, Supplier, AccountingEntry } from '../types';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
-import { buildEntryFromInvoice } from '../utils/invoiceUtils';
+import { buildEntryFromInvoice, buildClosingEntry } from '../utils/invoiceUtils';
 import * as appwriteService from '../services/appwriteService';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -49,6 +49,11 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
     const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name }, settings.fiscalRegime);
     onAddEntry(entry);
   }, [user, settings.fiscalRegime, onAddEntry]);
+
+  const createClosingEntry = useCallback((inv: Invoice) => {
+    const entry = buildClosingEntry(inv, { userId: user?.$id, userName: user?.name });
+    onAddEntry(entry);
+  }, [user, onAddEntry]);
 
   const handleAddInvoice = useCallback(async (invoice: Invoice) => {
     const originalStatus = invoice.status;
@@ -177,7 +182,12 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
         logger.debug("Accounting entry already exists for invoice:", invoice.id);
       }
     }
-  }, [invoices, settings, accountingEntries, user, addNotification, showError, createEntryFromInvoice]);
+
+    if (oldInvoice?.status === 'PROCESSED' && invoice.status === 'PAID' && settings.fiscalRegime === 'ALQUILER_EXENTO') {
+      logger.debug("Invoice status changed PROCESSED→PAID - creating closing entry:", invoice.id);
+      createClosingEntry(invoice);
+    }
+  }, [invoices, settings, accountingEntries, user, addNotification, showError, createEntryFromInvoice, createClosingEntry]);
 
   const handleDeleteInvoice = useCallback(async (id: string) => {
     const invoice = invoices.find(i => i.id === id);

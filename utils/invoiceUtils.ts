@@ -22,10 +22,10 @@
  * |------|-------|
  * | 6xx Gastos | 410 Acreedores (si PENDING) / 572 Bancos (si PAID) |
  *
- * ### Cobro/Pago bancario → cierra el pendiente
- * Cuando la transacción bancaria se concilia, el asiento de banco (572)
- * compensa la cuenta pendiente (430 clientes / 410 acreedores), cerrando
- * el ciclo contable de la operación.
+ * ### Cobro/Pago bancario → cierra el pendiente (ajuste manual)
+ * Al registrar el cobro/pago en bancos se genera un asiento con 572.
+ * El usuario debe ajustar manualmente la contrapartida del asiento bancario
+ * a 430 (clientes) / 410 (acreedores) para cerrar el ciclo contable.
  */
 
 import { Invoice, AccountingEntry } from '../types';
@@ -162,6 +162,79 @@ export const buildEntryFromInvoice = (
     accountName,
     debit,
     credit,
+    invoiceId: inv.id,
+    referenceDoc: inv.file,
+    fileData: inv.fileData,
+    fileType: inv.fileType,
+    appwriteFileId: inv.appwriteFileId,
+    reconciled: false,
+    createdBy: inv.createdBy || author?.userId,
+    createdByName: inv.createdByName || author?.userName,
+    createdAt: new Date().toISOString(),
+  };
+};
+
+/**
+ * Build a closing (settlement) accounting entry for an invoice that transitions
+ * from PROCESSED (pending) to PAID.
+ *
+ * Only applicable to `ALQUILER_EXENTO` (IRPF Simplificado) regime.
+ * When a PROCESSED invoice (entry has 430/410 as counterpart) is later marked
+ * as PAID, this entry closes the open receivable/payable with 572 Bancos:
+ *
+ * - INCOME: DR 572 Bancos / CR 430 Clientes
+ * - EXPENSE: DR 410 Acreedores / CR 572 Bancos
+ *
+ * @param inv    - The invoice now marked as PAID.
+ * @param author - Optional user info (createdBy / createdByName).
+ * @returns A new AccountingEntry ready to be persisted.
+ */
+export const buildClosingEntry = (
+  inv: Invoice,
+  author?: EntryAuthor,
+): AccountingEntry => {
+  const amount = inv.totalAmount;
+  const bankCode = '572';
+  const bankName = 'Bancos e instituciones de crédito c/c vista, euros';
+
+  if (inv.type === 'INCOME') {
+    return {
+      id: `CLOSE-${inv.id}`,
+      date: inv.date,
+      concept: `Cobro factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
+      lines: [
+        { accountCode: bankCode, accountName: bankName, debit: amount, credit: 0 },
+        { accountCode: '430', accountName: 'Clientes', debit: 0, credit: amount },
+      ],
+      accountCode: bankCode,
+      accountName: bankName,
+      debit: amount,
+      credit: 0,
+      invoiceId: inv.id,
+      referenceDoc: inv.file,
+      fileData: inv.fileData,
+      fileType: inv.fileType,
+      appwriteFileId: inv.appwriteFileId,
+      reconciled: false,
+      createdBy: inv.createdBy || author?.userId,
+      createdByName: inv.createdByName || author?.userName,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  // EXPENSE
+  return {
+    id: `CLOSE-${inv.id}`,
+    date: inv.date,
+    concept: `Pago factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
+    lines: [
+      { accountCode: '410', accountName: 'Acreedores por prestaciones de servicios', debit: amount, credit: 0 },
+      { accountCode: bankCode, accountName: bankName, debit: 0, credit: amount },
+    ],
+    accountCode: '410',
+    accountName: 'Acreedores por prestaciones de servicios',
+    debit: amount,
+    credit: 0,
     invoiceId: inv.id,
     referenceDoc: inv.file,
     fileData: inv.fileData,
