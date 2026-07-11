@@ -270,8 +270,8 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
       if (amountMode === 'single' && mapping.amountColumn !== null) {
         amount = parseAmount(row[mapping.amountColumn]);
       } else if (amountMode === 'separate') {
-        const debit = mapping.debitColumn !== null ? parseAmount(row[mapping.debitColumn]) : 0;
-        const credit = mapping.creditColumn !== null ? parseAmount(row[mapping.creditColumn]) : 0;
+        const debit = mapping.debitColumn !== null ? Math.abs(parseAmount(row[mapping.debitColumn])) : 0;
+        const credit = mapping.creditColumn !== null ? Math.abs(parseAmount(row[mapping.creditColumn])) : 0;
 
         if (debit > 0) {
           amount = -Math.abs(debit);
