@@ -920,6 +920,7 @@ const MainLayout: React.FC = () => {
                         onUpdateEntry={handleUpdateEntry}
                         onDeleteEntry={handleDeleteEntry}
                         onViewDocument={(file) => setViewingDoc({file})}
+                        settings={settings}
                     />
                 } />
                 <Route path="/ledger" element={

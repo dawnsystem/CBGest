@@ -46,9 +46,9 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
 
   // DEBT-002: delegate to the shared utility in utils/invoiceUtils.ts
   const createEntryFromInvoice = useCallback((inv: Invoice) => {
-    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name });
+    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name }, settings.fiscalRegime);
     onAddEntry(entry);
-  }, [user, onAddEntry]);
+  }, [user, settings.fiscalRegime, onAddEntry]);
 
   const handleAddInvoice = useCallback(async (invoice: Invoice) => {
     const originalStatus = invoice.status;

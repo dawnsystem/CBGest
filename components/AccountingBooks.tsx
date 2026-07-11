@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Filter, X, Plus, Edit3, Trash, Save, Paperclip, ChevronDown, ChevronRight, AlertTriangle, Check, PlusCircle, MinusCircle } from 'lucide-react';
-import { AccountingEntry, AccountingEntryLine, getEntryLines, calculateEntryTotals } from '../types';
+import { AccountingEntry, AccountingEntryLine, getEntryLines, calculateEntryTotals, AppSettings } from '../types';
 import { AccountSelector } from './AccountSelector';
 import { getAccountName } from '../utils/accountingPlan';
 import { useToast } from './Toast';
@@ -13,6 +13,8 @@ interface AccountingBooksProps {
   onUpdateEntry: (entry: AccountingEntry) => void;
   onDeleteEntry: (id: string) => void;
   onViewDocument: (file: File) => void;
+  /** Optional settings; when provided and regime is ALQUILER_EXENTO, VAT accounts are hidden. */
+  settings?: AppSettings;
 }
 
 // Empty line template
@@ -28,8 +30,10 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   onAddEntry, 
   onUpdateEntry, 
   onDeleteEntry, 
-  onViewDocument 
+  onViewDocument,
+  settings,
 }) => {
+  const excludeVATAccounts = settings?.fiscalRegime === 'ALQUILER_EXENTO';
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -520,6 +524,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                                 value={line.accountCode ? `${line.accountCode} - ${line.accountName}` : ''}
                                 onChange={(val) => handleLineChange(idx, 'accountCode', val)}
                                 className="text-xs"
+                                excludeVATAccounts={excludeVATAccounts}
                               />
                             </div>
                             <div className="col-span-3">

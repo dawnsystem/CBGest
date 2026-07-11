@@ -208,9 +208,9 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   // Helper to create entry from invoice
   // DEBT-002: delegate to the shared utility in utils/invoiceUtils.ts
   const createEntryFromInvoice = useCallback((inv: Invoice) => {
-    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name });
+    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name }, data.settings.fiscalRegime);
     handleAddEntry(entry);
-  }, [user, handleAddEntry]);
+  }, [user, data.settings.fiscalRegime, handleAddEntry]);
 
   // ============ SUPPLIER HANDLERS ============
   // DEBT-006: update/delete use the generic factory; add wraps it to inject audit fields.
