@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type Dispatch, type SetStateAction, type MutableRefObject } from 'react';
 import { AppSettings } from '../types';
 import { loadPersistedState } from '../utils/stateStorage';
 import { createDefaultSettings } from '../config/defaultSettings';
@@ -6,12 +6,12 @@ import * as appwriteService from '../services/appwriteService';
 
 interface UseAppSettingsReturn {
   settings: AppSettings;
-  setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+  setSettings: Dispatch<SetStateAction<AppSettings>>;
   handleUpdateSettings: (newSettings: AppSettings) => Promise<void>;
   /** Mutable ref kept in sync with `settings` — safe to read inside effects without adding it as a dep. */
-  settingsRef: React.MutableRefObject<AppSettings>;
+  settingsRef: MutableRefObject<AppSettings>;
   /** Default settings ref — used to guard against missing arrays on re-sync. */
-  defaultSettingsRef: React.MutableRefObject<AppSettings>;
+  defaultSettingsRef: MutableRefObject<AppSettings>;
 }
 
 /**
