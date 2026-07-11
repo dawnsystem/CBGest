@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-11 15:30:00 UTC*
+*Última actualización: 2026-07-11 15:32:00 UTC*
 
 ---
 
@@ -86,7 +86,7 @@
     - `[15:29:00]` - **FIX ACOPLADO:** `hooks/useAppSettings.ts`. **CAMBIOS:** tipado con imports de tipos React (`Dispatch`, `SetStateAction`, `MutableRefObject`).
     - `[15:30:00]` - **TEST:** `npm run type-check && npm run test:ci`. **RESULTADO:** PASS.
 *   **Resultado:** Tarea 1 completada.
-*   **Commit Asociado:** Pendiente de commit de la tarea.
+*   **Commit Asociado:** `refactor(app): integrar useDataHandlers y eliminar handlers inline`
 *   **Observaciones/Decisiones de Diseño:** Se trasladó la lógica de handlers al hook para consolidar responsabilidades y reducir tamaño de `App.tsx`, manteniendo guardas de solo lectura y comportamientos críticos de reservas/conciliación.
 
 ### Sesión: [2026-07-11 14:10:00 UTC]

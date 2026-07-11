@@ -22,7 +22,7 @@ import { AuthProvider, useAuth, useSessionReady } from './context/AuthContext';
 import { Login } from './components/Login';
 
 // NOTIFICATIONS Integration
-import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 // CONNECTION STATUS
 import { ConnectionBanner } from './components/ConnectionStatus';
@@ -70,7 +70,6 @@ const PageLoader = () => (
 const MainLayout: React.FC = () => {
   const { user, loading } = useAuth();
   const sessionReady = useSessionReady();
-  useNotifications();
   const { showToast, showConfirm } = useToast();
   const { activeFiscalYear, isReadOnly } = useFiscalYear();
   // --- STATE ---

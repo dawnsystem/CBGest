@@ -118,6 +118,11 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   const { data, setters, showError, showSuccess, isReadOnly = false, showToast, activeFiscalYearId } = options;
   const { user } = useAuth();
   const { addNotification } = useNotifications();
+  const MAX_IMPORT_ERRORS_DISPLAYED = 3;
+  const withFiscalYearId = <T extends { fiscalYearId?: string }>(item: T): T =>
+    (item.fiscalYearId != null && item.fiscalYearId !== '') || !activeFiscalYearId
+      ? item
+      : { ...item, fiscalYearId: activeFiscalYearId };
 
   // ============ ENTRY HANDLERS ============
   const handleAddEntry = useCallback(async (entry: AccountingEntry) => {
@@ -128,8 +133,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     }
 
     const entryWithAudit: AccountingEntry = {
-      ...entry,
-      fiscalYearId: entry.fiscalYearId || activeFiscalYearId,
+      ...withFiscalYearId(entry),
       createdBy: entry.createdBy || user?.$id,
       createdByName: entry.createdByName || user?.name,
       createdAt: entry.createdAt || new Date().toISOString()
@@ -226,8 +230,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       return;
     }
     const supplierWithAudit: Supplier = {
-      ...supplier,
-      fiscalYearId: supplier.fiscalYearId || activeFiscalYearId,
+      ...withFiscalYearId(supplier),
       createdBy: supplier.createdBy || user?.$id,
       createdByName: supplier.createdByName || user?.name
     };
@@ -263,8 +266,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     }
     const originalStatus = invoice.status;
     const invoiceWithAudit: Invoice = {
-      ...invoice,
-      fiscalYearId: invoice.fiscalYearId || activeFiscalYearId,
+      ...withFiscalYearId(invoice),
       createdBy: user?.$id,
       createdByName: user?.name,
       createdAt: new Date().toISOString()
@@ -389,8 +391,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       return;
     }
     const txsWithAudit = txs.map(tx => ({
-      ...tx,
-      fiscalYearId: tx.fiscalYearId || activeFiscalYearId,
+      ...withFiscalYearId(tx),
       createdBy: user?.$id,
       createdByName: user?.name,
       createdAt: new Date().toISOString()
@@ -450,7 +451,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         showToast?.('Ejercicio cerrado — no se pueden añadir apartamentos', 'error');
         return Promise.resolve();
       }
-      return _aptCrud.handleAdd({ ...apt, fiscalYearId: apt.fiscalYearId || activeFiscalYearId });
+      return _aptCrud.handleAdd(withFiscalYearId(apt));
     }, [isReadOnly, showToast, activeFiscalYearId, _aptCrud]
   );
   const handleUpdateApartment = useCallback(
@@ -535,11 +536,10 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
           appwriteId: existing.appwriteId
         });
       } else {
-        toCreate.push({
+        toCreate.push(withFiscalYearId({
           ...newRes,
-          id: generateId(),
-          fiscalYearId: newRes.fiscalYearId || activeFiscalYearId
-        });
+          id: generateId()
+        }));
       }
     });
 
@@ -583,7 +583,9 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         if (errors.length > 0) parts.push(`${errors.length} errores`);
 
         if (errors.length > 0) {
-          showError(`Importación completada con errores:\n${errors.slice(0, 3).join('\n')}`);
+          showError(
+            `Importación completada con ${errors.length} errores (mostrando ${Math.min(MAX_IMPORT_ERRORS_DISPLAYED, errors.length)}):\n${errors.slice(0, MAX_IMPORT_ERRORS_DISPLAYED).join('\n')}`
+          );
         } else if (parts.length > 0) {
           showSuccess?.(`Importación completada: ${parts.join(', ')}`);
         }
