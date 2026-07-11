@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-11 15:32:00 UTC*
+*Última actualización: 2026-07-11 17:21:32 UTC*
 
 ---
 
@@ -8,10 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `REF-001`
-- **Objetivo Principal:** Completar la integración de `useDataHandlers` en `App.tsx` y eliminar handlers duplicados inline.
-- **Estado Detallado:** `REF-001` completado para Tarea 1: `App.tsx` ahora consume `useDataHandlers(...)` y elimina el bloque masivo de handlers CRUD inline; `useDataHandlers.ts` ampliado para cubrir guards de ejercicio cerrado y handlers de conciliación/vinculación.
-- **Próximo Micro-Paso Planificado:** Iniciar división de `services/appwriteService.ts` por dominio (Tarea 2).
+- **Identificador de Tarea:** `REF-002`
+- **Objetivo Principal:** Completar la división de `services/appwriteService.ts` por dominios y dejarlo como barrel de compatibilidad.
+- **Estado Detallado:** `REF-002` completado para Tarea 2: `services/appwriteService.ts` ahora es solo re-exports; la fachada pública (`databaseService`, aliases y default export) vive en `services/appwrite/compatService.ts` sin romper consumers existentes.
+- **Próximo Micro-Paso Planificado:** Esperar directiva del Director para iniciar Tarea 3 (split de `types.ts`).
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -29,6 +29,7 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-11] - `REF-002` - Split de `appwriteService` por dominios con barrel de compatibilidad:** `services/appwriteService.ts` reducido a re-exports, API pública preservada mediante `services/appwrite/compatService.ts`, y validación completada con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `REF-001` - Integración `useDataHandlers` en App principal:** Refactor de `App.tsx` para usar `useDataHandlers({...})` y borrar handlers duplicados inline. Ajustes en `useDataHandlers.ts` para mantener guardas `isReadOnly`, asignación `fiscalYearId`, upsert de reservas, conciliación y vinculación de reserva-apartamento. Validado con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `IMPL-007` - Plan de Acción VPS Privado (Bloque 1+2+3):** BUG-015 verificado (ya corregido, `mapChannel()` ya tenía `.toLowerCase()`). SEC-003 corregido (`==` → `===` en validación CIF). BUG-009 parcialmente corregido (defensivo: `Math.abs()` en columnas de débito/crédito para soportar extractos bancarios con valores ya firmados). SEC-010 corregido (NIF match por word-boundary regex en lugar de `includes()`). SEC-002 corregido (lazy init de `GoogleGenAI` en `geminiService.ts`). Indicador visual de ejercicio activo en Dashboard (badge con año y estado abierto/cerrado). Hook `useAppSettings` extraído de `App.tsx` con settings state, persistencia localStorage y sync Appwrite.
 *   **[2026-07-10] - `FIX-043` - Race condition en cambio de ejercicio (alojamientos 2026 desaparecen al crear 2027):** `BUG-021` y `BUG-022` corregidos. Añadida guardia de cancelación (`cancelled` flag + cleanup function) en el efecto `fetchForYear` de `App.tsx`. Previene que un fetch de ejercicio anterior (en vuelo) sobreescriba el estado del ejercicio recién seleccionado.
@@ -74,6 +75,19 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-11 17:21:32 UTC]
+*   **Directiva del Director:** "Continuar con la Tarea 2 de la sesión de refactorización: dividir `services/appwriteService.ts` por dominio manteniendo API pública intacta."
+*   **Plan de Acción:** Verificar estado actual del split, mover la capa de compatibilidad a un módulo dedicado y convertir `appwriteService.ts` en barrel de re-exports sin romper imports existentes.
+*   **Log de Acciones:**
+    - `[17:19:00]` - **VALIDACIÓN BASE:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** bloqueado por estado preexistente de lint (errores en `hooks/useDataHandlers.ts`).
+    - `[17:20:00]` - **ACCIÓN:** Instalación de dependencias. **COMANDO:** `npm install`.
+    - `[17:20:00]` - **REFACTOR:** Creado `services/appwrite/compatService.ts` con `databaseService`, aliases legacy y `default export` para compatibilidad.
+    - `[17:21:00]` - **REFACTOR:** `services/appwriteService.ts` reducido a barrel de re-exports (infraestructura, servicios especializados y fachada compat).
+    - `[17:21:00]` - **TEST:** `npm run type-check && npm run test:ci`. **RESULTADO:** PASS.
+*   **Resultado:** Tarea 2 completada.
+*   **Commit Asociado:** `refactor(appwrite): convertir appwriteService en barrel con compatService`
+*   **Observaciones/Decisiones de Diseño:** Se preservó la API histórica (`databaseService`, helpers y export default) para evitar cambios en consumers mientras se mantiene la separación por dominio en `services/appwrite/*`.
+
 ### Sesión: [2026-07-11 15:11:20 UTC]
 *   **Directiva del Director:** "SESIÓN DE REFACTORIZACIÓN: CBGest - Reducción de Tamaño de Archivos. TAREA 1 — PRIORIDAD CRÍTICA: completar la integración de `useDataHandlers` en `App.tsx` sin cambio de comportamiento."
 *   **Plan de Acción:** Revisar `App.tsx` y `hooks/useDataHandlers.ts`, conectar `useDataHandlers({...})` desde `MainLayout`, eliminar handlers inline duplicados y mantener compatibilidad funcional.
