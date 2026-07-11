@@ -71,14 +71,13 @@ export const buildEntryFromInvoice = (
     }
   }
 
-  // Amount always uses totalAmount (= baseAmount for IRPF; no separate VAT lines).
-  const amount = inv.totalAmount;
-
   // ----------------------------------------------------------------
   // IRPF Simplificado: build a proper 2-line double-entry.
   // Cuentas 472/477 (IVA) never appear in this regime.
+  // In IRPF, totalAmount === baseAmount (no separate VAT component).
   // ----------------------------------------------------------------
   if (fiscalRegime === 'ALQUILER_EXENTO') {
+    const amount = inv.totalAmount;
     // Counter-part: use bank account (572) if already paid, pending account otherwise.
     const isPaid = inv.status === 'PAID';
 
@@ -149,6 +148,7 @@ export const buildEntryFromInvoice = (
   // ----------------------------------------------------------------
   // GENERAL regime: legacy single-line entry (backward-compat).
   // ----------------------------------------------------------------
+  const amount = inv.totalAmount;
   const debit = inv.type === 'EXPENSE' ? amount : 0;
   const credit = inv.type === 'INCOME' ? amount : 0;
 

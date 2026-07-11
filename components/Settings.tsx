@@ -292,7 +292,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     {formData.fiscalRegime === 'ALQUILER_EXENTO' && (
                       <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 space-y-1">
                         <p className="font-semibold">Flujo contable IRPF activo:</p>
-                        <p>📄 <strong>Factura devengada</strong> → asiento 2 líneas: cuenta de resultado + cuenta pendiente (430 clientes / 410 acreedores)</p>
+                        <p>📄 <strong>Factura emitida/recibida</strong> → asiento 2 líneas: cuenta de ingreso/gasto + cuenta pendiente (430 clientes / 410 acreedores)</p>
                         <p>🏦 <strong>Cobro/Pago bancario</strong> → cierra la cuenta pendiente contra 572 Bancos</p>
                         <p>⚠️ Las cuentas <strong>472 (IVA soportado)</strong> y <strong>477 (IVA repercutido)</strong> no se usan en este régimen.</p>
                       </div>
