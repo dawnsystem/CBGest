@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-11 14:45:00 UTC*
+*Última actualización: 2026-07-11 15:30:00 UTC*
 
 ---
 
@@ -8,10 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `IMPL-007`
-- **Objetivo Principal:** Implementar Plan de Acción (Bloque 1+2+3): bugs funcionales pendientes, seguridad con impacto real y mejoras de estabilidad.
-- **Estado Detallado:** `IMPL-007` completado. 7 ítems implementados: BUG-015 (ya estaba corregido, marcado), SEC-003, BUG-009, SEC-010, SEC-002, indicador de ejercicio en Dashboard, hook `useAppSettings`.
-- **Próximo Micro-Paso Planificado:** A la espera de nuevas directivas del Director.
+- **Identificador de Tarea:** `REF-001`
+- **Objetivo Principal:** Completar la integración de `useDataHandlers` en `App.tsx` y eliminar handlers duplicados inline.
+- **Estado Detallado:** `REF-001` completado para Tarea 1: `App.tsx` ahora consume `useDataHandlers(...)` y elimina el bloque masivo de handlers CRUD inline; `useDataHandlers.ts` ampliado para cubrir guards de ejercicio cerrado y handlers de conciliación/vinculación.
+- **Próximo Micro-Paso Planificado:** Iniciar división de `services/appwriteService.ts` por dominio (Tarea 2).
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -29,6 +29,7 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-11] - `REF-001` - Integración `useDataHandlers` en App principal:** Refactor de `App.tsx` para usar `useDataHandlers({...})` y borrar handlers duplicados inline. Ajustes en `useDataHandlers.ts` para mantener guardas `isReadOnly`, asignación `fiscalYearId`, upsert de reservas, conciliación y vinculación de reserva-apartamento. Validado con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `IMPL-007` - Plan de Acción VPS Privado (Bloque 1+2+3):** BUG-015 verificado (ya corregido, `mapChannel()` ya tenía `.toLowerCase()`). SEC-003 corregido (`==` → `===` en validación CIF). BUG-009 parcialmente corregido (defensivo: `Math.abs()` en columnas de débito/crédito para soportar extractos bancarios con valores ya firmados). SEC-010 corregido (NIF match por word-boundary regex en lugar de `includes()`). SEC-002 corregido (lazy init de `GoogleGenAI` en `geminiService.ts`). Indicador visual de ejercicio activo en Dashboard (badge con año y estado abierto/cerrado). Hook `useAppSettings` extraído de `App.tsx` con settings state, persistencia localStorage y sync Appwrite.
 *   **[2026-07-10] - `FIX-043` - Race condition en cambio de ejercicio (alojamientos 2026 desaparecen al crear 2027):** `BUG-021` y `BUG-022` corregidos. Añadida guardia de cancelación (`cancelled` flag + cleanup function) en el efecto `fetchForYear` de `App.tsx`. Previene que un fetch de ejercicio anterior (en vuelo) sobreescriba el estado del ejercicio recién seleccionado.
 *   **[2026-07-10] - `FIX-042` - Duplicación de alojamientos al crear ejercicio:** `BUG-020` corregido. `ID.unique()` movido fuera del lambda en `withRetry` para proveedores y apartamentos en `copyMasterDataToFiscalYear`. Añadida guardia de idempotencia: si el ejercicio destino ya contiene alojamientos/proveedores, la copia se omite. Previene duplicación tanto por reintento de red como por doble invocación.
@@ -73,6 +74,21 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-11 15:11:20 UTC]
+*   **Directiva del Director:** "SESIÓN DE REFACTORIZACIÓN: CBGest - Reducción de Tamaño de Archivos. TAREA 1 — PRIORIDAD CRÍTICA: completar la integración de `useDataHandlers` en `App.tsx` sin cambio de comportamiento."
+*   **Plan de Acción:** Revisar `App.tsx` y `hooks/useDataHandlers.ts`, conectar `useDataHandlers({...})` desde `MainLayout`, eliminar handlers inline duplicados y mantener compatibilidad funcional.
+*   **Log de Acciones:**
+    - `[15:12:00]` - **VALIDACIÓN BASE:** `npm run lint && npm run type-check && npm run test:ci && npm run build` (bloqueado inicialmente por dependencias sin instalar y lint histórico existente).
+    - `[15:14:00]` - **ACCIÓN:** Instalación de dependencias. **COMANDO:** `npm ci`.
+    - `[15:17:00]` - **AUDIT:** Lectura completa de `App.tsx` y `hooks/useDataHandlers.ts` para mapear handlers duplicados y handlers únicos.
+    - `[15:24:00]` - **REFACTOR:** `hooks/useDataHandlers.ts`. **CAMBIOS:** ampliadas opciones (`isReadOnly`, `showToast`, `showSuccess`, `activeFiscalYearId`), guards de ejercicio cerrado, asignación de `fiscalYearId`, upsert de reservas, y nuevos handlers (`handleCreateEntryFromTransaction`, `handleReconcileTransaction`, `handleLinkApartmentToReservation`).
+    - `[15:27:00]` - **REFACTOR:** `App.tsx`. **CAMBIOS:** eliminado bloque masivo de handlers inline y reemplazado por única integración `useDataHandlers({...})`.
+    - `[15:29:00]` - **FIX ACOPLADO:** `hooks/useAppSettings.ts`. **CAMBIOS:** tipado con imports de tipos React (`Dispatch`, `SetStateAction`, `MutableRefObject`).
+    - `[15:30:00]` - **TEST:** `npm run type-check && npm run test:ci`. **RESULTADO:** PASS.
+*   **Resultado:** Tarea 1 completada.
+*   **Commit Asociado:** Pendiente de commit de la tarea.
+*   **Observaciones/Decisiones de Diseño:** Se trasladó la lógica de handlers al hook para consolidar responsabilidades y reducir tamaño de `App.tsx`, manteniendo guardas de solo lectura y comportamientos críticos de reservas/conciliación.
+
 ### Sesión: [2026-07-11 14:10:00 UTC]
 *   **Directiva del Director:** "Implement the plan: Plan de Acción CBGest — Uso Personal/VPS Privado (Bloque 1+2+3). Para SEC-001/002 no eliminar la clave de Gemini del repo."
 *   **Plan de Acción:** Implementar 7 ítems del plan en orden de menor a mayor esfuerzo: verificar BUG-015, corregir SEC-003, BUG-009, SEC-010, SEC-002 (lazy init únicamente), añadir indicador de ejercicio en Dashboard, extraer `useAppSettings` hook.
