@@ -119,10 +119,11 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const MAX_IMPORT_ERRORS_DISPLAYED = 3;
-  const withFiscalYearId = <T extends { fiscalYearId?: string }>(item: T): T =>
+  const withFiscalYearId = useCallback(<T extends { fiscalYearId?: string }>(item: T): T =>
     (item.fiscalYearId != null && item.fiscalYearId !== '') || !activeFiscalYearId
       ? item
-      : { ...item, fiscalYearId: activeFiscalYearId };
+      : { ...item, fiscalYearId: activeFiscalYearId },
+  [activeFiscalYearId]);
 
   // ============ ENTRY HANDLERS ============
   const handleAddEntry = useCallback(async (entry: AccountingEntry) => {
@@ -163,7 +164,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         relatedId: entry.id
       });
     }
-  }, [isReadOnly, showToast, activeFiscalYearId, user, data.settings, setters, showError, addNotification]);
+  }, [isReadOnly, showToast, withFiscalYearId, user, data.settings, setters, showError, addNotification]);
 
   const handleUpdateEntry = useCallback(async (entry: AccountingEntry) => {
     if (isReadOnly) {
@@ -235,7 +236,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       createdByName: supplier.createdByName || user?.name
     };
     await _supplierCrud.handleAdd(supplierWithAudit);
-  }, [isReadOnly, showToast, activeFiscalYearId, user, _supplierCrud]);
+  }, [isReadOnly, showToast, withFiscalYearId, user, _supplierCrud]);
 
   const handleUpdateSupplier = useCallback(
     (supplier: Supplier) => {
@@ -328,7 +329,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     if (originalStatus === 'PROCESSED' || originalStatus === 'PAID') {
       createEntryFromInvoice(invoiceWithAudit);
     }
-  }, [isReadOnly, showToast, activeFiscalYearId, user, data.settings, data.suppliers, setters, showError, addNotification, handleAddSupplier, createEntryFromInvoice]);
+  }, [isReadOnly, showToast, withFiscalYearId, user, data.settings, data.suppliers, setters, showError, addNotification, handleAddSupplier, createEntryFromInvoice]);
 
   const handleUpdateInvoice = useCallback(async (invoice: Invoice) => {
     if (isReadOnly) {
@@ -415,7 +416,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         showError(`Error al guardar transacciones: ${errorMessage}`);
       }
     }
-  }, [isReadOnly, showToast, activeFiscalYearId, user, data.settings, setters, showError]);
+  }, [isReadOnly, showToast, withFiscalYearId, user, data.settings, setters, showError]);
 
   const handleUpdateBankTransaction = useCallback(async (tx: BankTransaction) => {
     if (isReadOnly) {
@@ -452,7 +453,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         return Promise.resolve();
       }
       return _aptCrud.handleAdd(withFiscalYearId(apt));
-    }, [isReadOnly, showToast, activeFiscalYearId, _aptCrud]
+    }, [isReadOnly, showToast, withFiscalYearId, _aptCrud]
   );
   const handleUpdateApartment = useCallback(
     (apt: Apartment) => {
@@ -600,7 +601,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       if (toUpdate.length > 0) parts.push(`${toUpdate.length} actualizadas`);
       if (parts.length > 0) showSuccess?.(`Importación completada: ${parts.join(', ')}`);
     }
-  }, [isReadOnly, showToast, data.reservations, activeFiscalYearId, data.settings, setters, showError, showSuccess]);
+  }, [isReadOnly, showToast, data.reservations, withFiscalYearId, data.settings, setters, showError, showSuccess]);
 
   const handleUpdateReservation = useCallback(async (id: string, updates: Partial<Reservation>) => {
     if (isReadOnly) {
