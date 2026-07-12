@@ -1,42 +1,10 @@
 import { Client, Databases, Query, ID } from 'node-appwrite';
+import { getActiveFiscalYear, getReservationAmount, safeParseNumber } from '../../_shared/fiscal.js';
 
 const EXPENSE = 'EXPENSE';
 const PROCESSED = 'PROCESSED';
 const PAID = 'PAID';
 const FINALIZED_STATUSES = new Set([PROCESSED, PAID]);
-
-const parseAmount = (value, fallback = 0) => {
-  const amount = Number(value);
-  return Number.isFinite(amount) ? amount : fallback;
-};
-
-const getReservationAmount = (reservation) => (
-  parseAmount(reservation.totalAmount)
-  || (parseAmount(reservation.pricePerNight) * parseAmount(reservation.nights))
-);
-
-async function getActiveFiscalYear(databases, databaseId, log) {
-  try {
-    const response = await databases.listDocuments(
-      databaseId,
-      'fiscal_years',
-      [Query.equal('status', 'OPEN'), Query.orderDesc('year'), Query.limit(1)]
-    );
-
-    if (response.documents.length === 0) {
-      return null;
-    }
-
-    const fiscalYear = response.documents[0];
-    return {
-      id: fiscalYear.$id || fiscalYear.id,
-      year: Number(fiscalYear.year) || null
-    };
-  } catch (e) {
-    log(`Could not resolve active fiscal year: ${e.message}`);
-    return null;
-  }
-}
 
 /**
  * Prepare Modelo 184 Function
@@ -129,13 +97,13 @@ export default async ({ req, res, log, error }) => {
     );
 
     const totalExpenses = finalizedInvoices.reduce(
-      (sum, invoice) => sum + parseAmount(invoice.totalAmount),
+      (sum, invoice) => sum + safeParseNumber(invoice.totalAmount),
       0
     );
 
     const deductibleExpenses = finalizedInvoices
       .filter(invoice => invoice.isDeductible !== false)
-      .reduce((sum, invoice) => sum + parseAmount(invoice.totalAmount), 0);
+      .reduce((sum, invoice) => sum + safeParseNumber(invoice.totalAmount), 0);
 
     // Calculate rendimiento neto
     const rendimientoNeto = totalIncome - deductibleExpenses;
@@ -147,7 +115,7 @@ export default async ({ req, res, log, error }) => {
       if (!expensesByCategory[category]) {
         expensesByCategory[category] = 0;
       }
-      expensesByCategory[category] += parseAmount(inv.totalAmount);
+      expensesByCategory[category] += safeParseNumber(inv.totalAmount);
     }
 
     // Group income by apartment
@@ -159,7 +127,7 @@ export default async ({ req, res, log, error }) => {
       }
       incomeByApartment[apt].count++;
       incomeByApartment[apt].total += getReservationAmount(res);
-      incomeByApartment[apt].nights += parseAmount(res.nights);
+      incomeByApartment[apt].nights += safeParseNumber(res.nights);
     }
 
     // Calculate per-partner attribution (for Modelo 184)

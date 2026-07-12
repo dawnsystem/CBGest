@@ -1,37 +1,10 @@
 import { Client, Databases, Query } from 'node-appwrite';
+import { getActiveFiscalYear, getReservationAmount, safeParseNumber } from '../../_shared/fiscal.js';
 
 const EXPENSE = 'EXPENSE';
 const PROCESSED = 'PROCESSED';
 const PAID = 'PAID';
 const FINALIZED_STATUSES = new Set([PROCESSED, PAID]);
-
-const parseAmount = (value, fallback = 0) => {
-  const amount = Number(value);
-  return Number.isFinite(amount) ? amount : fallback;
-};
-
-async function getActiveFiscalYear(databases, databaseId, log) {
-  try {
-    const response = await databases.listDocuments(
-      databaseId,
-      'fiscal_years',
-      [Query.equal('status', 'OPEN'), Query.orderDesc('year'), Query.limit(1)]
-    );
-
-    if (response.documents.length === 0) {
-      return null;
-    }
-
-    const fiscalYear = response.documents[0];
-    return {
-      id: fiscalYear.$id || fiscalYear.id,
-      year: Number(fiscalYear.year) || null
-    };
-  } catch (e) {
-    log(`Could not resolve active fiscal year: ${e.message}`);
-    return null;
-  }
-}
 
 /**
  * Calculate Profitability Function
@@ -103,14 +76,11 @@ export default async ({ req, res, log, error }) => {
 
       // Calculate income
       const totalIncome = reservations.documents.reduce(
-        (sum, reservation) => sum + (
-          parseAmount(reservation.totalAmount)
-          || (parseAmount(reservation.pricePerNight) * parseAmount(reservation.nights))
-        ),
+        (sum, reservation) => sum + getReservationAmount(reservation),
         0
       );
       const totalNights = reservations.documents.reduce(
-        (sum, reservation) => sum + parseAmount(reservation.nights),
+        (sum, reservation) => sum + safeParseNumber(reservation.nights),
         0
       );
 
@@ -134,12 +104,12 @@ export default async ({ req, res, log, error }) => {
 
       // Calculate expenses using totalAmount (IRPF simplified model, no IVA split)
       const totalExpenses = finalizedInvoices.reduce(
-        (sum, invoice) => sum + parseAmount(invoice.totalAmount),
+        (sum, invoice) => sum + safeParseNumber(invoice.totalAmount),
         0
       );
       const deductibleExpenses = finalizedInvoices
         .filter(invoice => invoice.isDeductible !== false)
-        .reduce((sum, invoice) => sum + parseAmount(invoice.totalAmount), 0);
+        .reduce((sum, invoice) => sum + safeParseNumber(invoice.totalAmount), 0);
 
       // Calculate profitability
       const netProfit = totalIncome - totalExpenses;
