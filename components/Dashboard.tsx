@@ -106,10 +106,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
         }
     });
     
-    // Filter out future months or empty tail if desired, or keep full year
-    const currentMonth = new Date().getMonth();
-    return data.slice(0, currentMonth + 1);
-  }, [invoices, invoiceAmount]);
+    // For past fiscal years show all 12 months; for the current year cap at current month
+    const now = new Date();
+    const activeYear = activeFiscalYear?.year ?? now.getFullYear();
+    if (activeYear < now.getFullYear()) return data;
+    return data.slice(0, now.getMonth() + 1);
+  }, [invoices, invoiceAmount, activeFiscalYear]);
 
 
   // --- 2. TAX ESTIMATION LOGIC (COMPLETE IRPF 2024) ---
@@ -321,8 +323,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   };
 
   const handleDownloadPartnerDraft = (partner: Partner) => {
-      const fileName = `Borrador_IRPF_${sanitizeFileNameSegment(partner.name)}_${currentYear}.pdf`;
-      const draft = generatePartnerCertificate(partner, settings, netResult, currentYear);
+      const activeYear = activeFiscalYear?.year ?? currentYear;
+      const fileName = `Borrador_IRPF_${sanitizeFileNameSegment(partner.name)}_${activeYear}.pdf`;
+      const draft = generatePartnerCertificate(partner, settings, netResult, activeYear);
       downloadPDF(draft, fileName);
   };
 

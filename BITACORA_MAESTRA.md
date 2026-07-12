@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 01:00:16 UTC*
+*Última actualización: 2026-07-12 07:55:00 UTC*
 
 ---
 
@@ -8,11 +8,14 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `TSK-003`
-- **Objetivo Principal:** Rehacer la conciliación como cierre contable real.
-- **Estado Detallado:** `TSK-003` implementado: conciliación con factura pendiente genera asiento de cierre `572` contra `400/430`; transacciones sin factura crean partida doble `6xx/7xx` contra `572` sin IVA; `626/769` quedan reservadas a conceptos financieros.
-- **Próximo Micro-Paso Planificado:** Ejecutar validación final automática (Code Review + CodeQL) y esperar directiva del Director.
+- **Identificador de Tarea:** `TSK-005`
+- **Objetivo Principal:** Reconectar módulos de rentabilidad y dashboard con ejercicio activo.
+- **Estado Detallado:** Implementadas las 4 subtareas: filtros temporales corregidos en ProfitabilityByApartment y ExpensesByApartment (5.1), props reservations/apartments/onUpdateReservation añadidos a TaxModels desde App.tsx (5.2), label "Anual 2024" dinámico y TouristTaxPanel inicializado con el año del ejercicio activo (5.3), gráfico de Dashboard muestra todos los meses para ejercicios cerrados y PDF usa el año del ejercicio activo (5.4).
+- **Próximo Micro-Paso Planificado:** Ejecutar validación final (Code Review + CodeQL) y esperar directiva del Director.
 
+### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
+*   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`); ajustó creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA); `626/769` reservadas a conceptos financieros; trazabilidad transacción ↔ asiento ↔ factura.
 ## 📋 Plan Estratégico de Auditoría
 
 - [x] **AUDIT-001: Seguridad, entorno y superficie de integración externa** — COMPLETADO
@@ -29,7 +32,6 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
-*   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`), se ajustó la creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA), se limitó `626/769` a conceptos financieros y se añadió trazabilidad transacción ↔ asiento ↔ factura. Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-11] - `REF-002` - Split de `appwriteService` por dominios con barrel de compatibilidad:** `services/appwriteService.ts` reducido a re-exports, API pública preservada mediante `services/appwrite/compatService.ts`, y validación completada con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `REF-001` - Integración `useDataHandlers` en App principal:** Refactor de `App.tsx` para usar `useDataHandlers({...})` y borrar handlers duplicados inline. Ajustes en `useDataHandlers.ts` para mantener guardas `isReadOnly`, asignación `fiscalYearId`, upsert de reservas, conciliación y vinculación de reserva-apartamento. Validado con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `IMPL-007` - Plan de Acción VPS Privado (Bloque 1+2+3):** BUG-015 verificado (ya corregido, `mapChannel()` ya tenía `.toLowerCase()`). SEC-003 corregido (`==` → `===` en validación CIF). BUG-009 parcialmente corregido (defensivo: `Math.abs()` en columnas de débito/crédito para soportar extractos bancarios con valores ya firmados). SEC-010 corregido (NIF match por word-boundary regex en lugar de `includes()`). SEC-002 corregido (lazy init de `GoogleGenAI` en `geminiService.ts`). Indicador visual de ejercicio activo en Dashboard (badge con año y estado abierto/cerrado). Hook `useAppSettings` extraído de `App.tsx` con settings state, persistencia localStorage y sync Appwrite.

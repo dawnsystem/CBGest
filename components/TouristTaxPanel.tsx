@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Reservation, Apartment, AppSettings } from '../types';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
-import { useIsReadOnly } from '../context/FiscalYearContext';
+import { useIsReadOnly, useFiscalYear } from '../context/FiscalYearContext';
 
 interface TouristTaxPanelProps {
   reservations: Reservation[];
@@ -57,12 +57,14 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
   settings,
   onUpdateReservation
 }) => {
-  const currentYear = new Date().getFullYear();
+  const realCurrentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
+  const { activeFiscalYear } = useFiscalYear();
+  const defaultYear = activeFiscalYear?.year ?? realCurrentYear;
   
   // Determine current semester
   const defaultSemester = currentMonth <= 6 ? 1 : 2;
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedYear, setSelectedYear] = useState(defaultYear);
   const [selectedSemester, setSelectedSemester] = useState<1 | 2>(defaultSemester as 1 | 2);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   
@@ -348,16 +350,18 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
           </div>
         </div>
 
-        {/* Period Selector */}
+          {/* Period Selector */}
         <div className="flex items-center gap-2">
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(parseInt(e.target.value))}
             className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
           >
-            {[currentYear - 1, currentYear, currentYear + 1].map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
+            {Array.from(new Set([defaultYear - 1, defaultYear, defaultYear + 1, realCurrentYear - 1, realCurrentYear]))
+              .sort((a, b) => a - b)
+              .map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
           </select>
           <div className="flex rounded-lg border border-slate-200 overflow-hidden">
             <button
