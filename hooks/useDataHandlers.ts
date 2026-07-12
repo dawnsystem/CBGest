@@ -15,6 +15,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
 import { buildEntryFromInvoice } from '../utils/invoiceUtils';
+import { buildEntryFromUnmatchedTransaction, buildInvoiceSettlementEntry } from '../utils/reconciliationUtils';
 
 // ============================================================================
 // DEBT-006: Generic optimistic-CRUD factory
@@ -667,30 +668,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   }, [isReadOnly, showToast, data.reservations, data.settings, setters, showError]);
 
   const handleCreateEntryFromTransaction = useCallback((tx: BankTransaction) => {
-    const isExpense = tx.amount < 0;
-    const absAmount = Math.abs(tx.amount);
-    const lines: AccountingEntry['lines'] = [];
-
-    if (isExpense) {
-      lines.push({ accountCode: '626', accountName: 'Servicios bancarios y similares', debit: absAmount, credit: 0 });
-      lines.push({ accountCode: '572', accountName: 'Bancos e instituciones de crédito c/c vista, euros', debit: 0, credit: absAmount });
-    } else {
-      lines.push({ accountCode: '572', accountName: 'Bancos e instituciones de crédito c/c vista, euros', debit: absAmount, credit: 0 });
-      lines.push({ accountCode: '769', accountName: 'Otros ingresos financieros', debit: 0, credit: absAmount });
-    }
-
-    const newEntry: AccountingEntry = {
-      id: `BANK-${tx.id}`,
-      date: tx.date,
-      concept: tx.concept,
-      lines,
-      accountCode: lines[0].accountCode,
-      accountName: lines[0].accountName,
-      debit: lines[0].debit,
-      credit: lines[0].credit,
-      transactionId: tx.id,
-      reconciled: true
-    };
+    const newEntry = buildEntryFromUnmatchedTransaction(tx);
     handleAddEntry(newEntry);
     handleUpdateBankTransaction({ ...tx, status: 'MATCHED', reconciledWithEntryId: newEntry.id });
     showToast?.("Asiento creado con partida doble. Ve a 'Libros Contables' para editar las cuentas si es necesario.", 'success');
@@ -707,15 +685,43 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     if (sourceType === 'IMPORTED') {
       const transaction = data.transactions.find(t => t.id === sourceId);
       if (!transaction) return;
+      const relatedInvoice = matchedEntry.invoiceId
+        ? data.invoices.find(inv => inv.id === matchedEntry.invoiceId)
+        : undefined;
+
+      if (matchedEntry.invoiceId) {
+        const settlementEntry = {
+          ...buildInvoiceSettlementEntry(transaction, matchedEntry, relatedInvoice),
+          id: `RECON-${generateId()}`
+        };
+        await handleAddEntry(settlementEntry);
+        await handleUpdateEntry({
+          ...matchedEntry,
+          reconciled: true,
+          transactionId: matchedEntry.transactionId || transaction.id
+        });
+        await handleUpdateBankTransaction({
+          ...transaction,
+          status: 'MATCHED',
+          reconciledWithEntryId: settlementEntry.id,
+          reconciledWithInvoiceId: matchedEntry.invoiceId
+        });
+        return;
+      }
+
       await handleUpdateBankTransaction({ ...transaction, status: 'MATCHED', reconciledWithEntryId: matchedEntryId });
-      await handleUpdateEntry({ ...matchedEntry, reconciled: true });
+      await handleUpdateEntry({
+        ...matchedEntry,
+        reconciled: true,
+        transactionId: matchedEntry.transactionId || transaction.id
+      });
     } else {
       const bankEntry = data.entries.find(e => e.id === sourceId);
       if (!bankEntry) return;
       await handleUpdateEntry({ ...bankEntry, reconciled: true });
       await handleUpdateEntry({ ...matchedEntry, reconciled: true });
     }
-  }, [data.entries, data.transactions, handleUpdateBankTransaction, handleUpdateEntry]);
+  }, [data.entries, data.transactions, data.invoices, handleAddEntry, handleUpdateBankTransaction, handleUpdateEntry]);
 
   // ============ SETTINGS HANDLER ============
   const handleUpdateSettings = useCallback(async (newSettings: AppSettings) => {
