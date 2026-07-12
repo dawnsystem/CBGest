@@ -36,7 +36,10 @@ export const getTransactionCounterpartyAccount = (tx: BankTransaction): { code: 
     : { code: '705', name: 'Prestaciones de servicios' };
 };
 
-export const buildEntryFromUnmatchedTransaction = (tx: BankTransaction): AccountingEntry => {
+export const buildEntryFromUnmatchedTransaction = (
+  tx: BankTransaction,
+  entryId?: string
+): AccountingEntry => {
   const absAmount = Math.abs(tx.amount);
   const isExpense = tx.amount < 0;
   const counterparty = getTransactionCounterpartyAccount(tx);
@@ -56,7 +59,7 @@ export const buildEntryFromUnmatchedTransaction = (tx: BankTransaction): Account
   };
 
   return {
-    id: `BANK-${tx.id}`,
+    id: entryId || `BANK-${tx.id}`,
     date: tx.date,
     concept: tx.concept,
     lines: [counterLine, bankLine],
@@ -72,7 +75,8 @@ export const buildEntryFromUnmatchedTransaction = (tx: BankTransaction): Account
 export const buildInvoiceSettlementEntry = (
   tx: BankTransaction,
   matchedEntry: AccountingEntry,
-  invoice?: Invoice
+  invoice?: Invoice,
+  entryId?: string
 ): AccountingEntry => {
   const absAmount = Math.abs(tx.amount);
   const isExpense = invoice
@@ -96,7 +100,7 @@ export const buildInvoiceSettlementEntry = (
   };
 
   return {
-    id: `RECON-${tx.id}-${matchedEntry.id}`,
+    id: entryId || `RECON-${tx.id}-${matchedEntry.id}`,
     date: tx.date,
     concept: `Cierre deuda factura: ${matchedEntry.concept}`,
     lines: [pendingLine, bankLine],

@@ -668,7 +668,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   }, [isReadOnly, showToast, data.reservations, data.settings, setters, showError]);
 
   const handleCreateEntryFromTransaction = useCallback((tx: BankTransaction) => {
-    const newEntry = buildEntryFromUnmatchedTransaction(tx);
+    const newEntry = buildEntryFromUnmatchedTransaction(tx, `BANK-${generateId()}`);
     handleAddEntry(newEntry);
     handleUpdateBankTransaction({ ...tx, status: 'MATCHED', reconciledWithEntryId: newEntry.id });
     showToast?.("Asiento creado con partida doble. Ve a 'Libros Contables' para editar las cuentas si es necesario.", 'success');
@@ -690,22 +690,26 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         : undefined;
 
       if (matchedEntry.invoiceId) {
-        const settlementEntry = {
-          ...buildInvoiceSettlementEntry(transaction, matchedEntry, relatedInvoice),
-          id: `RECON-${generateId()}`
-        };
-        await handleAddEntry(settlementEntry);
-        await handleUpdateEntry({
-          ...matchedEntry,
-          reconciled: true,
-          transactionId: matchedEntry.transactionId || transaction.id
-        });
-        await handleUpdateBankTransaction({
-          ...transaction,
-          status: 'MATCHED',
-          reconciledWithEntryId: settlementEntry.id,
-          reconciledWithInvoiceId: matchedEntry.invoiceId
-        });
+        const settlementEntryId = `RECON-${generateId()}`;
+        const settlementEntry = buildInvoiceSettlementEntry(transaction, matchedEntry, relatedInvoice, settlementEntryId);
+
+        try {
+          await handleAddEntry(settlementEntry);
+          await handleUpdateEntry({
+            ...matchedEntry,
+            reconciled: true,
+            transactionId: matchedEntry.transactionId || transaction.id
+          });
+          await handleUpdateBankTransaction({
+            ...transaction,
+            status: 'MATCHED',
+            reconciledWithEntryId: settlementEntry.id,
+            reconciledWithInvoiceId: matchedEntry.invoiceId
+          });
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+          showError(`Error al conciliar transacción con factura: ${errorMessage}`);
+        }
         return;
       }
 
@@ -721,7 +725,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       await handleUpdateEntry({ ...bankEntry, reconciled: true });
       await handleUpdateEntry({ ...matchedEntry, reconciled: true });
     }
-  }, [data.entries, data.transactions, data.invoices, handleAddEntry, handleUpdateBankTransaction, handleUpdateEntry]);
+  }, [data.entries, data.transactions, data.invoices, handleAddEntry, handleUpdateBankTransaction, handleUpdateEntry, showError]);
 
   // ============ SETTINGS HANDLER ============
   const handleUpdateSettings = useCallback(async (newSettings: AppSettings) => {
