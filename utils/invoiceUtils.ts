@@ -21,19 +21,19 @@ interface EntryAuthor {
  * @returns A new AccountingEntry ready to be persisted.
  */
 export const buildEntryFromInvoice = (inv: Invoice, author?: EntryAuthor): AccountingEntry => {
-  let accountCode = inv.type === 'EXPENSE' ? '600' : '700';
-  let accountName = inv.type === 'EXPENSE' ? 'Compras' : 'Ventas';
-
-  if (inv.category) {
-    const parts = inv.category.split(' - ');
-    if (parts.length > 1) {
-      accountCode = parts[0].trim();
-      accountName = parts.slice(1).join(' - ').trim();
-    } else {
-      accountCode = parts[0].trim();
-      accountName = accountCode;
-    }
-  }
+  const defaultAccount = inv.type === 'EXPENSE'
+    ? { code: '600', name: 'Compras de mercaderías' }
+    : { code: '700', name: 'Ventas de mercaderías' };
+  const { accountCode, accountName } = inv.category
+    ? (() => {
+        const parts = inv.category!.split(' - ');
+        if (parts.length > 1) {
+          return { accountCode: parts[0].trim(), accountName: parts.slice(1).join(' - ').trim() };
+        }
+        const code = parts[0].trim();
+        return { accountCode: code, accountName: code };
+      })()
+    : { accountCode: defaultAccount.code, accountName: defaultAccount.name };
 
   const totalAmount = Number.isFinite(inv.totalAmount) && inv.totalAmount >= 0 ? inv.totalAmount : 0;
   const debit = inv.type === 'EXPENSE' ? totalAmount : 0;

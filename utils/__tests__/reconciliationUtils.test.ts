@@ -52,6 +52,15 @@ describe('reconciliationUtils', () => {
       expect(incomeEntry.lines[0].accountCode).toBe('769');
     });
 
+    it('detects plain financial keywords as full words', () => {
+      const expenseEntry = buildEntryFromUnmatchedTransaction({
+        ...baseTransaction,
+        concept: 'Comision'
+      }, 'BANK-6');
+
+      expect(expenseEntry.lines[0].accountCode).toBe('626');
+    });
+
     it('avoids false positives for partial keyword matches', () => {
       const expenseEntry = buildEntryFromUnmatchedTransaction({
         ...baseTransaction,

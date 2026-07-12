@@ -22,7 +22,7 @@ describe('buildEntryFromInvoice', () => {
     const entry = buildEntryFromInvoice(baseInvoice);
 
     expect(entry.lines).toEqual([
-      { accountCode: '600', accountName: 'Compras', debit: 120, credit: 0 },
+      { accountCode: '600', accountName: 'Compras de mercaderías', debit: 120, credit: 0 },
       { accountCode: '400', accountName: 'Proveedores', debit: 0, credit: 120 }
     ]);
   });
@@ -36,7 +36,7 @@ describe('buildEntryFromInvoice', () => {
     });
 
     expect(entry.lines).toEqual([
-      { accountCode: '700', accountName: 'Ventas', debit: 0, credit: 120 },
+      { accountCode: '700', accountName: 'Ventas de mercaderías', debit: 0, credit: 120 },
       { accountCode: '430', accountName: 'Clientes', debit: 120, credit: 0 }
     ]);
   });

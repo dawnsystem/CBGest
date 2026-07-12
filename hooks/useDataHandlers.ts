@@ -120,6 +120,12 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const MAX_IMPORT_ERRORS_DISPLAYED = 3;
+  /**
+   * Optional execution behavior for internal handler chaining.
+   *
+   * `throwOnError` is used in multi-step flows (like reconciliation) where callers
+   * must detect failures and coordinate rollback across several optimistic updates.
+   */
   interface HandlerExecutionOptions { throwOnError?: boolean }
   const withFiscalYearId = useCallback(<T extends { fiscalYearId?: string }>(item: T): T =>
     (item.fiscalYearId != null && item.fiscalYearId !== '') || !activeFiscalYearId
@@ -697,6 +703,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   ) => {
     const matchedEntry = data.entries.find(e => e.id === matchedEntryId);
     if (!matchedEntry) return;
+    const previousMatchedEntry = { ...matchedEntry };
 
     if (sourceType === 'IMPORTED') {
       const transaction = data.transactions.find(t => t.id === sourceId);
@@ -707,6 +714,8 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         const settlementEntryId = `RECON-${generateId()}`;
         const settlementEntry = buildInvoiceSettlementEntry(transaction, matchedEntry, settlementEntryId, relatedInvoice);
         let settlementCreated = false;
+        let entryUpdated = false;
+        let rollbackFailed = false;
 
         try {
           await handleAddEntry(settlementEntry, { throwOnError: true });
@@ -716,6 +725,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
             reconciled: true,
             transactionId: matchedEntry.transactionId || transaction.id
           }, { throwOnError: true });
+          entryUpdated = true;
           await handleUpdateBankTransaction({
             ...transaction,
             status: 'MATCHED',
@@ -727,15 +737,21 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
             setters.setEntries(prev => prev.filter(entry => entry.id !== settlementEntry.id));
             if (data.settings.dataConfig?.type === 'APPWRITE') {
               try {
-                await appwriteService.deleteEntry(settlementEntry.appwriteId || settlementEntry.id);
-              } catch {
+                await appwriteService.databaseService.deleteEntry(settlementEntry.appwriteId || settlementEntry.id);
+              } catch (rollbackError) {
                 // El rollback en persistencia es best effort; el estado local ya se revierte.
+                rollbackFailed = true;
+                console.error('Error realizando rollback de asiento de liquidación:', rollbackError);
               }
             }
           }
+          if (entryUpdated) {
+            await handleUpdateEntry(previousMatchedEntry);
+          }
           const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+          const rollbackNotice = rollbackFailed ? ' Además, no se pudo completar el rollback en persistencia.' : '';
           console.error('Error creando asiento de liquidación en conciliación:', error);
-          showError(`Error al crear asiento de liquidación de factura: ${errorMessage}`);
+          showError(`Error al crear asiento de liquidación de factura: ${errorMessage}.${rollbackNotice}`);
           return;
         }
         return;

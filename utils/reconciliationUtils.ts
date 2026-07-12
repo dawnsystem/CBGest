@@ -13,6 +13,13 @@ const FINANCIAL_KEYWORDS = [
   'financiacion'
 ];
 
+/**
+ * Detects whether a bank concept contains a financial keyword as a full word.
+ *
+ * The concept is normalized to NFD and stripped of diacritics (e.g. "comisión" -> "comision")
+ * so matching is accent-insensitive. We split by non-alphanumeric boundaries to avoid
+ * substring false positives such as matching "comisionar" for the keyword "comision".
+ */
 const includesFinancialKeyword = (concept: string): boolean => {
   const normalized = concept
     .normalize('NFD')
