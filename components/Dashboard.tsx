@@ -58,6 +58,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   const navigate = useNavigate();
   const { showToast, showConfirm } = useToast();
   const { activeFiscalYear, isReadOnly } = useFiscalYear();
+  const systemCurrentYear = new Date().getFullYear();
+  const activeYear = activeFiscalYear?.year ?? systemCurrentYear;
 
   // SAFE GUARD: Ensure partners array exists
   const partners = settings.partners || [];
@@ -107,15 +109,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
     });
     
     // For past fiscal years show all 12 months; for the current year cap at current month
-    const now = new Date();
-    const activeYear = activeFiscalYear?.year ?? now.getFullYear();
-    if (activeYear < now.getFullYear()) return data;
-    return data.slice(0, now.getMonth() + 1);
-  }, [invoices, invoiceAmount, activeFiscalYear]);
+    if (activeYear < systemCurrentYear) return data;
+    return data.slice(0, new Date().getMonth() + 1);
+  }, [invoices, invoiceAmount, activeYear, systemCurrentYear]);
 
 
   // --- 2. TAX ESTIMATION LOGIC (COMPLETE IRPF 2024) ---
-  const currentYear = new Date().getFullYear();
+  const currentYear = systemCurrentYear;
 
   // Helper: Calculate disability minimum
   const getDisabilityMinimum = (level: DisabilityLevel): number => {
@@ -323,7 +323,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   };
 
   const handleDownloadPartnerDraft = (partner: Partner) => {
-      const activeYear = activeFiscalYear?.year ?? currentYear;
       const fileName = `Borrador_IRPF_${sanitizeFileNameSegment(partner.name)}_${activeYear}.pdf`;
       const draft = generatePartnerCertificate(partner, settings, netResult, activeYear);
       downloadPDF(draft, fileName);

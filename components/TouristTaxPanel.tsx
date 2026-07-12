@@ -62,6 +62,18 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
   const currentMonth = today.getMonth() + 1;
   const { activeFiscalYear } = useFiscalYear();
   const defaultYear = activeFiscalYear?.year ?? systemCurrentYear;
+  const yearOptions = useMemo(() => {
+    const candidateYears = [
+      defaultYear - 1,
+      defaultYear,
+      defaultYear + 1,
+      systemCurrentYear - 1,
+      systemCurrentYear
+    ];
+    const minYear = Math.min(...candidateYears);
+    const maxYear = Math.max(...candidateYears);
+    return Array.from({ length: maxYear - minYear + 1 }, (_, index) => minYear + index);
+  }, [defaultYear, systemCurrentYear]);
   
   // Determine current semester
   const defaultSemester = currentMonth <= 6 ? 1 : 2;
@@ -362,11 +374,9 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
             onChange={e => setSelectedYear(parseInt(e.target.value, 10))}
             className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
           >
-            {Array.from(new Set([defaultYear - 1, defaultYear, defaultYear + 1, systemCurrentYear - 1, systemCurrentYear]))
-              .sort((a, b) => a - b)
-              .map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
+            {yearOptions.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
           </select>
           <div className="flex rounded-lg border border-slate-200 overflow-hidden">
             <button
