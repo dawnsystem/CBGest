@@ -121,7 +121,7 @@ describe('pdfService', () => {
   });
 
   it('should throw when required fiscal filters are missing', () => {
-    expect(() => calculateTaxData(invoices, settings, {})).toThrow(
+    expect(() => calculateTaxData(invoices, settings, {} as unknown as Parameters<typeof calculateTaxData>[2])).toThrow(
       'calculateTaxData requiere fiscalYearId y period para calcular IRPF'
     );
   });

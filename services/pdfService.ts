@@ -50,8 +50,8 @@ interface TaxCalculationPeriod {
 }
 
 interface TaxCalculationFilters {
-  fiscalYearId?: string;
-  period?: TaxCalculationPeriod;
+  fiscalYearId: string;
+  period: TaxCalculationPeriod;
 }
 
 interface TaxDataIRPF {
