@@ -90,10 +90,10 @@ export async function getUploadQueue(): Promise<QueueItem[]> {
         notificationDismissed: uploadDoc.notificationDismissed,
         needsMapping: uploadDoc.needsMapping,
         result: uploadDoc.result && typeof uploadDoc.result === 'string'
-          ? JSON.parse(uploadDoc.result) as QueueItem['result']
+          ? (() => { try { return JSON.parse(uploadDoc.result) as QueueItem['result']; } catch { return undefined; } })()
           : uploadDoc.result,
         bankResult: uploadDoc.bankResult && typeof uploadDoc.bankResult === 'string'
-          ? JSON.parse(uploadDoc.bankResult) as BankTransaction[]
+          ? (() => { try { return JSON.parse(uploadDoc.bankResult) as BankTransaction[]; } catch { return undefined; } })()
           : uploadDoc.bankResult,
       };
     }) as QueueItem[];

@@ -47,7 +47,7 @@ export async function getActiveFiscalYear(databases, databaseId, log) {
       year: Number(fiscalYear.year) || null
     };
   } catch (e) {
-    log(`Could not resolve active fiscal year: ${e.message}`);
+    log(`Could not resolve active fiscal year: ${e instanceof Error ? e.message : String(e)}`);
     return null;
   }
 }

@@ -16,7 +16,11 @@ type SettingsDocument = AppwriteEntity<AppSettings> & { $id?: string; partners?:
 
 const parsePartners = (partners: SettingsDocument['partners']): AppSettings['partners'] => {
   if (typeof partners === 'string') {
-    return JSON.parse(partners || '[]') as AppSettings['partners'];
+    try {
+      return JSON.parse(partners || '[]') as AppSettings['partners'];
+    } catch {
+      return [];
+    }
   }
   return partners || [];
 };
