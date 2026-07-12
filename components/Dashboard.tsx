@@ -115,7 +115,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
 
 
   // --- 2. TAX ESTIMATION LOGIC (COMPLETE IRPF 2024) ---
-  const currentYear = systemCurrentYear;
 
   // Helper: Calculate disability minimum
   const getDisabilityMinimum = (level: DisabilityLevel): number => {
@@ -209,7 +208,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
     let personalMinimum = 5550;
 
     // Age adjustment
-    const age = currentYear - (info.birthYear || 1980);
+    const age = systemCurrentYear - (info.birthYear || 1980);
     if (age >= 75) {
       personalMinimum += 1400; // Additional for >75
     }

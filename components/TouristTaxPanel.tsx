@@ -70,8 +70,9 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       systemCurrentYear - 1,
       systemCurrentYear
     ];
-    const minYear = Math.min(...candidateYears);
-    const maxYear = Math.max(...candidateYears);
+    const uniqueYears = [...new Set(candidateYears)];
+    const minYear = Math.min(...uniqueYears);
+    const maxYear = Math.max(...uniqueYears);
     return Array.from({ length: maxYear - minYear + 1 }, (_, index) => minYear + index);
   }, [defaultYear, systemCurrentYear]);
   
