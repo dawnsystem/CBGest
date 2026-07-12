@@ -18,7 +18,8 @@ const parsePartners = (partners: SettingsDocument['partners']): AppSettings['par
   if (typeof partners === 'string') {
     try {
       return JSON.parse(partners || '[]') as AppSettings['partners'];
-    } catch {
+    } catch (e) {
+      console.warn('parsePartners: invalid JSON in partners field, falling back to []', e);
       return [];
     }
   }

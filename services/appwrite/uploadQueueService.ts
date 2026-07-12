@@ -18,6 +18,15 @@ import type { BankTransaction, QueueItem } from '../../types';
 
 type UploadQueueDocument = AppwriteEntity<QueueItem> & { $id: string };
 
+function safeJsonParse<T>(raw: string, field: string): T | undefined {
+  try {
+    return JSON.parse(raw) as T;
+  } catch (e) {
+    dataLogger.warn(`uploadQueueService: invalid JSON in field "${field}", skipping`, e);
+    return undefined;
+  }
+}
+
 export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
   try {
     const { result, bankResult, id } = item;
@@ -90,10 +99,10 @@ export async function getUploadQueue(): Promise<QueueItem[]> {
         notificationDismissed: uploadDoc.notificationDismissed,
         needsMapping: uploadDoc.needsMapping,
         result: uploadDoc.result && typeof uploadDoc.result === 'string'
-          ? (() => { try { return JSON.parse(uploadDoc.result) as QueueItem['result']; } catch { return undefined; } })()
+          ? safeJsonParse<QueueItem['result']>(uploadDoc.result, 'result')
           : uploadDoc.result,
         bankResult: uploadDoc.bankResult && typeof uploadDoc.bankResult === 'string'
-          ? (() => { try { return JSON.parse(uploadDoc.bankResult) as BankTransaction[]; } catch { return undefined; } })()
+          ? safeJsonParse<BankTransaction[]>(uploadDoc.bankResult, 'bankResult')
           : uploadDoc.bankResult,
       };
     }) as QueueItem[];
