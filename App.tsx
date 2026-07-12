@@ -344,7 +344,11 @@ const MainLayout: React.FC = () => {
           }
       };
       initDataLayer();
-  }, [defaultSettingsRef, sessionReady, setSettings, settingsRef, user]); // Only re-init on login/logout — fiscal year changes handled below
+      // Refs (defaultSettingsRef, settingsRef) and setState dispatcher (setSettings) are
+      // stable across renders — including them would cause unnecessary re-inits.
+      // Re-run only when the authenticated user or session readiness changes.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionReady, user]); // Only re-init on login/logout — fiscal year changes handled below
 
   // --- RELOAD DATA WHEN ACTIVE FISCAL YEAR CHANGES ---
   // Separate from the heavy initDataLayer so health checks are not repeated.

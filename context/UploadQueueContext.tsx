@@ -120,6 +120,9 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     
     // Iniciar el pool de workers si no está activo
     processUploadQueue();
+  // processUploadQueue is intentionally omitted: this callback must run only
+  // on mount so it starts the upload pool once. Including it would risk
+  // re-triggering the pool on every re-render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

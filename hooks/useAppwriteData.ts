@@ -10,7 +10,7 @@
  * - Rate limiting: Via protectedDatabase layer
  */
 
-import { useState, useEffect, useCallback, useRef, Dispatch, SetStateAction } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Dispatch, SetStateAction } from 'react';
 import {
   Invoice, AccountingEntry, BankTransaction, Supplier,
   Apartment, RecurringExpense, Reservation, AppSettings
@@ -59,7 +59,7 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
   const { onError, onConnectionChange } = options;
   const { user } = useAuth();
   const sessionReady = useSessionReady();
-  const defaultSettings = createDefaultSettings();
+  const defaultSettings = useMemo(() => createDefaultSettings(), []);
 
   // Data state
   const [invoices, setInvoices] = useState<Invoice[]>([]);
