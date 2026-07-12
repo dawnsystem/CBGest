@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Receipt, Calendar, Users, Euro, Download, Check, X,
   AlertTriangle, ChevronDown, ChevronUp, Palmtree, Baby
@@ -68,6 +68,10 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
   const [selectedYear, setSelectedYear] = useState(defaultYear);
   const [selectedSemester, setSelectedSemester] = useState<1 | 2>(defaultSemester as 1 | 2);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setSelectedYear(defaultYear);
+  }, [defaultYear]);
   
   const taxConfig = settings.touristTaxConfig || DEFAULT_TAX_CONFIG;
   const isReadOnly = useIsReadOnly();
