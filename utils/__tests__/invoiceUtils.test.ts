@@ -247,14 +247,22 @@ describe('buildEntryFromInvoice — invalid totalAmount', () => {
   it('uses 0 when totalAmount is NaN', () => {
     const inv = makeInvoice({ totalAmount: NaN });
     const entry = buildEntryFromInvoice(inv);
+    const totalDebit = entry.lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = entry.lines.reduce((s, l) => s + l.credit, 0);
     expect(entry.lines[0].debit).toBe(0);
     expect(entry.lines[1].credit).toBe(0);
+    expect(totalDebit).toBe(totalCredit);
   });
 
   it('uses 0 when totalAmount is Infinity', () => {
     const inv = makeInvoice({ totalAmount: Infinity });
     const entry = buildEntryFromInvoice(inv);
+    const totalDebit = entry.lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = entry.lines.reduce((s, l) => s + l.credit, 0);
     expect(entry.lines[0].debit).toBe(0);
+    expect(entry.lines[1].credit).toBe(0);
+    expect(totalDebit).toBe(0);
+    expect(totalCredit).toBe(0);
   });
 
   it('produces a balanced (zero) entry when totalAmount is 0', () => {

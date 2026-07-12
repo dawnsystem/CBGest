@@ -61,7 +61,8 @@ const resolveMainAccount = (inv: Invoice): { accountCode: string; accountName: s
  */
 export const buildEntryFromInvoice = (inv: Invoice, author?: EntryAuthor): AccountingEntry => {
   const { accountCode, accountName } = resolveMainAccount(inv);
-  // Guard: ensure amount is a finite non-negative number
+  // Guard: keep auto-generated entries finite and non-negative.
+  // Negative totals are clamped to 0 to avoid creating inverted invoice entries.
   const amount = Number.isFinite(inv.totalAmount) && inv.totalAmount >= 0 ? inv.totalAmount : 0;
   const isPaid = inv.status === 'PAID';
 
