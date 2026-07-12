@@ -939,9 +939,18 @@ const MainLayout: React.FC = () => {
                         onCreateEntryFromTransaction={handleCreateEntryFromTransaction}
                     />
                 } />
-                <Route path="/taxes" element={
-                    <TaxModels invoices={invoices} settings={settings} reservations={reservations} apartments={apartments} onUpdateReservation={handleUpdateReservation} />
-                } />
+                <Route
+                    path="/taxes"
+                    element={
+                        <TaxModels
+                            invoices={invoices}
+                            settings={settings}
+                            reservations={reservations}
+                            apartments={apartments}
+                            onUpdateReservation={handleUpdateReservation}
+                        />
+                    }
+                />
                 <Route path="/search" element={
                     <SearchResults
                         invoices={invoices}
