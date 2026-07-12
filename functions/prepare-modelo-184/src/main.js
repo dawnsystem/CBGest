@@ -10,6 +10,11 @@ const parseAmount = (value, fallback = 0) => {
   return Number.isFinite(amount) ? amount : fallback;
 };
 
+const getReservationAmount = (reservation) => (
+  parseAmount(reservation.totalAmount)
+  || (parseAmount(reservation.pricePerNight) * parseAmount(reservation.nights))
+);
+
 async function getActiveFiscalYear(databases, databaseId, log) {
   try {
     const response = await databases.listDocuments(
@@ -119,10 +124,7 @@ export default async ({ req, res, log, error }) => {
 
     // Calculate totals
     const totalIncome = reservations.documents.reduce(
-      (sum, reservation) => sum + (
-        parseAmount(reservation.totalAmount)
-        || (parseAmount(reservation.pricePerNight) * parseAmount(reservation.nights))
-      ),
+      (sum, reservation) => sum + getReservationAmount(reservation),
       0
     );
 
@@ -156,19 +158,17 @@ export default async ({ req, res, log, error }) => {
         incomeByApartment[apt] = { count: 0, total: 0, nights: 0 };
       }
       incomeByApartment[apt].count++;
-      incomeByApartment[apt].total += (
-        parseAmount(res.totalAmount)
-        || (parseAmount(res.pricePerNight) * parseAmount(res.nights))
-      );
+      incomeByApartment[apt].total += getReservationAmount(res);
       incomeByApartment[apt].nights += parseAmount(res.nights);
     }
 
     // Calculate per-partner attribution (for Modelo 184)
+    const defaultParticipation = partners.length > 0 ? 100 / partners.length : 0;
     const partnerAttribution = partners.map(partner => ({
       name: partner.name,
       nif: partner.nif,
-      participation: partner.participation || (100 / partners.length),
-      rendimientoAtribuido: rendimientoNeto * ((partner.participation || (100 / partners.length)) / 100)
+      participation: partner.participation || defaultParticipation,
+      rendimientoAtribuido: rendimientoNeto * ((partner.participation || defaultParticipation) / 100)
     }));
 
     // Build the report
