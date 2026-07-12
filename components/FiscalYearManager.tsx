@@ -1,17 +1,17 @@
 /**
  * @fileoverview Página de gestión de Ejercicios Contables
- * @description Permite crear, cerrar, reabrir y migrar ejercicios.
- *              Incluye herramienta de migración de datos legacy.
+ * @description Permite crear, cerrar, reabrir, eliminar y migrar ejercicios.
+ *              Incluye herramienta de migración de datos legacy y borrado en cascada.
  */
 
 import React, { useState, useMemo } from 'react';
 import {
   CalendarDays, Lock, LockOpen, Plus, AlertTriangle,
-  CheckCircle, RefreshCw, ChevronRight, Info, ArrowRight
+  CheckCircle, RefreshCw, ChevronRight, Info, ArrowRight, Trash2, AlertCircle
 } from 'lucide-react';
 import { useFiscalYear } from '../context/FiscalYearContext';
 import { useToast } from './Toast';
-import { FiscalYear } from '../types';
+import { FiscalYear, FiscalYearDependencies } from '../types';
 import * as appwriteService from '../services/appwriteService';
 
 // ============================================================================
@@ -36,10 +36,12 @@ interface FiscalYearCardProps {
   onSelect: () => void;
   onClose: () => void;
   onReopen: () => void;
+  onDelete: () => void;
+  deletionDisabled: boolean;
 }
 
 const FiscalYearCard: React.FC<FiscalYearCardProps> = ({
-  year, isActive, onSelect, onClose, onReopen
+  year, isActive, onSelect, onClose, onReopen, onDelete, deletionDisabled
 }) => {
   const isOpen = year.status === 'OPEN';
 
@@ -116,11 +118,36 @@ const FiscalYearCard: React.FC<FiscalYearCardProps> = ({
               Reabrir
             </button>
           )}
+          <button
+            onClick={onDelete}
+            disabled={deletionDisabled}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="w-3 h-3" />
+            Eliminar
+          </button>
         </div>
       </div>
     </div>
   );
 };
+
+// ============================================================================
+// HELPERS MODAL ELIMINACIÓN
+// ============================================================================
+
+/** Nombre exacto que el usuario debe escribir para confirmar el borrado */
+const confirmationName = (year: FiscalYear) => `Ejercicio ${year.year}`;
+
+interface DepRowProps { label: string; count: number }
+const DepRow: React.FC<DepRowProps> = ({ label, count }) => (
+  <div className="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+    <span className="text-sm text-slate-700">{label}</span>
+    <span className={`text-sm font-semibold ${count > 0 ? 'text-red-600' : 'text-slate-400'}`}>
+      {count > 0 ? count.toLocaleString('es-ES') : '—'}
+    </span>
+  </div>
+);
 
 // ============================================================================
 // COMPONENTE PRINCIPAL
@@ -134,7 +161,9 @@ export const FiscalYearManager: React.FC = () => {
     createFiscalYear,
     closeFiscalYear,
     reopenFiscalYear,
-    refreshFiscalYears
+    refreshFiscalYears,
+    getFiscalYearDependencies,
+    deleteFiscalYear,
   } = useFiscalYear();
   const { showToast, showConfirm } = useToast();
 
@@ -151,6 +180,14 @@ export const FiscalYearManager: React.FC = () => {
   const [migrating, setMigrating] = useState(false);
   const [migrateProgress, setMigrateProgress] = useState('');
 
+  // ── Estado modal Eliminar ──────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<FiscalYear | null>(null);
+  const [deleteDeps, setDeleteDeps] = useState<FiscalYearDependencies | null>(null);
+  const [deleteChecking, setDeleteChecking] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [deleteDeleting, setDeleteDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState('');
+
   // Año nuevo sugerido: max existing year + 1 (o año actual si no hay ninguno)
   const suggestedYear = useMemo(() => {
     if (fiscalYears.length === 0) return new Date().getFullYear();
@@ -158,6 +195,9 @@ export const FiscalYearManager: React.FC = () => {
   }, [fiscalYears]);
 
   const yearsExisting = new Set(fiscalYears.map(y => y.year));
+
+  /** true mientras cualquier operación pesada está en curso */
+  const isBusy = creating || migrating || deleteDeleting;
 
   // ------------------------------------------------------------------
   // CREAR
@@ -231,6 +271,72 @@ export const FiscalYearManager: React.FC = () => {
   };
 
   // ------------------------------------------------------------------
+  // ELIMINAR — Paso 1: abrir modal y cargar dependencias
+  // ------------------------------------------------------------------
+  const handleDeleteAttempt = async (year: FiscalYear) => {
+    setDeleteTarget(year);
+    setDeleteChecking(true);
+    setDeleteDeps(null);
+    setDeleteConfirmInput('');
+    setDeleteProgress('');
+
+    try {
+      const deps = await getFiscalYearDependencies(year.appwriteId || year.id);
+      setDeleteDeps(deps);
+    } catch {
+      showToast('No se pudieron verificar los datos del ejercicio. Inténtalo de nuevo.', 'error');
+      setDeleteTarget(null);
+    } finally {
+      setDeleteChecking(false);
+    }
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (deleteDeleting) return;
+    setDeleteTarget(null);
+    setDeleteDeps(null);
+    setDeleteConfirmInput('');
+    setDeleteProgress('');
+  };
+
+  // ------------------------------------------------------------------
+  // ELIMINAR — Paso 2: ejecutar borrado (con o sin cascada)
+  // ------------------------------------------------------------------
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || !deleteDeps) return;
+    const expected = confirmationName(deleteTarget);
+    if (deleteConfirmInput.trim() !== expected) return;
+
+    const cascade = deleteDeps.total > 0;
+
+    setDeleteDeleting(true);
+    setDeleteProgress(cascade ? 'Iniciando eliminación en cascada...' : 'Eliminando ejercicio...');
+
+    try {
+      await deleteFiscalYear(
+        deleteTarget.appwriteId || deleteTarget.id,
+        cascade,
+        cascade
+          ? (phase, done) => setDeleteProgress(`Eliminando ${phase}... (${done} documentos)`)
+          : undefined
+      );
+      showToast(
+        cascade
+          ? `Ejercicio ${deleteTarget.year} y todos sus datos eliminados correctamente`
+          : `Ejercicio ${deleteTarget.year} eliminado`,
+        'success'
+      );
+      setDeleteTarget(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      showToast(`Error al eliminar ejercicio: ${msg}`, 'error');
+    } finally {
+      setDeleteDeleting(false);
+      setDeleteProgress('');
+    }
+  };
+
+  // ------------------------------------------------------------------
   // MIGRACIÓN LEGACY
   // ------------------------------------------------------------------
   const handleMigrateLegacy = async () => {
@@ -270,6 +376,10 @@ export const FiscalYearManager: React.FC = () => {
   // ------------------------------------------------------------------
   // RENDER
   // ------------------------------------------------------------------
+  const deleteConfirmOk =
+    deleteDeps !== null &&
+    deleteConfirmInput.trim() === (deleteTarget ? confirmationName(deleteTarget) : '');
+
   return (
     <div className="p-4 md:p-8 animate-fade-in max-w-3xl mx-auto">
       {/* Cabecera */}
@@ -285,7 +395,8 @@ export const FiscalYearManager: React.FC = () => {
         </div>
         <button
           onClick={() => { setShowCreateModal(true); setNewYear(suggestedYear); setCreateResult(null); }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+          disabled={isBusy}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />
           Nuevo Ejercicio
@@ -352,6 +463,8 @@ export const FiscalYearManager: React.FC = () => {
               onSelect={() => selectFiscalYear(year.appwriteId || year.id)}
               onClose={() => handleClose(year)}
               onReopen={() => handleReopen(year)}
+              onDelete={() => handleDeleteAttempt(year)}
+              deletionDisabled={isBusy}
             />
           ))
         )}
@@ -374,7 +487,7 @@ export const FiscalYearManager: React.FC = () => {
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={handleMigrateLegacy}
-            disabled={migrating || !activeFiscalYear}
+            disabled={isBusy || !activeFiscalYear}
             className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {migrating
@@ -388,7 +501,9 @@ export const FiscalYearManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal crear ejercicio */}
+      {/* ================================================================
+          MODAL: Crear Ejercicio
+      ================================================================ */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
@@ -463,6 +578,172 @@ export const FiscalYearManager: React.FC = () => {
                 }
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================
+          MODAL: Eliminar Ejercicio
+          Fase 1 → cargando dependencias
+          Fase 2a → tiene datos  → ofrece eliminación en cascada + confirmar nombre
+          Fase 2b → sin datos    → confirmación simple + confirmar nombre
+          Fase 3 → eliminando (progreso)
+      ================================================================ */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+
+            {/* Cabecera del modal */}
+            <div className="p-6 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  deleteDeps && deleteDeps.total > 0
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-amber-100 text-amber-600'
+                }`}>
+                  {deleteChecking
+                    ? <RefreshCw className="w-5 h-5 animate-spin" />
+                    : <Trash2 className="w-5 h-5" />
+                  }
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Eliminar Ejercicio {deleteTarget.year}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {deleteChecking
+                      ? 'Verificando datos del ejercicio...'
+                      : deleteDeps && deleteDeps.total > 0
+                        ? 'Este ejercicio contiene datos'
+                        : 'Este ejercicio está vacío'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-5">
+
+              {/* Fase: verificando */}
+              {deleteChecking && (
+                <div className="flex items-center justify-center py-8 text-slate-500 gap-3">
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Consultando datos asociados...</span>
+                </div>
+              )}
+
+              {/* Fase: listo con datos (cascada) */}
+              {!deleteChecking && deleteDeps && deleteDeps.total > 0 && (
+                <>
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                    <div className="flex items-start gap-2 mb-3">
+                      <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm font-semibold text-red-800">
+                        Se eliminarán permanentemente todos los datos de este ejercicio
+                      </p>
+                    </div>
+                    <div className="bg-white rounded-lg px-4 py-2 divide-y divide-slate-100">
+                      <DepRow label="Facturas" count={deleteDeps.invoices} />
+                      <DepRow label="Asientos contables" count={deleteDeps.entries} />
+                      <DepRow label="Transacciones bancarias" count={deleteDeps.transactions} />
+                      <DepRow label="Reservas" count={deleteDeps.reservations} />
+                      <DepRow label="Proveedores" count={deleteDeps.suppliers} />
+                      <DepRow label="Apartamentos" count={deleteDeps.apartments} />
+                    </div>
+                    <p className="text-xs text-red-600 mt-3">
+                      Total: <strong>{deleteDeps.total.toLocaleString('es-ES')} documentos</strong> que serán eliminados permanentemente.
+                      Esta acción <strong>no se puede deshacer</strong>.
+                    </p>
+                  </div>
+
+                  {/* Confirmación por nombre */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      Para confirmar la eliminación en cascada, escribe:
+                      <span className="font-mono text-red-600 ml-1">{confirmationName(deleteTarget)}</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={deleteConfirmInput}
+                      onChange={e => setDeleteConfirmInput(e.target.value)}
+                      placeholder={confirmationName(deleteTarget)}
+                      disabled={deleteDeleting}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none disabled:opacity-50"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Fase: listo sin datos (borrado simple) */}
+              {!deleteChecking && deleteDeps && deleteDeps.total === 0 && (
+                <>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-800">
+                        El Ejercicio {deleteTarget.year} está vacío
+                      </p>
+                      <p className="text-xs text-emerald-700 mt-1">
+                        No contiene facturas, asientos, transacciones, reservas, proveedores ni apartamentos.
+                        Puede eliminarse de forma segura.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      Para confirmar, escribe:
+                      <span className="font-mono text-slate-800 ml-1">{confirmationName(deleteTarget)}</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={deleteConfirmInput}
+                      onChange={e => setDeleteConfirmInput(e.target.value)}
+                      placeholder={confirmationName(deleteTarget)}
+                      disabled={deleteDeleting}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none disabled:opacity-50"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Progreso de eliminación */}
+              {deleteDeleting && deleteProgress && (
+                <div className="flex items-center gap-2 text-slate-600 text-sm bg-slate-50 rounded-lg px-4 py-3">
+                  <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" />
+                  <span>{deleteProgress}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Botones */}
+            {!deleteChecking && (
+              <div className="flex gap-3 px-6 pb-6">
+                <button
+                  onClick={handleCloseDeleteModal}
+                  disabled={deleteDeleting}
+                  className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={!deleteConfirmOk || deleteDeleting}
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
+                    deleteDeps && deleteDeps.total > 0
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-red-500 hover:bg-red-600'
+                  }`}
+                >
+                  {deleteDeleting
+                    ? <><RefreshCw className="w-4 h-4 animate-spin" /> Eliminando...</>
+                    : deleteDeps && deleteDeps.total > 0
+                      ? <><Trash2 className="w-4 h-4" /> Eliminar todo en cascada</>
+                      : <><Trash2 className="w-4 h-4" /> Eliminar ejercicio</>
+                  }
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

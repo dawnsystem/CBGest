@@ -17,7 +17,7 @@ import React, {
   useCallback,
   ReactNode
 } from 'react';
-import { FiscalYear } from '../types';
+import { FiscalYear, FiscalYearDependencies } from '../types';
 import * as appwriteService from '../services/appwriteService';
 import { generateId } from '../utils/defaults';
 import { useAuth } from './AuthContext';
@@ -50,6 +50,22 @@ interface FiscalYearContextType {
   reopenFiscalYear: (id: string) => Promise<void>;
   /** Recargar la lista de ejercicios desde Appwrite */
   refreshFiscalYears: () => Promise<void>;
+  /**
+   * Consulta el número de documentos asociados a un ejercicio en cada colección.
+   * Usado para determinar si se requiere borrado en cascada.
+   */
+  getFiscalYearDependencies: (id: string) => Promise<FiscalYearDependencies>;
+  /**
+   * Elimina un ejercicio.
+   * - `cascade = false` → elimina solo el documento del ejercicio (debe estar vacío).
+   * - `cascade = true`  → elimina todos los datos del ejercicio y luego el ejercicio.
+   * Si el ejercicio eliminado era el activo, selecciona automáticamente el siguiente disponible.
+   */
+  deleteFiscalYear: (
+    id: string,
+    cascade: boolean,
+    onProgress?: (phase: string, done: number) => void
+  ) => Promise<void>;
 }
 
 // ============================================================================
@@ -239,6 +255,52 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   }, [fiscalYears, activeFiscalYear]);
 
   // ------------------------------------------------------------------
+  // CONSULTAR DEPENDENCIAS DEL EJERCICIO
+  // ------------------------------------------------------------------
+  const getFiscalYearDependencies = useCallback(async (id: string): Promise<FiscalYearDependencies> => {
+    const year = fiscalYears.find(y => y.id === id || y.appwriteId === id);
+    const docId = (year?.appwriteId || year?.id) ?? id;
+    return await appwriteService.getFiscalYearDependencies(docId);
+  }, [fiscalYears]);
+
+  // ------------------------------------------------------------------
+  // ELIMINAR EJERCICIO
+  // ------------------------------------------------------------------
+  const deleteFiscalYear = useCallback(async (
+    id: string,
+    cascade: boolean,
+    onProgress?: (phase: string, done: number) => void
+  ) => {
+    const year = fiscalYears.find(y => y.id === id || y.appwriteId === id);
+    if (!year) return;
+
+    const docId = year.appwriteId || year.id;
+
+    if (cascade) {
+      await appwriteService.deleteFiscalYearCascade(docId, onProgress);
+    } else {
+      await appwriteService.deleteFiscalYearDoc(docId);
+    }
+
+    const updatedYears = fiscalYears.filter(y => y.id !== id && y.appwriteId !== id);
+    setFiscalYears(updatedYears);
+
+    // Si era el ejercicio activo, seleccionar el siguiente disponible
+    const wasActive = activeFiscalYear?.id === id || activeFiscalYear?.appwriteId === id;
+    if (wasActive) {
+      const nextYear = updatedYears.find(y => y.status === 'OPEN') || updatedYears[0] || null;
+      setActiveFiscalYear(nextYear);
+      if (nextYear) {
+        localStorage.setItem(LS_KEY, nextYear.id);
+        onFiscalYearChange?.(nextYear.id);
+      } else {
+        localStorage.removeItem(LS_KEY);
+        onFiscalYearChange?.(null);
+      }
+    }
+  }, [fiscalYears, activeFiscalYear, onFiscalYearChange]);
+
+  // ------------------------------------------------------------------
   // RENDER
   // ------------------------------------------------------------------
   return (
@@ -251,7 +313,9 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
       createFiscalYear,
       closeFiscalYear,
       reopenFiscalYear,
-      refreshFiscalYears
+      refreshFiscalYears,
+      getFiscalYearDependencies,
+      deleteFiscalYear,
     }}>
       {children}
     </FiscalYearContext.Provider>

@@ -194,6 +194,8 @@ export class Query {
   static orderAsc = vi.fn((attribute: string) => `orderAsc("${attribute}")`);
   static limit = vi.fn((limit: number) => `limit(${limit})`);
   static offset = vi.fn((offset: number) => `offset(${offset})`);
+  static cursorAfter = vi.fn((id: string) => `cursorAfter("${id}")`);
+  static isNull = vi.fn((attribute: string) => `isNull("${attribute}")`);
 }
 
 // Mock ID class

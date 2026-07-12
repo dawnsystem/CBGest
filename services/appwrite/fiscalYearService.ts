@@ -3,7 +3,7 @@
  */
 
 import { Query, ID } from 'appwrite';
-import { databases, config } from '../../lib/appwrite/client';
+import { databases, storage, config } from '../../lib/appwrite/client';
 import { dataLogger } from '../logger';
 import {
   AppwriteEntity,
@@ -20,7 +20,7 @@ import {
 } from './infrastructure';
 import { getSuppliers } from './supplierService';
 import { getApartments } from './apartmentService';
-import type { FiscalYear } from '../../types';
+import type { FiscalYear, FiscalYearDependencies } from '../../types';
 
 type FiscalYearDocument = AppwriteEntity<FiscalYear> & { $id: string };
 
@@ -311,4 +311,143 @@ export async function copyMasterDataToFiscalYear(
   }
 
   return counts;
+}
+
+// ============================================================================
+// ELIMINAR EJERCICIO
+// ============================================================================
+
+/**
+ * Devuelve el número de documentos asociados a un ejercicio en cada colección.
+ * Si el total es 0, el ejercicio está vacío y puede borrarse sin cascada.
+ */
+export async function getFiscalYearDependencies(fiscalYearId: string): Promise<FiscalYearDependencies> {
+  const countCollection = async (collectionId: string): Promise<number> => {
+    const response = await withRetry(
+      () => databases.listDocuments(
+        config.databaseId,
+        collectionId,
+        [Query.equal('fiscalYearId', fiscalYearId), Query.limit(1)]
+      ),
+      `getFiscalYearDeps_${collectionId}`
+    );
+    return response.total;
+  };
+
+  const [invoices, entries, transactions, reservations, suppliers, apartments] = await Promise.all([
+    countCollection(config.collections.invoices),
+    countCollection(config.collections.entries),
+    countCollection(config.collections.transactions),
+    countCollection(config.collections.reservations),
+    countCollection(config.collections.suppliers),
+    countCollection(config.collections.apartments),
+  ]);
+
+  return {
+    invoices,
+    entries,
+    transactions,
+    reservations,
+    suppliers,
+    apartments,
+    total: invoices + entries + transactions + reservations + suppliers + apartments,
+  };
+}
+
+/**
+ * Elimina únicamente el documento del ejercicio en Appwrite.
+ * Solo debe llamarse cuando el ejercicio está vacío de datos asociados.
+ */
+export async function deleteFiscalYear(id: string): Promise<void> {
+  try {
+    await withRetry(
+      () => databases.deleteDocument(config.databaseId, config.collections.fiscalYears, id),
+      'deleteFiscalYear'
+    );
+    notifySuccess('Ejercicio eliminado');
+    setConnectionHealth(true);
+  } catch (error: unknown) {
+    notifyError(getErrorMessage(error), 'deleteFiscalYear');
+    setConnectionHealth(false);
+    throw error;
+  }
+}
+
+/**
+ * Elimina en cascada todos los datos de un ejercicio y el propio ejercicio.
+ * El orden es: facturas (+ archivos adjuntos), asientos, transacciones,
+ * reservas, proveedores, apartamentos y finalmente el ejercicio.
+ *
+ * @param fiscalYearId  - Document ID del ejercicio (= valor de `fiscalYearId` en los docs hijos)
+ * @param onProgress    - Callback opcional con (nombreFase, documentosEliminados)
+ */
+export async function deleteFiscalYearCascade(
+  fiscalYearId: string,
+  onProgress?: (phase: string, done: number) => void
+): Promise<void> {
+  try {
+    const deleteAll = async (collectionId: string, phaseName: string) => {
+      let cursor: string | undefined;
+      let done = 0;
+
+      for (;;) {
+        const queries: Parameters<typeof databases.listDocuments>[2] = [
+          Query.equal('fiscalYearId', fiscalYearId),
+          Query.limit(100),
+        ];
+        if (cursor) queries.push(Query.cursorAfter(cursor));
+
+        const res = await withRetry(
+          () => databases.listDocuments(config.databaseId, collectionId, queries),
+          `deleteFYCascade_${collectionId}`
+        );
+
+        if (res.documents.length === 0) break;
+
+        for (const doc of res.documents) {
+          // Para facturas: eliminar también el archivo adjunto en Storage si existe
+          if (collectionId === config.collections.invoices) {
+            const fileId = (doc as { appwriteFileId?: string }).appwriteFileId;
+            if (fileId) {
+              try {
+                await storage.deleteFile(config.bucketId, fileId);
+              } catch {
+                // Ignoramos errores de almacenamiento — el documento se borrará igualmente
+              }
+            }
+          }
+
+          await withRetry(
+            () => databases.deleteDocument(config.databaseId, collectionId, doc.$id),
+            `deleteFYCascade_del_${collectionId}`
+          );
+          done++;
+          onProgress?.(phaseName, done);
+        }
+
+        if (res.documents.length < 100) break;
+        cursor = res.documents[res.documents.length - 1].$id;
+      }
+    };
+
+    await deleteAll(config.collections.invoices, 'Facturas');
+    await deleteAll(config.collections.entries, 'Asientos');
+    await deleteAll(config.collections.transactions, 'Transacciones');
+    await deleteAll(config.collections.reservations, 'Reservas');
+    await deleteAll(config.collections.suppliers, 'Proveedores');
+    await deleteAll(config.collections.apartments, 'Apartamentos');
+
+    // Por último, eliminar el propio ejercicio
+    await withRetry(
+      () => databases.deleteDocument(config.databaseId, config.collections.fiscalYears, fiscalYearId),
+      'deleteFYCascade_fiscalYear'
+    );
+
+    notifySuccess('Ejercicio y todos sus datos eliminados correctamente');
+    setConnectionHealth(true);
+  } catch (error: unknown) {
+    notifyError(getErrorMessage(error), 'deleteFiscalYearCascade');
+    setConnectionHealth(false);
+    throw error;
+  }
 }
