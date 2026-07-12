@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-11 17:21:32 UTC*
+*Última actualización: 2026-07-12 01:00:16 UTC*
 
 ---
 
@@ -8,10 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `REF-002`
-- **Objetivo Principal:** Completar la división de `services/appwriteService.ts` por dominios y dejarlo como barrel de compatibilidad.
-- **Estado Detallado:** `REF-002` completado para Tarea 2: `services/appwriteService.ts` ahora es solo re-exports; la fachada pública (`databaseService`, aliases y default export) vive en `services/appwrite/compatService.ts` sin romper consumers existentes.
-- **Próximo Micro-Paso Planificado:** Esperar directiva del Director para iniciar Tarea 3 (split de `types.ts`).
+- **Identificador de Tarea:** `TSK-003`
+- **Objetivo Principal:** Rehacer la conciliación como cierre contable real.
+- **Estado Detallado:** `TSK-003` implementado: conciliación con factura pendiente genera asiento de cierre `572` contra `400/430`; transacciones sin factura crean partida doble `6xx/7xx` contra `572` sin IVA; `626/769` quedan reservadas a conceptos financieros.
+- **Próximo Micro-Paso Planificado:** Ejecutar validación final automática (Code Review + CodeQL) y esperar directiva del Director.
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -29,6 +29,7 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`), se ajustó la creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA), se limitó `626/769` a conceptos financieros y se añadió trazabilidad transacción ↔ asiento ↔ factura. Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-11] - `REF-002` - Split de `appwriteService` por dominios con barrel de compatibilidad:** `services/appwriteService.ts` reducido a re-exports, API pública preservada mediante `services/appwrite/compatService.ts`, y validación completada con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `REF-001` - Integración `useDataHandlers` en App principal:** Refactor de `App.tsx` para usar `useDataHandlers({...})` y borrar handlers duplicados inline. Ajustes en `useDataHandlers.ts` para mantener guardas `isReadOnly`, asignación `fiscalYearId`, upsert de reservas, conciliación y vinculación de reserva-apartamento. Validado con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `IMPL-007` - Plan de Acción VPS Privado (Bloque 1+2+3):** BUG-015 verificado (ya corregido, `mapChannel()` ya tenía `.toLowerCase()`). SEC-003 corregido (`==` → `===` en validación CIF). BUG-009 parcialmente corregido (defensivo: `Math.abs()` en columnas de débito/crédito para soportar extractos bancarios con valores ya firmados). SEC-010 corregido (NIF match por word-boundary regex en lugar de `includes()`). SEC-002 corregido (lazy init de `GoogleGenAI` en `geminiService.ts`). Indicador visual de ejercicio activo en Dashboard (badge con año y estado abierto/cerrado). Hook `useAppSettings` extraído de `App.tsx` con settings state, persistencia localStorage y sync Appwrite.
@@ -75,6 +76,20 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-12 01:00:16 UTC]
+*   **Directiva del Director:** "[TSK-003] Rehacer la conciliación como cierre contable real."
+*   **Plan de Acción:** Localizar flujo de conciliación actual, implementar asientos de cierre para facturas pendientes, ajustar creación de asientos desde banco sin factura, preservar trazabilidad y validar con tests/lint/build.
+*   **Log de Acciones:**
+    - `[00:56:00]` - **VALIDACIÓN BASE:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS con warnings preexistentes de lint.
+    - `[00:58:00]` - **REFACTOR:** Creado `utils/reconciliationUtils.ts`. **CAMBIOS:** nueva lógica para (a) contrapartidas `6xx/7xx` vs `572` sin IVA y (b) asientos de cierre de deuda `572` contra `400/430`.
+    - `[00:58:00]` - **REFACTOR:** Modificado `hooks/useDataHandlers.ts`. **CAMBIOS:** conciliación con factura pendiente ahora crea asiento real de cierre y actualiza trazabilidad (`transactionId`, `invoiceId`, `reconciledWithInvoiceId`).
+    - `[00:58:00]` - **TEST:** Añadido `utils/__tests__/reconciliationUtils.test.ts` (4 casos) para validar cuentas usadas y asientos de cierre.
+    - `[00:59:00]` - **TEST:** `npx vitest run utils/__tests__/reconciliationUtils.test.ts && npm run type-check`. **RESULTADO:** PASS.
+    - `[01:00:00]` - **VALIDACIÓN FINAL:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (161 tests).
+*   **Resultado:** TSK-003 completada.
+*   **Commit Asociado:** `8a50bbcc8208fbb4ec34d30778ee093506349ce1`
+*   **Observaciones/Decisiones de Diseño:** `626/769` se reservan para conceptos financieros detectados por palabras clave (comisión/interés y equivalentes). Para transacciones sin factura se usan cuentas operativas `629/705` contra `572`. La conciliación con factura deja traza explícita transacción ↔ asiento de cierre ↔ factura.
+
 ### Sesión: [2026-07-11 17:21:32 UTC]
 *   **Directiva del Director:** "Continuar con la Tarea 2 de la sesión de refactorización: dividir `services/appwriteService.ts` por dominio manteniendo API pública intacta."
 *   **Plan de Acción:** Verificar estado actual del split, mover la capa de compatibilidad a un módulo dedicado y convertir `appwriteService.ts` en barrel de re-exports sin romper imports existentes.
