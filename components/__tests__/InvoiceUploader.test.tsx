@@ -78,7 +78,6 @@ describe('InvoiceUploader', () => {
     expect(screen.getByRole('button', { name: /Facturas \/ Tickets/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Extracto Bancario/i })).toBeDisabled();
 
-    input.disabled = false;
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(mockAddToQueue).not.toHaveBeenCalled();
