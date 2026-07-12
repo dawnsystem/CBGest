@@ -708,7 +708,8 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
           });
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-          showError(`Error al conciliar transacción con factura: ${errorMessage}`);
+          console.error('Error creando asiento de liquidación en conciliación:', error);
+          showError(`Error al crear asiento de liquidación de factura: ${errorMessage}`);
           return;
         }
         return;

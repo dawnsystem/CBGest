@@ -7,17 +7,17 @@ const BANK_ACCOUNT = {
 
 const FINANCIAL_KEYWORDS = [
   'comision',
-  'comisión',
   'interes',
-  'interés',
   'mantenimiento',
   'descubierto',
-  'financiacion',
-  'financiación'
+  'financiacion'
 ];
 
 const includesFinancialKeyword = (concept: string): boolean => {
-  const normalized = concept.toLowerCase();
+  const normalized = concept
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
   return FINANCIAL_KEYWORDS.some(keyword => normalized.includes(keyword));
 };
 
