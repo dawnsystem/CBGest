@@ -364,7 +364,10 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     }
 
     if (oldInvoice?.status === 'PROCESSED' && invoice.status === 'PAID' && data.settings.fiscalRegime === 'ALQUILER_EXENTO') {
-      createClosingEntry(invoice);
+      const existingClosingEntry = data.entries.find(e => e.id === `CLOSE-${invoice.id}`);
+      if (!existingClosingEntry) {
+        createClosingEntry(invoice);
+      }
     }
   }, [isReadOnly, showToast, data.invoices, data.entries, data.settings, setters, showError, createEntryFromInvoice, createClosingEntry]);
 
