@@ -102,6 +102,8 @@ export interface AccountingEntry {
   
   invoiceId?: string;     // Enlace opcional a factura origen
   transactionId?: string; // Enlace opcional a transacción bancaria
+  supplierId?: string;    // Enlace al proveedor (copiado de la factura)
+  apartmentId?: string;   // Enlace al apartamento (copiado de la factura)
 
   referenceDoc?: File;    // Runtime only
   fileData?: string;      // Base64 for persistence
