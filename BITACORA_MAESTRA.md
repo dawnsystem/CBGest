@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 11:20:05 UTC*
+*Última actualización: 2026-07-12 11:22:09 UTC*
 
 ---
 
@@ -93,7 +93,9 @@
     - `[11:18:00]` - **REVALIDACIÓN:** `npx vitest run functions/__tests__/appwrite-automations.test.ts && npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (202 tests).
     - `[11:19:00]` - **REFACTOR MENOR:** `functions/_shared/fiscal.js` y `functions/prepare-modelo-184/src/main.js`. **CAMBIOS:** añadida documentación JSDoc a helpers compartidos y cálculo de `participation` consolidado dentro del `map`.
     - `[11:20:00]` - **REVALIDACIÓN:** `npx vitest run functions/__tests__/appwrite-automations.test.ts && npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (202 tests).
-*   **Resultado:** TSK-006 completada técnicamente; validación local completa en verde.
+    - `[11:21:00]` - **REFACTOR MENOR:** `functions/auto-reconcile/src/main.js`, `functions/prepare-modelo-184/src/main.js`, `functions/_shared/fiscal.js`. **CAMBIOS:** log explícito ante JSON inválido en eventos, `JSON.parse` defensivo para `settings.partners` y documentación del fallback `$id/id` en helpers fiscales.
+    - `[11:22:00]` - **REVALIDACIÓN:** `npx vitest run functions/__tests__/appwrite-automations.test.ts && npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (202 tests).
+*   **Resultado:** TSK-006 completada técnicamente; validación local completa en verde. La última ejecución automática de CodeQL agotó el tiempo, pero las observaciones de review posteriores fueron corregidas y revalidadas localmente.
 *   **Commit Asociado:** `Pendiente de commit`
 *   **Observaciones/Decisiones de Diseño:** Se mantuvo un cambio quirúrgico limitado a las automatizaciones Appwrite. Para evitar mezclar ejercicios, las funciones fiscales ahora se saltan defensivamente si no existe ejercicio activo abierto; además `calculate-profitability` deja la reducción en `0` para no aplicar capas fiscales heredadas ajenas al flujo actual.
 

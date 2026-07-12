@@ -39,8 +39,11 @@ export async function getActiveFiscalYear(databases, databaseId, log) {
     }
 
     const fiscalYear = response.documents[0];
+    // Appwrite runtime documents expose $id, while local fixtures/tests may only
+    // provide id. Prefer the runtime field but support both shapes defensively.
+    const fiscalYearId = fiscalYear.$id ?? fiscalYear.id;
     return {
-      id: fiscalYear.$id || fiscalYear.id,
+      id: fiscalYearId,
       year: Number(fiscalYear.year) || null
     };
   } catch (e) {

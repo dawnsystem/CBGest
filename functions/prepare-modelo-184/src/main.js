@@ -52,7 +52,12 @@ export default async ({ req, res, log, error }) => {
       if (settings.documents.length > 0) {
         settingsDoc = settings.documents[0];
         if (typeof settingsDoc.partners === 'string') {
-          partners = JSON.parse(settingsDoc.partners || '[]');
+          try {
+            partners = JSON.parse(settingsDoc.partners || '[]');
+          } catch {
+            log('Invalid partners JSON in settings document, continuing with empty partners list');
+            partners = [];
+          }
         } else if (Array.isArray(settingsDoc.partners)) {
           partners = settingsDoc.partners;
         }

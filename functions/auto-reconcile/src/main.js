@@ -5,12 +5,13 @@ const PENDING = 'PENDING';
 const PAID = 'PAID';
 const MATCHED = 'MATCHED';
 
-const parseTransactionPayload = (payload) => {
+const parseTransactionPayload = (payload, log) => {
   if (!payload) return null;
   if (typeof payload === 'string') {
     try {
       return JSON.parse(payload);
     } catch {
+      log('Failed to parse transaction payload as JSON');
       return null;
     }
   }
@@ -33,7 +34,7 @@ export default async ({ req, res, log, error }) => {
 
   try {
     // Get the new transaction from the event
-    const transaction = parseTransactionPayload(req.body);
+    const transaction = parseTransactionPayload(req.body, log);
 
     if (!transaction || !transaction.$id) {
       log('No transaction data in event, skipping');
