@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 11:18:08 UTC*
+*Última actualización: 2026-07-12 11:20:05 UTC*
 
 ---
 
@@ -91,7 +91,9 @@
     - `[11:16:00]` - **REVALIDACIÓN:** `npx vitest run functions/__tests__/appwrite-automations.test.ts && npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (202 tests).
     - `[11:17:00]` - **REFACTOR MENOR:** Creado `functions/_shared/fiscal.js`. **CAMBIOS:** helper compartido `safeParseNumber()`, `getReservationAmount()` y `getActiveFiscalYear()` reutilizado por `calculate-profitability` y `prepare-modelo-184`.
     - `[11:18:00]` - **REVALIDACIÓN:** `npx vitest run functions/__tests__/appwrite-automations.test.ts && npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (202 tests).
-*   **Resultado:** TSK-006 completada técnicamente; pendiente únicamente de validación automática final.
+    - `[11:19:00]` - **REFACTOR MENOR:** `functions/_shared/fiscal.js` y `functions/prepare-modelo-184/src/main.js`. **CAMBIOS:** añadida documentación JSDoc a helpers compartidos y cálculo de `participation` consolidado dentro del `map`.
+    - `[11:20:00]` - **REVALIDACIÓN:** `npx vitest run functions/__tests__/appwrite-automations.test.ts && npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (202 tests).
+*   **Resultado:** TSK-006 completada técnicamente; validación local completa en verde.
 *   **Commit Asociado:** `Pendiente de commit`
 *   **Observaciones/Decisiones de Diseño:** Se mantuvo un cambio quirúrgico limitado a las automatizaciones Appwrite. Para evitar mezclar ejercicios, las funciones fiscales ahora se saltan defensivamente si no existe ejercicio activo abierto; además `calculate-profitability` deja la reducción en `0` para no aplicar capas fiscales heredadas ajenas al flujo actual.
 

@@ -8,12 +8,24 @@ export const safeParseNumber = (value, fallback = 0) => {
 /**
  * Returns the stored reservation total when available, otherwise estimates it
  * from the nightly price multiplied by the number of nights.
+ *
+ * @param {object} reservation
+ * @returns {number}
  */
 export const getReservationAmount = (reservation) => (
   safeParseNumber(reservation.totalAmount)
   || (safeParseNumber(reservation.pricePerNight) * safeParseNumber(reservation.nights))
 );
 
+/**
+ * Resolves the most recent OPEN fiscal year document, which is treated as the
+ * active fiscal year for automated calculations.
+ *
+ * @param {object} databases
+ * @param {string} databaseId
+ * @param {(message: string) => void} log
+ * @returns {Promise<{id: string, year: number | null} | null>}
+ */
 export async function getActiveFiscalYear(databases, databaseId, log) {
   try {
     const response = await databases.listDocuments(

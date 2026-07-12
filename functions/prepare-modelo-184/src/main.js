@@ -132,12 +132,15 @@ export default async ({ req, res, log, error }) => {
 
     // Calculate per-partner attribution (for Modelo 184)
     const defaultParticipation = partners.length > 0 ? 100 / partners.length : 0;
-    const partnerAttribution = partners.map(partner => ({
-      name: partner.name,
-      nif: partner.nif,
-      participation: partner.participation || defaultParticipation,
-      rendimientoAtribuido: rendimientoNeto * ((partner.participation || defaultParticipation) / 100)
-    }));
+    const partnerAttribution = partners.map(partner => {
+      const participation = partner.participation || defaultParticipation;
+      return {
+        name: partner.name,
+        nif: partner.nif,
+        participation,
+        rendimientoAtribuido: rendimientoNeto * (participation / 100)
+      };
+    });
 
     // Build the report
     const modelo184Data = {
