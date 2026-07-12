@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-11 17:21:32 UTC*
+*Última actualización: 2026-07-11 23:05:00 UTC*
 
 ---
 
@@ -8,10 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `REF-002`
-- **Objetivo Principal:** Completar la división de `services/appwriteService.ts` por dominios y dejarlo como barrel de compatibilidad.
-- **Estado Detallado:** `REF-002` completado para Tarea 2: `services/appwriteService.ts` ahora es solo re-exports; la fachada pública (`databaseService`, aliases y default export) vive en `services/appwrite/compatService.ts` sin romper consumers existentes.
-- **Próximo Micro-Paso Planificado:** Esperar directiva del Director para iniciar Tarea 3 (split de `types.ts`).
+- **Identificador de Tarea:** `TSK-001`
+- **Objetivo Principal:** Confirmar y fijar el régimen IRPF como modo de operación exclusivo.
+- **Estado Detallado:** `TSK-001` completado. Defaults corregidos (`ALQUILER_EXENTO`/`vatObligation: false`), asiento de 2 líneas IRPF implementado en `buildEntryFromInvoice`, cuentas 472/477 filtradas del selector de cuentas en régimen ALQUILER_EXENTO, UI de Settings actualizada con badge y guía de flujo IRPF.
+- **Próximo Micro-Paso Planificado:** Estado actual: **A la espera de nuevas directivas del Director.**
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -29,6 +29,7 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-11] - `TSK-001` - Confirmar y fijar régimen IRPF como modo de operación:** (1) `utils/defaults.ts` corregido: `fiscalRegime` pasa a `'ALQUILER_EXENTO'` y `vatObligation` a `false`. (2) `utils/invoiceUtils.ts`: `buildEntryFromInvoice` genera asiento de 2 líneas para `ALQUILER_EXENTO` (DR 430/572 + CR 7xx para ingresos; DR 6xx + CR 410/572 para gastos), sin cuentas 472/477. (3) `hooks/useInvoices.ts` y `hooks/useDataHandlers.ts`: pasan `fiscalRegime` al builder. (4) `components/AccountSelector.tsx`: nueva prop `excludeVATAccounts` filtra 472/477. (5) `components/AccountingBooks.tsx`: acepta `settings` y activa el filtro en régimen ALQUILER_EXENTO. (6) `App.tsx`: pasa `settings` a `AccountingBooks`. (7) `components/Settings.tsx`: badge "IRPF Activo", label actualizada y guía del flujo contable en UI. Validado con `npm run type-check && npm run test:ci` (157 tests PASS).
 *   **[2026-07-11] - `REF-002` - Split de `appwriteService` por dominios con barrel de compatibilidad:** `services/appwriteService.ts` reducido a re-exports, API pública preservada mediante `services/appwrite/compatService.ts`, y validación completada con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `REF-001` - Integración `useDataHandlers` en App principal:** Refactor de `App.tsx` para usar `useDataHandlers({...})` y borrar handlers duplicados inline. Ajustes en `useDataHandlers.ts` para mantener guardas `isReadOnly`, asignación `fiscalYearId`, upsert de reservas, conciliación y vinculación de reserva-apartamento. Validado con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `IMPL-007` - Plan de Acción VPS Privado (Bloque 1+2+3):** BUG-015 verificado (ya corregido, `mapChannel()` ya tenía `.toLowerCase()`). SEC-003 corregido (`==` → `===` en validación CIF). BUG-009 parcialmente corregido (defensivo: `Math.abs()` en columnas de débito/crédito para soportar extractos bancarios con valores ya firmados). SEC-010 corregido (NIF match por word-boundary regex en lugar de `includes()`). SEC-002 corregido (lazy init de `GoogleGenAI` en `geminiService.ts`). Indicador visual de ejercicio activo en Dashboard (badge con año y estado abierto/cerrado). Hook `useAppSettings` extraído de `App.tsx` con settings state, persistencia localStorage y sync Appwrite.
