@@ -40,6 +40,7 @@ const invoices: Invoice[] = [
     totalAmount: 1210,
     type: 'INCOME',
     status: 'PROCESSED',
+    fiscalYearId: 'fy-2026',
     history: [],
   },
   {
@@ -54,6 +55,37 @@ const invoices: Invoice[] = [
     totalAmount: 242,
     type: 'EXPENSE',
     status: 'PROCESSED',
+    fiscalYearId: 'fy-2026',
+    history: [],
+  },
+  {
+    id: 'i3',
+    number: 'F-003',
+    date: '2026-02-15',
+    issuerName: 'Borrador',
+    issuerNif: 'B99999999',
+    baseAmount: 300,
+    vatRate: 21,
+    vatAmount: 63,
+    totalAmount: 363,
+    type: 'EXPENSE',
+    status: 'PENDING',
+    fiscalYearId: 'fy-2026',
+    history: [],
+  },
+  {
+    id: 'i4',
+    number: 'F-004',
+    date: '2025-12-31',
+    issuerName: 'Otro Ejercicio',
+    issuerNif: 'B22222222',
+    baseAmount: 700,
+    vatRate: 21,
+    vatAmount: 147,
+    totalAmount: 847,
+    type: 'INCOME',
+    status: 'PROCESSED',
+    fiscalYearId: 'fy-2025',
     history: [],
   },
 ];
@@ -63,14 +95,22 @@ describe('pdfService', () => {
     vi.restoreAllMocks();
   });
 
-  it('should calculate tax data for general and exempt regimes', () => {
-    const general = calculateTaxData(invoices, settings);
-    const exempt = calculateTaxData(invoices, { ...settings, fiscalRegime: 'ALQUILER_EXENTO', vatObligation: false });
+  it('should calculate tax data for selected fiscal year and period excluding pending invoices', () => {
+    const filters = {
+      fiscalYearId: 'fy-2026',
+      period: {
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      },
+    };
+    const general = calculateTaxData(invoices, settings, filters);
+    const exempt = calculateTaxData(
+      invoices,
+      { ...settings, fiscalRegime: 'ALQUILER_EXENTO', vatObligation: false },
+      filters
+    );
 
-    expect(general).toMatchObject({
-      ivaRepercutido: 210,
-      ivaSoportado: 42,
-      resultadoIVA: 168,
+    expect(general).toEqual({
       totalIngresos: 1000,
       totalGastos: 200,
       rendimientoNeto: 800,
@@ -78,6 +118,14 @@ describe('pdfService', () => {
 
     expect(exempt.totalGastos).toBe(242);
     expect(exempt.rendimientoNeto).toBe(758);
+  });
+
+  it('should return zeroes when required fiscal filters are missing', () => {
+    expect(calculateTaxData(invoices, settings)).toEqual({
+      totalIngresos: 0,
+      totalGastos: 0,
+      rendimientoNeto: 0,
+    });
   });
 
   it('should generate PDF blobs for fiscal models and partner certificates', () => {

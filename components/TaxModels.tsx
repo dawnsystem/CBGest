@@ -3,7 +3,6 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { FileText, Download, AlertCircle, Loader2, Users, Receipt } from 'lucide-react';
 import { Invoice, AppSettings, Reservation, Apartment } from '../types';
 import {
-  generatePDF303,
   generatePDF184,
   generatePartnerCertificate,
   downloadPDF,
@@ -11,6 +10,7 @@ import {
 } from '../services/pdfService';
 import { TouristTaxPanel } from './TouristTaxPanel';
 import { useToast } from './Toast';
+import { useFiscalYear } from '../context/FiscalYearContext';
 
 interface TaxModelsProps {
   invoices: Invoice[];
@@ -27,45 +27,32 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
   apartments = [],
   onUpdateReservation
 }) => {
-  const [generating303, setGenerating303] = useState(false);
   const [generating184, setGenerating184] = useState(false);
   const [generatingCerts, setGeneratingCerts] = useState(false);
   const [activeTab, setActiveTab] = useState<'MODELS' | 'IEET'>('MODELS');
   const { showToast, showConfirm } = useToast();
+  const { activeFiscalYear } = useFiscalYear();
+
+  const selectedFiscalYearId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
+  const selectedYear = activeFiscalYear?.year;
+  const selectedPeriod = selectedYear
+    ? {
+        startDate: `${selectedYear}-01-01`,
+        endDate: `${selectedYear}-12-31`
+      }
+    : undefined;
 
   // Usar servicio centralizado para cálculos
-  const taxData = calculateTaxData(invoices, settings);
-  const { ivaRepercutido, ivaSoportado, resultadoIVA, totalIngresos, totalGastos, rendimientoNeto } = taxData;
+  const taxData = calculateTaxData(invoices, settings, {
+    fiscalYearId: selectedFiscalYearId,
+    period: selectedPeriod
+  });
+  const { totalIngresos, totalGastos, rendimientoNeto } = taxData;
 
-  const currentYear = new Date().getFullYear();
-  const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-  const trimestre = `${currentQuarter}T`;
-
-  const showMod303 = settings.fiscalRegime === 'GENERAL' && settings.vatObligation;
+  const currentYear = selectedYear ?? Number.parseInt(invoices[0]?.date?.slice(0, 4) || '0', 10);
 
   // SAFE GUARD: Ensure partners exists - memoized to prevent re-renders
   const partners = useMemo(() => settings.partners || [], [settings.partners]);
-
-  // Handler para generar PDF del Modelo 303
-  const handleGenerate303 = useCallback(() => {
-    setGenerating303(true);
-    try {
-      const blob = generatePDF303({
-        trimestre,
-        year: currentYear,
-        ivaRepercutido,
-        ivaSoportado,
-        resultado: resultadoIVA,
-        settings
-      });
-      downloadPDF(blob, `Modelo303_${trimestre}_${currentYear}.pdf`);
-    } catch (error) {
-      console.error('Error generating PDF 303:', error);
-      showToast('Error al generar el PDF. Por favor, inténtelo de nuevo.', 'error');
-    } finally {
-      setGenerating303(false);
-    }
-  }, [trimestre, currentYear, ivaRepercutido, ivaSoportado, resultadoIVA, settings, showToast]);
 
   // Handler para generar PDF del Modelo 184
   const handleGenerate184 = useCallback(() => {
@@ -176,62 +163,15 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
       {/* Models Tab Content */}
       {activeTab === 'MODELS' && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Modelo 303 - IVA (Condicional) */}
-        {showMod303 ? (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">MOD 303</div>
-                <h3 className="font-semibold text-slate-800">Autoliquidación IVA</h3>
-              </div>
-              <span className="text-xs font-medium text-slate-500">3T 2024</span>
+        <div className="bg-slate-50 rounded-xl border border-slate-200 border-dashed p-6 flex flex-col items-center justify-center text-center opacity-75">
+            <div className="bg-slate-200 p-3 rounded-full mb-3">
+                <FileText className="w-6 h-6 text-slate-400" />
             </div>
-            
-            <div className="p-6 space-y-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                  <span className="text-sm text-slate-600">IVA Devengado (Ventas)</span>
-                  <span className="font-mono font-medium text-emerald-600">+{ivaRepercutido.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                  <span className="text-sm text-slate-600">IVA Deducible (Gastos)</span>
-                  <span className="font-mono font-medium text-rose-600">-{ivaSoportado.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between items-center pt-2">
-                  <span className="font-semibold text-slate-900">Resultado a ingresar/devolver</span>
-                  <span className={`text-xl font-bold font-mono ${resultadoIVA > 0 ? 'text-blue-600' : 'text-emerald-600'}`}>
-                    {resultadoIVA.toFixed(2)}€
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleGenerate303}
-                  disabled={generating303}
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {generating303 ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
-                  ) : (
-                    <><Download className="w-4 h-4" /> Generar PDF</>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-            <div className="bg-slate-50 rounded-xl border border-slate-200 border-dashed p-6 flex flex-col items-center justify-center text-center opacity-75">
-                <div className="bg-slate-200 p-3 rounded-full mb-3">
-                    <FileText className="w-6 h-6 text-slate-400" />
-                </div>
-                <h3 className="font-semibold text-slate-700 mb-1">Modelo 303 (IVA) No Aplicable</h3>
-                <p className="text-sm text-slate-500">
-                    Según la configuración actual ({settings.fiscalRegime === 'ALQUILER_EXENTO' ? 'Alquiler Exento' : 'Sin obligación IVA'}), 
-                    esta entidad no presenta autoliquidaciones de IVA.
-                </p>
-            </div>
-        )}
+            <h3 className="font-semibold text-slate-700 mb-1">Modelo 303 (IVA) No Aplicable</h3>
+            <p className="text-sm text-slate-500">
+                En régimen IRPF de CBGest solo se generan Modelo 184 y certificados de socios.
+            </p>
+        </div>
 
         {/* Modelo 184 - Entidades en atribución de rentas */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden border-l-4 border-l-emerald-500">
