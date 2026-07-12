@@ -7,7 +7,7 @@ import { useState, useCallback, useRef, Dispatch, SetStateAction } from 'react';
 import { Invoice, AppSettings, Supplier, AccountingEntry } from '../types';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
-import { buildEntryFromInvoice, buildClosingEntry } from '../utils/invoiceUtils';
+import { buildEntryFromInvoice } from '../utils/invoiceUtils';
 import * as appwriteService from '../services/appwriteService';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -46,12 +46,7 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
 
   // DEBT-002: delegate to the shared utility in utils/invoiceUtils.ts
   const createEntryFromInvoice = useCallback((inv: Invoice) => {
-    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name }, settings.fiscalRegime);
-    onAddEntry(entry);
-  }, [user, settings.fiscalRegime, onAddEntry]);
-
-  const createClosingEntry = useCallback((inv: Invoice) => {
-    const entry = buildClosingEntry(inv, { userId: user?.$id, userName: user?.name });
+    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name });
     onAddEntry(entry);
   }, [user, onAddEntry]);
 
@@ -182,17 +177,7 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
         logger.debug("Accounting entry already exists for invoice:", invoice.id);
       }
     }
-
-    if (oldInvoice?.status === 'PROCESSED' && invoice.status === 'PAID' && settings.fiscalRegime === 'ALQUILER_EXENTO') {
-      const existingClosingEntry = accountingEntries.find(e => e.id === `CLOSE-${invoice.id}`);
-      if (!existingClosingEntry) {
-        logger.debug("Invoice status changed PROCESSED→PAID - creating closing entry:", invoice.id);
-        createClosingEntry(invoice);
-      } else {
-        logger.debug("Closing entry already exists for invoice:", invoice.id);
-      }
-    }
-  }, [invoices, settings, accountingEntries, user, addNotification, showError, createEntryFromInvoice, createClosingEntry]);
+  }, [invoices, settings, accountingEntries, user, addNotification, showError, createEntryFromInvoice]);
 
   const handleDeleteInvoice = useCallback(async (id: string) => {
     const invoice = invoices.find(i => i.id === id);

@@ -1,17 +1,15 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Check } from 'lucide-react';
-import { ACCOUNT_PLAN, AccountOption, isVATAccount } from '../utils/accountingPlan';
+import { ACCOUNT_PLAN, AccountOption } from '../utils/accountingPlan';
 
 interface AccountSelectorProps {
   value: string; // Format: "CODE - NAME" or just "CODE"
   onChange: (value: string) => void;
   className?: string;
-  /** When true, filters out accounts 472/477 (IVA). Use in ALQUILER_EXENTO / IRPF regime. */
-  excludeVATAccounts?: boolean;
 }
 
-export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChange, className, excludeVATAccounts = false }) => {
+export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChange, className }) => {
   const [isOpen, setIsOpen] = useState(false);
   // Track if user is actively typing to distinguish between external value changes and user input
   const [localSearchTerm, setLocalSearchTerm] = useState<string | null>(null);
@@ -39,7 +37,6 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChang
   }, [handleClose]);
 
   const filteredAccounts = ACCOUNT_PLAN.filter(account => {
-    if (excludeVATAccounts && isVATAccount(account.code)) return false;
     const term = searchTerm.toLowerCase();
     return account.code.toLowerCase().includes(term) || 
            account.name.toLowerCase().includes(term) ||

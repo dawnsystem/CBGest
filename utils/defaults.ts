@@ -78,8 +78,8 @@ export const createDefaultDataSourceConfig = (): DataSourceConfig => ({
 export const createDefaultAppSettings = (): AppSettings => ({
   cbName: '',
   nif: '',
-  fiscalRegime: 'ALQUILER_EXENTO',
-  vatObligation: false,
+  fiscalRegime: 'GENERAL',
+  vatObligation: true,
   partners: [],
   dataConfig: createDefaultDataSourceConfig(),
 });
