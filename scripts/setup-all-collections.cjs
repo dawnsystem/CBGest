@@ -403,6 +403,9 @@ async function setupEntriesCollection() {
     // Audit fields
     { type: 'string', key: 'createdBy', size: 100, required: false },
     { type: 'string', key: 'createdByName', size: 255, required: false },
+    // Links copied from the originating invoice (for filtering and reporting)
+    { type: 'string', key: 'supplierId', size: 100, required: false },
+    { type: 'string', key: 'apartmentId', size: 100, required: false },
   ];
 
   for (const attr of attributes) {
@@ -419,6 +422,8 @@ async function setupEntriesCollection() {
     { key: 'date_index', type: 'key', attributes: ['date'], orders: ['DESC'] },
     { key: 'reconciled_index', type: 'key', attributes: ['reconciled'], orders: ['ASC'] },
     { key: 'invoiceId_index', type: 'key', attributes: ['invoiceId'], orders: ['ASC'] },
+    { key: 'supplierId_index', type: 'key', attributes: ['supplierId'], orders: ['ASC'] },
+    { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
