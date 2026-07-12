@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 12:16:40 UTC*
+*Última actualización: 2026-07-12 20:00:00 UTC*
 
 ---
 
@@ -31,6 +31,7 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-12] - `DOC-001` - Guion de testing operativo por rondas:** Creado `TESTING_ROUNDS.md` con 3 rondas ejecutables: Smoke (30 min, 15 checks), Regresión (2h, 13 áreas funcionales completas) y Auditoría completa (1 jornada, incluye E2E maestro de 15 pasos y checklist de 10 señales de fallo crítico).
 *   **[2026-07-12] - `FIX-044` - Limpieza integral de warnings ESLint:** Eliminadas las 433 advertencias de ESLint (tipado `unknown`/tipos concretos, metadatos Appwrite omitidos sin ruido, `console.log/info` migrados a `warn/error`, dependencias de hooks ajustadas y mocks/tests saneados). Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-12] - `TSK-006` - Actualización de automatizaciones Appwrite:** Adaptadas las cloud functions al modelo actual de Appwrite: enums en mayúsculas, `transactions`/`reconciledWithInvoiceId`, lectura real de `settings.partners`, cálculo IRPF sobre `totalAmount`, filtro por ejercicio activo y tests focalizados para las automatizaciones.
 *   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
