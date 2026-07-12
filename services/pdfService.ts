@@ -44,6 +44,27 @@ interface TaxData184 {
   settings: AppSettings;
 }
 
+interface TaxCalculationPeriod {
+  startDate: string;
+  endDate: string;
+}
+
+interface TaxCalculationFilters {
+  fiscalYearId: string;
+  period: TaxCalculationPeriod;
+}
+
+interface TaxDataIRPF {
+  totalIngresos: number;
+  totalGastos: number;
+  rendimientoNeto: number;
+}
+
+function parseIsoDate(dateValue: string): Date | null {
+  const parsed = new Date(dateValue);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 /**
  * Genera PDF del Modelo 303 - Autoliquidación IVA
  */
@@ -318,24 +339,40 @@ export function downloadPDF(blob: Blob, filename: string): void {
 }
 
 /**
- * Calcula los datos fiscales a partir de las facturas
+ * Calcula los datos fiscales IRPF a partir de las facturas del ejercicio y periodo activo.
  */
-export function calculateTaxData(invoices: Invoice[], settings: AppSettings) {
-  const ivaRepercutido = (invoices || [])
-    .filter(i => i.type === 'INCOME')
-    .reduce((acc, curr) => acc + (curr.vatAmount || 0), 0);
+export function calculateTaxData(
+  invoices: Invoice[],
+  settings: AppSettings,
+  filters: TaxCalculationFilters
+): TaxDataIRPF {
+  const { fiscalYearId, period } = filters;
+  if (!fiscalYearId || !period) {
+    throw new Error('calculateTaxData requiere fiscalYearId y period para calcular IRPF');
+  }
 
-  const ivaSoportado = (invoices || [])
-    .filter(i => i.type === 'EXPENSE')
-    .reduce((acc, curr) => acc + (curr.vatAmount || 0), 0);
+  const start = parseIsoDate(period.startDate);
+  const end = parseIsoDate(period.endDate);
+  if (!start || !end) {
+    throw new Error('calculateTaxData recibió un periodo con fechas inválidas');
+  }
+  if (start.getTime() > end.getTime()) {
+    throw new Error('calculateTaxData recibió un periodo con startDate posterior a endDate');
+  }
 
-  const resultadoIVA = ivaRepercutido - ivaSoportado;
+  const validInvoices = (invoices || []).filter(invoice => {
+    if (invoice.status === 'PENDING') return false;
+    if (invoice.fiscalYearId !== fiscalYearId) return false;
+    const invoiceDate = parseIsoDate(invoice.date);
+    if (!invoiceDate) return false;
+    return invoiceDate >= start && invoiceDate <= end;
+  });
 
-  const totalIngresos = (invoices || [])
+  const totalIngresos = validInvoices
     .filter(i => i.type === 'INCOME')
     .reduce((acc, curr) => acc + (curr.baseAmount || 0), 0);
 
-  const totalGastos = (invoices || [])
+  const totalGastos = validInvoices
     .filter(i => i.type === 'EXPENSE')
     .reduce((acc, curr) => {
       if (settings.fiscalRegime === 'ALQUILER_EXENTO') {
@@ -347,9 +384,6 @@ export function calculateTaxData(invoices: Invoice[], settings: AppSettings) {
   const rendimientoNeto = totalIngresos - totalGastos;
 
   return {
-    ivaRepercutido,
-    ivaSoportado,
-    resultadoIVA,
     totalIngresos,
     totalGastos,
     rendimientoNeto
