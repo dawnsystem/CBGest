@@ -176,6 +176,7 @@ describe('buildEntryFromInvoice — category resolution', () => {
     const inv = makeInvoice({ type: 'EXPENSE', category: '628', totalAmount: 100 });
     const entry = buildEntryFromInvoice(inv);
     expect(entry.lines[0].accountCode).toBe('628');
+    expect(entry.lines[0].accountName).toBe('628');
   });
 
   it('falls back to 600 for EXPENSE without category', () => {
