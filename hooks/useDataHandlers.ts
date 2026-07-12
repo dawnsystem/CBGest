@@ -357,7 +357,18 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         createEntryFromInvoice(invoice);
       }
     }
+<<<<<<< HEAD
   }, [isReadOnly, showToast, data.invoices, data.entries, data.settings, setters, showError, createEntryFromInvoice]);
+=======
+
+    if (oldInvoice?.status === 'PROCESSED' && invoice.status === 'PAID' && data.settings.fiscalRegime === 'ALQUILER_EXENTO') {
+      const existingClosingEntry = data.entries.find(e => e.id === `CLOSE-${invoice.id}`);
+      if (!existingClosingEntry) {
+        createClosingEntry(invoice);
+      }
+    }
+  }, [isReadOnly, showToast, data.invoices, data.entries, data.settings, setters, showError, createEntryFromInvoice, createClosingEntry]);
+>>>>>>> 03c88a29a4085860fa29a6a45cc8208b05a75c7f
 
   const handleDeleteInvoice = useCallback(async (id: string) => {
     if (isReadOnly) {

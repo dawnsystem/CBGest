@@ -177,7 +177,21 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
         logger.debug("Accounting entry already exists for invoice:", invoice.id);
       }
     }
+<<<<<<< HEAD
   }, [invoices, settings, accountingEntries, user, addNotification, showError, createEntryFromInvoice]);
+=======
+
+    if (oldInvoice?.status === 'PROCESSED' && invoice.status === 'PAID' && settings.fiscalRegime === 'ALQUILER_EXENTO') {
+      const existingClosingEntry = accountingEntries.find(e => e.id === `CLOSE-${invoice.id}`);
+      if (!existingClosingEntry) {
+        logger.debug("Invoice status changed PROCESSED→PAID - creating closing entry:", invoice.id);
+        createClosingEntry(invoice);
+      } else {
+        logger.debug("Closing entry already exists for invoice:", invoice.id);
+      }
+    }
+  }, [invoices, settings, accountingEntries, user, addNotification, showError, createEntryFromInvoice, createClosingEntry]);
+>>>>>>> 03c88a29a4085860fa29a6a45cc8208b05a75c7f
 
   const handleDeleteInvoice = useCallback(async (id: string) => {
     const invoice = invoices.find(i => i.id === id);
