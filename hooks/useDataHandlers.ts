@@ -690,7 +690,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   }, [isReadOnly, showToast, data.reservations, data.settings, setters, showError]);
 
   const handleCreateEntryFromTransaction = useCallback((tx: BankTransaction) => {
-    const newEntry = buildEntryFromUnmatchedTransaction(tx, `BANK-${generateId()}`);
+    const newEntry = buildEntryFromUnmatchedTransaction(tx, generateId());
     handleAddEntry(newEntry);
     handleUpdateBankTransaction({ ...tx, status: 'MATCHED', reconciledWithEntryId: newEntry.id });
     showToast?.("Asiento creado con partida doble. Ve a 'Libros Contables' para editar las cuentas si es necesario.", 'success');
@@ -711,7 +711,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
 
       if (matchedEntry.invoiceId) {
         const relatedInvoice = data.invoices.find(inv => inv.id === matchedEntry.invoiceId);
-        const settlementEntryId = `RECON-${generateId()}`;
+        const settlementEntryId = generateId();
         const settlementEntry = buildInvoiceSettlementEntry(transaction, matchedEntry, settlementEntryId, relatedInvoice);
         let settlementCreated = false;
         let entryUpdated = false;
