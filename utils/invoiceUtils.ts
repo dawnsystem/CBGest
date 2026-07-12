@@ -31,17 +31,22 @@ export const buildEntryFromInvoice = (inv: Invoice, author?: EntryAuthor): Accou
       accountName = parts.slice(1).join(' - ').trim();
     } else {
       accountCode = parts[0].trim();
+      accountName = accountCode;
     }
   }
 
-  const debit = inv.type === 'EXPENSE' ? inv.totalAmount : 0;
-  const credit = inv.type === 'INCOME' ? inv.totalAmount : 0;
+  const totalAmount = Number.isFinite(inv.totalAmount) && inv.totalAmount >= 0 ? inv.totalAmount : 0;
+  const debit = inv.type === 'EXPENSE' ? totalAmount : 0;
+  const credit = inv.type === 'INCOME' ? totalAmount : 0;
+  const settlementLine = inv.type === 'EXPENSE'
+    ? { accountCode: '400', accountName: 'Proveedores', debit: 0, credit: totalAmount }
+    : { accountCode: '430', accountName: 'Clientes', debit: totalAmount, credit: 0 };
 
   return {
     id: `AUTO-${inv.id}`,
     date: inv.date,
     concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
-    lines: [{ accountCode, accountName, debit, credit }],
+    lines: [{ accountCode, accountName, debit, credit }, settlementLine],
     // Legacy scalar fields for backward compatibility
     accountCode,
     accountName,
