@@ -1,9 +1,27 @@
 import { Client, Databases, Query } from 'node-appwrite';
 
+const EXPENSE = 'EXPENSE';
+const PENDING = 'PENDING';
+const PAID = 'PAID';
+const MATCHED = 'MATCHED';
+
+const parseTransactionPayload = (payload, log) => {
+  if (!payload) return null;
+  if (typeof payload === 'string') {
+    try {
+      return JSON.parse(payload);
+    } catch {
+      log('Failed to parse transaction payload as JSON');
+      return null;
+    }
+  }
+  return payload;
+};
+
 /**
  * Auto-Reconcile Function
  * Automatically matches bank transactions with invoices
- * Trigger: Event on bankTransactions.documents.*.create
+ * Trigger: Event on transactions.documents.*.create
  */
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -16,7 +34,7 @@ export default async ({ req, res, log, error }) => {
 
   try {
     // Get the new transaction from the event
-    const transaction = req.body;
+    const transaction = parseTransactionPayload(req.body, log);
 
     if (!transaction || !transaction.$id) {
       log('No transaction data in event, skipping');
@@ -28,25 +46,43 @@ export default async ({ req, res, log, error }) => {
     log(`  Concept: ${transaction.concept}`);
 
     // Skip if already matched
-    if (transaction.matchedInvoiceId || transaction.status === 'reconciled') {
-      log('Transaction already reconciled, skipping');
-      return res.json({ success: true, alreadyReconciled: true });
+    if (transaction.reconciledWithInvoiceId || transaction.status === MATCHED) {
+      log('Transaction already matched, skipping');
+      return res.json({ success: true, alreadyMatched: true });
     }
 
-    // Only process negative amounts (payments/expenses)
-    const amount = Math.abs(parseFloat(transaction.amount));
+    const rawAmount = Number(transaction.amount);
+    if (!Number.isFinite(rawAmount)) {
+      log('Transaction has invalid amount, skipping');
+      return res.json({ success: true, skipped: true, reason: 'invalid-amount' });
+    }
+
+    // Defensive guard: only expense payments are currently supported here.
+    if (rawAmount >= 0) {
+      log('Positive transaction detected, auto-reconcile only supports expense payments');
+      return res.json({ success: true, skipped: true, reason: 'unsupported-direction' });
+    }
+
+    const amount = Math.abs(rawAmount);
 
     // Strategy 1: Exact amount match with pending invoices
     log('Searching for matching invoices...');
+    const invoiceQueries = [
+      Query.equal('type', EXPENSE),
+      Query.equal('status', PENDING),
+      Query.greaterThanEqual('totalAmount', amount - 0.01),
+      Query.lessThanEqual('totalAmount', amount + 0.01),
+      Query.limit(10)
+    ];
+
+    if (transaction.fiscalYearId) {
+      invoiceQueries.push(Query.equal('fiscalYearId', transaction.fiscalYearId));
+    }
+
     const invoices = await databases.listDocuments(
       databaseId,
       'invoices',
-      [
-        Query.equal('status', 'pending'),
-        Query.greaterThanEqual('totalAmount', amount - 0.01),
-        Query.lessThanEqual('totalAmount', amount + 0.01),
-        Query.limit(10)
-      ]
+      invoiceQueries
     );
 
     if (invoices.documents.length === 1) {
@@ -57,13 +93,11 @@ export default async ({ req, res, log, error }) => {
       // Update transaction
       await databases.updateDocument(
         databaseId,
-        'bankTransactions',
+        'transactions',
         transaction.$id,
         {
-          matchedInvoiceId: matchedInvoice.$id,
-          status: 'reconciled',
-          matchConfidence: 'high',
-          matchMethod: 'auto-exact-amount'
+          reconciledWithInvoiceId: matchedInvoice.$id,
+          status: MATCHED
         }
       );
 
@@ -73,8 +107,7 @@ export default async ({ req, res, log, error }) => {
         'invoices',
         matchedInvoice.$id,
         {
-          status: 'paid',
-          paidDate: transaction.date
+          status: PAID
         }
       );
 
@@ -112,15 +145,21 @@ export default async ({ req, res, log, error }) => {
         if (historyConcept && normalizedConcept.includes(historyConcept.substring(0, 10))) {
           log(`Found pattern match from history: ${history.matchedSupplierName || history.matchedCategory}`);
 
+          const suggestion = {
+            matchedSupplierId: history.matchedSupplierId || null,
+            matchedSupplierName: history.matchedSupplierName || null,
+            matchedCategory: history.matchedCategory || null,
+            matchedPlatform: history.matchedPlatform || null,
+            confidence: 'medium',
+            method: 'auto-pattern'
+          };
+
           await databases.updateDocument(
             databaseId,
-            'bankTransactions',
+            'transactions',
             transaction.$id,
             {
-              suggestedSupplierId: history.matchedSupplierId,
-              suggestedCategory: history.matchedCategory,
-              matchConfidence: 'medium',
-              matchMethod: 'auto-pattern'
+              aiMatchSuggestion: JSON.stringify(suggestion)
             }
           );
 
@@ -129,11 +168,7 @@ export default async ({ req, res, log, error }) => {
             matched: false,
             suggested: true,
             transactionId: transaction.$id,
-            suggestion: {
-              supplierId: history.matchedSupplierId,
-              supplierName: history.matchedSupplierName,
-              category: history.matchedCategory
-            }
+            suggestion
           });
         }
       }
