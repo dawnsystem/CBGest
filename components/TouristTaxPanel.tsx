@@ -58,10 +58,10 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
   onUpdateReservation
 }) => {
   const today = new Date();
-  const realCurrentYear = today.getFullYear();
+  const systemCurrentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
   const { activeFiscalYear } = useFiscalYear();
-  const defaultYear = activeFiscalYear?.year ?? realCurrentYear;
+  const defaultYear = activeFiscalYear?.year ?? systemCurrentYear;
   
   // Determine current semester
   const defaultSemester = currentMonth <= 6 ? 1 : 2;
@@ -362,7 +362,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
             onChange={e => setSelectedYear(parseInt(e.target.value, 10))}
             className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
           >
-            {Array.from(new Set([defaultYear - 1, defaultYear, defaultYear + 1, realCurrentYear - 1, realCurrentYear]))
+            {Array.from(new Set([defaultYear - 1, defaultYear, defaultYear + 1, systemCurrentYear - 1, systemCurrentYear]))
               .sort((a, b) => a - b)
               .map(year => (
                 <option key={year} value={year}>{year}</option>
