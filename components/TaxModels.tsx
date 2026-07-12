@@ -192,7 +192,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
               <div className="bg-emerald-600 text-white text-xs font-bold px-2 py-1 rounded">MOD 184</div>
               <h3 className="font-semibold text-slate-800">Declaración Informativa CB</h3>
             </div>
-            <span className="text-xs font-medium text-slate-500">Anual 2024</span>
+            <span className="text-xs font-medium text-slate-500">Anual {currentYear || '—'}</span>
           </div>
 
           <div className="p-6">

@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } fro
 import { TrendingUp, TrendingDown, Award, Home, ArrowUpRight, ArrowDownRight, Minus, Filter } from 'lucide-react';
 import { Invoice, Apartment, RecurringExpense, Reservation } from '../types';
 import { ChartWrapper } from './ChartWrapper';
+import { useFiscalYear } from '../context/FiscalYearContext';
 
 interface ProfitabilityByApartmentProps {
   invoices: Invoice[];
@@ -48,14 +49,17 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
 }) => {
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('year');
   const [sortBy, setSortBy] = useState<'profit' | 'income' | 'margin'>('profit');
+  const { activeFiscalYear } = useFiscalYear();
+
+  // Active fiscal year number; fall back to real current year
+  const activeYear = activeFiscalYear?.year ?? new Date().getFullYear();
 
   // Filter reservations by period
   const filteredReservations = useMemo(() => {
     if (!reservations || reservations.length === 0) return [];
 
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
     const currentQuarter = Math.floor(currentMonth / 3);
 
     return reservations.filter(res => {
@@ -72,23 +76,22 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
 
       switch (periodFilter) {
         case 'month':
-          return resYear === currentYear && resMonth === currentMonth;
+          return resYear === activeYear && resMonth === currentMonth;
         case 'quarter':
-          return resYear === currentYear && resQuarter === currentQuarter;
+          return resYear === activeYear && resQuarter === currentQuarter;
         case 'year':
-          return resYear === currentYear;
+          return resYear === activeYear;
         case 'all':
         default:
           return true;
       }
     });
-  }, [reservations, periodFilter]);
+  }, [reservations, periodFilter, activeYear]);
 
   // Filter invoices by period
   const filteredInvoices = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
     const currentQuarter = Math.floor(currentMonth / 3);
 
     return invoices.filter(inv => {
@@ -104,17 +107,17 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
 
       switch (periodFilter) {
         case 'month':
-          return invYear === currentYear && invMonth === currentMonth;
+          return invYear === activeYear && invMonth === currentMonth;
         case 'quarter':
-          return invYear === currentYear && invQuarter === currentQuarter;
+          return invYear === activeYear && invQuarter === currentQuarter;
         case 'year':
-          return invYear === currentYear;
+          return invYear === activeYear;
         case 'all':
         default:
           return true;
       }
     });
-  }, [invoices, periodFilter]);
+  }, [invoices, periodFilter, activeYear]);
 
   // Calculate metrics by apartment
   const apartmentMetrics = useMemo(() => {
@@ -297,16 +300,18 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
   }, [apartmentMetrics]);
 
   const getPeriodLabel = () => {
-    const now = new Date();
+    const currentDate = new Date();
     switch (periodFilter) {
-      case 'month':
-        return now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      case 'month': {
+        const monthDate = new Date(activeYear, currentDate.getMonth(), 1);
+        return monthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      }
       case 'quarter': {
-        const quarter = Math.floor(now.getMonth() / 3) + 1;
-        return `${quarter}T ${now.getFullYear()}`;
+        const quarter = Math.floor(currentDate.getMonth() / 3) + 1;
+        return `${quarter}T ${activeYear}`;
       }
       case 'year':
-        return `Año ${now.getFullYear()}`;
+        return `Año ${activeYear}`;
       case 'all':
         return 'Todo el histórico';
     }
