@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 11:22:09 UTC*
+*Última actualización: 2026-07-12 12:02:00 UTC*
 
 ---
 
@@ -9,10 +9,14 @@
 ### 🚧 Tarea en Progreso (WIP)
 
 - **Identificador de Tarea:** `TSK-006`
-- **Objetivo Principal:** Actualizar automatizaciones Appwrite al modelo de datos actual.
-- **Estado Detallado:** `TSK-006` implementado: `auto-reconcile`, `weekly-summary`, `calculate-profitability` y `prepare-modelo-184` ya usan enums actuales (`EXPENSE/INCOME`, `PENDING/PROCESSED/PAID`, `MATCHED`), lectura moderna de `settings`, filtro por `fiscalYearId` activo y guardas defensivas cuando no hay ejercicio abierto.
-- **Próximo Micro-Paso Planificado:** Ejecutar validación automática final (Code Review + CodeQL) y esperar directiva del Director.
+- **Objetivo Principal:** Integrar `TSK-006` sobre `main` resolviendo los conflictos de merge del PR #118.
+- **Estado Detallado:** Merge contra `origin/main` resuelto localmente; la bitácora quedó consolidada y la validación completa posterior al merge ha pasado sin errores bloqueantes.
+- **Próximo Micro-Paso Planificado:** Finalizar el merge commit, publicar la actualización del PR y quedar a la espera de nuevas directivas.
 
+### ✅ Implementaciones Recientes
+*   **[2026-07-12] - `TSK-006` - Actualización de automatizaciones Appwrite:** Adaptadas las cloud functions al modelo actual de Appwrite: enums en mayúsculas, `transactions`/`reconciledWithInvoiceId`, lectura real de `settings.partners`, cálculo IRPF sobre `totalAmount`, filtro por ejercicio activo y tests focalizados para las automatizaciones.
+*   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
+*   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`); ajustó creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA); `626/769` reservadas a conceptos financieros; trazabilidad transacción ↔ asiento ↔ factura.
 ## 📋 Plan Estratégico de Auditoría
 
 - [x] **AUDIT-001: Seguridad, entorno y superficie de integración externa** — COMPLETADO
@@ -30,6 +34,7 @@
 
 ### ✅ Historial de Implementaciones Completadas
 *   **[2026-07-12] - `TSK-006` - Actualización de automatizaciones Appwrite:** Adaptadas las cloud functions al modelo actual de Appwrite: enums en mayúsculas, `transactions`/`reconciledWithInvoiceId`, lectura real de `settings.partners`, cálculo IRPF sobre `totalAmount`, filtro por ejercicio activo y tests focalizados para las automatizaciones.
+*   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
 *   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`), se ajustó la creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA), se limitó `626/769` a conceptos financieros y se añadió trazabilidad transacción ↔ asiento ↔ factura. Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-11] - `REF-002` - Split de `appwriteService` por dominios con barrel de compatibilidad:** `services/appwriteService.ts` reducido a re-exports, API pública preservada mediante `services/appwrite/compatService.ts`, y validación completada con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `REF-001` - Integración `useDataHandlers` en App principal:** Refactor de `App.tsx` para usar `useDataHandlers({...})` y borrar handlers duplicados inline. Ajustes en `useDataHandlers.ts` para mantener guardas `isReadOnly`, asignación `fiscalYearId`, upsert de reservas, conciliación y vinculación de reserva-apartamento. Validado con `npm run type-check && npm run test:ci`.
@@ -77,6 +82,21 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-12 11:57:20 UTC]
+*   **Directiva del Director:** "@copilot resolve the merge conflicts in this pull request"
+*   **Plan de Acción:** Preparar el clon (`npm ci` + fetch completo de `main`), reproducir localmente el merge del PR #118, resolver el conflicto mínimo necesario y revalidar el repositorio tras integrar `main`.
+*   **Log de Acciones:**
+    - `[11:57:00]` - **INSPECCIÓN:** Confirmado PR `#118` contra `main` con `mergeable_state: dirty`. El clon local estaba shallow y sin conflicto materializado.
+    - `[11:58:00]` - **ACCIÓN:** Ejecutado `npm ci` para restaurar `eslint`, `vite`, `vitest` y tipos de `node`.
+    - `[11:59:00]` - **VALIDACIÓN BASE:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS tras instalar dependencias (lint con warnings históricos no bloqueantes).
+    - `[12:00:00]` - **MERGE:** `git fetch --unshallow origin && git fetch origin main:refs/remotes/origin/main && git merge --no-commit --no-ff origin/main`. **RESULTADO:** conflicto único en `BITACORA_MAESTRA.md`; resto de cambios de `main` integrados automáticamente.
+    - `[12:01:00]` - **MOD:** `BITACORA_MAESTRA.md`. **CAMBIOS:** consolidado el historial de `TSK-005` + `TSK-006`, preservado el registro previo y documentada la sesión actual de resolución de merge.
+    - `[12:02:00]` - **REVALIDACIÓN:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS tras el merge (`lint` con warnings históricos no bloqueantes).
+    - `[12:02:00]` - **SECOPS:** `runtime-tools-secret_scanning` sobre los 7 ficheros modificados por el merge. **RESULTADO:** PASS, sin secretos detectados.
+*   **Resultado:** Conflicto de merge resuelto localmente y rama revalidada; pendiente únicamente crear el merge commit y responder en el PR.
+*   **Commit Asociado:** `Pendiente de commit`
+*   **Observaciones/Decisiones de Diseño:** Se mantiene el criterio de cambio mínimo: no se alteran los ficheros funcionales que Git fusionó sin conflicto; únicamente se consolida manualmente la bitácora como punto de fricción entre ramas.
+
 ### Sesión: [2026-07-12 11:13:46 UTC]
 *   **Directiva del Director:** "[TSK-006] Actualizar automatizaciones Appwrite."
 *   **Plan de Acción:** Localizar las cloud functions afectadas, alinear enums/campos con Appwrite actual, eliminar la lógica fiscal heredada no aplicable, añadir guardas defensivas ligadas al ejercicio activo y validar con tests focalizados + validación completa del repositorio.

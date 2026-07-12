@@ -58,6 +58,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   const navigate = useNavigate();
   const { showToast, showConfirm } = useToast();
   const { activeFiscalYear, isReadOnly } = useFiscalYear();
+  const systemCurrentYear = new Date().getFullYear();
+  const activeYear = activeFiscalYear?.year ?? systemCurrentYear;
 
   // SAFE GUARD: Ensure partners array exists
   const partners = settings.partners || [];
@@ -106,14 +108,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
         }
     });
     
-    // Filter out future months or empty tail if desired, or keep full year
-    const currentMonth = new Date().getMonth();
-    return data.slice(0, currentMonth + 1);
-  }, [invoices, invoiceAmount]);
+    // For past fiscal years show all 12 months; for the current year cap at current month
+    if (activeYear < systemCurrentYear) return data;
+    return data.slice(0, new Date().getMonth() + 1);
+  }, [invoices, invoiceAmount, activeYear, systemCurrentYear]);
 
 
   // --- 2. TAX ESTIMATION LOGIC (COMPLETE IRPF 2024) ---
-  const currentYear = new Date().getFullYear();
 
   // Helper: Calculate disability minimum
   const getDisabilityMinimum = (level: DisabilityLevel): number => {
@@ -207,7 +208,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
     let personalMinimum = 5550;
 
     // Age adjustment
-    const age = currentYear - (info.birthYear || 1980);
+    const age = systemCurrentYear - (info.birthYear || 1980);
     if (age >= 75) {
       personalMinimum += 1400; // Additional for >75
     }
@@ -321,8 +322,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   };
 
   const handleDownloadPartnerDraft = (partner: Partner) => {
-      const fileName = `Borrador_IRPF_${sanitizeFileNameSegment(partner.name)}_${currentYear}.pdf`;
-      const draft = generatePartnerCertificate(partner, settings, netResult, currentYear);
+      const fileName = `Borrador_IRPF_${sanitizeFileNameSegment(partner.name)}_${activeYear}.pdf`;
+      const draft = generatePartnerCertificate(partner, settings, netResult, activeYear);
       downloadPDF(draft, fileName);
   };
 

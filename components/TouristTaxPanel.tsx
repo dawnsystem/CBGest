@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Receipt, Calendar, Users, Euro, Download, Check, X,
   AlertTriangle, ChevronDown, ChevronUp, Palmtree, Baby
 } from 'lucide-react';
 import { Reservation, Apartment, AppSettings } from '../types';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
-import { useIsReadOnly } from '../context/FiscalYearContext';
+import { useIsReadOnly, useFiscalYear } from '../context/FiscalYearContext';
 
 interface TouristTaxPanelProps {
   reservations: Reservation[];
@@ -57,14 +57,34 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
   settings,
   onUpdateReservation
 }) => {
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
+  const today = new Date();
+  const systemCurrentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const { activeFiscalYear } = useFiscalYear();
+  const defaultYear = activeFiscalYear?.year ?? systemCurrentYear;
+  const yearOptions = useMemo(() => {
+    const candidateYears = [
+      defaultYear - 1,
+      defaultYear,
+      defaultYear + 1,
+      systemCurrentYear - 1,
+      systemCurrentYear
+    ];
+    const uniqueYears = [...new Set(candidateYears)];
+    const minYear = Math.min(...uniqueYears);
+    const maxYear = Math.max(...uniqueYears);
+    return Array.from({ length: maxYear - minYear + 1 }, (_, index) => minYear + index);
+  }, [defaultYear, systemCurrentYear]);
   
   // Determine current semester
   const defaultSemester = currentMonth <= 6 ? 1 : 2;
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedYear, setSelectedYear] = useState(defaultYear);
   const [selectedSemester, setSelectedSemester] = useState<1 | 2>(defaultSemester as 1 | 2);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setSelectedYear(defaultYear);
+  }, [defaultYear]);
   
   const taxConfig = settings.touristTaxConfig || DEFAULT_TAX_CONFIG;
   const isReadOnly = useIsReadOnly();
@@ -348,14 +368,14 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
           </div>
         </div>
 
-        {/* Period Selector */}
+          {/* Period Selector */}
         <div className="flex items-center gap-2">
           <select
             value={selectedYear}
-            onChange={e => setSelectedYear(parseInt(e.target.value))}
+            onChange={e => setSelectedYear(parseInt(e.target.value, 10))}
             className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
           >
-            {[currentYear - 1, currentYear, currentYear + 1].map(year => (
+            {yearOptions.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>

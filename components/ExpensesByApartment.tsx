@@ -3,6 +3,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { Home, TrendingDown, Filter } from 'lucide-react';
 import { Invoice, Apartment } from '../types';
 import { ChartWrapper } from './ChartWrapper';
+import { useFiscalYear } from '../context/FiscalYearContext';
 
 interface ExpensesByApartmentProps {
   invoices: Invoice[];
@@ -51,12 +52,15 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, totalExp
 
 export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoices, apartments }) => {
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('year');
+  const { activeFiscalYear } = useFiscalYear();
+
+  // Active fiscal year number; fall back to real current year
+  const activeYear = activeFiscalYear?.year ?? new Date().getFullYear();
 
   // Filter invoices by period
   const filteredInvoices = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
     const currentQuarter = Math.floor(currentMonth / 3);
 
     return invoices.filter(inv => {
@@ -70,17 +74,17 @@ export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoic
 
       switch (periodFilter) {
         case 'month':
-          return invYear === currentYear && invMonth === currentMonth;
+          return invYear === activeYear && invMonth === currentMonth;
         case 'quarter':
-          return invYear === currentYear && invQuarter === currentQuarter;
+          return invYear === activeYear && invQuarter === currentQuarter;
         case 'year':
-          return invYear === currentYear;
+          return invYear === activeYear;
         case 'all':
         default:
           return true;
       }
     });
-  }, [invoices, periodFilter]);
+  }, [invoices, periodFilter, activeYear]);
 
   // Calculate expenses by apartment
   const expensesByApartment = useMemo(() => {
@@ -140,16 +144,18 @@ export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoic
     }));
 
   const getPeriodLabel = () => {
-    const now = new Date();
+    const currentDate = new Date();
     switch (periodFilter) {
-      case 'month':
-        return now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      case 'month': {
+        const monthDate = new Date(activeYear, currentDate.getMonth(), 1);
+        return monthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      }
       case 'quarter': {
-        const quarter = Math.floor(now.getMonth() / 3) + 1;
-        return `${quarter}T ${now.getFullYear()}`;
+        const quarter = Math.floor(currentDate.getMonth() / 3) + 1;
+        return `${quarter}T ${activeYear}`;
       }
       case 'year':
-        return `Año ${now.getFullYear()}`;
+        return `Año ${activeYear}`;
       case 'all':
         return 'Todo el histórico';
     }
