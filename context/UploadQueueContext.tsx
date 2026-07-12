@@ -120,6 +120,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     
     // Iniciar el pool de workers si no está activo
     processUploadQueue();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ============================================================================

@@ -134,7 +134,7 @@ class AppwriteRateLimiter {
       if (this.requestTimestamps.length >= this.config.maxRequestsPerWindow) {
         const oldestTimestamp = this.requestTimestamps[0];
         const waitTime = this.config.windowMs - (now - oldestTimestamp) + 100;
-        console.log(`[RateLimiter] Límite alcanzado. Esperando ${waitTime}ms...`);
+        console.warn(`[RateLimiter] Límite alcanzado. Esperando ${waitTime}ms...`);
         await this.sleep(waitTime);
         continue;
       }
@@ -154,7 +154,7 @@ class AppwriteRateLimiter {
             this.config.baseRetryDelay * Math.pow(2, request.retries),
             this.config.maxRetryDelay
           );
-          console.log(`[RateLimiter] Rate limit hit. Reintento ${request.retries}/${this.config.maxRetries} en ${delay}ms`);
+          console.warn(`[RateLimiter] Rate limit hit. Reintento ${request.retries}/${this.config.maxRetries} en ${delay}ms`);
 
           await this.sleep(delay);
           this.queue.unshift(request); // Reinsertar al principio

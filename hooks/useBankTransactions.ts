@@ -59,7 +59,7 @@ export function useBankTransactions(options: UseBankTransactionsOptions): UseBan
             return saved || t;
           })
         );
-        console.log(`✅ ${savedTransactions.length} transacciones guardadas en Appwrite`);
+        console.warn(`✅ ${savedTransactions.length} transacciones guardadas en Appwrite`);
       } catch (error: unknown) {
         setBankTransactions(prev => prev.filter(t => !txIds.includes(t.id)));
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
@@ -79,7 +79,7 @@ export function useBankTransactions(options: UseBankTransactionsOptions): UseBan
           appwriteId: transaction.appwriteId || transaction.id
         };
         await appwriteService.databaseService.updateTransaction(transactionToUpdate);
-        console.log('✅ Transacción actualizada en Appwrite:', transactionToUpdate.appwriteId);
+        console.warn('✅ Transacción actualizada en Appwrite:', transactionToUpdate.appwriteId);
       } catch (error) {
         console.error('Error updating transaction in Appwrite:', error);
       }
@@ -173,7 +173,7 @@ export function useBankTransactions(options: UseBankTransactionsOptions): UseBan
         });
       }
 
-      console.log('✅ Reconciliation completed (IMPORTED):', sourceId, '<->', matchedEntryId);
+      console.warn('✅ Reconciliation completed (IMPORTED):', sourceId, '<->', matchedEntryId);
     } else {
       const bankEntry = accountingEntries.find(e => e.id === sourceId);
       if (!bankEntry) {
@@ -204,7 +204,7 @@ export function useBankTransactions(options: UseBankTransactionsOptions): UseBan
         });
       }
 
-      console.log('✅ Reconciliation completed (ACCOUNTING):', sourceId, '<->', matchedEntryId);
+      console.warn('✅ Reconciliation completed (ACCOUNTING):', sourceId, '<->', matchedEntryId);
     }
   }, [bankTransactions, user, addNotification, getAccountingEntries, handleUpdateBankTransaction, onUpdateEntry]);
 

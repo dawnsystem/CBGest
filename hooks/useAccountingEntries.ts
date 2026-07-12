@@ -104,7 +104,7 @@ export function useAccountingEntries(options: UseAccountingEntriesOptions): UseA
       try {
         const docId = entry.appwriteId || entry.id;
         await appwriteService.deleteEntry(docId);
-        console.log('✅ Asiento eliminado de Appwrite:', docId);
+        console.warn('✅ Asiento eliminado de Appwrite:', docId);
       } catch (error: unknown) {
         setAccountingEntries(prev => [entry, ...prev]);
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';

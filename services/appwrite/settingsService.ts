@@ -5,11 +5,21 @@
 import { Query, ID } from 'appwrite';
 import { databases, config } from '../../lib/appwrite/client';
 import {
+  AppwriteEntity,
   withRetry,
   notifyError,
   setConnectionHealth,
 } from './infrastructure';
 import type { AppSettings } from '../../types';
+
+type SettingsDocument = AppwriteEntity<AppSettings> & { $id?: string; partners?: string | AppSettings['partners'] };
+
+const parsePartners = (partners: SettingsDocument['partners']): AppSettings['partners'] => {
+  if (typeof partners === 'string') {
+    return JSON.parse(partners || '[]') as AppSettings['partners'];
+  }
+  return partners || [];
+};
 
 export async function saveSettings(settings: AppSettings): Promise<AppSettings> {
   try {
@@ -50,7 +60,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
     setConnectionHealth(true);
     return {
       ...doc,
-      partners: JSON.parse((doc as any).partners || '[]'),
+      partners: parsePartners((doc as SettingsDocument).partners),
       dataConfig
     } as unknown as AppSettings;
   } catch (error: unknown) {
@@ -73,12 +83,10 @@ export async function getSettings(): Promise<AppSettings | null> {
 
     setConnectionHealth(true);
     if (response.documents.length > 0) {
-      const doc = response.documents[0] as any;
+      const doc = response.documents[0] as SettingsDocument;
       return {
         ...doc,
-        partners: typeof doc.partners === 'string'
-          ? JSON.parse(doc.partners || '[]')
-          : (doc.partners || [])
+        partners: parsePartners(doc.partners)
       } as unknown as AppSettings;
     }
     return null;

@@ -465,7 +465,7 @@ export interface AppUser {
   email: string;
   name: string;
   emailVerification: boolean;
-  prefs: Record<string, any>;
+  prefs: Record<string, unknown>;
 }
 
 // --- TOURIST TAX CONFIGURATION (IEET - Cataluña) ---

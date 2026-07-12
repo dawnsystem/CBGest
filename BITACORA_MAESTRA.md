@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 12:02:00 UTC*
+*Última actualización: 2026-07-12 12:16:40 UTC*
 
 ---
 
@@ -8,12 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `TSK-006`
-- **Objetivo Principal:** Integrar `TSK-006` sobre `main` resolviendo los conflictos de merge del PR #118.
-- **Estado Detallado:** Merge contra `origin/main` resuelto localmente; la bitácora quedó consolidada y la validación completa posterior al merge ha pasado sin errores bloqueantes.
-- **Próximo Micro-Paso Planificado:** Finalizar el merge commit, publicar la actualización del PR y quedar a la espera de nuevas directivas.
+Estado actual: **A la espera de nuevas directivas del Director.**
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-12] - `FIX-044` - Limpieza integral de warnings ESLint:** Eliminadas las 433 advertencias de ESLint (tipado `unknown`/tipos concretos, metadatos Appwrite omitidos sin ruido, `console.log/info` migrados a `warn/error`, dependencias de hooks ajustadas y mocks/tests saneados). Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-12] - `TSK-006` - Actualización de automatizaciones Appwrite:** Adaptadas las cloud functions al modelo actual de Appwrite: enums en mayúsculas, `transactions`/`reconciledWithInvoiceId`, lectura real de `settings.partners`, cálculo IRPF sobre `totalAmount`, filtro por ejercicio activo y tests focalizados para las automatizaciones.
 *   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
 *   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`); ajustó creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA); `626/769` reservadas a conceptos financieros; trazabilidad transacción ↔ asiento ↔ factura.
@@ -33,6 +31,7 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-12] - `FIX-044` - Limpieza integral de warnings ESLint:** Eliminadas las 433 advertencias de ESLint (tipado `unknown`/tipos concretos, metadatos Appwrite omitidos sin ruido, `console.log/info` migrados a `warn/error`, dependencias de hooks ajustadas y mocks/tests saneados). Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-12] - `TSK-006` - Actualización de automatizaciones Appwrite:** Adaptadas las cloud functions al modelo actual de Appwrite: enums en mayúsculas, `transactions`/`reconciledWithInvoiceId`, lectura real de `settings.partners`, cálculo IRPF sobre `totalAmount`, filtro por ejercicio activo y tests focalizados para las automatizaciones.
 *   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
 *   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`), se ajustó la creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA), se limitó `626/769` a conceptos financieros y se añadió trazabilidad transacción ↔ asiento ↔ factura. Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
@@ -82,6 +81,20 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-12 12:07:37 UTC]
+*   **Directiva del Director:** "You need to fix ALL 433 ESLint warnings in the CBGest project located at /home/runner/work/CBGest/CBGest."
+*   **Plan de Acción:** Priorizar por volumen de warnings, sanear primero los servicios Appwrite con helpers tipados compartidos, continuar por App shell/componentes/tests, y cerrar con validación completa (`lint`, `type-check`, `test:ci`, `build`).
+*   **Log de Acciones:**
+    - `[12:08:00]` - **INSPECCIÓN:** Analizado `/tmp/lint_full.txt` y recontadas advertencias por fichero para ordenar el trabajo.
+    - `[12:10:00]` - **MOD:** `services/appwrite/*`, `services/geminiService.ts`, `services/pdfService.ts`, `services/appwrite/settingsService.ts`, `services/appwrite/realtimeService.ts`, `services/appwrite/storageService.ts`. **CAMBIOS:** tipado compartido `AppwriteEntity/omitFields`, eliminación de `any`, parseos tipados, saneado de metadatos Appwrite y logs permitidos.
+    - `[12:12:00]` - **MOD:** `App.tsx`, `components/*`, `context/*`, `hooks/*`, `lib/appwrite/*`, `types.ts`, `utils/pdfLoader.ts`. **CAMBIOS:** file pickers tipados, dependencias de hooks ajustadas, imports/variables no usadas eliminados, `console.log/info` migrados a `console.warn/error`.
+    - `[12:14:00]` - **MOD:** `__mocks__/*`, `vitest.setup.ts`, `components/__tests__/XlsxColumnMapper.test.tsx`, `utils/__tests__/*`. **CAMBIOS:** mocks y tests saneados con `unknown`, disables puntuales permitidos en mocks y eventos/fixtures tipados.
+    - `[12:15:00]` - **VALIDACIÓN INTERMEDIA:** `npx eslint` focalizado por lotes. **RESULTADO:** PASS por grupos tras cada ronda de cambios.
+    - `[12:16:00]` - **VALIDACIÓN FINAL:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS, 0 warnings de ESLint, tipado correcto, tests y build en verde.
+*   **Resultado:** `FIX-044` completado; repositorio validado íntegramente y listo para nuevas directivas sin necesidad de commit adicional.
+*   **Commit Asociado:** `No realizado (según directiva)`
+*   **Observaciones/Decisiones de Diseño:** Se preservó la lógica existente; los cambios se limitaron a tipado, dependencias de hooks, renombrado/omisión de variables y sustitución de métodos de logging permitidos.
+
 ### Sesión: [2026-07-12 11:57:20 UTC]
 *   **Directiva del Director:** "@copilot resolve the merge conflicts in this pull request"
 *   **Plan de Acción:** Preparar el clon (`npm ci` + fetch completo de `main`), reproducir localmente el merge del PR #118, resolver el conflicto mínimo necesario y revalidar el repositorio tras integrar `main`.

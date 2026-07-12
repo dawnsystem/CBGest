@@ -5,20 +5,31 @@
 import { Query, ID } from 'appwrite';
 import { databases, config } from '../../lib/appwrite/client';
 import {
+  AppwriteEntity,
+  omitFields,
   withRetry,
   notifyError,
   setConnectionHealth,
 } from './infrastructure';
 import type { BankTransaction } from '../../types';
 
+type BankTransactionDocument = AppwriteEntity<BankTransaction> & { $id: string };
+
 export async function createTransaction(transaction: BankTransaction): Promise<BankTransaction> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...transactionData
-    } = transaction as any;
+    const { id } = transaction;
+    const transactionData = omitFields(transaction as AppwriteEntity<BankTransaction>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
 
     const doc = await withRetry(
       () => databases.createDocument(
@@ -54,11 +65,14 @@ export async function getTransactions(fiscalYearId?: string): Promise<BankTransa
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => ({
-      ...doc,
-      id: doc.$id,
-      appwriteId: doc.$id
-    })) as unknown as BankTransaction[];
+    return response.documents.map((doc) => {
+      const transactionDoc = doc as BankTransactionDocument;
+      return {
+        ...transactionDoc,
+        id: transactionDoc.$id,
+        appwriteId: transactionDoc.$id
+      };
+    }) as BankTransaction[];
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'getTransactions');
     setConnectionHealth(false);
@@ -68,12 +82,19 @@ export async function getTransactions(fiscalYearId?: string): Promise<BankTransa
 
 export async function updateTransaction(transaction: BankTransaction): Promise<BankTransaction> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...transactionData
-    } = transaction as any;
+    const { id, appwriteId } = transaction;
+    const transactionData = omitFields(transaction as AppwriteEntity<BankTransaction>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
     const docId = appwriteId || id;
 
     const doc = await withRetry(

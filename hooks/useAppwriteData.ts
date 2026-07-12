@@ -145,7 +145,7 @@ export function useAppwriteData(options: UseAppwriteDataOptions): UseAppwriteDat
     } finally {
       setIsLoading(false);
     }
-  }, [user, sessionReady, settings, onError, onConnectionChange]);
+  }, [defaultSettings, onConnectionChange, onError, sessionReady, settings, user]);
 
   // Initial data load
   useEffect(() => {

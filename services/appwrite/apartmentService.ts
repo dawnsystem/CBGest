@@ -5,6 +5,8 @@
 import { Query, ID } from 'appwrite';
 import { databases, config } from '../../lib/appwrite/client';
 import {
+  AppwriteEntity,
+  omitFields,
   withRetry,
   notifyError,
   setConnectionHealth,
@@ -12,14 +14,23 @@ import {
 } from './infrastructure';
 import type { Apartment } from '../../types';
 
+type ApartmentDocument = AppwriteEntity<Apartment> & { $id: string };
+
 export async function createApartment(apartment: Apartment): Promise<Apartment> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...apartmentData
-    } = apartment as any;
+    const { id } = apartment;
+    const apartmentData = omitFields(apartment as AppwriteEntity<Apartment>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
 
     const doc = await withRetry(
       () => databases.createDocument(
@@ -55,11 +66,14 @@ export async function getApartments(fiscalYearId?: string): Promise<Apartment[]>
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => ({
-      ...doc,
-      id: doc.$id,
-      appwriteId: doc.$id
-    })) as unknown as Apartment[];
+    return response.documents.map((doc) => {
+      const apartmentDoc = doc as ApartmentDocument;
+      return {
+        ...apartmentDoc,
+        id: apartmentDoc.$id,
+        appwriteId: apartmentDoc.$id
+      };
+    }) as Apartment[];
   } catch (error: unknown) {
     if (getErrorCode(error) === 404) return [];
     notifyError((error instanceof Error ? error.message : String(error)), 'getApartments');
@@ -70,12 +84,19 @@ export async function getApartments(fiscalYearId?: string): Promise<Apartment[]>
 
 export async function updateApartment(apartment: Apartment): Promise<Apartment> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...apartmentData
-    } = apartment as any;
+    const { id, appwriteId } = apartment;
+    const apartmentData = omitFields(apartment as AppwriteEntity<Apartment>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
     const docId = appwriteId || id;
 
     const doc = await withRetry(

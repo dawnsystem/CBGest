@@ -134,7 +134,7 @@ export class Storage {
 
 // Mock Functions class
 export class Functions {
-  createExecution = vi.fn().mockImplementation((functionId, body, async_execution) => {
+  createExecution = vi.fn().mockImplementation((functionId, _body, _asyncExecution) => {
     return Promise.resolve({
       $id: 'execution123',
       functionId,
@@ -181,9 +181,13 @@ export class Client {
 
 // Mock Query class
 export class Query {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static equal = vi.fn((attribute: string, value: any) => `equal("${attribute}", ${JSON.stringify(value)})`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static notEqual = vi.fn((attribute: string, value: any) => `notEqual("${attribute}", ${JSON.stringify(value)})`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static lessThan = vi.fn((attribute: string, value: any) => `lessThan("${attribute}", ${value})`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static greaterThan = vi.fn((attribute: string, value: any) => `greaterThan("${attribute}", ${value})`);
   static search = vi.fn((attribute: string, value: string) => `search("${attribute}", "${value}")`);
   static orderDesc = vi.fn((attribute: string) => `orderDesc("${attribute}")`);
@@ -219,8 +223,10 @@ export class Role {
 export class AppwriteException extends Error {
   code: number;
   type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   response: any;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(message: string, code: number = 500, type: string = '', response: any = {}) {
     super(message);
     this.name = 'AppwriteException';

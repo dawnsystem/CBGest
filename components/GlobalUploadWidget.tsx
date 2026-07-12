@@ -15,8 +15,6 @@ export const GlobalUploadWidget: React.FC = () => {
 
   const activeItems = visibleItems.filter(i => i.status === 'ANALYZING' || i.status === 'QUEUED');
   const completedCount = visibleItems.filter(i => i.status === 'COMPLETED').length;
-  const errorCount = visibleItems.filter(i => i.status === 'ERROR').length;
-
   // Hide widget on /invoices route
   const isOnInvoicesPage = location.pathname === '/invoices';
 

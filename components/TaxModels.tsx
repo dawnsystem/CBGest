@@ -30,7 +30,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
   const [generating184, setGenerating184] = useState(false);
   const [generatingCerts, setGeneratingCerts] = useState(false);
   const [activeTab, setActiveTab] = useState<'MODELS' | 'IEET'>('MODELS');
-  const { showToast, showConfirm } = useToast();
+  const { showToast } = useToast();
   const { activeFiscalYear } = useFiscalYear();
 
   const selectedFiscalYearId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;

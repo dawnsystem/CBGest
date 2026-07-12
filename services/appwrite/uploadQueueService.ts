@@ -6,25 +6,25 @@ import { Query, ID } from 'appwrite';
 import { databases, storage, config } from '../../lib/appwrite/client';
 import { dataLogger } from '../logger';
 import {
+  AppwriteEntity,
+  omitFields,
   withRetry,
   notifyError,
   setConnectionHealth,
   getErrorCode,
+  getErrorMessage,
 } from './infrastructure';
-import type { QueueItem } from '../../types';
+import type { BankTransaction, QueueItem } from '../../types';
+
+type UploadQueueDocument = AppwriteEntity<QueueItem> & { $id: string };
 
 export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
   try {
-    const {
-      localFile,
-      result,
-      bankResult,
-      id,
-      appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...itemData
-    } = item as any;
+    const { result, bankResult, id } = item;
+    const itemData = omitFields(
+      item as AppwriteEntity<QueueItem> & { localFile?: File },
+      ['id', 'appwriteId', 'createdAt', 'updatedAt', 'localFile', '$id', '$createdAt', '$updatedAt', '$databaseId', '$collectionId', '$permissions']
+    );
 
     const dataToSave = {
       ...itemData,
@@ -73,23 +73,30 @@ export async function getUploadQueue(): Promise<QueueItem[]> {
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => ({
-      id: doc.$id,
-      appwriteId: doc.$id,
-      storageFileId: doc.storageFileId,
-      fileName: doc.fileName,
-      mimeType: doc.mimeType,
-      fileSize: doc.fileSize || 0,
-      uploadType: doc.uploadType,
-      status: doc.status,
-      progress: doc.progress || 0,
-      error: doc.error,
-      timestamp: doc.timestamp,
-      notificationDismissed: doc.notificationDismissed,
-      needsMapping: doc.needsMapping,
-      result: doc.result && typeof doc.result === 'string' ? JSON.parse(doc.result) : doc.result,
-      bankResult: doc.bankResult && typeof doc.bankResult === 'string' ? JSON.parse(doc.bankResult) : doc.bankResult,
-    })) as QueueItem[];
+    return response.documents.map((doc) => {
+      const uploadDoc = doc as UploadQueueDocument;
+      return {
+        id: uploadDoc.$id,
+        appwriteId: uploadDoc.$id,
+        storageFileId: uploadDoc.storageFileId,
+        fileName: uploadDoc.fileName,
+        mimeType: uploadDoc.mimeType,
+        fileSize: uploadDoc.fileSize || 0,
+        uploadType: uploadDoc.uploadType,
+        status: uploadDoc.status,
+        progress: uploadDoc.progress || 0,
+        error: uploadDoc.error,
+        timestamp: uploadDoc.timestamp,
+        notificationDismissed: uploadDoc.notificationDismissed,
+        needsMapping: uploadDoc.needsMapping,
+        result: uploadDoc.result && typeof uploadDoc.result === 'string'
+          ? JSON.parse(uploadDoc.result) as QueueItem['result']
+          : uploadDoc.result,
+        bankResult: uploadDoc.bankResult && typeof uploadDoc.bankResult === 'string'
+          ? JSON.parse(uploadDoc.bankResult) as BankTransaction[]
+          : uploadDoc.bankResult,
+      };
+    }) as QueueItem[];
   } catch (error: unknown) {
     if (getErrorCode(error) === 404 || getErrorCode(error) === 401) return [];
     notifyError((error instanceof Error ? error.message : String(error)), 'getUploadQueue');
@@ -100,16 +107,11 @@ export async function getUploadQueue(): Promise<QueueItem[]> {
 
 export async function updateUploadItem(item: QueueItem): Promise<QueueItem> {
   try {
-    const {
-      localFile,
-      result,
-      bankResult,
-      id,
-      appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...itemData
-    } = item as any;
+    const { result, bankResult, id, appwriteId } = item;
+    const itemData = omitFields(
+      item as AppwriteEntity<QueueItem> & { localFile?: File },
+      ['id', 'appwriteId', 'createdAt', 'updatedAt', 'localFile', '$id', '$createdAt', '$updatedAt', '$databaseId', '$collectionId', '$permissions']
+    );
     const docId = appwriteId || id;
 
     const dataToSave = {
@@ -150,9 +152,9 @@ export async function deleteUploadItem(id: string, storageFileId?: string): Prom
       try {
         await storage.deleteFile(config.bucketId, storageFileId);
         dataLogger.debug(`[deleteUploadItem] Archivo ${storageFileId} eliminado de Storage`);
-      } catch (storageError: any) {
-        if (storageError?.code !== 404) {
-          console.warn(`[deleteUploadItem] Error eliminando archivo de Storage:`, storageError.message);
+      } catch (storageError: unknown) {
+        if (getErrorCode(storageError) !== 404) {
+          console.warn(`[deleteUploadItem] Error eliminando archivo de Storage:`, getErrorMessage(storageError));
         }
       }
     }
@@ -185,20 +187,21 @@ export async function deleteCompletedUploads(): Promise<void> {
     );
 
     await Promise.all(
-      response.documents.map(async (doc: any) => {
+      response.documents.map(async (doc) => {
+        const uploadDoc = doc as UploadQueueDocument;
         try {
-          if (doc.storageFileId) {
+          if (uploadDoc.storageFileId) {
             try {
-              await storage.deleteFile(config.bucketId, doc.storageFileId);
-            } catch (storageError: any) {
-              if (storageError?.code !== 404) {
-                console.warn(`[deleteCompletedUploads] Error eliminando archivo:`, storageError.message);
+              await storage.deleteFile(config.bucketId, uploadDoc.storageFileId);
+            } catch (storageError: unknown) {
+              if (getErrorCode(storageError) !== 404) {
+                console.warn(`[deleteCompletedUploads] Error eliminando archivo:`, getErrorMessage(storageError));
               }
             }
           }
 
           await withRetry(
-            () => databases.deleteDocument(config.databaseId, config.collections.uploads, doc.$id),
+            () => databases.deleteDocument(config.databaseId, config.collections.uploads, uploadDoc.$id),
             'deleteCompletedUploadBatch'
           );
         } catch (error: unknown) {

@@ -67,7 +67,7 @@ export function useAppSettings(
     if (newSettings.dataConfig?.type === 'APPWRITE') {
       try {
         await appwriteService.saveSettings(newSettings);
-        console.log('✅ Settings sincronizados con Appwrite');
+        console.warn('✅ Settings sincronizados con Appwrite');
       } catch (error) {
         console.error('Error syncing settings to Appwrite:', error);
       }

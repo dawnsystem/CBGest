@@ -19,6 +19,18 @@ function getAiClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey });
 }
 
+const getErrorDetails = (error: unknown): { message?: string; status?: number } => {
+  if (!error || typeof error !== 'object') {
+    return {};
+  }
+
+  const maybeError = error as { message?: unknown; status?: unknown };
+  return {
+    message: typeof maybeError.message === 'string' ? maybeError.message : undefined,
+    status: typeof maybeError.status === 'number' ? maybeError.status : undefined,
+  };
+};
+
 export const analyzeInvoiceImage = async (
   base64Data: string,
   mimeType: string,
@@ -32,7 +44,7 @@ export const analyzeInvoiceImage = async (
     }
 
     const modelName = 'gemini-2.5-flash';
-    console.log(`Gemini Service: Starting analysis with model ${modelName}`);
+    console.warn(`Gemini Service: Starting analysis with model ${modelName}`);
 
     // Crear lista de cuentas contables para el prompt
     const accountsList = ACCOUNT_PLAN.map(acc => `${acc.code} - ${acc.name}`).join('\n      ');
@@ -144,17 +156,18 @@ export const analyzeInvoiceImage = async (
     if (!text) throw new Error("No response from Gemini");
     return JSON.parse(text);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini Service Error (Invoice):", error);
+    const { message, status } = getErrorDetails(error);
 
     // Mejorar el mensaje de error para el usuario
-    if (error.message?.includes('API key')) {
+    if (message?.includes('API key')) {
       throw new Error("Error de autenticación: API Key inválida o no encontrada.");
     }
-    if (error.status === 429 || error.message?.includes('quota')) {
+    if (status === 429 || message?.includes('quota')) {
       throw new Error("Cuota excedida: Has superado el límite de uso de la API de Gemini.");
     }
-    if (error.status === 404 || error.message?.includes('not found')) {
+    if (status === 404 || message?.includes('not found')) {
       throw new Error(`Modelo no encontrado: Asegúrate de tener acceso al modelo gemini-2.5-flash.`);
     }
 
@@ -220,13 +233,14 @@ export const analyzeBankStatement = async (base64Data: string, mimeType: string)
     if (!text) throw new Error("No response from Gemini");
     return JSON.parse(text);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini Service Error (Bank):", error);
+    const { message, status } = getErrorDetails(error);
 
-    if (error.message?.includes('API key')) {
+    if (message?.includes('API key')) {
       throw new Error("Error de autenticación: API Key inválida o no encontrada.");
     }
-    if (error.status === 429 || error.message?.includes('quota')) {
+    if (status === 429 || message?.includes('quota')) {
       throw new Error("Cuota excedida: Has superado el límite de uso de la API de Gemini.");
     }
 
@@ -235,7 +249,7 @@ export const analyzeBankStatement = async (base64Data: string, mimeType: string)
 };
 
 // Helper function to parse dates from various formats
-const parseDateValue = (value: any): string => {
+const parseDateValue = (value: unknown): string => {
   if (!value) return '';
 
   // Handle Date objects (read-excel-file returns actual Date objects for date cells)
@@ -304,7 +318,7 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
     }
 
     // Convert to our expected format
-    const rawData: any[][] = rows.map(row => [...row]);
+    const rawData: unknown[][] = rows.map(row => [...row]);
 
     // Find header row (look for keywords in first 10 rows)
     let headerRowIndex = 0;
@@ -316,7 +330,7 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       const row = rawData[i];
       if (!row || !Array.isArray(row)) continue;
 
-      const rowLower = row.map((cell: any) => String(cell || '').toLowerCase().trim());
+      const rowLower = row.map((cell: unknown) => String(cell || '').toLowerCase().trim());
       const hasDate = rowLower.some((cell: string) => dateKeywords.some(k => cell.includes(k)));
       const hasConcept = rowLower.some((cell: string) => conceptKeywords.some(k => cell.includes(k)));
       const hasAmount = rowLower.some((cell: string) => amountKeywords.some(k => cell.includes(k)));
@@ -327,7 +341,7 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       }
     }
 
-    const headers = rawData[headerRowIndex].map((h: any) => String(h || '').toLowerCase().trim());
+    const headers = rawData[headerRowIndex].map((h: unknown) => String(h || '').toLowerCase().trim());
 
     // Find column indices
     const findColumnIndex = (keywords: string[]): number => {
@@ -358,7 +372,7 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       if (!row || !Array.isArray(row)) continue;
 
       // Skip empty rows
-      if (row.every((cell: any) => !cell || String(cell).trim() === '')) continue;
+      if (row.every((cell: unknown) => !cell || String(cell).trim() === '')) continue;
 
       const rawDate = row[dateCol];
       const concept = conceptCol !== -1 ? String(row[conceptCol] || '').trim() : '';

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { encryptData, decryptData } from '../crypto';
 
 describe('crypto utilities', () => {
@@ -184,11 +184,11 @@ describe('crypto utilities', () => {
 
     it('should reject null/undefined encrypted data', async () => {
       await expect(
-        decryptData(null as any, testPassword)
+        decryptData(null as unknown as string, testPassword)
       ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
 
       await expect(
-        decryptData(undefined as any, testPassword)
+        decryptData(undefined as unknown as string, testPassword)
       ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
     });
 
@@ -196,11 +196,11 @@ describe('crypto utilities', () => {
       const encrypted = await encryptData(testData, testPassword);
 
       await expect(
-        decryptData(encrypted, '' as any)
+        decryptData(encrypted, '' as unknown as string)
       ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
 
       await expect(
-        decryptData(encrypted, null as any)
+        decryptData(encrypted, null as unknown as string)
       ).rejects.toThrow('Contraseña incorrecta o archivo dañado');
     });
 
@@ -244,7 +244,6 @@ describe('crypto utilities', () => {
     it('should reject packet with wrong salt/iv length', async () => {
       // Create a packet with valid base64 but wrong lengths
       const shortSalt = btoa('short'); // Too short
-      const shortIv = btoa('short'); // Too short
       const encrypted = await encryptData(testData, testPassword);
       const validPacket = JSON.parse(encrypted);
 
@@ -284,8 +283,6 @@ describe('crypto utilities', () => {
       // "3rd argument is not instance of ArrayBuffer, Buffer, TypedArray, or DataView"
 
       const encrypted = await encryptData(testData, testPassword);
-      const packet = JSON.parse(encrypted);
-
       // The internal base642ab should now return Uint8Array, not ArrayBuffer
       // This ensures SubtleCrypto.decrypt receives the correct type
 

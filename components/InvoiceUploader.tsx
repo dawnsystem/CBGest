@@ -17,8 +17,8 @@ interface InvoiceUploaderProps {
   apartments: Apartment[];
 }
 
-export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, onBankTransactionsAdded, settings, apartments }) => {
-  const { queue, addToQueue, removeFromQueue, retryItem } = useUploadQueue();
+export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, onBankTransactionsAdded, settings: _settings, apartments }) => {
+  const { queue, addToQueue, removeFromQueue } = useUploadQueue();
   const [isDragging, setIsDragging] = useState(false);
   const [uploadType, setUploadType] = useState<UploadType>('INVOICE');
   const fileInputRef = useRef<HTMLInputElement>(null);

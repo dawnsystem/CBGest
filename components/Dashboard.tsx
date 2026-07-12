@@ -56,7 +56,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartments, recurringExpenses, reservations = [], onUpdateSettings }) => {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { showToast, showConfirm } = useToast();
+  const { showToast } = useToast();
   const { activeFiscalYear, isReadOnly } = useFiscalYear();
   const systemCurrentYear = new Date().getFullYear();
   const activeYear = activeFiscalYear?.year ?? systemCurrentYear;
