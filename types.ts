@@ -18,6 +18,17 @@ export interface FiscalYear {
   appwriteId?: string;    // Document ID en Appwrite
 }
 
+/** Conteo de documentos asociados a un ejercicio, usados como requisito previo al borrado */
+export interface FiscalYearDependencies {
+  invoices: number;
+  entries: number;
+  transactions: number;
+  reservations: number;
+  suppliers: number;
+  apartments: number;
+  total: number;
+}
+
 // --- COMMON TYPES (used across multiple interfaces) ---
 // NifType includes all Spanish tax ID types plus VAT for EU intra-community operations
 export type NifType = 'NIF' | 'CIF' | 'NIE' | 'DNI' | 'PASAPORTE' | 'VAT' | 'PASSPORT' | 'OTHER';

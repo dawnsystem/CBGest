@@ -95,6 +95,9 @@ export const databaseService = {
   updateFiscalYear: fiscalYearSvc.updateFiscalYear,
   migrateLegacyData: fiscalYearSvc.migrateLegacyData,
   copyMasterDataToFiscalYear: fiscalYearSvc.copyMasterDataToFiscalYear,
+  getFiscalYearDependencies: fiscalYearSvc.getFiscalYearDependencies,
+  deleteFiscalYear: fiscalYearSvc.deleteFiscalYear,
+  deleteFiscalYearCascade: fiscalYearSvc.deleteFiscalYearCascade,
 };
 
 export const createInvoice = async (invoice: Invoice): Promise<Invoice> => {
@@ -189,6 +192,12 @@ export const deleteReservation = (id: string) => databaseService.deleteReservati
 export const fetchFiscalYears = () => databaseService.getFiscalYears();
 export const createFiscalYearDoc = (fiscalYear: FiscalYear) => databaseService.createFiscalYear(fiscalYear);
 export const updateFiscalYearDoc = (fiscalYear: FiscalYear) => databaseService.updateFiscalYear(fiscalYear);
+export const deleteFiscalYearDoc = (id: string) => databaseService.deleteFiscalYear(id);
+export const getFiscalYearDependencies = (id: string) => databaseService.getFiscalYearDependencies(id);
+export const deleteFiscalYearCascade = (
+  fiscalYearId: string,
+  onProgress?: (phase: string, done: number) => void
+) => databaseService.deleteFiscalYearCascade(fiscalYearId, onProgress);
 export const migrateLegacyData = (fiscalYearId: string, onProgress?: (done: number, total: number) => void) =>
   databaseService.migrateLegacyData(fiscalYearId, onProgress);
 export const copyMasterDataToFiscalYear = (

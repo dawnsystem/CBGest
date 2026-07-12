@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 12:16:40 UTC*
+*Última actualización: 2026-07-12 20:58:00 UTC*
 
 ---
 
@@ -11,6 +11,8 @@
 Estado actual: **A la espera de nuevas directivas del Director.**
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-12] - `TSK-047` - Eliminación de ejercicios con borrado en cascada opcional:** Botón "Eliminar" por tarjeta de ejercicio en `FiscalYearManager`. Modal en 2 fases: (1) consulta de dependencias en tiempo real (facturas, asientos, transacciones, reservas, proveedores, apartamentos) + oferta de borrado en cascada si hay datos; (2) confirmación por nombre exacto del ejercicio como seguridad extra. Servicios `getFiscalYearDependencies`, `deleteFiscalYear`, `deleteFiscalYearCascade` añadidos a `fiscalYearService.ts` y expuestos via `compatService.ts`. `FiscalYearContext` extendido con ambas operaciones. 12 tests unitarios. Validado con `npm run type-check && npm run test:ci && npm run build`.
+
 *   **[2026-07-12] - `FIX-044` - Limpieza integral de warnings ESLint:** Eliminadas las 433 advertencias de ESLint (tipado `unknown`/tipos concretos, metadatos Appwrite omitidos sin ruido, `console.log/info` migrados a `warn/error`, dependencias de hooks ajustadas y mocks/tests saneados). Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-12] - `TSK-006` - Actualización de automatizaciones Appwrite:** Adaptadas las cloud functions al modelo actual de Appwrite: enums en mayúsculas, `transactions`/`reconciledWithInvoiceId`, lectura real de `settings.partners`, cálculo IRPF sobre `totalAmount`, filtro por ejercicio activo y tests focalizados para las automatizaciones.
 *   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
@@ -31,6 +33,7 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-12] - `TSK-047` - Eliminación de ejercicios con borrado en cascada opcional:** Ver sección WIP arriba.
 *   **[2026-07-12] - `FIX-044` - Limpieza integral de warnings ESLint:** Eliminadas las 433 advertencias de ESLint (tipado `unknown`/tipos concretos, metadatos Appwrite omitidos sin ruido, `console.log/info` migrados a `warn/error`, dependencias de hooks ajustadas y mocks/tests saneados). Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-12] - `TSK-006` - Actualización de automatizaciones Appwrite:** Adaptadas las cloud functions al modelo actual de Appwrite: enums en mayúsculas, `transactions`/`reconciledWithInvoiceId`, lectura real de `settings.partners`, cálculo IRPF sobre `totalAmount`, filtro por ejercicio activo y tests focalizados para las automatizaciones.
 *   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
@@ -81,6 +84,26 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-12 19:59:47 UTC]
+*   **Directiva del Director:** "en la gestión de ejercicios, no hay forma de eliminar un ejercicio existente… debe poder hacerlo desde el apartado de gestión de ejercicios… para eliminar un ejercicio se debe primero eliminar toda la información… y debe aparecer un modal que solicite introducir el nombre del ejercicio antes de suprimirlo."
+*   **Requisito adicional (mid-session):** "quiero que el dialogo solicite la aprobación para eliminación en cascada del ejercicio si ya hay datos o ofrezca eliminar al gusto del usuario."
+*   **Plan de Acción:** 6 puntos: (1) regla funcional sin borrado en cascada automático, (2) servicios de dependencias y borrado, (3) extensión de contexto, (4) UX en 2 pasos, (5) reglas de seguridad extra, (6) tests. Revisado para ofrecer borrado en cascada como opción en lugar de bloquear.
+*   **Log de Acciones:**
+    - `[20:00:00]` - **MOD:** `__mocks__/appwrite.ts`. **DETALLE:** Añadidos `Query.cursorAfter` y `Query.isNull` como vi.fn() estáticos.
+    - `[20:05:00]` - **MOD:** `types.ts`. **DETALLE:** Añadida interfaz `FiscalYearDependencies`.
+    - `[20:10:00]` - **MOD:** `services/appwrite/fiscalYearService.ts`. **DETALLE:** Añadidas `getFiscalYearDependencies`, `deleteFiscalYear`, `deleteFiscalYearCascade` (con limpieza de Storage files y paginación por cursor).
+    - `[20:15:00]` - **MOD:** `services/appwrite/compatService.ts`. **DETALLE:** Expuestas las 3 nuevas funciones.
+    - `[20:20:00]` - **MOD:** `context/FiscalYearContext.tsx`. **DETALLE:** Añadidas `getFiscalYearDependencies` y `deleteFiscalYear(id, cascade)` al contexto; selección del ejercicio abierto más reciente tras borrado.
+    - `[20:30:00]` - **MOD:** `components/FiscalYearManager.tsx`. **DETALLE:** Reescritura completa con botón eliminar por tarjeta, modal 2 fases (dep-check → cascade/confirm → name-input).
+    - `[20:40:00]` - **CREACIÓN:** `services/__tests__/deleteFiscalYear.test.ts`. **DETALLE:** 12 tests unitarios para las 3 nuevas funciones.
+    - `[20:45:00]` - **VALIDACIÓN:** `npx vitest run`. **RESULTADO:** 18 ficheros, 226 tests, PASS.
+    - `[20:50:00]` - **REFACTOR:** Storage error → `console.warn`; nextYear → por `endDate` desc. **RESULTADO:** PASS.
+    - `[20:55:00]` - **BUILD:** `npm run build`. **RESULTADO:** ✓ sin errores.
+    - `[20:58:00]` - **COMMIT:** `ff40e3b` + `f4f65df` pusheados al PR.
+*   **Resultado:** `TSK-047` completado.
+*   **Commit Asociado:** `f4f65df`
+*   **Observaciones/Decisiones de Diseño:** `withRetry` introduce delays reales en tests de error-propagation; se mockea `setTimeout` globalmente en esos tests (patrón de `copyMasterDataToFiscalYear.test.ts`). Cascade delete borra colecciones con cursor-pagination en lotes de 100; errores de Storage se registran como warnings sin detener el borrado del documento.
+
 ### Sesión: [2026-07-12 12:07:37 UTC]
 *   **Directiva del Director:** "You need to fix ALL 433 ESLint warnings in the CBGest project located at /home/runner/work/CBGest/CBGest."
 *   **Plan de Acción:** Priorizar por volumen de warnings, sanear primero los servicios Appwrite con helpers tipados compartidos, continuar por App shell/componentes/tests, y cerrar con validación completa (`lint`, `type-check`, `test:ci`, `build`).
