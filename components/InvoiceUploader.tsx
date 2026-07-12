@@ -9,6 +9,7 @@ import { ApartmentSelector } from './ApartmentSelector';
 import { XlsxColumnMapper } from './XlsxColumnMapper';
 import { useToast } from './Toast';
 import { useInvoiceReview } from '../hooks/useInvoiceReview';
+import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface InvoiceUploaderProps {
   onInvoiceAdded: (invoice: Invoice) => void;
@@ -19,6 +20,7 @@ interface InvoiceUploaderProps {
 
 export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, onBankTransactionsAdded, settings: _settings, apartments }) => {
   const { queue, addToQueue, removeFromQueue } = useUploadQueue();
+  const isReadOnly = useIsReadOnly();
   const [isDragging, setIsDragging] = useState(false);
   const [uploadType, setUploadType] = useState<UploadType>('INVOICE');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,12 +55,21 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+    if (isReadOnly) {
+      showToast('Ejercicio cerrado: no se pueden adjuntar documentos.', 'warning');
+      return;
+    }
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       addToQueue(Array.from(e.dataTransfer.files), uploadType);
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isReadOnly) {
+      showToast('Ejercicio cerrado: no se pueden adjuntar documentos.', 'warning');
+      e.target.value = '';
+      return;
+    }
     if (e.target.files && e.target.files.length > 0) {
       addToQueue(Array.from(e.target.files), uploadType);
       // Reset input to allow selecting the same file again
@@ -67,6 +78,10 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   };
 
   const startReview = async (item: QueueItem) => {
+    if (isReadOnly) {
+      showToast('Ejercicio cerrado: no se pueden importar documentos.', 'warning');
+      return;
+    }
     if (item.uploadType === 'INVOICE' && item.result) {
       startInvoiceReview(item);
     } else if (item.uploadType === 'BANK_STATEMENT') {
@@ -270,16 +285,17 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
              </button>
              <button
                 onClick={() => confirmInvoice(false)}
-                className="order-2 bg-white border border-amber-500 text-amber-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-50 flex items-center justify-center gap-2 transition-colors"
-                title="Guardar como borrador sin crear asiento contable (requiere revisión posterior)"
+               disabled={isReadOnly}
+               className="order-2 bg-white border border-amber-500 text-amber-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-50 flex items-center justify-center gap-2 transition-colors"
+               title="Guardar como borrador sin crear asiento contable (requiere revisión posterior)"
              >
                 <CheckCircle className="w-4 h-4" /> <span className="hidden xs:inline">Guardar</span> Borrador
              </button>
              <button
                 onClick={() => confirmInvoice(true)}
-                disabled={nifError && !forceAcceptNif}
+                disabled={isReadOnly || (nifError && !forceAcceptNif)}
                 className={`order-1 sm:order-3 px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 shadow-md transition-all ${
-                    nifError && !forceAcceptNif
+                   isReadOnly || (nifError && !forceAcceptNif)
                     ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                     : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'
                 }`}
@@ -300,12 +316,14 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
           <div className="bg-white border border-slate-200 rounded-lg p-1 flex gap-1 shadow-sm">
               <button 
                 onClick={() => setUploadType('INVOICE')}
+                disabled={isReadOnly}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${uploadType === 'INVOICE' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
               >
                   <FileText className="w-4 h-4 inline mr-2" /> Facturas / Tickets
               </button>
               <button
                 onClick={() => setUploadType('BANK_STATEMENT')}
+                disabled={isReadOnly}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${uploadType === 'BANK_STATEMENT' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
               >
                   <Landmark className="w-4 h-4 inline mr-2" /> Extracto Bancario
@@ -341,6 +359,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
             ref={fileInputRef}
             className="sr-only"
             multiple
+            disabled={isReadOnly}
             accept={uploadType === 'INVOICE'
               ? "image/jpeg,image/png,image/gif,image/webp,application/pdf"
               : "application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"}
@@ -349,7 +368,11 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
           />
           <label
             htmlFor="invoice-uploader-file-input"
-            className="bg-slate-900 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors cursor-pointer inline-flex items-center gap-2 active:scale-95 touch-manipulation select-none"
+            className={`px-6 py-3 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2 touch-manipulation select-none ${
+              isReadOnly
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed pointer-events-none'
+                : 'bg-slate-900 text-white hover:bg-slate-800 cursor-pointer active:scale-95'
+            }`}
           >
             <Upload className="w-5 h-5" />
             Seleccionar Archivos
@@ -402,6 +425,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                         {item.status === 'COMPLETED' && (
                             <button
                               onClick={() => startReview(item)}
+                              disabled={isReadOnly}
                               className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
                                 item.needsMapping
                                   ? 'bg-emerald-600 text-white hover:bg-emerald-700'
