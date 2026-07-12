@@ -36,7 +36,8 @@ const resolveMainAccount = (inv: Invoice): { accountCode: string; accountName: s
       accountName: parts.slice(1).join(' - ').trim(),
     };
   }
-  return { accountCode: parts[0].trim(), accountName: defaults.accountName };
+  const codeOnly = parts[0].trim();
+  return { accountCode: codeOnly, accountName: codeOnly };
 };
 
 /**

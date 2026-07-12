@@ -144,6 +144,24 @@ describe('buildEntryFromInvoice — INCOME PAID', () => {
 });
 
 // ---------------------------------------------------------------------------
+// INCOME — PROCESSED
+// ---------------------------------------------------------------------------
+describe('buildEntryFromInvoice — INCOME PROCESSED', () => {
+  const inv = makeInvoice({ type: 'INCOME', status: 'PROCESSED', totalAmount: 450 });
+  const entry = buildEntryFromInvoice(inv);
+
+  it('line 0 is DEBIT on account 430 (Clientes)', () => {
+    expect(entry.lines[0].accountCode).toBe('430');
+    expect(entry.lines[0].debit).toBe(450);
+  });
+
+  it('line 1 is CREDIT on 7xx income account', () => {
+    expect(entry.lines[1].accountCode).toMatch(/^7/);
+    expect(entry.lines[1].credit).toBe(450);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Category resolution
 // ---------------------------------------------------------------------------
 describe('buildEntryFromInvoice — category resolution', () => {
