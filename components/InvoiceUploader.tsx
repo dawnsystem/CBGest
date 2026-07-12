@@ -50,6 +50,10 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isReadOnly) {
+      setIsDragging(false);
+      return;
+    }
     if (e.type === "dragenter" || e.type === "dragover") setIsDragging(true);
     else if (e.type === "dragleave") setIsDragging(false);
   };
@@ -103,6 +107,10 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
   // Handle XLSX mapping confirmation
   const handleMappingConfirm = async (transactions: { date: string; concept: string; amount: number }[]) => {
+    if (isReadOnly) {
+      showToast('Ejercicio cerrado: no se pueden importar documentos.', 'warning');
+      return;
+    }
     if (!mappingItem) return;
 
     // Add IDs and status to transactions

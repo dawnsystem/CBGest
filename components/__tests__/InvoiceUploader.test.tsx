@@ -72,10 +72,17 @@ describe('InvoiceUploader', () => {
     );
 
     const input = screen.getByLabelText('Seleccionar Archivos') as HTMLInputElement;
+    const file = new File([MOCK_FILE_CONTENT], 'factura.pdf', { type: 'application/pdf' });
+
     expect(input.disabled).toBe(true);
     expect(screen.getByRole('button', { name: /Facturas \/ Tickets/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Extracto Bancario/i })).toBeDisabled();
+
+    input.disabled = false;
+    fireEvent.change(input, { target: { files: [file] } });
+
     expect(mockAddToQueue).not.toHaveBeenCalled();
+    expect(mockShowToast).toHaveBeenCalledWith('Ejercicio cerrado: no se pueden adjuntar documentos.', 'warning');
   });
 
   it('permite adjuntar archivos cuando el ejercicio está abierto', () => {
