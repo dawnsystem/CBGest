@@ -57,6 +57,7 @@ export const buildEntryFromInvoice = (inv: Invoice, author?: EntryAuthor): Accou
     fileData: inv.fileData,
     fileType: inv.fileType,
     appwriteFileId: inv.appwriteFileId,
+    fiscalYearId: inv.fiscalYearId,
     reconciled: false,
     createdBy: inv.createdBy || author?.userId,
     createdByName: inv.createdByName || author?.userName,

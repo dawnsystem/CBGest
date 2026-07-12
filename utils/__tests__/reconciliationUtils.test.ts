@@ -51,6 +51,15 @@ describe('reconciliationUtils', () => {
       }, 'BANK-4');
       expect(incomeEntry.lines[0].accountCode).toBe('769');
     });
+
+    it('avoids false positives for partial keyword matches', () => {
+      const expenseEntry = buildEntryFromUnmatchedTransaction({
+        ...baseTransaction,
+        concept: 'Comisionar servicio de limpieza'
+      }, 'BANK-5');
+
+      expect(expenseEntry.lines[0].accountCode).toBe('629');
+    });
   });
 
   describe('buildInvoiceSettlementEntry', () => {

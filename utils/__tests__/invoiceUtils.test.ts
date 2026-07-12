@@ -45,12 +45,14 @@ describe('buildEntryFromInvoice', () => {
     const entry = buildEntryFromInvoice({
       ...baseInvoice,
       category: '628',
-      totalAmount: Number.NaN
+      totalAmount: Number.NaN,
+      fiscalYearId: 'fy-2026'
     });
 
     expect(entry.lines).toEqual([
       { accountCode: '628', accountName: '628', debit: 0, credit: 0 },
       { accountCode: '400', accountName: 'Proveedores', debit: 0, credit: 0 }
     ]);
+    expect(entry.fiscalYearId).toBe('fy-2026');
   });
 });

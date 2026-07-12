@@ -18,7 +18,8 @@ const includesFinancialKeyword = (concept: string): boolean => {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-  return FINANCIAL_KEYWORDS.some(keyword => normalized.includes(keyword));
+  const words = normalized.split(/[^a-z0-9]+/).filter(Boolean);
+  return FINANCIAL_KEYWORDS.some(keyword => words.includes(keyword));
 };
 
 export const getTransactionCounterpartyAccount = (tx: BankTransaction): { code: string; name: string } => {
