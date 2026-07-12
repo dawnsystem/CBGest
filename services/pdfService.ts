@@ -356,6 +356,9 @@ export function calculateTaxData(
   if (!start || !end) {
     throw new Error('calculateTaxData recibió un periodo con fechas inválidas');
   }
+  if (start.getTime() > end.getTime()) {
+    throw new Error('calculateTaxData recibió un periodo con startDate posterior a endDate');
+  }
 
   const validInvoices = (invoices || []).filter(invoice => {
     if (invoice.status === 'PENDING') return false;
