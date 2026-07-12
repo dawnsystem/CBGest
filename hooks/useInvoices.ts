@@ -184,8 +184,13 @@ export function useInvoices(options: UseInvoicesOptions): UseInvoicesReturn {
     }
 
     if (oldInvoice?.status === 'PROCESSED' && invoice.status === 'PAID' && settings.fiscalRegime === 'ALQUILER_EXENTO') {
-      logger.debug("Invoice status changed PROCESSED→PAID - creating closing entry:", invoice.id);
-      createClosingEntry(invoice);
+      const existingClosingEntry = accountingEntries.find(e => e.id === `CLOSE-${invoice.id}`);
+      if (!existingClosingEntry) {
+        logger.debug("Invoice status changed PROCESSED→PAID - creating closing entry:", invoice.id);
+        createClosingEntry(invoice);
+      } else {
+        logger.debug("Closing entry already exists for invoice:", invoice.id);
+      }
     }
   }, [invoices, settings, accountingEntries, user, addNotification, showError, createEntryFromInvoice, createClosingEntry]);
 
