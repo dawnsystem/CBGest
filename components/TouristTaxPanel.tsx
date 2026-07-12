@@ -57,8 +57,9 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
   settings,
   onUpdateReservation
 }) => {
-  const realCurrentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
+  const today = new Date();
+  const realCurrentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
   const { activeFiscalYear } = useFiscalYear();
   const defaultYear = activeFiscalYear?.year ?? realCurrentYear;
   

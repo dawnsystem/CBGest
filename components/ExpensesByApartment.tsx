@@ -59,8 +59,8 @@ export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoic
 
   // Filter invoices by period
   const filteredInvoices = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
     const currentQuarter = Math.floor(currentMonth / 3);
 
     return invoices.filter(inv => {
@@ -144,14 +144,14 @@ export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoic
     }));
 
   const getPeriodLabel = () => {
-    const now = new Date();
+    const currentDate = new Date();
     switch (periodFilter) {
       case 'month': {
-        const monthDate = new Date(activeYear, now.getMonth(), 1);
+        const monthDate = new Date(activeYear, currentDate.getMonth(), 1);
         return monthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
       }
       case 'quarter': {
-        const quarter = Math.floor(now.getMonth() / 3) + 1;
+        const quarter = Math.floor(currentDate.getMonth() / 3) + 1;
         return `${quarter}T ${activeYear}`;
       }
       case 'year':
