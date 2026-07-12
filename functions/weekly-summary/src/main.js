@@ -1,5 +1,8 @@
 import { Client, Databases, Query, ID } from 'node-appwrite';
 
+const EXPENSE = 'EXPENSE';
+const PENDING = 'PENDING';
+
 /**
  * Weekly Summary Function
  * Generates weekly summary: income, expenses, occupancy, pending items
@@ -62,15 +65,15 @@ export default async ({ req, res, log, error }) => {
     );
 
     const expenseTotal = newInvoices.documents
-      .filter(i => i.type === 'expense')
-      .reduce((sum, i) => sum + (parseFloat(i.totalAmount) || 0), 0);
+      .filter(invoice => invoice.type === EXPENSE)
+      .reduce((sum, invoice) => sum + (parseFloat(invoice.totalAmount) || 0), 0);
 
     // 4. Pending invoices
     const pendingInvoices = await databases.listDocuments(
       databaseId,
       'invoices',
       [
-        Query.equal('status', 'pending'),
+        Query.equal('status', PENDING),
         Query.limit(100)
       ]
     );
@@ -83,9 +86,9 @@ export default async ({ req, res, log, error }) => {
     // 5. Unreconciled bank transactions
     const unreconciledTx = await databases.listDocuments(
       databaseId,
-      'bankTransactions',
+      'transactions',
       [
-        Query.equal('status', 'pending'),
+        Query.equal('status', PENDING),
         Query.limit(100)
       ]
     );
@@ -121,7 +124,7 @@ export default async ({ req, res, log, error }) => {
         totalAmount: Math.round(reservationIncome * 100) / 100
       },
       expenses: {
-        newInvoices: newInvoices.documents.filter(i => i.type === 'expense').length,
+        newInvoices: newInvoices.documents.filter(invoice => invoice.type === EXPENSE).length,
         totalAmount: Math.round(expenseTotal * 100) / 100
       },
       netResult: Math.round((reservationIncome - expenseTotal) * 100) / 100,

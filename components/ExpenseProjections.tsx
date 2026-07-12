@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { Calendar, TrendingUp, AlertTriangle, ChevronRight, Clock } from 'lucide-react';
-import { RecurringExpense, ExpenseFrequency, Apartment } from '../types';
+import { Calendar, TrendingUp, ChevronRight, Clock } from 'lucide-react';
+import { RecurringExpense, Apartment } from '../types';
 import { ChartWrapper } from './ChartWrapper';
 
 interface ExpenseProjectionsProps {
@@ -15,10 +15,8 @@ type ProjectionPeriod = 3 | 6 | 12;
 const getOccurrencesInMonth = (
   expense: RecurringExpense,
   targetMonth: number, // 0-11
-  targetYear: number
+  _targetYear: number
 ): number => {
-  const dayOfMonth = expense.dayOfMonth || 15;
-
   // Check if this expense would occur in this month based on frequency
   switch (expense.frequency) {
     case 'MONTHLY':

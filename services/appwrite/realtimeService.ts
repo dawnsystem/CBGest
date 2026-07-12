@@ -4,22 +4,27 @@
 
 import { client, config } from '../../lib/appwrite/client';
 
+type RealtimePayload = {
+  events: string[];
+  payload: Record<string, unknown>;
+};
+
 export const realtimeService = {
-  subscribeToInvoices(callback: (payload: any) => void) {
+  subscribeToInvoices(callback: (payload: RealtimePayload) => void) {
     return client.subscribe(
       `databases.${config.databaseId}.collections.${config.collections.invoices}.documents`,
       callback
     );
   },
 
-  subscribeToEntries(callback: (payload: any) => void) {
+  subscribeToEntries(callback: (payload: RealtimePayload) => void) {
     return client.subscribe(
       `databases.${config.databaseId}.collections.${config.collections.entries}.documents`,
       callback
     );
   },
 
-  subscribeToTransactions(callback: (payload: any) => void) {
+  subscribeToTransactions(callback: (payload: RealtimePayload) => void) {
     return client.subscribe(
       `databases.${config.databaseId}.collections.${config.collections.transactions}.documents`,
       callback
@@ -27,7 +32,7 @@ export const realtimeService = {
   }
 };
 
-export const subscribeToChanges = (callback: (payload: any) => void): (() => void) => {
+export const subscribeToChanges = (callback: (payload: RealtimePayload) => void): (() => void) => {
   const unsubscribeInvoices = realtimeService.subscribeToInvoices(callback);
   const unsubscribeEntries = realtimeService.subscribeToEntries(callback);
   const unsubscribeTransactions = realtimeService.subscribeToTransactions(callback);

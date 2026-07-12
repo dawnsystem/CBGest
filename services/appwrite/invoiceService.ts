@@ -6,27 +6,83 @@ import { ID, Query } from 'appwrite';
 import { databases, storage, config } from '../../lib/appwrite/client';
 import { dataLogger } from '../logger';
 import {
+  AppwriteEntity,
+  omitFields,
   withRetry,
   notifyError,
   notifySuccess,
   setConnectionHealth,
 } from './infrastructure';
-import type { Invoice } from '../../types';
+import type { Invoice, InvoiceHistoryEvent } from '../../types';
+
+type InvoiceDocument = AppwriteEntity<Invoice> & {
+  $id: string;
+  history?: string | string[] | InvoiceHistoryEvent[];
+};
+
+const stringifyHistoryEvent = (event: InvoiceHistoryEvent | string): string =>
+  typeof event === 'string' ? event : JSON.stringify(event);
+
+const parseHistoryEntry = (item: unknown): InvoiceHistoryEvent => {
+  if (typeof item === 'string') {
+    try {
+      return JSON.parse(item) as InvoiceHistoryEvent;
+    } catch {
+      return { action: item, date: new Date().toISOString(), user: 'system' };
+    }
+  }
+
+  return item as InvoiceHistoryEvent;
+};
+
+const parseInvoiceHistory = (history: InvoiceDocument['history']): InvoiceHistoryEvent[] => {
+  if (Array.isArray(history)) {
+    return history.map(parseHistoryEntry);
+  }
+
+  if (typeof history === 'string') {
+    try {
+      const parsed = JSON.parse(history) as unknown;
+      return Array.isArray(parsed) ? parsed.map(parseHistoryEntry) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+};
 
 export async function createInvoice(invoice: Invoice): Promise<Invoice> {
   try {
-    const {
-      file, history, id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      issuerNifType, issuerAddress, issuerCity, issuerPostalCode, issuerCountry,
-      suggestedAccountCode, matchedSupplierId,
-      fileData,
-      ...restInvoiceData
-    } = invoice as any;
+    const { file, history, id } = invoice;
+    const restInvoiceData = omitFields(invoice as AppwriteEntity<Invoice> & {
+      suggestedAccountCode?: string;
+      matchedSupplierId?: string;
+    }, [
+      'file',
+      'history',
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+      'issuerNifType',
+      'issuerAddress',
+      'issuerCity',
+      'issuerPostalCode',
+      'issuerCountry',
+      'suggestedAccountCode',
+      'matchedSupplierId',
+      'fileData',
+    ]);
 
     const historyArray = history && Array.isArray(history)
-      ? history.map((event: any) => typeof event === 'string' ? event : JSON.stringify(event))
+      ? history.map(stringifyHistoryEvent)
       : [];
 
     const invoiceData = { ...restInvoiceData, history: historyArray };
@@ -35,7 +91,7 @@ export async function createInvoice(invoice: Invoice): Promise<Invoice> {
       () => databases.createDocument(
         config.databaseId,
         config.collections.invoices,
-        invoice.id || ID.unique(),
+        id || ID.unique(),
         invoiceData
       ),
       'createInvoice'
@@ -44,9 +100,7 @@ export async function createInvoice(invoice: Invoice): Promise<Invoice> {
     notifySuccess('Factura guardada');
     setConnectionHealth(true);
 
-    const parsedHistory = (doc.history && Array.isArray(doc.history))
-      ? doc.history.map((item: any) => typeof item === 'string' ? JSON.parse(item) : item)
-      : [];
+    const parsedHistory = parseInvoiceHistory((doc as InvoiceDocument).history);
 
     return {
       ...doc,
@@ -77,22 +131,15 @@ export async function getInvoices(fiscalYearId?: string): Promise<Invoice[]> {
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => {
-      let parsedHistory: any[] = [];
-      if (doc.history && Array.isArray(doc.history)) {
-        parsedHistory = doc.history.map((item: any) => {
-          if (typeof item === 'string') {
-            try { return JSON.parse(item); }
-            catch { return { action: item, date: new Date().toISOString(), user: 'system' }; }
-          }
-          return item;
-        });
-      } else if (doc.history && typeof doc.history === 'string') {
-        try { parsedHistory = JSON.parse(doc.history); }
-        catch { parsedHistory = []; }
-      }
-      return { ...doc, id: doc.$id, appwriteId: doc.$id, history: parsedHistory };
-    }) as unknown as Invoice[];
+    return response.documents.map((doc) => {
+      const invoiceDoc = doc as InvoiceDocument;
+      return {
+        ...invoiceDoc,
+        id: invoiceDoc.$id,
+        appwriteId: invoiceDoc.$id,
+        history: parseInvoiceHistory(invoiceDoc.history),
+      };
+    }) as Invoice[];
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'getInvoices');
     setConnectionHealth(false);
@@ -102,22 +149,39 @@ export async function getInvoices(fiscalYearId?: string): Promise<Invoice[]> {
 
 export async function updateInvoice(invoice: Invoice): Promise<Invoice> {
   try {
-    const {
-      file, history, id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      issuerNifType, issuerAddress, issuerCity, issuerPostalCode, issuerCountry,
-      suggestedAccountCode, matchedSupplierId,
-      fileData,
-      ...restInvoiceData
-    } = invoice as any;
+    const { file, history, appwriteId, id } = invoice;
+    const restInvoiceData = omitFields(invoice as AppwriteEntity<Invoice> & {
+      suggestedAccountCode?: string;
+      matchedSupplierId?: string;
+    }, [
+      'file',
+      'history',
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+      'issuerNifType',
+      'issuerAddress',
+      'issuerCity',
+      'issuerPostalCode',
+      'issuerCountry',
+      'suggestedAccountCode',
+      'matchedSupplierId',
+      'fileData',
+    ]);
 
     const historyArray = history && Array.isArray(history)
-      ? history.map((event: any) => typeof event === 'string' ? event : JSON.stringify(event))
+      ? history.map(stringifyHistoryEvent)
       : [];
 
     const invoiceData = { ...restInvoiceData, history: historyArray };
-    const docId = invoice.appwriteId || invoice.id;
+    const docId = appwriteId || id;
 
     const doc = await withRetry(
       () => databases.updateDocument(
@@ -132,9 +196,7 @@ export async function updateInvoice(invoice: Invoice): Promise<Invoice> {
     notifySuccess('Factura actualizada');
     setConnectionHealth(true);
 
-    const parsedHistory = (doc.history && Array.isArray(doc.history))
-      ? doc.history.map((item: any) => typeof item === 'string' ? JSON.parse(item) : item)
-      : [];
+    const parsedHistory = parseInvoiceHistory((doc as InvoiceDocument).history);
 
     return {
       ...doc,

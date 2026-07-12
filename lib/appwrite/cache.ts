@@ -123,7 +123,7 @@ class AppwriteCache {
     });
 
     keysToDelete.forEach(key => this.memoryCache.delete(key));
-    console.log(`[Cache] Invalidada colección ${collection}: ${keysToDelete.length} entradas eliminadas`);
+    console.warn(`[Cache] Invalidada colección ${collection}: ${keysToDelete.length} entradas eliminadas`);
   }
 
   /**

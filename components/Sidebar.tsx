@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, FileText, BookOpen, PieChart, Settings, FileCheck, Scale, Cloud, HardDrive, Wifi, Building2, Home, RefreshCw, CalendarCheck, Bookmark, BarChart3, CalendarRange } from 'lucide-react';
+import { LayoutDashboard, FileText, BookOpen, Settings, FileCheck, Scale, Cloud, HardDrive, Wifi, Building2, Home, RefreshCw, CalendarCheck, Bookmark, BarChart3, CalendarRange } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface SidebarProps {

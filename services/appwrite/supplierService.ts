@@ -5,6 +5,8 @@
 import { Query, ID } from 'appwrite';
 import { databases, config } from '../../lib/appwrite/client';
 import {
+  AppwriteEntity,
+  omitFields,
   withRetry,
   notifyError,
   notifySuccess,
@@ -12,14 +14,23 @@ import {
 } from './infrastructure';
 import type { Supplier } from '../../types';
 
+type SupplierDocument = AppwriteEntity<Supplier> & { $id: string };
+
 export async function createSupplier(supplier: Supplier): Promise<Supplier> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...supplierData
-    } = supplier as any;
+    const { id } = supplier;
+    const supplierData = omitFields(supplier as AppwriteEntity<Supplier>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
 
     const doc = await withRetry(
       () => databases.createDocument(
@@ -56,11 +67,14 @@ export async function getSuppliers(fiscalYearId?: string): Promise<Supplier[]> {
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => ({
-      ...doc,
-      id: doc.$id,
-      appwriteId: doc.$id
-    })) as unknown as Supplier[];
+    return response.documents.map((doc) => {
+      const supplierDoc = doc as SupplierDocument;
+      return {
+        ...supplierDoc,
+        id: supplierDoc.$id,
+        appwriteId: supplierDoc.$id
+      };
+    }) as Supplier[];
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'getSuppliers');
     setConnectionHealth(false);
@@ -70,12 +84,19 @@ export async function getSuppliers(fiscalYearId?: string): Promise<Supplier[]> {
 
 export async function updateSupplier(supplier: Supplier): Promise<Supplier> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...supplierData
-    } = supplier as any;
+    const { id, appwriteId } = supplier;
+    const supplierData = omitFields(supplier as AppwriteEntity<Supplier>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
     const docId = appwriteId || id;
 
     const doc = await withRetry(

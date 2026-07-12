@@ -10,6 +10,33 @@ import { account, databases, config } from '../../lib/appwrite/client';
 import { authService } from '../authService';
 import { dataLogger } from '../logger';
 
+export interface AppwriteMetadata {
+  $id?: string;
+  $createdAt?: string;
+  $updatedAt?: string;
+  $databaseId?: string;
+  $collectionId?: string;
+  $permissions?: string[];
+}
+
+export type AppwriteEntity<T extends object> = T & AppwriteMetadata & {
+  id?: string;
+  appwriteId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export const omitFields = <T extends object, K extends keyof T>(
+  value: T,
+  keys: readonly K[]
+): Omit<T, K> => {
+  const clone = { ...value } as T;
+  for (const key of keys) {
+    delete (clone as Record<PropertyKey, unknown>)[key as PropertyKey];
+  }
+  return clone as Omit<T, K>;
+};
+
 // ============================================================================
 // ERROR HELPERS — DEBT-004
 // ============================================================================
@@ -200,7 +227,7 @@ export const withRetry = async <T>(
  * @deprecated El cliente Appwrite ahora se inicializa automáticamente.
  * Esta función existe solo para compatibilidad con código existente.
  */
-export const initializeAppwrite = (_config?: any) => {
+export const initializeAppwrite = (_config?: unknown) => {
   dataLogger.debug('initializeAppwrite called - client already initialized via lib/appwrite/client.ts');
 };
 

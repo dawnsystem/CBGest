@@ -5,21 +5,60 @@
 import { Query, ID } from 'appwrite';
 import { databases, config } from '../../lib/appwrite/client';
 import {
+  AppwriteEntity,
+  omitFields,
   withRetry,
   notifyError,
   notifySuccess,
   setConnectionHealth,
 } from './infrastructure';
-import type { AccountingEntry } from '../../types';
+import type { AccountingEntry, AccountingEntryLine } from '../../types';
+
+type EntryDocument = AppwriteEntity<AccountingEntry> & {
+  $id: string;
+  lines?: string | AccountingEntryLine[];
+};
+
+const fallbackEntryLines = (doc: EntryDocument): AccountingEntryLine[] => [{
+  accountCode: doc.accountCode || '',
+  accountName: doc.accountName || '',
+  debit: doc.debit || 0,
+  credit: doc.credit || 0
+}];
+
+const parseEntryLines = (doc: EntryDocument): AccountingEntryLine[] => {
+  let parsedLines: AccountingEntryLine[] = [];
+  if (doc.lines) {
+    try {
+      const rawLines = typeof doc.lines === 'string' ? JSON.parse(doc.lines) as unknown : doc.lines;
+      parsedLines = Array.isArray(rawLines) ? rawLines as AccountingEntryLine[] : [];
+    } catch {
+      parsedLines = [];
+    }
+  }
+
+  return parsedLines.length > 0
+    ? parsedLines
+    : (doc.accountCode ? fallbackEntryLines(doc) : []);
+};
 
 export async function createEntry(entry: AccountingEntry): Promise<AccountingEntry> {
   try {
-    const {
-      referenceDoc, id, appwriteId, lines,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...entryData
-    } = entry as any;
+    const { referenceDoc, id, lines } = entry;
+    const entryData = omitFields(entry as AppwriteEntity<AccountingEntry> & { referenceDoc?: File }, [
+      'referenceDoc',
+      'id',
+      'appwriteId',
+      'lines',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
 
     const dataToSave = {
       ...entryData,
@@ -44,21 +83,14 @@ export async function createEntry(entry: AccountingEntry): Promise<AccountingEnt
 
     setConnectionHealth(true);
 
-    const parsedLines = doc.lines
-      ? (typeof doc.lines === 'string' ? JSON.parse(doc.lines) : doc.lines)
-      : [];
+    const parsedLines = parseEntryLines(doc as EntryDocument);
 
     return {
       ...doc,
       referenceDoc,
       id: doc.$id,
       appwriteId: doc.$id,
-      lines: parsedLines.length > 0 ? parsedLines : [{
-        accountCode: doc.accountCode || '',
-        accountName: doc.accountName || '',
-        debit: doc.debit || 0,
-        credit: doc.credit || 0
-      }]
+      lines: parsedLines
     } as unknown as AccountingEntry;
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'createEntry');
@@ -82,27 +114,10 @@ export async function getEntries(fiscalYearId?: string): Promise<AccountingEntry
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => {
-      let parsedLines: any[] = [];
-      if (doc.lines) {
-        try {
-          parsedLines = typeof doc.lines === 'string' ? JSON.parse(doc.lines) : doc.lines;
-        } catch {
-          parsedLines = [];
-        }
-      }
-
-      if (parsedLines.length === 0 && doc.accountCode) {
-        parsedLines = [{
-          accountCode: doc.accountCode || '',
-          accountName: doc.accountName || '',
-          debit: doc.debit || 0,
-          credit: doc.credit || 0
-        }];
-      }
-
-      return { ...doc, id: doc.$id, appwriteId: doc.$id, lines: parsedLines };
-    }) as unknown as AccountingEntry[];
+    return response.documents.map((doc) => {
+      const entryDoc = doc as EntryDocument;
+      return { ...entryDoc, id: entryDoc.$id, appwriteId: entryDoc.$id, lines: parseEntryLines(entryDoc) };
+    }) as AccountingEntry[];
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'getEntries');
     setConnectionHealth(false);
@@ -112,12 +127,21 @@ export async function getEntries(fiscalYearId?: string): Promise<AccountingEntry
 
 export async function updateEntry(entry: AccountingEntry): Promise<AccountingEntry> {
   try {
-    const {
-      referenceDoc, id, appwriteId, lines,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...entryData
-    } = entry as any;
+    const { referenceDoc, id, appwriteId, lines } = entry;
+    const entryData = omitFields(entry as AppwriteEntity<AccountingEntry> & { referenceDoc?: File }, [
+      'referenceDoc',
+      'id',
+      'appwriteId',
+      'lines',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
     const docId = appwriteId || id;
 
     const dataToSave = {
@@ -138,21 +162,14 @@ export async function updateEntry(entry: AccountingEntry): Promise<AccountingEnt
 
     setConnectionHealth(true);
 
-    const parsedLines = doc.lines
-      ? (typeof doc.lines === 'string' ? JSON.parse(doc.lines) : doc.lines)
-      : [];
+    const parsedLines = parseEntryLines(doc as EntryDocument);
 
     return {
       ...doc,
       referenceDoc,
       id: doc.$id,
       appwriteId: doc.$id,
-      lines: parsedLines.length > 0 ? parsedLines : [{
-        accountCode: doc.accountCode || '',
-        accountName: doc.accountName || '',
-        debit: doc.debit || 0,
-        credit: doc.credit || 0
-      }]
+      lines: parsedLines
     } as unknown as AccountingEntry;
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'updateEntry');

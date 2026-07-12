@@ -12,10 +12,6 @@ import { Invoice, AppSettings } from '../types';
 // A4 portrait page: 210 × 297 mm.  All values are in mm.
 // ============================================================================
 const PAGE_CENTER_X = 105;  // horizontal center of A4
-const MARGIN_LEFT   = 20;
-const MARGIN_RIGHT  = 170;  // right-align text target
-const BOX_LEFT      = 15;   // left edge of full-width boxes
-const BOX_WIDTH     = 180;  // width of full-width boxes
 const FOOTER_Y1     = 280;  // first footer line
 const FOOTER_Y2     = 285;  // second footer line
 
@@ -218,7 +214,7 @@ export function generatePDF184(data: TaxData184): Blob {
   doc.setFont('helvetica', 'normal');
   let currentY = tableY + 15;
 
-  partners.forEach((partner, index) => {
+  partners.forEach((partner) => {
     const atributed = rendimientoNeto * (partner.participation / 100);
 
     doc.rect(15, currentY - 5, 180, 10);

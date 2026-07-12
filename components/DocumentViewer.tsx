@@ -3,9 +3,18 @@ import { X, Download, FileText, ChevronLeft, ChevronRight, Loader2, ZoomIn, Zoom
 import { pdfjsLib } from '../utils/pdfLoader';
 import { useDocumentFile } from '../hooks/useDocumentFile';
 
+type PdfViewport = { width: number; height: number };
+type PdfRenderTask = { promise: Promise<void>; cancel: () => Promise<void> | void };
+type PdfPage = {
+  getViewport: (params: { scale: number }) => PdfViewport;
+  render: (params: { canvasContext: NonNullable<ReturnType<HTMLCanvasElement['getContext']>>; viewport: PdfViewport }) => PdfRenderTask;
+};
+type PdfDocument = { numPages: number; getPage: (pageNumber: number) => Promise<PdfPage> };
+type PdfJsLibLike = typeof pdfjsLib;
+
 declare global {
   interface Window {
-    pdfjsLib: any;
+    pdfjsLib: PdfJsLibLike;
   }
 }
 
@@ -40,7 +49,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   });
 
   // PDF State
-  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [pdfDoc, setPdfDoc] = useState<unknown>(null);
   const [pageNum, setPageNum] = useState(1);
   const [numPages, setNumPages] = useState(0);
   const [isRendering, setIsRendering] = useState(false);
@@ -53,7 +62,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const renderTaskRef = useRef<any>(null);
+  const renderTaskRef = useRef<PdfRenderTask | null>(null);
 
   // Zoom controls
   const ZOOM_STEP = 0.25;
@@ -125,11 +134,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       setIsRendering(true);
       const loadingTask = pdfjsLib.getDocument(objectUrl);
 
-      loadingTask.promise.then((pdf: any) => {
+      loadingTask.promise.then((pdf) => {
         setPdfDoc(pdf);
-        setNumPages(pdf.numPages);
+        setNumPages((pdf as PdfDocument).numPages);
         setIsRendering(false);
-      }).catch((error: any) => {
+      }).catch((error: unknown) => {
         console.error("Error loading PDF:", error);
         setRenderError("No se pudo cargar el PDF. Puede estar dañado.");
         setIsRendering(false);
@@ -141,9 +150,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   useEffect(() => {
     const calculateInitialScale = async () => {
       if (!pdfDoc || !containerRef.current) return;
+      const pdfDocument = pdfDoc as PdfDocument;
 
       try {
-        const page = await pdfDoc.getPage(1);
+        const page = await pdfDocument.getPage(1);
         const viewport = page.getViewport({ scale: 1 });
         setBaseViewport({ width: viewport.width, height: viewport.height });
 
@@ -165,18 +175,19 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   useEffect(() => {
     const renderPage = async () => {
       if (!pdfDoc || !canvasRef.current || !containerRef.current) return;
+      const pdfDocument = pdfDoc as PdfDocument;
 
       if (renderTaskRef.current) {
         try {
           await renderTaskRef.current.cancel();
-        } catch (e) {
+        } catch {
           // Cancellation is expected
         }
       }
 
       setIsRendering(true);
       try {
-        const page = await pdfDoc.getPage(pageNum);
+        const page = await pdfDocument.getPage(pageNum);
         const canvas = canvasRef.current;
         const context = canvas.getContext('2d');
 
@@ -206,8 +217,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
         setIsRendering(false);
         setRenderError(null);
-      } catch (err: any) {
-        if (err.name === 'RenderingCancelledException') {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'RenderingCancelledException') {
           return;
         }
         console.error("Page render error:", err);

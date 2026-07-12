@@ -42,6 +42,7 @@ const mockBankStatementResponse = [
 
 // Mock model with generateContent method
 class MockModel {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generateContent = vi.fn().mockImplementation(async (config: any) => {
     // Determine response based on schema type
     const isArray = config.config?.responseSchema?.type === Type.ARRAY;
@@ -68,6 +69,7 @@ class MockModel {
 
 // Mock models object
 class MockModels {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generateContent = vi.fn().mockImplementation(async (config: any) => {
     const model = new MockModel();
     return model.generateContent(config);
@@ -86,10 +88,12 @@ export class GoogleGenAI {
 }
 
 // Helper to set custom mock responses
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const __setMockInvoiceResponse = (response: any) => {
   Object.assign(mockInvoiceResponse, response);
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const __setMockBankStatementResponse = (response: any[]) => {
   mockBankStatementResponse.length = 0;
   mockBankStatementResponse.push(...response);

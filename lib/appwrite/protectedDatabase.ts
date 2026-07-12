@@ -93,7 +93,7 @@ class ProtectedDatabaseService {
     if (!forceRefresh) {
       const cached = cache.get<Invoice[]>(cacheKey);
       if (cached) {
-        console.log('[ProtectedDB] Cache hit para invoices');
+        console.warn('[ProtectedDB] Cache hit para invoices');
         return cached;
       }
     }
@@ -152,7 +152,7 @@ class ProtectedDatabaseService {
     if (!forceRefresh) {
       const cached = cache.get<AccountingEntry[]>(cacheKey);
       if (cached) {
-        console.log('[ProtectedDB] Cache hit para entries');
+        console.warn('[ProtectedDB] Cache hit para entries');
         return cached;
       }
     }
@@ -208,7 +208,7 @@ class ProtectedDatabaseService {
     if (!forceRefresh) {
       const cached = cache.get<BankTransaction[]>(cacheKey);
       if (cached) {
-        console.log('[ProtectedDB] Cache hit para transactions');
+        console.warn('[ProtectedDB] Cache hit para transactions');
         return cached;
       }
     }
@@ -259,7 +259,7 @@ class ProtectedDatabaseService {
     if (!forceRefresh) {
       const cached = cache.get<Supplier[]>(cacheKey);
       if (cached) {
-        console.log('[ProtectedDB] Cache hit para suppliers');
+        console.warn('[ProtectedDB] Cache hit para suppliers');
         return cached;
       }
     }
@@ -315,7 +315,7 @@ class ProtectedDatabaseService {
     if (!forceRefresh) {
       const cached = cache.get<AppSettings>(cacheKey);
       if (cached) {
-        console.log('[ProtectedDB] Cache hit para settings');
+        console.warn('[ProtectedDB] Cache hit para settings');
         return cached;
       }
     }
@@ -352,7 +352,7 @@ class ProtectedDatabaseService {
     if (!forceRefresh) {
       const cached = cache.get<QueueItem[]>(cacheKey);
       if (cached) {
-        console.log('[ProtectedDB] Cache hit para upload queue');
+        console.warn('[ProtectedDB] Cache hit para upload queue');
         return cached;
       }
     }
@@ -423,7 +423,7 @@ class ProtectedDatabaseService {
     if (!forceRefresh) {
       const cached = cache.get<Notification[]>(cacheKey);
       if (cached) {
-        console.log('[ProtectedDB] Cache hit para notifications');
+        console.warn('[ProtectedDB] Cache hit para notifications');
         return cached;
       }
     }

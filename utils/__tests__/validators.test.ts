@@ -90,8 +90,8 @@ describe('validators', () => {
       });
 
       it('should reject null or undefined', () => {
-        expect(isValidNIF(null as any)).toBe(false);
-        expect(isValidNIF(undefined as any)).toBe(false);
+        expect(isValidNIF(null as unknown as string)).toBe(false);
+        expect(isValidNIF(undefined as unknown as string)).toBe(false);
       });
 
       it('should reject random strings', () => {

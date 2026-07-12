@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, Award, Home, ArrowUpRight, ArrowDownRight, Minus, Filter } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { TrendingUp, TrendingDown, Award, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { Invoice, Apartment, RecurringExpense, Reservation } from '../types';
 import { ChartWrapper } from './ChartWrapper';
 import { useFiscalYear } from '../context/FiscalYearContext';
@@ -251,7 +251,7 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
     });
 
     // Convert to array and sort
-    let result = Array.from(metricsMap.values());
+    const result = Array.from(metricsMap.values());
 
     switch (sortBy) {
       case 'income':

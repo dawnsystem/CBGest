@@ -67,6 +67,23 @@ const PageLoader = () => (
   </div>
 );
 
+type WritableFileHandle = {
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+};
+
+type FilePickerWindow = typeof globalThis & {
+  showSaveFilePicker: (options: {
+    suggestedName: string;
+    types: Array<{ description: string; accept: Record<string, string[]> }>;
+  }) => Promise<WritableFileHandle>;
+  showOpenFilePicker: (options: {
+    types: Array<{ description: string; accept: Record<string, string[]> }>;
+  }) => Promise<WritableFileHandle[]>;
+};
+
 const MainLayout: React.FC = () => {
   const { user, loading } = useAuth();
   const sessionReady = useSessionReady();
@@ -93,7 +110,7 @@ const MainLayout: React.FC = () => {
   } | null>(null);
 
   // --- FILE SYSTEM STATE ---
-  const [fileHandle, setFileHandle] = useState<any | null>(null);
+  const [fileHandle, setFileHandle] = useState<WritableFileHandle | null>(null);
   const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
   const [isLocalFileMode, setIsLocalFileMode] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -166,13 +183,13 @@ const MainLayout: React.FC = () => {
       // This prevents 401 errors that occur when trying to access the API
       // before the session cookie/localStorage is fully synchronized
       if (!sessionReady) {
-          console.log('[App] Waiting for session to be ready...');
+          console.warn('[App] Waiting for session to be ready...');
           return;
       }
 
       // Prevent double initialization in React Strict Mode
       if (dataLayerInitializedRef.current) {
-          console.log('[App] Data layer already initialized, skipping...');
+          console.warn('[App] Data layer already initialized, skipping...');
           return;
       }
       dataLayerInitializedRef.current = true;
@@ -191,7 +208,7 @@ const MainLayout: React.FC = () => {
               // NOTE: If sessionReady is true, it means authService.login() already verified
               // the session successfully. We skip the authentication check here to avoid
               // race conditions where the SDK session isn't fully synced yet.
-              console.log('[App] Session ready, performing health check...');
+              console.warn('[App] Session ready, performing health check...');
               setIsReconnecting(true);
               try {
                   const healthResult = await appwriteService.performHealthCheck();
@@ -226,14 +243,14 @@ const MainLayout: React.FC = () => {
                         console.error('❌ Critical collection errors:', criticalErrors);
                       } else {
                         // Only permission issues - log but continue
-                        console.log('✅ Conexión verificada (algunas colecciones con permisos limitados)');
+                        console.warn('✅ Conexión verificada (algunas colecciones con permisos limitados)');
                         setConnectionError(null);
                       }
                   } else {
-                      console.log('✅ Conexión verificada correctamente');
+                      console.warn('✅ Conexión verificada correctamente');
                       setConnectionError(null);
                   }
-              } catch (healthError: any) {
+              } catch (healthError: unknown) {
                   console.error('❌ Health check error:', healthError);
                   // Don't block on health check errors - the login was already successful
                   console.warn('[App] Health check failed, but proceeding with data load');
@@ -242,7 +259,7 @@ const MainLayout: React.FC = () => {
 
               // 1. Initial Fetch - Load ALL data from Appwrite
               try {
-                console.log('📥 Cargando datos desde Appwrite...');
+                console.warn('📥 Cargando datos desde Appwrite...');
 
                 // Sync settings first
                 const remoteSettings = await appwriteService.syncSettings(freshSettings);
@@ -281,11 +298,11 @@ const MainLayout: React.FC = () => {
                 setRecurringExpenses(remoteRecurringExpenses);
                 setReservations(remoteReservations);
 
-                console.log(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos, ${remoteRecurringExpenses.length} gastos recurrentes, ${remoteReservations.length} reservas`);
+                console.warn(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos, ${remoteRecurringExpenses.length} gastos recurrentes, ${remoteReservations.length} reservas`);
                 setConnectionError(null);
-              } catch (e: any) {
+              } catch (e: unknown) {
                   console.warn("Initial sync failed:", e);
-                  setConnectionError(`Error al cargar datos: ${e.message || 'Error desconocido'}`);
+                 setConnectionError(`Error al cargar datos: ${e instanceof Error ? e.message : 'Error desconocido'}`);
               } finally {
                   setIsDataLoading(false);
               }
@@ -297,7 +314,7 @@ const MainLayout: React.FC = () => {
                   if (payload.events.some((e:string) => e.includes('.create') || e.includes('.update') || e.includes('.delete'))) {
                       // Import cache dynamically to avoid circular deps
                       import('./lib/appwrite/cache').then(({ cache }) => {
-                          console.log('[Realtime] Change detected, invalidating cache...');
+                          console.warn('[Realtime] Change detected, invalidating cache...');
                           // Invalidate relevant collections based on event
                           if (payload.events.some((e:string) => e.includes('invoices'))) {
                               cache.invalidateCollection('invoices');
@@ -327,7 +344,11 @@ const MainLayout: React.FC = () => {
           }
       };
       initDataLayer();
-  }, [user, sessionReady]); // Only re-init on login/logout — fiscal year changes handled below
+      // Refs (defaultSettingsRef, settingsRef) and setState dispatcher (setSettings) are
+      // stable across renders — including them would cause unnecessary re-inits.
+      // Re-run only when the authenticated user or session readiness changes.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionReady, user]); // Only re-init on login/logout — fiscal year changes handled below
 
   // --- RELOAD DATA WHEN ACTIVE FISCAL YEAR CHANGES ---
   // Separate from the heavy initDataLayer so health checks are not repeated.
@@ -368,8 +389,8 @@ const MainLayout: React.FC = () => {
         setSuppliers(remoteSuppliers);
         setApartments(remoteApartments);
         setReservations(remoteReservations);
-        console.log(`[App] Data reloaded for fiscal year: ${activeFiscalYear?.year ?? 'all'}`);
-      } catch (e: any) {
+        console.warn(`[App] Data reloaded for fiscal year: ${activeFiscalYear?.year ?? 'all'}`);
+      } catch (e: unknown) {
         if (!cancelled) {
           console.warn('[App] Failed to reload data for fiscal year:', e);
         }
@@ -398,7 +419,7 @@ const MainLayout: React.FC = () => {
     const HEALTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos
 
     const performPeriodicHealthCheck = async () => {
-      console.log('[App] Ejecutando health check periódico...');
+      console.warn('[App] Ejecutando health check periódico...');
       try {
         const healthResult = await appwriteService.performHealthCheck();
 
@@ -411,7 +432,7 @@ const MainLayout: React.FC = () => {
         } else {
           // Conexión OK - limpiar errores si los había
           if (connectionError) {
-            console.log('[App] Health check: conexión recuperada');
+            console.warn('[App] Health check: conexión recuperada');
             setConnectionError(null);
           }
         }
@@ -453,7 +474,7 @@ const MainLayout: React.FC = () => {
               const fullData = { invoices, entries: accountingEntries, transactions: bankTransactions, settings };
               try {
                   const encryptedBlob = await encryptData(JSON.stringify(fullData), encryptionKeyRef.current!);
-                  const writable = await (fileHandleRef.current as any).createWritable();
+                  const writable = await fileHandleRef.current.createWritable();
                   await writable.write(encryptedBlob);
                   await writable.close();
                   setLastSaved(new Date());
@@ -474,7 +495,6 @@ const MainLayout: React.FC = () => {
     handleUpdateEntry,
     handleDeleteEntry,
     handleAddBankTransactions,
-    handleUpdateBankTransaction,
     handleCreateEntryFromTransaction,
     handleReconcileTransaction,
     handleAddSupplier,
@@ -521,15 +541,15 @@ const MainLayout: React.FC = () => {
   // Legacy File Handlers
   const handleCloneToFile = async (password: string) => {
       try {
-          const handle = await (window as any).showSaveFilePicker({
+          const handle = await (window as unknown as FilePickerWindow).showSaveFilePicker({
               suggestedName: `Contabilidad_CBGest_${new Date().toISOString().split('T')[0]}.gestcb`,
               types: [{ description: 'CBGest Secure File', accept: { 'application/gestcb': ['.gestcb'] } }],
           });
           setFileHandle(handle);
           setEncryptionKey(password);
           setIsLocalFileMode(true);
-      } catch (error: any) {
-          if (error.name === 'SecurityError' || error.name === 'NotAllowedError') {
+     } catch (error: unknown) {
+         if (error instanceof Error && (error.name === 'SecurityError' || error.name === 'NotAllowedError')) {
              console.warn("File access denied in iframe");
              showToast("Tu navegador o este entorno de previsualización bloquea el acceso al disco. Usa la opción 'Descargar JSON' en la pestaña Datos.", 'warning');
           }
@@ -538,7 +558,7 @@ const MainLayout: React.FC = () => {
   
   const handleLoadFromFile = async (password: string) => {
        try {
-          const [handle] = await (window as any).showOpenFilePicker({
+          const [handle] = await (window as unknown as FilePickerWindow).showOpenFilePicker({
               types: [{ description: 'CBGest Secure File', accept: { 'application/gestcb': ['.gestcb'] } }],
           });
           // Logic to read file would go here if we implemented the full reader...
@@ -546,7 +566,7 @@ const MainLayout: React.FC = () => {
           setFileHandle(handle);
           setEncryptionKey(password);
           setIsLocalFileMode(true);
-      } catch (error: any) {
+      } catch {
            console.warn("File access denied in iframe");
            showToast("Acceso denegado al sistema de archivos. Prueba en una ventana nueva.", 'warning');
       }
@@ -759,9 +779,6 @@ const MainLayout: React.FC = () => {
                               const statusColor = inv.status === 'PROCESSED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
                                                   inv.status === 'PAID' ? 'bg-blue-100 text-blue-700 border-blue-200' :
                                                   'bg-amber-100 text-amber-700 border-amber-200';
-                              const statusText = inv.status === 'PROCESSED' ? 'PROCESADA' :
-                                                 inv.status === 'PAID' ? 'PAGADA' :
-                                                 'PENDIENTE';
                               return (
                                 <tr key={inv.id} className="hover:bg-slate-50">
                                   <td className="px-6 py-4 text-sm text-slate-600">{inv.date}</td>
