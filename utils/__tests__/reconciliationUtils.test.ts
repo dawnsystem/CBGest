@@ -22,7 +22,7 @@ const invoiceEntry: AccountingEntry = {
 describe('reconciliationUtils', () => {
   describe('buildEntryFromUnmatchedTransaction', () => {
     it('uses 6xx/7xx against 572 for non-financial transactions', () => {
-      const expenseEntry = buildEntryFromUnmatchedTransaction(baseTransaction);
+      const expenseEntry = buildEntryFromUnmatchedTransaction(baseTransaction, 'BANK-1');
       expect(expenseEntry.lines[0].accountCode).toBe('629');
       expect(expenseEntry.lines[1].accountCode).toBe('572');
 
@@ -31,7 +31,7 @@ describe('reconciliationUtils', () => {
         id: 'tx-2',
         concept: 'Cobro reserva julio',
         amount: 450
-      });
+      }, 'BANK-2');
       expect(incomeEntry.lines[0].accountCode).toBe('705');
       expect(incomeEntry.lines[1].accountCode).toBe('572');
     });
@@ -40,7 +40,7 @@ describe('reconciliationUtils', () => {
       const expenseEntry = buildEntryFromUnmatchedTransaction({
         ...baseTransaction,
         concept: 'Comisión mantenimiento cuenta'
-      });
+      }, 'BANK-3');
       expect(expenseEntry.lines[0].accountCode).toBe('626');
 
       const incomeEntry = buildEntryFromUnmatchedTransaction({
@@ -48,7 +48,7 @@ describe('reconciliationUtils', () => {
         id: 'tx-3',
         concept: 'Interés abonado por banco',
         amount: 12
-      });
+      }, 'BANK-4');
       expect(incomeEntry.lines[0].accountCode).toBe('769');
     });
   });
@@ -70,7 +70,7 @@ describe('reconciliationUtils', () => {
         history: []
       };
 
-      const settlement = buildInvoiceSettlementEntry(baseTransaction, invoiceEntry, invoice);
+      const settlement = buildInvoiceSettlementEntry(baseTransaction, invoiceEntry, 'RECON-1', invoice);
       expect(settlement.lines[0]).toMatchObject({ accountCode: '400', debit: 120, credit: 0 });
       expect(settlement.lines[1]).toMatchObject({ accountCode: '572', debit: 0, credit: 120 });
       expect(settlement.invoiceId).toBe('inv-1');
@@ -82,6 +82,7 @@ describe('reconciliationUtils', () => {
       const settlement = buildInvoiceSettlementEntry(
         { ...baseTransaction, amount: 120, concept: 'Cobro factura cliente' },
         { ...invoiceEntry, id: 'AUTO-inv-2', invoiceId: 'inv-2' },
+        'RECON-2',
         {
           id: 'inv-2',
           number: 'I-001',
@@ -95,7 +96,7 @@ describe('reconciliationUtils', () => {
           type: 'INCOME',
           status: 'PENDING',
           history: []
-        }
+        },
       );
 
       expect(settlement.lines[0]).toMatchObject({ accountCode: '430', debit: 0, credit: 120 });

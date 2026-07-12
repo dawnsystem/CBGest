@@ -691,7 +691,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
 
       if (matchedEntry.invoiceId) {
         const settlementEntryId = `RECON-${generateId()}`;
-        const settlementEntry = buildInvoiceSettlementEntry(transaction, matchedEntry, relatedInvoice, settlementEntryId);
+        const settlementEntry = buildInvoiceSettlementEntry(transaction, matchedEntry, settlementEntryId, relatedInvoice);
 
         try {
           await handleAddEntry(settlementEntry);
@@ -709,6 +709,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
           showError(`Error al conciliar transacción con factura: ${errorMessage}`);
+          return;
         }
         return;
       }

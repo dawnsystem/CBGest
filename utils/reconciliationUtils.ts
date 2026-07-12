@@ -38,7 +38,7 @@ export const getTransactionCounterpartyAccount = (tx: BankTransaction): { code: 
 
 export const buildEntryFromUnmatchedTransaction = (
   tx: BankTransaction,
-  entryId?: string
+  entryId: string
 ): AccountingEntry => {
   const absAmount = Math.abs(tx.amount);
   const isExpense = tx.amount < 0;
@@ -59,7 +59,7 @@ export const buildEntryFromUnmatchedTransaction = (
   };
 
   return {
-    id: entryId || `BANK-${tx.id}`,
+    id: entryId,
     date: tx.date,
     concept: tx.concept,
     lines: [counterLine, bankLine],
@@ -75,8 +75,8 @@ export const buildEntryFromUnmatchedTransaction = (
 export const buildInvoiceSettlementEntry = (
   tx: BankTransaction,
   matchedEntry: AccountingEntry,
-  invoice?: Invoice,
-  entryId?: string
+  entryId: string,
+  invoice?: Invoice
 ): AccountingEntry => {
   const absAmount = Math.abs(tx.amount);
   const isExpense = invoice
@@ -100,7 +100,7 @@ export const buildInvoiceSettlementEntry = (
   };
 
   return {
-    id: entryId || `RECON-${tx.id}-${matchedEntry.id}`,
+    id: entryId,
     date: tx.date,
     concept: `Cierre deuda factura: ${matchedEntry.concept}`,
     lines: [pendingLine, bankLine],
