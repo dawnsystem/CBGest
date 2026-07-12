@@ -292,8 +292,12 @@ describe('Appwrite automation functions', () => {
       error: vi.fn(),
     });
 
-    const profitabilityPayload = profitabilityRes.json.mock.calls[0][0];
-    const modelo184Payload = modelo184Res.json.mock.calls[0][0];
+    const profitabilityPayload = profitabilityRes.json.mock.calls[0][0] as {
+      apartments: Array<{ irpf: { rendimientoNeto: number } }>;
+    };
+    const modelo184Payload = modelo184Res.json.mock.calls[0][0] as {
+      modelo184: { resumen: { rendimientoNeto: number } };
+    };
 
     expect(profitabilityPayload.apartments[0].irpf.rendimientoNeto).toBe(800);
     expect(modelo184Payload.modelo184.resumen.rendimientoNeto).toBe(800);
