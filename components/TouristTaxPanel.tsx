@@ -355,7 +355,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
         <div className="flex items-center gap-2">
           <select
             value={selectedYear}
-            onChange={e => setSelectedYear(parseInt(e.target.value))}
+            onChange={e => setSelectedYear(parseInt(e.target.value, 10))}
             className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
           >
             {Array.from(new Set([defaultYear - 1, defaultYear, defaultYear + 1, realCurrentYear - 1, realCurrentYear]))
