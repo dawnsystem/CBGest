@@ -18,6 +18,9 @@ interface InvoiceUploaderProps {
   apartments: Apartment[];
 }
 
+const READ_ONLY_ATTACH_MESSAGE = 'Ejercicio cerrado: no se pueden adjuntar documentos.';
+const READ_ONLY_DISABLED_BUTTON_CLASSES = 'bg-slate-100 text-slate-400 cursor-not-allowed';
+
 export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, onBankTransactionsAdded, settings: _settings, apartments }) => {
   const { queue, addToQueue, removeFromQueue } = useUploadQueue();
   const isReadOnly = useIsReadOnly();
@@ -56,7 +59,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
     e.stopPropagation();
     setIsDragging(false);
     if (isReadOnly) {
-      showToast('Ejercicio cerrado: no se pueden adjuntar documentos.', 'warning');
+      showToast(READ_ONLY_ATTACH_MESSAGE, 'warning');
       return;
     }
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
@@ -66,7 +69,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isReadOnly) {
-      showToast('Ejercicio cerrado: no se pueden adjuntar documentos.', 'warning');
+      showToast(READ_ONLY_ATTACH_MESSAGE, 'warning');
       e.target.value = '';
       return;
     }
@@ -123,6 +126,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   };
 
   const inboxItems = queue.filter(i => i.id !== reviewItem?.id);
+  const isConfirmDisabled = isReadOnly || (nifError && !forceAcceptNif);
 
   // --- REVIEW UI (Invoice) ---
   if (preview && reviewItem) {
@@ -286,16 +290,20 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
              <button
                 onClick={() => confirmInvoice(false)}
                disabled={isReadOnly}
-               className="order-2 bg-white border border-amber-500 text-amber-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-50 flex items-center justify-center gap-2 transition-colors"
+               className={`order-2 px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                 isReadOnly
+                   ? READ_ONLY_DISABLED_BUTTON_CLASSES + ' border border-slate-200'
+                   : 'bg-white border border-amber-500 text-amber-600 hover:bg-amber-50'
+               }`}
                title="Guardar como borrador sin crear asiento contable (requiere revisión posterior)"
              >
                 <CheckCircle className="w-4 h-4" /> <span className="hidden xs:inline">Guardar</span> Borrador
              </button>
              <button
                 onClick={() => confirmInvoice(true)}
-                disabled={isReadOnly || (nifError && !forceAcceptNif)}
+                disabled={isConfirmDisabled}
                 className={`order-1 sm:order-3 px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 shadow-md transition-all ${
-                   isReadOnly || (nifError && !forceAcceptNif)
+                   isConfirmDisabled
                     ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                     : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'
                 }`}
@@ -317,14 +325,26 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
               <button 
                 onClick={() => setUploadType('INVOICE')}
                 disabled={isReadOnly}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${uploadType === 'INVOICE' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  isReadOnly
+                    ? READ_ONLY_DISABLED_BUTTON_CLASSES
+                    : uploadType === 'INVOICE'
+                      ? 'bg-blue-600 text-white shadow'
+                      : 'text-slate-500 hover:bg-slate-50'
+                }`}
               >
                   <FileText className="w-4 h-4 inline mr-2" /> Facturas / Tickets
               </button>
               <button
                 onClick={() => setUploadType('BANK_STATEMENT')}
                 disabled={isReadOnly}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${uploadType === 'BANK_STATEMENT' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  isReadOnly
+                    ? READ_ONLY_DISABLED_BUTTON_CLASSES
+                    : uploadType === 'BANK_STATEMENT'
+                      ? 'bg-indigo-600 text-white shadow'
+                      : 'text-slate-500 hover:bg-slate-50'
+                }`}
               >
                   <Landmark className="w-4 h-4 inline mr-2" /> Extracto Bancario
               </button>
@@ -427,7 +447,9 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                               onClick={() => startReview(item)}
                               disabled={isReadOnly}
                               className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
-                                item.needsMapping
+                                isReadOnly
+                                  ? READ_ONLY_DISABLED_BUTTON_CLASSES
+                                  : item.needsMapping
                                   ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                   : 'bg-blue-600 text-white hover:bg-blue-700'
                               }`}

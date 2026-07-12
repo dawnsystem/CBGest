@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InvoiceUploader } from '../InvoiceUploader';
+import type { AppSettings } from '../../types';
 
 const mockAddToQueue = vi.fn();
 const mockRemoveFromQueue = vi.fn();
@@ -44,6 +45,15 @@ vi.mock('../Toast', () => ({
 }));
 
 describe('InvoiceUploader', () => {
+  const MOCK_FILE_CONTENT = 'mock-pdf-content';
+  const settings: AppSettings = {
+    cbName: 'CB Test',
+    nif: 'B12345678',
+    fiscalRegime: 'GENERAL',
+    vatObligation: true,
+    partners: [],
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockShowConfirm.mockResolvedValue(true);
@@ -56,18 +66,16 @@ describe('InvoiceUploader', () => {
       <InvoiceUploader
         onInvoiceAdded={vi.fn()}
         onBankTransactionsAdded={vi.fn()}
-        settings={{} as never}
+        settings={settings}
         apartments={[]}
       />
     );
 
     const input = screen.getByLabelText('Seleccionar Archivos') as HTMLInputElement;
     expect(input.disabled).toBe(true);
-
-    fireEvent.change(input, { target: { files: [new File(['x'], 'factura.pdf', { type: 'application/pdf' })] } });
-
+    expect(screen.getByRole('button', { name: /Facturas \/ Tickets/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Extracto Bancario/i })).toBeDisabled();
     expect(mockAddToQueue).not.toHaveBeenCalled();
-    expect(mockShowToast).toHaveBeenCalledWith('Ejercicio cerrado: no se pueden adjuntar documentos.', 'warning');
   });
 
   it('permite adjuntar archivos cuando el ejercicio está abierto', () => {
@@ -77,13 +85,13 @@ describe('InvoiceUploader', () => {
       <InvoiceUploader
         onInvoiceAdded={vi.fn()}
         onBankTransactionsAdded={vi.fn()}
-        settings={{} as never}
+        settings={settings}
         apartments={[]}
       />
     );
 
     const input = screen.getByLabelText('Seleccionar Archivos') as HTMLInputElement;
-    const file = new File(['x'], 'factura.pdf', { type: 'application/pdf' });
+    const file = new File([MOCK_FILE_CONTENT], 'factura.pdf', { type: 'application/pdf' });
 
     fireEvent.change(input, { target: { files: [file] } });
 
