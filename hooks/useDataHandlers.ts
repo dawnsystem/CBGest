@@ -14,7 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
-import { buildEntryFromInvoice, buildClosingEntry } from '../utils/invoiceUtils';
+import { buildEntryFromInvoice } from '../utils/invoiceUtils';
 
 // ============================================================================
 // DEBT-006: Generic optimistic-CRUD factory
@@ -208,12 +208,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   // Helper to create entry from invoice
   // DEBT-002: delegate to the shared utility in utils/invoiceUtils.ts
   const createEntryFromInvoice = useCallback((inv: Invoice) => {
-    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name }, data.settings.fiscalRegime);
-    handleAddEntry(entry);
-  }, [user, data.settings.fiscalRegime, handleAddEntry]);
-
-  const createClosingEntry = useCallback((inv: Invoice) => {
-    const entry = buildClosingEntry(inv, { userId: user?.$id, userName: user?.name });
+    const entry = buildEntryFromInvoice(inv, { userId: user?.$id, userName: user?.name });
     handleAddEntry(entry);
   }, [user, handleAddEntry]);
 
@@ -362,11 +357,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         createEntryFromInvoice(invoice);
       }
     }
-
-    if (oldInvoice?.status === 'PROCESSED' && invoice.status === 'PAID' && data.settings.fiscalRegime === 'ALQUILER_EXENTO') {
-      createClosingEntry(invoice);
-    }
-  }, [isReadOnly, showToast, data.invoices, data.entries, data.settings, setters, showError, createEntryFromInvoice, createClosingEntry]);
+  }, [isReadOnly, showToast, data.invoices, data.entries, data.settings, setters, showError, createEntryFromInvoice]);
 
   const handleDeleteInvoice = useCallback(async (id: string) => {
     if (isReadOnly) {
