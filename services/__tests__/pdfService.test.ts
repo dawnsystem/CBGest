@@ -120,12 +120,19 @@ describe('pdfService', () => {
     expect(exempt.rendimientoNeto).toBe(758);
   });
 
-  it('should return zeroes when required fiscal filters are missing', () => {
-    expect(calculateTaxData(invoices, settings)).toEqual({
-      totalIngresos: 0,
-      totalGastos: 0,
-      rendimientoNeto: 0,
-    });
+  it('should throw when required fiscal filters are missing', () => {
+    expect(() => calculateTaxData(invoices, settings, {})).toThrow(
+      'calculateTaxData requiere fiscalYearId y period para calcular IRPF'
+    );
+  });
+
+  it('should throw when fiscal period dates are invalid', () => {
+    expect(() =>
+      calculateTaxData(invoices, settings, {
+        fiscalYearId: 'fy-2026',
+        period: { startDate: 'invalid-date', endDate: '2026-12-31' },
+      })
+    ).toThrow('calculateTaxData recibió un periodo con fechas inválidas');
   });
 
   it('should generate PDF blobs for fiscal models and partner certificates', () => {

@@ -43,19 +43,26 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
     : undefined;
 
   // Usar servicio centralizado para cálculos
-  const taxData = calculateTaxData(invoices, settings, {
-    fiscalYearId: selectedFiscalYearId,
-    period: selectedPeriod
-  });
+  const taxData = selectedFiscalYearId && selectedPeriod
+    ? calculateTaxData(invoices, settings, {
+        fiscalYearId: selectedFiscalYearId,
+        period: selectedPeriod
+      })
+    : { totalIngresos: 0, totalGastos: 0, rendimientoNeto: 0 };
   const { totalIngresos, totalGastos, rendimientoNeto } = taxData;
 
-  const currentYear = selectedYear ?? Number.parseInt(invoices[0]?.date?.slice(0, 4) || '0', 10);
+  const currentYear = selectedYear;
 
   // SAFE GUARD: Ensure partners exists - memoized to prevent re-renders
   const partners = useMemo(() => settings.partners || [], [settings.partners]);
 
   // Handler para generar PDF del Modelo 184
   const handleGenerate184 = useCallback(() => {
+    if (!currentYear) {
+      showToast('Selecciona un ejercicio fiscal activo para generar el Modelo 184.', 'warning');
+      return;
+    }
+
     setGenerating184(true);
     try {
       const blob = generatePDF184({
@@ -76,6 +83,11 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
 
   // Handler para generar certificados de los partícipes
   const handleGenerateCertificates = useCallback(() => {
+    if (!currentYear) {
+      showToast('Selecciona un ejercicio fiscal activo para generar certificados.', 'warning');
+      return;
+    }
+
     setGeneratingCerts(true);
     const errors: string[] = [];
 

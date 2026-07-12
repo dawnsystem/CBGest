@@ -60,6 +60,11 @@ interface TaxDataIRPF {
   rendimientoNeto: number;
 }
 
+function parseIsoDate(dateValue: string): Date | null {
+  const parsed = new Date(dateValue);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 /**
  * Genera PDF del Modelo 303 - Autoliquidación IVA
  */
@@ -334,19 +339,30 @@ export function downloadPDF(blob: Blob, filename: string): void {
 }
 
 /**
- * Calcula los datos fiscales IRPF a partir de las facturas
+ * Calcula los datos fiscales IRPF a partir de las facturas del ejercicio y periodo activo.
  */
 export function calculateTaxData(
   invoices: Invoice[],
   settings: AppSettings,
-  filters: TaxCalculationFilters = {}
+  filters: TaxCalculationFilters
 ): TaxDataIRPF {
   const { fiscalYearId, period } = filters;
+  if (!fiscalYearId || !period) {
+    throw new Error('calculateTaxData requiere fiscalYearId y period para calcular IRPF');
+  }
+
+  const start = parseIsoDate(period.startDate);
+  const end = parseIsoDate(period.endDate);
+  if (!start || !end) {
+    throw new Error('calculateTaxData recibió un periodo con fechas inválidas');
+  }
+
   const validInvoices = (invoices || []).filter(invoice => {
     if (invoice.status === 'PENDING') return false;
-    if (!fiscalYearId || invoice.fiscalYearId !== fiscalYearId) return false;
-    if (!period) return false;
-    return invoice.date >= period.startDate && invoice.date <= period.endDate;
+    if (invoice.fiscalYearId !== fiscalYearId) return false;
+    const invoiceDate = parseIsoDate(invoice.date);
+    if (!invoiceDate) return false;
+    return invoiceDate >= start && invoiceDate <= end;
   });
 
   const totalIngresos = validInvoices
