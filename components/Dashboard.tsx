@@ -9,7 +9,7 @@ import { ExpensesByApartment } from './ExpensesByApartment';
 import { ExpenseProjections } from './ExpenseProjections';
 import { ProfitabilityByApartment } from './ProfitabilityByApartment';
 import { useNavigate } from 'react-router-dom';
-import { downloadPDF, generatePartnerCertificate } from '../services/pdfService';
+import { calculateTaxData, downloadPDF, generatePartnerCertificate } from '../services/pdfService';
 import { sanitizeFileNameSegment } from '../utils/fileHelpers';
 import { useToast } from './Toast';
 import { useFiscalYear } from '../context/FiscalYearContext';
@@ -66,11 +66,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   
   const isRental = settings.fiscalRegime === 'ALQUILER_EXENTO';
 
-  // Totals for Top Cards
-  // BUG-011 fix: apply the same amount selector to both income and expenses so
-  // that totals are consistent within each fiscal regime.
+  const selectedFiscalYearId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
+  const selectedYear = activeFiscalYear?.year;
+  const selectedPeriod = useMemo(() => selectedYear ? {
+    startDate: `${selectedYear}-01-01`,
+    endDate: `${selectedYear}-12-31`
+  } : undefined, [selectedYear]);
+
+  const taxData = useMemo(() => {
+    if (!selectedFiscalYearId || !selectedPeriod) {
+      return { totalIngresos: 0, totalGastos: 0, rendimientoNeto: 0 };
+    }
+
+    return calculateTaxData(invoices, settings, {
+      fiscalYearId: selectedFiscalYearId,
+      period: selectedPeriod
+    });
+  }, [invoices, settings, selectedFiscalYearId, selectedPeriod]);
+
+  // BUG-011 fix: apply the same amount selector to chart income and expenses so
+  // that chart totals are consistent within each fiscal regime.
   //   ALQUILER_EXENTO: income is VAT-exempt so totalAmount == baseAmount, but
-  //     expenses include non-deductible VAT → use totalAmount for expenses.
+  //     expenses include non-deductible VAT -> use totalAmount for expenses.
   //   GENERAL: VAT is fully deductible; only the net base matters everywhere.
   const invoiceAmount = useCallback(
     (inv: { type: string; baseAmount: number; totalAmount: number }) =>
@@ -78,15 +95,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
     [isRental]
   );
 
-  const totalIncome = invoices
-    .filter(i => i.type === 'INCOME' && i.status !== 'PENDING')
-    .reduce((acc, curr) => acc + invoiceAmount(curr), 0);
-  
-  const totalExpense = invoices
-    .filter(i => i.type === 'EXPENSE' && i.status !== 'PENDING')
-    .reduce((acc, curr) => acc + invoiceAmount(curr), 0);
-
-  const netResult = totalIncome - totalExpense;
+  const totalIncome = taxData.totalIngresos;
+  const totalExpense = taxData.totalGastos;
+  const netResult = taxData.rendimientoNeto;
 
   // Chart Data Grouping (By Month)
   const chartData = useMemo(() => {
@@ -95,7 +106,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
 
     invoices.forEach(inv => {
         if (inv.status === 'PENDING') return;
+        if (selectedFiscalYearId && inv.fiscalYearId !== selectedFiscalYearId) return;
         const date = new Date(inv.date);
+        if (Number.isNaN(date.getTime())) return;
+        if (selectedYear && date.getFullYear() !== selectedYear) return;
         const monthIndex = date.getMonth();
         const amount = invoiceAmount(inv);
         
@@ -107,13 +121,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
     });
     
     // Filter out future months or empty tail if desired, or keep full year
-    const currentMonth = new Date().getMonth();
-    return data.slice(0, currentMonth + 1);
-  }, [invoices, invoiceAmount]);
+    const now = new Date();
+    const monthsToShow = selectedYear === now.getFullYear() ? now.getMonth() + 1 : 12;
+    return data.slice(0, monthsToShow);
+  }, [invoices, invoiceAmount, selectedFiscalYearId, selectedYear]);
 
 
   // --- 2. TAX ESTIMATION LOGIC (COMPLETE IRPF 2024) ---
-  const currentYear = new Date().getFullYear();
+  const currentYear = selectedYear ?? new Date().getFullYear();
 
   // Helper: Calculate disability minimum
   const getDisabilityMinimum = (level: DisabilityLevel): number => {
