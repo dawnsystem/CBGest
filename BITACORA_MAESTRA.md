@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 01:00:16 UTC*
+*Última actualización: 2026-07-12 11:13:46 UTC*
 
 ---
 
@@ -8,10 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `TSK-003`
-- **Objetivo Principal:** Rehacer la conciliación como cierre contable real.
-- **Estado Detallado:** `TSK-003` implementado: conciliación con factura pendiente genera asiento de cierre `572` contra `400/430`; transacciones sin factura crean partida doble `6xx/7xx` contra `572` sin IVA; `626/769` quedan reservadas a conceptos financieros.
-- **Próximo Micro-Paso Planificado:** Ejecutar validación final automática (Code Review + CodeQL) y esperar directiva del Director.
+- **Identificador de Tarea:** `TSK-006`
+- **Objetivo Principal:** Actualizar automatizaciones Appwrite al modelo de datos actual.
+- **Estado Detallado:** `TSK-006` implementado: `auto-reconcile`, `weekly-summary`, `calculate-profitability` y `prepare-modelo-184` ya usan enums actuales (`EXPENSE/INCOME`, `PENDING/PROCESSED/PAID`, `MATCHED`), lectura moderna de `settings`, filtro por `fiscalYearId` activo y guardas defensivas cuando no hay ejercicio abierto.
+- **Próximo Micro-Paso Planificado:** Ejecutar validación automática final (Code Review + CodeQL) y esperar directiva del Director.
 
 ## 📋 Plan Estratégico de Auditoría
 
@@ -29,6 +29,7 @@
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
 ### ✅ Historial de Implementaciones Completadas
+*   **[2026-07-12] - `TSK-006` - Actualización de automatizaciones Appwrite:** Adaptadas las cloud functions al modelo actual de Appwrite: enums en mayúsculas, `transactions`/`reconciledWithInvoiceId`, lectura real de `settings.partners`, cálculo IRPF sobre `totalAmount`, filtro por ejercicio activo y tests focalizados para las automatizaciones.
 *   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`), se ajustó la creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA), se limitó `626/769` a conceptos financieros y se añadió trazabilidad transacción ↔ asiento ↔ factura. Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-11] - `REF-002` - Split de `appwriteService` por dominios con barrel de compatibilidad:** `services/appwriteService.ts` reducido a re-exports, API pública preservada mediante `services/appwrite/compatService.ts`, y validación completada con `npm run type-check && npm run test:ci`.
 *   **[2026-07-11] - `REF-001` - Integración `useDataHandlers` en App principal:** Refactor de `App.tsx` para usar `useDataHandlers({...})` y borrar handlers duplicados inline. Ajustes en `useDataHandlers.ts` para mantener guardas `isReadOnly`, asignación `fiscalYearId`, upsert de reservas, conciliación y vinculación de reserva-apartamento. Validado con `npm run type-check && npm run test:ci`.
@@ -76,6 +77,20 @@
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-12 11:13:46 UTC]
+*   **Directiva del Director:** "[TSK-006] Actualizar automatizaciones Appwrite."
+*   **Plan de Acción:** Localizar las cloud functions afectadas, alinear enums/campos con Appwrite actual, eliminar la lógica fiscal heredada no aplicable, añadir guardas defensivas ligadas al ejercicio activo y validar con tests focalizados + validación completa del repositorio.
+*   **Log de Acciones:**
+    - `[11:08:00]` - **AUDIT:** Localizadas `functions/auto-reconcile`, `weekly-summary`, `calculate-profitability` y `prepare-modelo-184`. Verificados enums actuales, `transactions`, `settings.partners` y soporte transversal de `fiscalYearId`.
+    - `[11:09:00]` - **VALIDACIÓN BASE:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS tras `npm ci` (warnings de lint preexistentes).
+    - `[11:11:00]` - **MOD:** `functions/auto-reconcile/src/main.js`, `functions/weekly-summary/src/main.js`, `functions/calculate-profitability/src/main.js`, `functions/prepare-modelo-184/src/main.js`. **CAMBIOS:** enums actuales, colección `transactions`, `reconciledWithInvoiceId`, lectura moderna de `settings`, filtro por `fiscalYearId` activo, cálculo con `totalAmount`, exclusión de facturas `PENDING` y guardas si no hay ejercicio abierto.
+    - `[11:12:00]` - **TEST:** Creado `functions/__tests__/appwrite-automations.test.ts` (4 casos) para cubrir conciliación, resumen semanal, rentabilidad y Modelo 184.
+    - `[11:12:00]` - **TEST:** `npx vitest run functions/__tests__/appwrite-automations.test.ts`. **RESULTADO:** PASS.
+    - `[11:13:00]` - **VALIDACIÓN FINAL:** `npm run lint && npm run type-check && npm run test:ci && npm run build`. **RESULTADO:** PASS (202 tests).
+*   **Resultado:** TSK-006 completada técnicamente; pendiente únicamente de validación automática final y commit.
+*   **Commit Asociado:** `Pendiente de commit`
+*   **Observaciones/Decisiones de Diseño:** Se mantuvo un cambio quirúrgico limitado a las automatizaciones Appwrite. Para evitar mezclar ejercicios, las funciones fiscales ahora se saltan defensivamente si no existe ejercicio activo abierto; además `calculate-profitability` deja la reducción en `0` para no aplicar capas fiscales heredadas ajenas al flujo actual.
+
 ### Sesión: [2026-07-12 01:00:16 UTC]
 *   **Directiva del Director:** "[TSK-003] Rehacer la conciliación como cierre contable real."
 *   **Plan de Acción:** Localizar flujo de conciliación actual, implementar asientos de cierre para facturas pendientes, ajustar creación de asientos desde banco sin factura, preservar trazabilidad y validar con tests/lint/build.

@@ -1,5 +1,38 @@
 import { Client, Databases, Query, ID } from 'node-appwrite';
 
+const EXPENSE = 'EXPENSE';
+const PROCESSED = 'PROCESSED';
+const PAID = 'PAID';
+const FINALIZED_STATUSES = new Set([PROCESSED, PAID]);
+
+const parseAmount = (value, fallback = 0) => {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : fallback;
+};
+
+async function getActiveFiscalYear(databases, databaseId, log) {
+  try {
+    const response = await databases.listDocuments(
+      databaseId,
+      'fiscal_years',
+      [Query.equal('status', 'OPEN'), Query.orderDesc('year'), Query.limit(1)]
+    );
+
+    if (response.documents.length === 0) {
+      return null;
+    }
+
+    const fiscalYear = response.documents[0];
+    return {
+      id: fiscalYear.$id || fiscalYear.id,
+      year: Number(fiscalYear.year) || null
+    };
+  } catch (e) {
+    log(`Could not resolve active fiscal year: ${e.message}`);
+    return null;
+  }
+}
+
 /**
  * Prepare Modelo 184 Function
  * Prepares data for annual "Declaración informativa de entidades en régimen de atribución de rentas"
@@ -16,25 +49,40 @@ export default async ({ req, res, log, error }) => {
   const databaseId = process.env.DATABASE_ID || '691f288100019843d43e';
 
   try {
-    // Calculate for the previous year
-    const now = new Date();
-    const fiscalYear = now.getFullYear() - 1;
+    const activeFiscalYear = await getActiveFiscalYear(databases, databaseId, log);
+    if (!activeFiscalYear?.id || !activeFiscalYear.year) {
+      log('No active fiscal year found, skipping Modelo 184 preparation');
+      return res.json({
+        success: true,
+        skipped: true,
+        reason: 'no-active-fiscal-year'
+      });
+    }
+
+    const fiscalYear = activeFiscalYear.year;
     const yearStart = `${fiscalYear}-01-01`;
     const yearEnd = `${fiscalYear}-12-31`;
 
     log(`Preparing Modelo 184 for fiscal year ${fiscalYear}`);
     log(`Period: ${yearStart} to ${yearEnd}`);
+    log(`Active fiscal year id: ${activeFiscalYear.id}`);
 
-    // Get settings for partners info
+    // Get settings for declarant/partners info
     let partners = [];
+    let settingsDoc = null;
     try {
       const settings = await databases.listDocuments(
         databaseId,
         'settings',
-        [Query.equal('key', 'partners'), Query.limit(1)]
+        [Query.limit(1)]
       );
-      if (settings.documents.length > 0 && settings.documents[0].value) {
-        partners = JSON.parse(settings.documents[0].value);
+      if (settings.documents.length > 0) {
+        settingsDoc = settings.documents[0];
+        if (typeof settingsDoc.partners === 'string') {
+          partners = JSON.parse(settingsDoc.partners || '[]');
+        } else if (Array.isArray(settingsDoc.partners)) {
+          partners = settingsDoc.partners;
+        }
       }
     } catch (e) {
       log('No partners configuration found');
@@ -45,6 +93,7 @@ export default async ({ req, res, log, error }) => {
       databaseId,
       'reservations',
       [
+        Query.equal('fiscalYearId', activeFiscalYear.id),
         Query.greaterThanEqual('checkIn', yearStart),
         Query.lessThanEqual('checkIn', yearEnd),
         Query.limit(1000)
@@ -56,39 +105,47 @@ export default async ({ req, res, log, error }) => {
       databaseId,
       'invoices',
       [
-        Query.equal('type', 'expense'),
+        Query.equal('fiscalYearId', activeFiscalYear.id),
+        Query.equal('type', EXPENSE),
         Query.greaterThanEqual('date', yearStart),
         Query.lessThanEqual('date', yearEnd),
         Query.limit(1000)
       ]
     );
 
+    const finalizedInvoices = invoices.documents.filter(
+      (invoice) => FINALIZED_STATUSES.has(invoice.status)
+    );
+
     // Calculate totals
     const totalIncome = reservations.documents.reduce(
-      (sum, r) => sum + (parseFloat(r.totalAmount) || 0),
+      (sum, reservation) => sum + (
+        parseAmount(reservation.totalAmount)
+        || (parseAmount(reservation.pricePerNight) * parseAmount(reservation.nights))
+      ),
       0
     );
 
-    const totalExpenses = invoices.documents.reduce(
-      (sum, i) => sum + (parseFloat(i.totalAmount) || 0),
+    const totalExpenses = finalizedInvoices.reduce(
+      (sum, invoice) => sum + parseAmount(invoice.totalAmount),
       0
     );
 
-    const deductibleExpenses = invoices.documents
-      .filter(i => i.isDeductible !== false)
-      .reduce((sum, i) => sum + (parseFloat(i.totalAmount) || 0), 0);
+    const deductibleExpenses = finalizedInvoices
+      .filter(invoice => invoice.isDeductible !== false)
+      .reduce((sum, invoice) => sum + parseAmount(invoice.totalAmount), 0);
 
     // Calculate rendimiento neto
     const rendimientoNeto = totalIncome - deductibleExpenses;
 
-    // Group expenses by category for Modelo 184
+    // Group finalized expenses by category for Modelo 184
     const expensesByCategory = {};
-    for (const inv of invoices.documents) {
+    for (const inv of finalizedInvoices) {
       const category = inv.category || 'Otros gastos';
       if (!expensesByCategory[category]) {
         expensesByCategory[category] = 0;
       }
-      expensesByCategory[category] += parseFloat(inv.totalAmount) || 0;
+      expensesByCategory[category] += parseAmount(inv.totalAmount);
     }
 
     // Group income by apartment
@@ -99,16 +156,19 @@ export default async ({ req, res, log, error }) => {
         incomeByApartment[apt] = { count: 0, total: 0, nights: 0 };
       }
       incomeByApartment[apt].count++;
-      incomeByApartment[apt].total += parseFloat(res.totalAmount) || 0;
-      incomeByApartment[apt].nights += parseInt(res.nights) || 0;
+      incomeByApartment[apt].total += (
+        parseAmount(res.totalAmount)
+        || (parseAmount(res.pricePerNight) * parseAmount(res.nights))
+      );
+      incomeByApartment[apt].nights += parseAmount(res.nights);
     }
 
     // Calculate per-partner attribution (for Modelo 184)
     const partnerAttribution = partners.map(partner => ({
       name: partner.name,
       nif: partner.nif,
-      percentage: partner.percentage || (100 / partners.length),
-      rendimientoAtribuido: rendimientoNeto * ((partner.percentage || (100 / partners.length)) / 100)
+      participation: partner.participation || (100 / partners.length),
+      rendimientoAtribuido: rendimientoNeto * ((partner.participation || (100 / partners.length)) / 100)
     }));
 
     // Build the report
@@ -116,9 +176,8 @@ export default async ({ req, res, log, error }) => {
       fiscalYear,
       generatedAt: new Date().toISOString(),
       declarante: {
-        // This should come from settings
-        denominacion: 'Comunidad de Bienes [NOMBRE]',
-        nif: '[NIF DE LA CB]',
+        denominacion: settingsDoc?.cbName || 'Comunidad de Bienes [NOMBRE]',
+        nif: settingsDoc?.nif || '[NIF DE LA CB]',
         tipoEntidad: 'Comunidad de Bienes',
         claveActividad: '861', // Alquiler inmuebles urbanos
       },
@@ -128,7 +187,7 @@ export default async ({ req, res, log, error }) => {
         gastosDeducibles: Math.round(deductibleExpenses * 100) / 100,
         rendimientoNeto: Math.round(rendimientoNeto * 100) / 100,
         reservaciones: reservations.documents.length,
-        facturas: invoices.documents.length
+        facturas: finalizedInvoices.length
       },
       desglose: {
         ingresosPorInmueble: incomeByApartment,
@@ -158,7 +217,7 @@ export default async ({ req, res, log, error }) => {
     if (partnerAttribution.length > 0) {
       log('\nAtribución por socio:');
       for (const p of partnerAttribution) {
-        log(`  ${p.name}: ${Math.round(p.rendimientoAtribuido * 100) / 100}€ (${p.percentage}%)`);
+        log(`  ${p.name}: ${Math.round(p.rendimientoAtribuido * 100) / 100}€ (${p.participation}%)`);
       }
     }
 
