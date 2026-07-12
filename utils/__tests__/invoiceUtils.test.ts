@@ -284,3 +284,25 @@ describe('buildEntryFromInvoice — totalAmount only', () => {
     expect(totalCredit).toBe(121);
   });
 });
+
+describe('buildEntryFromInvoice — IRPF simplified invariants', () => {
+  it.each([
+    { type: 'EXPENSE' as const, status: 'PENDING' as const, expectedCounterpart: '400' },
+    { type: 'EXPENSE' as const, status: 'PROCESSED' as const, expectedCounterpart: '400' },
+    { type: 'EXPENSE' as const, status: 'PAID' as const, expectedCounterpart: '572' },
+    { type: 'INCOME' as const, status: 'PENDING' as const, expectedCounterpart: '430' },
+    { type: 'INCOME' as const, status: 'PROCESSED' as const, expectedCounterpart: '430' },
+    { type: 'INCOME' as const, status: 'PAID' as const, expectedCounterpart: '572' },
+  ])('keeps entry balanced and maps counterpart account for $type/$status', ({ type, status, expectedCounterpart }) => {
+    const inv = makeInvoice({ type, status, totalAmount: 333.33 });
+    const entry = buildEntryFromInvoice(inv);
+    const totalDebit = entry.lines.reduce((sum, line) => sum + line.debit, 0);
+    const totalCredit = entry.lines.reduce((sum, line) => sum + line.credit, 0);
+    const counterpartLine = entry.lines.find((line) => line.accountCode === expectedCounterpart);
+
+    expect(totalDebit).toBe(totalCredit);
+    expect(counterpartLine).toBeDefined();
+    expect(entry.lines.some((line) => line.accountCode.startsWith('472'))).toBe(false);
+    expect(entry.lines.some((line) => line.accountCode.startsWith('477'))).toBe(false);
+  });
+});

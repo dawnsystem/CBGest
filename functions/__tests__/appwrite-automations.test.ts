@@ -249,4 +249,53 @@ describe('Appwrite automation functions', () => {
       }),
     }));
   });
+
+  it('keeps apartment profitability aligned with Modelo 184 declarable base in single-apartment scenarios', async () => {
+    mockState.listDocuments
+      // calculate-profitability
+      .mockResolvedValueOnce({ documents: [{ $id: 'fy-2026', year: 2026, status: 'OPEN' }] })
+      .mockResolvedValueOnce({ documents: [{ $id: 'apt-1', name: 'Apartamento 1' }] })
+      .mockResolvedValueOnce({ documents: [{ apartmentName: 'Apartamento 1', totalAmount: '1000', nights: '5' }] })
+      .mockResolvedValueOnce({
+        documents: [{ totalAmount: '200', status: 'PAID', isDeductible: true }]
+      })
+      // prepare-modelo-184
+      .mockResolvedValueOnce({ documents: [{ $id: 'fy-2026', year: 2026, status: 'OPEN' }] })
+      .mockResolvedValueOnce({
+        documents: [{
+          cbName: 'CB Demo',
+          nif: 'J12345678',
+          partners: JSON.stringify([{ name: 'Ana', nif: '111', participation: 100 }]),
+        }]
+      })
+      .mockResolvedValueOnce({ documents: [{ apartmentName: 'Apartamento 1', totalAmount: '1000', nights: '5' }] })
+      .mockResolvedValueOnce({
+        documents: [{ category: 'Suministros', totalAmount: '200', status: 'PAID', isDeductible: true }]
+      });
+
+    const { default: calculateProfitability } = await import('../calculate-profitability/src/main.js');
+    const { default: prepareModelo184 } = await import('../prepare-modelo-184/src/main.js');
+    const profitabilityRes = makeRes();
+    const modelo184Res = makeRes();
+
+    await calculateProfitability({
+      req: {},
+      res: profitabilityRes,
+      log: vi.fn(),
+      error: vi.fn(),
+    });
+
+    await prepareModelo184({
+      req: {},
+      res: modelo184Res,
+      log: vi.fn(),
+      error: vi.fn(),
+    });
+
+    const profitabilityPayload = profitabilityRes.json.mock.calls[0][0];
+    const modelo184Payload = modelo184Res.json.mock.calls[0][0];
+
+    expect(profitabilityPayload.apartments[0].irpf.rendimientoNeto).toBe(800);
+    expect(modelo184Payload.modelo184.resumen.rendimientoNeto).toBe(800);
+  });
 });

@@ -135,6 +135,18 @@ describe('pdfService', () => {
     ).toThrow('calculateTaxData recibió un periodo con fechas inválidas');
   });
 
+  it('should return only IRPF summary fields', () => {
+    const result = calculateTaxData(invoices, settings, {
+      fiscalYearId: 'fy-2026',
+      period: {
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      },
+    });
+
+    expect(Object.keys(result).sort()).toEqual(['rendimientoNeto', 'totalGastos', 'totalIngresos']);
+  });
+
   it('should generate PDF blobs for fiscal models and partner certificates', () => {
     const blob303 = generatePDF303({
       trimestre: '2T',

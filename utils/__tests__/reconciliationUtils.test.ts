@@ -96,6 +96,18 @@ describe('reconciliationUtils', () => {
       expect(settlement.reconciled).toBe(true);
     });
 
+    it('keeps traceability invoice ↔ transaction ↔ settlement entry', () => {
+      const settlement = buildInvoiceSettlementEntry(baseTransaction, invoiceEntry, 'RECON-TRACE');
+      const totalDebit = settlement.lines.reduce((sum, line) => sum + line.debit, 0);
+      const totalCredit = settlement.lines.reduce((sum, line) => sum + line.credit, 0);
+
+      expect(settlement.id).toBe('RECON-TRACE');
+      expect(settlement.concept).toContain(invoiceEntry.concept);
+      expect(settlement.invoiceId).toBe(invoiceEntry.invoiceId);
+      expect(settlement.transactionId).toBe(baseTransaction.id);
+      expect(totalDebit).toBe(totalCredit);
+    });
+
     it('creates settlement entry with 572 against 430 for income invoices', () => {
       const settlement = buildInvoiceSettlementEntry(
         { ...baseTransaction, amount: 120, concept: 'Cobro factura cliente' },
