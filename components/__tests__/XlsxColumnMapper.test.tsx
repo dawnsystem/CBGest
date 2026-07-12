@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { XlsxColumnMapper } from '../XlsxColumnMapper';
 
+type MockCell = unknown;
+
 // Store test data for mock to return
-let mockTestData: any[][] = [];
+let mockTestData: MockCell[][] = [];
 
 // Mock read-excel-file to work in Node.js test environment
 vi.mock('read-excel-file', () => ({
@@ -15,7 +17,7 @@ vi.mock('read-excel-file', () => ({
 
 // Helper to create a base64 "file" and set up mock data
 // Instead of actually creating an Excel file, we just set up the mock
-async function createMockExcelBase64(data: any[][]): Promise<string> {
+async function createMockExcelBase64(data: MockCell[][]): Promise<string> {
   // Store the data for the mock to return
   mockTestData = data;
 

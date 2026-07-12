@@ -1,4 +1,10 @@
 import { Client, Databases, Query } from 'node-appwrite';
+import { getActiveFiscalYear, getReservationAmount, safeParseNumber } from '../../_shared/fiscal.js';
+
+const EXPENSE = 'EXPENSE';
+const PROCESSED = 'PROCESSED';
+const PAID = 'PAID';
+const FINALIZED_STATUSES = new Set([PROCESSED, PAID]);
 
 /**
  * Calculate Profitability Function
@@ -15,6 +21,16 @@ export default async ({ req, res, log, error }) => {
   const databaseId = process.env.DATABASE_ID || '691f288100019843d43e';
 
   try {
+    const activeFiscalYear = await getActiveFiscalYear(databases, databaseId, log);
+    if (!activeFiscalYear?.id) {
+      log('No active fiscal year found, skipping profitability calculation');
+      return res.json({
+        success: true,
+        skipped: true,
+        reason: 'no-active-fiscal-year'
+      });
+    }
+
     // Calculate for the previous month
     const now = new Date();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -26,12 +42,13 @@ export default async ({ req, res, log, error }) => {
 
     log(`Calculating profitability for ${monthName}`);
     log(`Period: ${monthStart} to ${monthEnd}`);
+    log(`Active fiscal year: ${activeFiscalYear.year || 'unknown'} (${activeFiscalYear.id})`);
 
     // Get all apartments
     const apartments = await databases.listDocuments(
       databaseId,
       'apartments',
-      [Query.equal('isActive', true), Query.limit(100)]
+      [Query.equal('isActive', true), Query.equal('fiscalYearId', activeFiscalYear.id), Query.limit(100)]
     );
 
     if (apartments.documents.length === 0) {
@@ -50,6 +67,7 @@ export default async ({ req, res, log, error }) => {
         'reservations',
         [
           Query.equal('apartmentId', apartment.$id),
+          Query.equal('fiscalYearId', activeFiscalYear.id),
           Query.greaterThanEqual('checkIn', monthStart),
           Query.lessThanEqual('checkIn', monthEnd),
           Query.limit(100)
@@ -58,52 +76,53 @@ export default async ({ req, res, log, error }) => {
 
       // Calculate income
       const totalIncome = reservations.documents.reduce(
-        (sum, r) => sum + (parseFloat(r.totalAmount) || 0),
+        (sum, reservation) => sum + getReservationAmount(reservation),
         0
       );
       const totalNights = reservations.documents.reduce(
-        (sum, r) => sum + (parseInt(r.nights) || 0),
+        (sum, reservation) => sum + safeParseNumber(reservation.nights),
         0
       );
 
-      // Get invoices (expenses) for this apartment
+      // Get finalized expense invoices for this apartment
       const invoices = await databases.listDocuments(
         databaseId,
         'invoices',
         [
           Query.equal('apartmentId', apartment.$id),
-          Query.equal('type', 'expense'),
+          Query.equal('fiscalYearId', activeFiscalYear.id),
+          Query.equal('type', EXPENSE),
           Query.greaterThanEqual('date', monthStart),
           Query.lessThanEqual('date', monthEnd),
           Query.limit(100)
         ]
       );
 
-      // Calculate expenses
-      const totalExpenses = invoices.documents.reduce(
-        (sum, i) => sum + (parseFloat(i.totalAmount) || 0),
+      const finalizedInvoices = invoices.documents.filter(
+        (invoice) => FINALIZED_STATUSES.has(invoice.status)
+      );
+
+      // Calculate expenses using totalAmount (IRPF simplified model, no IVA split)
+      const totalExpenses = finalizedInvoices.reduce(
+        (sum, invoice) => sum + safeParseNumber(invoice.totalAmount),
         0
       );
-      const deductibleExpenses = invoices.documents
-        .filter(i => i.isDeductible !== false)
-        .reduce((sum, i) => sum + (parseFloat(i.totalAmount) || 0), 0);
+      const deductibleExpenses = finalizedInvoices
+        .filter(invoice => invoice.isDeductible !== false)
+        .reduce((sum, invoice) => sum + safeParseNumber(invoice.totalAmount), 0);
 
       // Calculate profitability
       const netProfit = totalIncome - totalExpenses;
       const daysInMonth = lastMonthEnd.getDate();
       const occupancyRate = (totalNights / daysInMonth) * 100;
 
-      // IRPF calculations (simplified - actual may vary)
-      // Rendimiento neto = Ingresos - Gastos deducibles
+      // IRPF simplified calculation without VAT/reduction layers
       const rendimientoNeto = totalIncome - deductibleExpenses;
-
-      // Reducción por arrendamiento (60% if >3 years, simplified)
-      const reduccion = rendimientoNeto > 0 ? rendimientoNeto * 0.6 : 0;
-      const rendimientoReducido = rendimientoNeto - reduccion;
 
       const apartmentResult = {
         apartmentId: apartment.$id,
         apartmentName: apartment.name,
+        fiscalYearId: activeFiscalYear.id,
         period: monthName,
         metrics: {
           reservations: reservations.documents.length,
@@ -116,8 +135,8 @@ export default async ({ req, res, log, error }) => {
         },
         irpf: {
           rendimientoNeto: Math.round(rendimientoNeto * 100) / 100,
-          reduccion: Math.round(reduccion * 100) / 100,
-          rendimientoReducido: Math.round(rendimientoReducido * 100) / 100
+          reduccion: 0,
+          rendimientoReducido: Math.round(rendimientoNeto * 100) / 100
         }
       };
 
@@ -129,11 +148,11 @@ export default async ({ req, res, log, error }) => {
     // Calculate totals
     const totals = {
       apartments: results.length,
-      totalIncome: results.reduce((sum, r) => sum + r.metrics.income, 0),
-      totalExpenses: results.reduce((sum, r) => sum + r.metrics.expenses, 0),
-      totalNetProfit: results.reduce((sum, r) => sum + r.metrics.netProfit, 0),
-      totalRendimientoNeto: results.reduce((sum, r) => sum + r.irpf.rendimientoNeto, 0),
-      avgOccupancy: results.reduce((sum, r) => sum + r.metrics.occupancyRate, 0) / results.length
+      totalIncome: results.reduce((sum, result) => sum + result.metrics.income, 0),
+      totalExpenses: results.reduce((sum, result) => sum + result.metrics.expenses, 0),
+      totalNetProfit: results.reduce((sum, result) => sum + result.metrics.netProfit, 0),
+      totalRendimientoNeto: results.reduce((sum, result) => sum + result.irpf.rendimientoNeto, 0),
+      avgOccupancy: results.reduce((sum, result) => sum + result.metrics.occupancyRate, 0) / results.length
     };
 
     log(`\nTotals for ${monthName}:`);
@@ -165,6 +184,7 @@ export default async ({ req, res, log, error }) => {
 
     return res.json({
       success: true,
+      fiscalYearId: activeFiscalYear.id,
       period: monthName,
       apartments: results,
       totals

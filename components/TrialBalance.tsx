@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Scale, Download, Check, AlertTriangle, Filter, ChevronDown, ChevronRight } from 'lucide-react';
 import { AccountingEntry, getEntryLines } from '../types';
-import { getAccountName, isExpenseAccount, isIncomeAccount, isTreasuryAccount } from '../utils/accountingPlan';
+import { getAccountName } from '../utils/accountingPlan';
 
 interface TrialBalanceProps {
   entries: AccountingEntry[];

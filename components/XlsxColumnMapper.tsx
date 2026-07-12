@@ -5,7 +5,6 @@ import {
   findMatchingMapping,
   saveMapping,
   validateMapping,
-  SavedMapping
 } from '../services/xlsxMappingService';
 import { storageService } from '../services/appwriteService';
 
@@ -29,6 +28,7 @@ interface ColumnMapping {
 }
 
 type AmountMode = 'single' | 'separate';
+type SpreadsheetCell = unknown;
 
 // Parse helpers moved outside component - pure functions
 const parseDate = (value: unknown): string => {
@@ -86,7 +86,7 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
   onConfirm,
   onCancel
 }) => {
-  const [rawData, setRawData] = useState<any[][]>([]);
+  const [rawData, setRawData] = useState<SpreadsheetCell[][]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [dataStartRow, setDataStartRow] = useState<number>(1);
   const [mapping, setMapping] = useState<ColumnMapping>({
@@ -140,7 +140,7 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
         }
 
         // Convert to our expected format (array of arrays with any type)
-        const data: any[][] = rows.map(row =>
+        const data: SpreadsheetCell[][] = rows.map(row =>
           row.map(cell => {
             // read-excel-file already handles most type conversions
             // Dates are returned as Date objects, numbers as numbers
@@ -152,7 +152,7 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
 
         // Try to auto-detect header row and set initial column names
         const firstRow = data[0] || [];
-        const columnNames = firstRow.map((cell: any, idx: number) =>
+        const columnNames = firstRow.map((cell: SpreadsheetCell, idx: number) =>
           cell ? String(cell).trim() : `Columna ${idx + 1}`
         );
         setHeaders(columnNames);
@@ -257,7 +257,7 @@ export const XlsxColumnMapper: React.FC<XlsxColumnMapperProps> = ({
 
     for (let i = dataStartRow; i < rawData.length; i++) {
       const row = rawData[i];
-      if (!row || row.every((cell: any) => !cell || String(cell).trim() === '')) continue;
+      if (!row || row.every((cell: SpreadsheetCell) => !cell || String(cell).trim() === '')) continue;
 
       const date = mapping.dateColumn !== null ? parseDate(row[mapping.dateColumn]) : '';
       if (!date) continue;

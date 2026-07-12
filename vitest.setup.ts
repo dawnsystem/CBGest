@@ -70,13 +70,23 @@ if (typeof global.File === 'undefined') {
     lastModified: number;
 
     constructor(bits: BlobPart[], name: string, options?: FilePropertyBag) {
+      const getBlobPartSize = (bit: BlobPart): number => {
+        if (typeof bit === 'string') return bit.length;
+        if (bit instanceof ArrayBuffer) return bit.byteLength;
+        if (ArrayBuffer.isView(bit)) return bit.byteLength;
+        if (bit instanceof Blob) return bit.size;
+        return 0;
+      };
+
       this.name = name;
-      this.size = bits.reduce((acc, bit) => acc + (typeof bit === 'string' ? bit.length : (bit as any).byteLength || 0), 0);
+      this.size = bits.reduce((acc, bit) => acc + getBlobPartSize(bit), 0);
       this.type = options?.type || '';
       this.lastModified = options?.lastModified || Date.now();
     }
   };
 }
+
+type MockFileReaderEvent = { target: unknown };
 
 // Mock FileReader API
 if (typeof global.FileReader === 'undefined') {
@@ -85,10 +95,10 @@ if (typeof global.FileReader === 'undefined') {
     result: string | ArrayBuffer | null = null;
     error: Error | null = null;
     readyState: number = 0;
-    onload: ((event: any) => void) | null = null;
-    onerror: ((event: any) => void) | null = null;
-    onprogress: ((event: any) => void) | null = null;
-    onloadend: ((event: any) => void) | null = null;
+    onload: ((event: MockFileReaderEvent) => void) | null = null;
+    onerror: ((event: MockFileReaderEvent) => void) | null = null;
+    onprogress: ((event: MockFileReaderEvent) => void) | null = null;
+    onloadend: ((event: MockFileReaderEvent) => void) | null = null;
 
     readAsDataURL(_blob: Blob) {
       this.readyState = 2;

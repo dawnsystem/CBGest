@@ -5,6 +5,8 @@
 import { Query, ID } from 'appwrite';
 import { databases, config } from '../../lib/appwrite/client';
 import {
+  AppwriteEntity,
+  omitFields,
   withRetry,
   notifyError,
   setConnectionHealth,
@@ -12,14 +14,23 @@ import {
 } from './infrastructure';
 import type { Notification } from '../../types';
 
+type NotificationDocument = AppwriteEntity<Notification> & { $id: string };
+
 export async function createNotification(notification: Notification): Promise<Notification> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...notificationData
-    } = notification as any;
+    const { id } = notification;
+    const notificationData = omitFields(notification as AppwriteEntity<Notification>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
 
     const doc = await withRetry(
       () => databases.createDocument(
@@ -54,11 +65,14 @@ export async function getNotifications(): Promise<Notification[]> {
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => ({
-      ...doc,
-      id: doc.$id,
-      appwriteId: doc.$id
-    })) as unknown as Notification[];
+    return response.documents.map((doc) => {
+      const notificationDoc = doc as NotificationDocument;
+      return {
+        ...notificationDoc,
+        id: notificationDoc.$id,
+        appwriteId: notificationDoc.$id
+      };
+    }) as Notification[];
   } catch (error: unknown) {
     if (getErrorCode(error) === 404 || getErrorCode(error) === 401) return [];
     notifyError((error instanceof Error ? error.message : String(error)), 'getNotifications');
@@ -69,12 +83,19 @@ export async function getNotifications(): Promise<Notification[]> {
 
 export async function updateNotification(notification: Notification): Promise<Notification> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...notificationData
-    } = notification as any;
+    const { id, appwriteId } = notification;
+    const notificationData = omitFields(notification as AppwriteEntity<Notification>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
     const docId = appwriteId || id;
 
     const doc = await withRetry(

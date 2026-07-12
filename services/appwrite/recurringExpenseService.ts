@@ -5,6 +5,8 @@
 import { Query, ID } from 'appwrite';
 import { databases, config } from '../../lib/appwrite/client';
 import {
+  AppwriteEntity,
+  omitFields,
   withRetry,
   notifyError,
   setConnectionHealth,
@@ -12,14 +14,23 @@ import {
 } from './infrastructure';
 import type { RecurringExpense } from '../../types';
 
+type RecurringExpenseDocument = AppwriteEntity<RecurringExpense> & { $id: string };
+
 export async function createRecurringExpense(expense: RecurringExpense): Promise<RecurringExpense> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...expenseData
-    } = expense as any;
+    const { id } = expense;
+    const expenseData = omitFields(expense as AppwriteEntity<RecurringExpense>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
 
     const doc = await withRetry(
       () => databases.createDocument(
@@ -52,11 +63,14 @@ export async function getRecurringExpenses(): Promise<RecurringExpense[]> {
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => ({
-      ...doc,
-      id: doc.$id,
-      appwriteId: doc.$id
-    })) as unknown as RecurringExpense[];
+    return response.documents.map((doc) => {
+      const expenseDoc = doc as RecurringExpenseDocument;
+      return {
+        ...expenseDoc,
+        id: expenseDoc.$id,
+        appwriteId: expenseDoc.$id
+      };
+    }) as RecurringExpense[];
   } catch (error: unknown) {
     if (getErrorCode(error) === 404) return [];
     notifyError((error instanceof Error ? error.message : String(error)), 'getRecurringExpenses');
@@ -67,12 +81,19 @@ export async function getRecurringExpenses(): Promise<RecurringExpense[]> {
 
 export async function updateRecurringExpense(expense: RecurringExpense): Promise<RecurringExpense> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, updatedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...expenseData
-    } = expense as any;
+    const { id, appwriteId } = expense;
+    const expenseData = omitFields(expense as AppwriteEntity<RecurringExpense>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'updatedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
     const docId = appwriteId || id;
 
     const doc = await withRetry(

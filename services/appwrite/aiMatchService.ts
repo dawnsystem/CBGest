@@ -5,6 +5,8 @@
 import { Query, ID } from 'appwrite';
 import { databases, config } from '../../lib/appwrite/client';
 import {
+  AppwriteEntity,
+  omitFields,
   withRetry,
   notifyError,
   setConnectionHealth,
@@ -12,14 +14,23 @@ import {
 } from './infrastructure';
 import type { AIMatchHistory } from '../../types';
 
+type AIMatchDocument = AppwriteEntity<AIMatchHistory> & { $id: string };
+
 export async function createAIMatchHistory(match: AIMatchHistory): Promise<AIMatchHistory> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, lastUsedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...matchData
-    } = match as any;
+    const { id } = match;
+    const matchData = omitFields(match as AppwriteEntity<AIMatchHistory>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'lastUsedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
 
     const doc = await withRetry(
       () => databases.createDocument(
@@ -52,11 +63,14 @@ export async function getAIMatchHistory(): Promise<AIMatchHistory[]> {
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => ({
-      ...doc,
-      id: doc.$id,
-      appwriteId: doc.$id
-    })) as unknown as AIMatchHistory[];
+    return response.documents.map((doc) => {
+      const matchDoc = doc as AIMatchDocument;
+      return {
+        ...matchDoc,
+        id: matchDoc.$id,
+        appwriteId: matchDoc.$id
+      };
+    }) as AIMatchHistory[];
   } catch (error: unknown) {
     if (getErrorCode(error) === 404) return [];
     notifyError((error instanceof Error ? error.message : String(error)), 'getAIMatchHistory');
@@ -67,12 +81,19 @@ export async function getAIMatchHistory(): Promise<AIMatchHistory[]> {
 
 export async function updateAIMatchHistory(match: AIMatchHistory): Promise<AIMatchHistory> {
   try {
-    const {
-      id, appwriteId,
-      createdAt, lastUsedAt,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...matchData
-    } = match as any;
+    const { id, appwriteId } = match;
+    const matchData = omitFields(match as AppwriteEntity<AIMatchHistory>, [
+      'id',
+      'appwriteId',
+      'createdAt',
+      'lastUsedAt',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
     const docId = appwriteId || id;
 
     const doc = await withRetry(
@@ -121,7 +142,7 @@ export async function findMatchByBankConcept(concept: string): Promise<AIMatchHi
     );
 
     if (response.documents.length > 0) {
-      const doc = response.documents[0] as any;
+      const doc = response.documents[0] as AIMatchDocument;
       return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as AIMatchHistory;
     }
     return null;

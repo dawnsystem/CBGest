@@ -24,7 +24,7 @@ export const AppwriteConfig: React.FC<AppwriteConfigProps> = ({ config, onSave, 
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [isSaved, setIsSaved] = useState(false);
-  const { showToast, showConfirm } = useToast();
+  const { showToast } = useToast();
 
   const handleChange = (field: keyof AppwriteConfigType, value: string) => {
     setFormData({ ...formData, [field]: value });
@@ -41,7 +41,7 @@ export const AppwriteConfig: React.FC<AppwriteConfigProps> = ({ config, onSave, 
     try {
       const success = await onTest();
       setTestResult(success ? 'success' : 'error');
-    } catch (error) {
+    } catch {
       setTestResult('error');
     } finally {
       setIsTesting(false);

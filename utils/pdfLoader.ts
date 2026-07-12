@@ -15,5 +15,5 @@ export { pdfjsLib };
 
 // Make it available globally for compatibility
 if (typeof window !== 'undefined') {
-  (window as any).pdfjsLib = pdfjsLib;
+  (window as typeof globalThis & { pdfjsLib: typeof pdfjsLib }).pdfjsLib = pdfjsLib;
 }

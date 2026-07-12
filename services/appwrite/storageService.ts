@@ -35,7 +35,7 @@ export const storageService = {
 
       // If 401, try with JWT authentication
       if (response.status === 401) {
-        console.log('[StorageService] Cookie auth failed, trying JWT...');
+        console.warn('[StorageService] Cookie auth failed, trying JWT...');
         const jwt = await authService.createJWT();
 
         if (jwt) {

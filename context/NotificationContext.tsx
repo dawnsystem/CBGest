@@ -21,16 +21,11 @@ interface NotificationProviderProps {
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
   // Load notifications from Appwrite on mount and when user changes
   useEffect(() => {
     const loadNotifications = async () => {
-      setIsLoading(true);
-
       if (!user) {
         setNotifications([]);
-        setIsLoading(false);
         return;
       }
 
@@ -41,7 +36,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         console.error('Error cargando notificaciones:', error);
         setNotifications([]);
       }
-      setIsLoading(false);
     };
 
     loadNotifications();

@@ -56,8 +56,10 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartments, recurringExpenses, reservations = [], onUpdateSettings }) => {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { showToast, showConfirm } = useToast();
+  const { showToast } = useToast();
   const { activeFiscalYear, isReadOnly } = useFiscalYear();
+  const systemCurrentYear = new Date().getFullYear();
+  const activeYear = activeFiscalYear?.year ?? systemCurrentYear;
 
   // SAFE GUARD: Ensure partners array exists
   const partners = settings.partners || [];
@@ -120,15 +122,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
         }
     });
     
-    // Filter out future months or empty tail if desired, or keep full year
-    const now = new Date();
-    const monthsToShow = selectedYear === now.getFullYear() ? now.getMonth() + 1 : 12;
-    return data.slice(0, monthsToShow);
-  }, [invoices, invoiceAmount, selectedFiscalYearId, selectedYear]);
+    // For past fiscal years show all 12 months; for the current year cap at current month
+    if (activeYear < systemCurrentYear) return data;
+    return data.slice(0, new Date().getMonth() + 1);
+  }, [invoices, invoiceAmount, selectedFiscalYearId, selectedYear, activeYear, systemCurrentYear]);
 
 
   // --- 2. TAX ESTIMATION LOGIC (COMPLETE IRPF 2024) ---
-  const currentYear = selectedYear ?? new Date().getFullYear();
+  const currentYear = selectedYear ?? systemCurrentYear;
 
   // Helper: Calculate disability minimum
   const getDisabilityMinimum = (level: DisabilityLevel): number => {
@@ -336,8 +337,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
   };
 
   const handleDownloadPartnerDraft = (partner: Partner) => {
-      const fileName = `Borrador_IRPF_${sanitizeFileNameSegment(partner.name)}_${currentYear}.pdf`;
-      const draft = generatePartnerCertificate(partner, settings, netResult, currentYear);
+      const fileName = `Borrador_IRPF_${sanitizeFileNameSegment(partner.name)}_${activeYear}.pdf`;
+      const draft = generatePartnerCertificate(partner, settings, netResult, activeYear);
       downloadPDF(draft, fileName);
   };
 

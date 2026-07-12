@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-import { Save, Users, Building, Info, Plus, Trash2, Database, Cloud, HardDrive, Download, Upload, CheckCircle, FilePlus, FileInput, Lock, LogOut, Check, Clock, ShieldCheck, Wifi, AlertTriangle, HelpCircle, Receipt, Euro } from 'lucide-react';
-import { AppSettings, Partner, DataSourceType, TouristTaxConfig } from '../types';
+import React, { useState } from 'react';
+import { Save, Users, Building, Plus, Trash2, Database, Cloud, HardDrive, CheckCircle, AlertTriangle, Receipt, Euro } from 'lucide-react';
+import { AppSettings, Partner } from '../types';
 import { APPWRITE_CONFIG } from '../config/appwrite';
 import { createDefaultDataSourceConfig, generateId } from '../utils/defaults';
 import { useToast } from './Toast';
@@ -21,12 +21,12 @@ interface SettingsProps {
 export const Settings: React.FC<SettingsProps> = ({ 
     settings, 
     onUpdateSettings, 
-    currentFileName, 
+    currentFileName: _currentFileName, 
     onCloneToFile, 
     onLoadFromFile, 
     onDisconnectFile,
     isLocalFileMode,
-    lastSaved
+    lastSaved: _lastSaved
 }) => {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'PARTNERS' | 'TAX' | 'DATA'>('GENERAL');
   
@@ -64,7 +64,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const { showToast, showConfirm } = useToast();
 
   // Handlers
-  const handleInputChange = (field: keyof AppSettings, value: any) => {
+  const handleInputChange = <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => {
     setFormData({ ...formData, [field]: value });
     setIsSaved(false);
   };
@@ -123,15 +123,6 @@ export const Settings: React.FC<SettingsProps> = ({
               onDisconnectFile();
           }
       }
-  };
-
-  const handleFileModeClick = async (action: 'CREATE' | 'OPEN') => {
-       if (isLocalFileMode) {
-           if (!(await showConfirm("⚠️ Ya tienes un archivo abierto. ¿Cerrar sesión actual?"))) {
-               return;
-           }
-       }
-       setShowPasswordModal(action);
   };
 
   // Safeguard partners

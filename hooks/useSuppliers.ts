@@ -40,7 +40,7 @@ export function useSuppliers(options: UseSuppliersOptions): UseSuppliersReturn {
       try {
         const savedSupplier = await appwriteService.createSupplier(supplierWithAudit);
         setSuppliers(prev => prev.map(s => s.id === supplierWithAudit.id ? savedSupplier : s));
-        console.log('✅ Proveedor guardado en Appwrite:', savedSupplier.id);
+        console.warn('✅ Proveedor guardado en Appwrite:', savedSupplier.id);
       } catch (error: unknown) {
         setSuppliers(prev => prev.filter(s => s.id !== supplierWithAudit.id));
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
@@ -62,7 +62,7 @@ export function useSuppliers(options: UseSuppliersOptions): UseSuppliersReturn {
           appwriteId: supplier.appwriteId || supplier.id
         };
         await appwriteService.updateSupplier(supplierToUpdate);
-        console.log('✅ Proveedor actualizado en Appwrite:', supplierToUpdate.appwriteId);
+        console.warn('✅ Proveedor actualizado en Appwrite:', supplierToUpdate.appwriteId);
       } catch (error: unknown) {
         if (oldSupplier) {
           setSuppliers(prev => prev.map(s => s.id === supplier.id ? oldSupplier : s));
@@ -83,7 +83,7 @@ export function useSuppliers(options: UseSuppliersOptions): UseSuppliersReturn {
       try {
         const docId = supplier.appwriteId || supplier.id;
         await appwriteService.deleteSupplier(docId);
-        console.log('✅ Proveedor eliminado de Appwrite:', docId);
+        console.warn('✅ Proveedor eliminado de Appwrite:', docId);
       } catch (error: unknown) {
         setSuppliers(prev => [supplier, ...prev]);
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';

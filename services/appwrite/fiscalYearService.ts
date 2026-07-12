@@ -6,6 +6,7 @@ import { Query, ID } from 'appwrite';
 import { databases, config } from '../../lib/appwrite/client';
 import { dataLogger } from '../logger';
 import {
+  AppwriteEntity,
   withRetry,
   notifyError,
   notifySuccess,
@@ -15,18 +16,27 @@ import {
   buildMasterDataCopyDocumentId,
   getCopySourceDocumentId,
   listFiscalYearDocumentIds,
+  omitFields,
 } from './infrastructure';
 import { getSuppliers } from './supplierService';
 import { getApartments } from './apartmentService';
 import type { FiscalYear } from '../../types';
 
+type FiscalYearDocument = AppwriteEntity<FiscalYear> & { $id: string };
+
 export async function createFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYear> {
   try {
-    const {
-      id, appwriteId,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...data
-    } = fiscalYear as any;
+    const { id } = fiscalYear;
+    const data = omitFields(fiscalYear as AppwriteEntity<FiscalYear>, [
+      'id',
+      'appwriteId',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
 
     const doc = await withRetry(
       () => databases.createDocument(
@@ -60,11 +70,14 @@ export async function getFiscalYears(): Promise<FiscalYear[]> {
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc: any) => ({
-      ...doc,
-      id: doc.$id,
-      appwriteId: doc.$id
-    })) as unknown as FiscalYear[];
+    return response.documents.map((doc) => {
+      const fiscalYearDoc = doc as FiscalYearDocument;
+      return {
+        ...fiscalYearDoc,
+        id: fiscalYearDoc.$id,
+        appwriteId: fiscalYearDoc.$id
+      };
+    }) as FiscalYear[];
   } catch (error: unknown) {
     if (getErrorCode(error) === 404) return [];
     notifyError(getErrorMessage(error), 'getFiscalYears');
@@ -75,11 +88,17 @@ export async function getFiscalYears(): Promise<FiscalYear[]> {
 
 export async function updateFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYear> {
   try {
-    const {
-      id, appwriteId,
-      $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions,
-      ...data
-    } = fiscalYear as any;
+    const { id, appwriteId } = fiscalYear;
+    const data = omitFields(fiscalYear as AppwriteEntity<FiscalYear>, [
+      'id',
+      'appwriteId',
+      '$id',
+      '$createdAt',
+      '$updatedAt',
+      '$databaseId',
+      '$collectionId',
+      '$permissions',
+    ]);
     const docId = appwriteId || id;
     if (!docId) {
       throw new Error('Fiscal year document id is required to update');
@@ -209,7 +228,18 @@ export async function copyMasterDataToFiscalYear(
     }
 
     try {
-      const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...supplierData } = supplier as any;
+      const supplierData = omitFields(supplier as AppwriteEntity<typeof supplier>, [
+        'id',
+        'appwriteId',
+        'createdAt',
+        'updatedAt',
+        '$id',
+        '$createdAt',
+        '$updatedAt',
+        '$databaseId',
+        '$collectionId',
+        '$permissions',
+      ]);
       await withRetry(
         () => databases.createDocument(
           config.databaseId,
@@ -247,7 +277,18 @@ export async function copyMasterDataToFiscalYear(
     }
 
     try {
-      const { id, appwriteId, $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, createdAt, updatedAt, ...apartmentData } = apartment as any;
+      const apartmentData = omitFields(apartment as AppwriteEntity<typeof apartment>, [
+        'id',
+        'appwriteId',
+        'createdAt',
+        'updatedAt',
+        '$id',
+        '$createdAt',
+        '$updatedAt',
+        '$databaseId',
+        '$collectionId',
+        '$permissions',
+      ]);
       await withRetry(
         () => databases.createDocument(
           config.databaseId,
