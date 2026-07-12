@@ -411,8 +411,10 @@ export async function deleteFiscalYearCascade(
             if (fileId) {
               try {
                 await storage.deleteFile(config.bucketId, fileId);
-              } catch {
-                // Ignoramos errores de almacenamiento — el documento se borrará igualmente
+              } catch (storageErr) {
+                // El documento se borrará igualmente, pero registramos el error para
+                // facilitar la limpieza manual de archivos huérfanos en Storage.
+                console.warn(`[deleteFiscalYearCascade] No se pudo eliminar el archivo ${fileId} del bucket:`, storageErr);
               }
             }
           }

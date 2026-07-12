@@ -288,7 +288,12 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
     // Si era el ejercicio activo, seleccionar el siguiente disponible
     const wasActive = activeFiscalYear?.id === id || activeFiscalYear?.appwriteId === id;
     if (wasActive) {
-      const nextYear = updatedYears.find(y => y.status === 'OPEN') || updatedYears[0] || null;
+      // Seleccionar el ejercicio ABIERTO más reciente (mayor año final) o el primero disponible
+      const openYears = updatedYears.filter(y => y.status === 'OPEN');
+      const nextYear =
+        (openYears.length > 0
+          ? openYears.reduce((best, y) => (y.endDate > best.endDate ? y : best))
+          : updatedYears[0]) || null;
       setActiveFiscalYear(nextYear);
       if (nextYear) {
         localStorage.setItem(LS_KEY, nextYear.id);
