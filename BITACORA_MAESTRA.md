@@ -13,7 +13,7 @@
 - **Estado Detallado:** Implementadas las 4 subtareas: filtros temporales corregidos en ProfitabilityByApartment y ExpensesByApartment (5.1), props reservations/apartments/onUpdateReservation añadidos a TaxModels desde App.tsx (5.2), label "Anual 2024" dinámico y TouristTaxPanel inicializado con el año del ejercicio activo (5.3), gráfico de Dashboard muestra todos los meses para ejercicios cerrados y PDF usa el año del ejercicio activo (5.4).
 - **Próximo Micro-Paso Planificado:** Ejecutar validación final (Code Review + CodeQL) y esperar directiva del Director.
 
-### ✅ Historial de Implementaciones Completadas
+### ✅ Implementaciones Recientes
 *   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
 *   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`); ajustó creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA); `626/769` reservadas a conceptos financieros; trazabilidad transacción ↔ asiento ↔ factura.
 ## 📋 Plan Estratégico de Auditoría
