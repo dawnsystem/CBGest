@@ -292,7 +292,7 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
       const openYears = updatedYears.filter(y => y.status === 'OPEN');
       const nextYear =
         (openYears.length > 0
-          ? openYears.reduce((best, y) => (y.endDate > best.endDate ? y : best))
+          ? openYears.reduce((best, y) => (y.year > best.year ? y : best))
           : updatedYears[0]) || null;
       setActiveFiscalYear(nextYear);
       if (nextYear) {
