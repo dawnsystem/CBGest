@@ -195,7 +195,7 @@ const MainLayout: React.FC = () => {
       dataLayerInitializedRef.current = true;
       // NOTE: setIsDataLayerInitialized(true) is called INSIDE initDataLayer() after the
       // initial data fetch completes, NOT here.  Moving it here (before the async work)
-      // caused a race condition (BUG-022): the year-change effect could start its
+      // caused a race condition (BUG-023): the year-change effect could start its
       // filtered fetch while the unfiltered initial fetch was still in flight, and
       // whichever resolved last would win — showing data from the wrong fiscal year.
 
