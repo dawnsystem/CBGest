@@ -309,7 +309,7 @@ const MainLayout: React.FC = () => {
                  setConnectionError(`Error al cargar datos: ${e instanceof Error ? e.message : 'Error desconocido'}`);
               } finally {
                   setIsDataLoading(false);
-                  // BUG-022 FIX: Signal that initial setup is done only AFTER the data fetch
+                  // BUG-023 FIX: Signal that initial setup is done only AFTER the data fetch
                   // completes (or fails).  The year-change effect guards on this flag, so
                   // marking it true here ensures the two fetches are sequential rather than
                   // concurrent, preventing unfiltered data from overwriting filtered data.
