@@ -193,7 +193,11 @@ const MainLayout: React.FC = () => {
           return;
       }
       dataLayerInitializedRef.current = true;
-      setIsDataLayerInitialized(true);
+      // NOTE: setIsDataLayerInitialized(true) is called INSIDE initDataLayer() after the
+      // initial data fetch completes, NOT here.  Moving it here (before the async work)
+      // caused a race condition (BUG-022): the year-change effect could start its
+      // filtered fetch while the unfiltered initial fetch was still in flight, and
+      // whichever resolved last would win — showing data from the wrong fiscal year.
 
       const initDataLayer = async () => {
           // Use ref to get current settings as fallback, avoiding dependency issues
@@ -305,6 +309,11 @@ const MainLayout: React.FC = () => {
                  setConnectionError(`Error al cargar datos: ${e instanceof Error ? e.message : 'Error desconocido'}`);
               } finally {
                   setIsDataLoading(false);
+                  // BUG-022 FIX: Signal that initial setup is done only AFTER the data fetch
+                  // completes (or fails).  The year-change effect guards on this flag, so
+                  // marking it true here ensures the two fetches are sequential rather than
+                  // concurrent, preventing unfiltered data from overwriting filtered data.
+                  setIsDataLayerInitialized(true);
               }
 
               // 2. REALTIME SUBSCRIPTION - OPTIMIZED
@@ -341,6 +350,7 @@ const MainLayout: React.FC = () => {
               console.error('❌ La aplicación requiere configuración de Appwrite');
               setConnectionError('La aplicación requiere conexión a Appwrite. Configura tu proyecto de Appwrite en Ajustes.');
               setIsDataLoading(false);
+              setIsDataLayerInitialized(true);
           }
       };
       initDataLayer();
