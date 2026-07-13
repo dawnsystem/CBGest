@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { BookOpen, Filter, Download, TrendingUp, TrendingDown, Search } from 'lucide-react';
 import { AccountingEntry, getEntryLines } from '../types';
-import { getAccountName } from '../utils/accountingPlan';
+import { getAccountName, isDebitNatureAccount } from '../utils/accountingPlan';
 
 interface AccountLedgerProps {
   entries: AccountingEntry[];
@@ -95,8 +95,7 @@ export const AccountLedger: React.FC<AccountLedgerProps> = ({ entries }) => {
           // For asset/expense accounts (1,2,3,5,6): Debit increases, Credit decreases
           // For liability/income accounts (4,7): Credit increases, Debit decreases
           // Exception within group 4: 43x (Clientes) and 44x (Deudores) are debit-nature assets
-          const isDebitNature = ['1', '2', '3', '5', '6'].some(g => selectedAccount.startsWith(g)) ||
-            selectedAccount.startsWith('43') || selectedAccount.startsWith('44');
+          const isDebitNature = isDebitNatureAccount(selectedAccount);
           
           if (isDebitNature) {
             runningBalance += (line.debit || 0) - (line.credit || 0);

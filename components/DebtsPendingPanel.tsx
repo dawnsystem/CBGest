@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { AlertTriangle, CheckCircle, Clock, TrendingDown, TrendingUp, Users, Truck } from 'lucide-react';
 import { AccountingEntry, getEntryLines } from '../types';
+import { isDebitNatureAccount } from '../utils/accountingPlan';
 
 interface DebtsPendingPanelProps {
   entries: AccountingEntry[];
@@ -58,9 +59,8 @@ export const DebtsPendingPanel: React.FC<DebtsPendingPanelProps> = ({ entries })
           const matches = prefixes.some(p => line.accountCode.startsWith(p));
           if (!matches) return;
 
-          // Net movement for this line (debit-nature: 43x/44x; credit-nature: 40x/41x)
-          const isDebitNature = line.accountCode.startsWith('43') || line.accountCode.startsWith('44');
-          const lineBalance = isDebitNature
+          // Net movement for this line — use shared utility for debit/credit nature
+          const lineBalance = isDebitNatureAccount(line.accountCode)
             ? (line.debit - line.credit)
             : (line.credit - line.debit);
 
@@ -83,8 +83,10 @@ export const DebtsPendingPanel: React.FC<DebtsPendingPanelProps> = ({ entries })
     return { totalBalance, items };
   };
 
-  const suppliers = useMemo(() => computeSection(['400', '401']), [entries]);
-  const clients   = useMemo(() => computeSection(['430', '431']), [entries]);
+  // todayKey refreshes the memo when the calendar day changes (e.g. browser left open overnight)
+  const todayKey = new Date().toDateString();
+  const suppliers = useMemo(() => computeSection(['400', '401']), [entries, todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const clients   = useMemo(() => computeSection(['430', '431']), [entries, todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderList = (items: PendingItem[], emptyLabel: string) => {
     if (items.length === 0) {

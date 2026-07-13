@@ -41,6 +41,8 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   
   // Help banner state
   const [helpBannerOpen, setHelpBannerOpen] = useState(false);
+  // Template selector controlled state (resets to '' after applying)
+  const [selectedTemplate, setSelectedTemplate] = useState('');
   
   // Edit/Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -103,6 +105,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   };
 
   const openNewEntryModal = () => {
+    setSelectedTemplate('');
     setEditingEntry({
       id: '',
       date: new Date().toISOString().split('T')[0],
@@ -119,6 +122,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   const openEditModal = (entry: AccountingEntry) => {
     // Ensure entry has lines array
     const lines = getEntryLines(entry);
+    setSelectedTemplate('');
     setEditingEntry({
       ...entry,
       lines: lines.length > 0 ? [...lines] : [createEmptyLine(), createEmptyLine()]
@@ -225,19 +229,23 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
     return calculateEntryTotals(entry);
   };
 
-  /** Saves entry as draft — skips balance and structure validation */
+  /** Saves entry as draft — skips balance validation but requires date, concept and at least one account line */
   const handleSaveDraft = () => {
     if (!editingEntry) return;
     const linesWithData = editingEntry.lines.filter(line => line.accountCode);
+    if (linesWithData.length === 0) {
+      showToast('El borrador necesita al menos una línea con cuenta asignada.', 'warning');
+      return;
+    }
     const draftEntry: AccountingEntry = {
       ...editingEntry,
-      lines: linesWithData.length > 0 ? linesWithData : editingEntry.lines,
+      lines: linesWithData,
       isDraft: true,
       reconciled: false,
-      accountCode: linesWithData[0]?.accountCode ?? editingEntry.accountCode,
-      accountName: linesWithData[0]?.accountName ?? editingEntry.accountName,
-      debit: linesWithData[0]?.debit ?? editingEntry.debit,
-      credit: linesWithData[0]?.credit ?? editingEntry.credit,
+      accountCode: linesWithData[0].accountCode,
+      accountName: linesWithData[0].accountName,
+      debit: linesWithData[0].debit,
+      credit: linesWithData[0].credit,
     };
     if (!editingEntry.id) {
       onAddEntry({ ...draftEntry, id: `DRAFT-${Date.now()}` });
@@ -250,7 +258,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
 
   /** Applies a template to the editing entry: pre-fills account lines */
   const applyTemplate = (templateId: string) => {
-    if (!editingEntry) return;
+    if (!editingEntry || !templateId) return;
     const template = ENTRY_TEMPLATES.find(t => t.id === templateId);
     if (!template) return;
     setEditingEntry({
@@ -258,6 +266,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
       concept: editingEntry.concept || template.defaultConcept,
       lines: template.lines.map(l => ({ ...l })),
     });
+    setSelectedTemplate(''); // reset selector after applying
   };
 
 
@@ -574,8 +583,11 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                       </label>
                       <select
                         id="entry-template-select"
-                        defaultValue=""
-                        onChange={e => { if (e.target.value) applyTemplate(e.target.value); e.target.value = ''; }}
+                        value={selectedTemplate}
+                        onChange={e => {
+                          setSelectedTemplate(e.target.value);
+                          applyTemplate(e.target.value);
+                        }}
                         className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
                       >
                         <option value="">— Seleccionar plantilla —</option>
