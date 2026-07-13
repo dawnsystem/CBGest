@@ -16,6 +16,12 @@ export interface FiscalYear {
   closedAt?: string;      // ISO fecha de cierre
   notes?: string;         // Comentarios opcionales
   appwriteId?: string;    // Document ID en Appwrite
+  /**
+   * Períodos de vigencia de la tasa turística para este ejercicio.
+   * Se almacena serializado como JSON string en Appwrite (igual que `partners` en AppSettings).
+   * Si está ausente, el sistema usa AppSettings.touristTaxConfig como fallback.
+   */
+  touristTaxPeriods?: string;
 }
 
 /** Conteo de documentos asociados a un ejercicio, usados como requisito previo al borrado */
@@ -481,6 +487,27 @@ export interface AppUser {
 }
 
 // --- TOURIST TAX CONFIGURATION (IEET - Cataluña) ---
+
+/**
+ * Período de vigencia de la tasa turística dentro de un ejercicio.
+ * Permite reflejar cambios normativos (p.ej. un decreto que modifica la tarifa
+ * a mitad de año) sin alterar períodos ya liquidados.
+ */
+export interface TouristTaxPeriod {
+  id: string;
+  startDate: string;        // ISO YYYY-MM-DD — fecha de inicio de vigencia
+  endDate?: string;         // ISO YYYY-MM-DD — si no hay fecha fin, rige hasta el fin del ejercicio
+  rate: number;             // €/noche/adulto
+  maxNights: number;        // Máximo de noches tasables por estancia (p.ej. 7)
+  minAge: number;           // Edad mínima para pagar tasa (p.ej. 17)
+  enabled: boolean;         // Si la tasa está activa en este período
+  notes?: string;           // Motivo del cambio (ej: "Decreto X/2025 de la Generalitat")
+}
+
+/**
+ * @deprecated Usar TouristTaxPeriod directamente.
+ * Mantenido por retrocompatibilidad con AppSettings.touristTaxConfig.
+ */
 export interface TouristTaxConfig {
   rate: number;            // €/night/adult (default: 1)
   maxNights: number;       // Maximum nights per stay (default: 7)
