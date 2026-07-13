@@ -35,11 +35,11 @@ export const AccountLedger: React.FC<AccountLedgerProps> = ({ entries }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Get all unique accounts from entries
+  // Get all unique accounts from entries (excluding drafts)
   const allAccounts = useMemo(() => {
     const accountsMap = new Map<string, string>();
     
-    entries.forEach(entry => {
+    entries.filter(e => !e.isDraft).forEach(entry => {
       const lines = getEntryLines(entry);
       lines.forEach(line => {
         if (line.accountCode && !accountsMap.has(line.accountCode)) {
@@ -73,12 +73,12 @@ export const AccountLedger: React.FC<AccountLedgerProps> = ({ entries }) => {
     let totalCredit = 0;
     let runningBalance = 0;
 
-    // Filter entries by date
+    // Filter entries by date, excluding drafts
     const filteredEntries = entries
       .filter(entry => {
         const matchStart = !startDate || entry.date >= startDate;
         const matchEnd = !endDate || entry.date <= endDate;
-        return matchStart && matchEnd;
+        return matchStart && matchEnd && !entry.isDraft;
       })
       .sort((a, b) => a.date.localeCompare(b.date)); // Sort by date ascending
 

@@ -599,7 +599,7 @@ Se realizó análisis exhaustivo del módulo de contabilidad (partida doble + co
 
 ### 🔵 MÓDULO CONTABLE — Nuevos hallazgos (2026-07-13)
 
-* **BUG-CTB-001:** `AccountingBooks.tsx:186` — Mensaje de error incorrecto. Cuando la validación rechaza un asiento por tener menos de 2 líneas válidas, el mensaje dice "Un asiento debe tener al menos 2 líneas (debe y haber)". El mensaje es impreciso: la validación comprueba el número de líneas, no que haya una línea en Debe y otra en Haber. Severidad: **BAJO**. Estado: Pendiente.
+* **BUG-CTB-001:** `AccountingBooks.tsx:186` — Mensaje de error incorrecto. Cuando la validación rechaza un asiento por tener menos de 2 líneas válidas, el mensaje dice "Un asiento debe tener al menos 2 líneas (debe y haber)". El mensaje es impreciso: la validación comprueba el número de líneas, no que haya una línea en Debe y otra en Haber. Severidad: **BAJO**. Estado: ✅ Resuelto (TSK-048).
 
-* **BUG-CTB-002:** `AccountLedger.tsx:97` — Cálculo de saldo corriente incorrecto para cuenta 430 (Clientes). La condición `isDebitNature` incluye grupos 1,2,3,5,6 pero no el grupo 43 (Clientes), que es de naturaleza DEUDORA. Las cuentas 430 se calculan con la rama "acreedora" por defecto (rama else), mostrando el saldo acumulado invertido. Severidad: **MEDIO**. Estado: Pendiente.
+* **BUG-CTB-002:** `AccountLedger.tsx:97` — Cálculo de saldo corriente incorrecto para cuenta 430 (Clientes). La condición `isDebitNature` incluye grupos 1,2,3,5,6 pero no el grupo 43 (Clientes), que es de naturaleza DEUDORA. Las cuentas 430 se calculan con la rama "acreedora" por defecto (rama else), mostrando el saldo acumulado invertido. Severidad: **MEDIO**. Estado: ✅ Resuelto (TSK-048).
 

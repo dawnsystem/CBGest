@@ -232,6 +232,14 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   /** Saves entry as draft — skips balance validation but requires date, concept and at least one account line */
   const handleSaveDraft = () => {
     if (!editingEntry) return;
+    if (!editingEntry.date) {
+      showToast('El borrador necesita una fecha.', 'warning');
+      return;
+    }
+    if (!editingEntry.concept?.trim()) {
+      showToast('El borrador necesita un concepto.', 'warning');
+      return;
+    }
     const linesWithData = editingEntry.lines.filter(line => line.accountCode);
     if (linesWithData.length === 0) {
       showToast('El borrador necesita al menos una línea con cuenta asignada.', 'warning');

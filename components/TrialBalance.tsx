@@ -48,11 +48,11 @@ export const TrialBalance: React.FC<TrialBalanceProps> = ({ entries }) => {
   const { accountBalances, totals, groupedAccounts } = useMemo(() => {
     const balanceMap = new Map<string, AccountBalance>();
 
-    // Filter entries by date
+    // Filter entries by date, excluding drafts
     const filteredEntries = entries.filter(entry => {
       const matchStart = !startDate || entry.date >= startDate;
       const matchEnd = !endDate || entry.date <= endDate;
-      return matchStart && matchEnd;
+      return matchStart && matchEnd && !entry.isDraft;
     });
 
     // Aggregate debits and credits by account

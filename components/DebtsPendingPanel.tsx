@@ -18,10 +18,10 @@ interface PendingItem {
 
 /** Calcula los días transcurridos desde una fecha ISO hasta hoy */
 const daysElapsed = (dateStr: string): number => {
-  const entry = new Date(dateStr);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const entry = new Date(year, month - 1, day);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  entry.setHours(0, 0, 0, 0);
   return Math.floor((today.getTime() - entry.getTime()) / (1000 * 60 * 60 * 24));
 };
 
@@ -85,8 +85,8 @@ export const DebtsPendingPanel: React.FC<DebtsPendingPanelProps> = ({ entries })
 
   // todayKey refreshes the memo when the calendar day changes (e.g. browser left open overnight)
   const todayKey = new Date().toDateString();
-  const suppliers = useMemo(() => computeSection(['400', '401']), [entries, todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const clients   = useMemo(() => computeSection(['430', '431']), [entries, todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const suppliers = useMemo(() => computeSection(['400', '401']), [entries, todayKey]);
+  const clients   = useMemo(() => computeSection(['430', '431']), [entries, todayKey]);
 
   const renderList = (items: PendingItem[], emptyLabel: string) => {
     if (items.length === 0) {
@@ -100,8 +100,8 @@ export const DebtsPendingPanel: React.FC<DebtsPendingPanelProps> = ({ entries })
 
     return (
       <ul className="divide-y divide-slate-100">
-        {items.map(item => (
-          <li key={`${item.entryId}-${item.accountCode}`} className="flex items-center justify-between py-3 px-1">
+        {items.map((item, idx) => (
+          <li key={`${item.entryId}-${item.accountCode}-${idx}`} className="flex items-center justify-between py-3 px-1">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-slate-900 truncate">{item.concept}</p>
               <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
