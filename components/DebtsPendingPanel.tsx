@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { AlertTriangle, CheckCircle, Clock, TrendingDown, TrendingUp, Users, Truck } from 'lucide-react';
 import { AccountingEntry, getEntryLines } from '../types';
 import { isDebitNatureAccount } from '../utils/accountingPlan';
@@ -46,8 +46,11 @@ const ageBadgeLabel = (days: number): string => {
  */
 export const DebtsPendingPanel: React.FC<DebtsPendingPanelProps> = ({ entries }) => {
 
+  // todayKey refreshes the memo when the calendar day changes (e.g. browser left open overnight)
+  const todayKey = new Date().toDateString();
+
   /** Calcula saldo y movimientos no conciliados de un conjunto de prefijos de cuenta */
-  const computeSection = (prefixes: string[]) => {
+  const computeSection = useCallback((prefixes: string[]) => {
     const items: PendingItem[] = [];
     let totalBalance = 0;
 
@@ -81,12 +84,10 @@ export const DebtsPendingPanel: React.FC<DebtsPendingPanelProps> = ({ entries })
       });
 
     return { totalBalance, items };
-  };
+  }, [entries, todayKey]);
 
-  // todayKey refreshes the memo when the calendar day changes (e.g. browser left open overnight)
-  const todayKey = new Date().toDateString();
-  const suppliers = useMemo(() => computeSection(['400', '401']), [entries, todayKey]);
-  const clients   = useMemo(() => computeSection(['430', '431']), [entries, todayKey]);
+  const suppliers = useMemo(() => computeSection(['400', '401']), [computeSection]);
+  const clients   = useMemo(() => computeSection(['430', '431']), [computeSection]);
 
   const renderList = (items: PendingItem[], emptyLabel: string) => {
     if (items.length === 0) {
