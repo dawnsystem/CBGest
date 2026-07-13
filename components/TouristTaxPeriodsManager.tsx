@@ -22,6 +22,7 @@ import {
   createDefaultPeriodForYear,
 } from '../utils/touristTaxUtils';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
+import { generateId } from '../utils/defaults';
 
 // ============================================================================
 // HELPERS
@@ -148,7 +149,7 @@ const PeriodModal: React.FC<PeriodModalProps> = ({
     if (!validate()) return;
     const draft = formToPeriod(form, editingId);
     const period: TouristTaxPeriod = {
-      id: draft.id ?? crypto.randomUUID(),
+      id: draft.id ?? generateId(),
       startDate: draft.startDate,
       endDate: draft.endDate,
       rate: draft.rate,

@@ -6,9 +6,9 @@
  * Este módulo gestiona esos períodos y determina qué configuración aplica a una fecha dada.
  */
 
-import { ID } from 'appwrite';
 import type { FiscalYear, TouristTaxConfig, TouristTaxPeriod } from '../types';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
+import { generateId } from './defaults';
 
 // ============================================================================
 // SERIALIZACIÓN / DESERIALIZACIÓN
@@ -131,7 +131,7 @@ export function createDefaultPeriodForYear(
   config: TouristTaxConfig
 ): TouristTaxPeriod {
   return {
-    id: ID.unique(),
+    id: generateId(),
     startDate: `${year}-01-01`,
     endDate: undefined,
     rate: config.rate,

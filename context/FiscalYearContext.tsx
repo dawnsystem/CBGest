@@ -202,7 +202,7 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
             newEnd = `${year}-${emm}-${edd}`;
           }
           return {
-            id: crypto.randomUUID(),
+            id: generateId(),
             startDate: idx === 0 ? `${year}-01-01` : newStart, // El primer período siempre arranca el 1 de enero
             endDate: newEnd,
             rate: p.rate,
