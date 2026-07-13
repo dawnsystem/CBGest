@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 20:58:00 UTC*
+*Última actualización: 2026-07-13 15:20:00 UTC*
 
 ---
 
@@ -8,7 +8,20 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **A la espera de nuevas directivas del Director.**
+- **Identificador de Tarea:** `TSK-048`
+- **Objetivo Principal:** Implementar Bloques A-E de mejoras del módulo contable
+- **Estado Detallado:** Completado. Todos los bloques implementados, type-check y tests pasados.
+- **Próximo Micro-Paso Planificado:** Validación final con parallel_validation y creación de PR.
+
+
+### 📋 Análisis completado: Módulo Contable (2026-07-13)
+
+Se realizó análisis exhaustivo del módulo de contabilidad (partida doble + conciliación). Resultados:
+- **2 bugs identificados** (BUG-CTB-001 y BUG-CTB-002) catalogados en sección de Bugs
+- **5 mejoras propuestas** (plantillas, indicadores de estado, panel pendientes, guía, borradores)
+- **Documentación creada:** `docs/GUIA_CONTABILIDAD.md` con guía completa y ejemplos prácticos
+- La lógica principal (reconciliationUtils, invoiceUtils) funciona **correctamente**
+
 
 ### ✅ Implementaciones Recientes
 *   **[2026-07-12] - `TSK-047` - Eliminación de ejercicios con borrado en cascada opcional:** Botón "Eliminar" por tarjeta de ejercicio en `FiscalYearManager`. Modal en 2 fases: (1) consulta de dependencias en tiempo real (facturas, asientos, transacciones, reservas, proveedores, apartamentos) + oferta de borrado en cascada si hay datos; (2) confirmación por nombre exacto del ejercicio como seguridad extra. Servicios `getFiscalYearDependencies`, `deleteFiscalYear`, `deleteFiscalYearCascade` añadidos a `fiscalYearService.ts` y expuestos via `compatService.ts`. `FiscalYearContext` extendido con ambas operaciones. 12 tests unitarios. Validado con `npm run type-check && npm run test:ci && npm run build`.
@@ -32,9 +45,9 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 - [x] **AUDIT-011: CI/CD, scripts operativos y cadena de suministro** — COMPLETADO
 - [x] **AUDIT-012: Re-auditoría dirigida (package.json, App.tsx, config/appwrite.ts, lib/appwrite/client.ts, lib/appwrite/index.ts, services/authService.ts, services/geminiService.ts)** — COMPLETADO
 
-### ✅ Historial de Implementaciones Completadas
-*   **[2026-07-12] - `TSK-047` - Eliminación de ejercicios con borrado en cascada opcional:** Ver sección WIP arriba.
-*   **[2026-07-12] - `FIX-044` - Limpieza integral de warnings ESLint:** Eliminadas las 433 advertencias de ESLint (tipado `unknown`/tipos concretos, metadatos Appwrite omitidos sin ruido, `console.log/info` migrados a `warn/error`, dependencias de hooks ajustadas y mocks/tests saneados). Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
+### ✅ Implementaciones Recientes
+*   **[2026-07-13] - `TSK-048` - Mejoras módulo contable Bloques A-E:** BUG-CTB-001 corregido (validación y mensaje de error en `AccountingBooks.tsx`); BUG-CTB-002 corregido (cálculo de saldo de cuenta 430/43x en `AccountLedger.tsx` tratada como deudora); `utils/entryTemplates.ts` con 9 plantillas frecuentes (Airbnb, Booking, limpieza, suministros, seguro, comisión, reparación, IBI, gestor); selector de plantilla en modal de nuevo asiento; badges de estado PENDIENTE/CONCILIADO/MANUAL/BORRADOR en Libro Diario (desktop y mobile); banner de ayuda colapsable con 3 pasos de conciliación; campo `isDraft` en `AccountingEntry`; botón "Guardar borrador" en modal; componente `DebtsPendingPanel.tsx` con saldo 400/430 y alertas de antigüedad (≤30/31-60/>60 días). Validado: 226 tests OK, type-check OK.
+*   **[2026-07-12] - `TSK-047` - Eliminación de ejercicios con borrado en cascada opcional:** Botón "Eliminar" por tarjeta de ejercicio en `FiscalYearManager`. Modal en 2 fases: (1) consulta de dependencias en tiempo real (facturas, asientos, transacciones, reservas, proveedores, apartamentos) + oferta de borrado en cascada si hay datos; (2) confirmación por nombre exacto del ejercicio como seguridad extra. Servicios `getFiscalYearDependencies`, `deleteFiscalYear`, `deleteFiscalYearCascade` añadidos a `fiscalYearService.ts` y expuestos via `compatService.ts`. `FiscalYearContext` extendido con ambas operaciones. 12 tests unitarios. Validado con `npm run type-check && npm run test:ci && npm run build`.
 *   **[2026-07-12] - `TSK-006` - Actualización de automatizaciones Appwrite:** Adaptadas las cloud functions al modelo actual de Appwrite: enums en mayúsculas, `transactions`/`reconciledWithInvoiceId`, lectura real de `settings.partners`, cálculo IRPF sobre `totalAmount`, filtro por ejercicio activo y tests focalizados para las automatizaciones.
 *   **[2026-07-12] - `TSK-005` - Reconectar módulos de rentabilidad y dashboard:** 5.1: ProfitabilityByApartment y ExpensesByApartment usan `activeFiscalYear.year` en filtros. 5.2: App.tsx pasa `reservations`, `apartments` y `onUpdateReservation` a TaxModels. 5.3: Label "Anual 2024" dinámico; TouristTaxPanel inicializa año con ejercicio activo. 5.4: Dashboard chart no corta por mes actual en ejercicios pasados; PDF usa año del ejercicio activo.
 *   **[2026-07-12] - `TSK-003` - Conciliación contable real con cierre de deuda:** Se reemplazó el marcado de flags por asientos reales en conciliación con factura (`572` contra `400/430`), se ajustó la creación de asientos desde transacción sin factura a `6xx/7xx` contra `572` (sin IVA), se limitó `626/769` a conceptos financieros y se añadió trazabilidad transacción ↔ asiento ↔ factura. Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
@@ -583,3 +596,10 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 * **DEBT-016:** `lib/errorMessages.ts:138-168` — `parseError()` no captura stack traces de objetos no-Error. Pierde información de debugging. Estado: ✅ Resuelto (IMPL-006).
 * **DEBT-017:** `PartnerTaxForm.tsx:51` — Usa `new Date().getFullYear()` hardcodeado, no inyectable para tests. Estado: ✅ Resuelto (IMPL-006).
 * **DEBT-018:** `xlsxMappingService.ts:46-54` — `localStorage.getItem()` captura todas las excepciones silenciosamente. Si localStorage está lleno, retorna `{}` sin log. Estado: ✅ Resuelto (IMPL-006).
+
+### 🔵 MÓDULO CONTABLE — Nuevos hallazgos (2026-07-13)
+
+* **BUG-CTB-001:** `AccountingBooks.tsx:186` — Mensaje de error incorrecto. Cuando la validación rechaza un asiento por tener menos de 2 líneas válidas, el mensaje dice "Un asiento debe tener al menos 2 líneas (debe y haber)". El mensaje es impreciso: la validación comprueba el número de líneas, no que haya una línea en Debe y otra en Haber. Severidad: **BAJO**. Estado: ✅ Resuelto (TSK-048).
+
+* **BUG-CTB-002:** `AccountLedger.tsx:97` — Cálculo de saldo corriente incorrecto para cuenta 430 (Clientes). La condición `isDebitNature` incluye grupos 1,2,3,5,6 pero no el grupo 43 (Clientes), que es de naturaleza DEUDORA. Las cuentas 430 se calculan con la rama "acreedora" por defecto (rama else), mostrando el saldo acumulado invertido. Severidad: **MEDIO**. Estado: ✅ Resuelto (TSK-048).
+

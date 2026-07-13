@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
-import { Filter, X, Plus, Edit3, Trash, Save, Paperclip, ChevronDown, ChevronRight, AlertTriangle, Check, PlusCircle, MinusCircle } from 'lucide-react';
+import { Filter, X, Plus, Edit3, Trash, Save, Paperclip, ChevronDown, ChevronRight, AlertTriangle, Check, PlusCircle, MinusCircle, FileEdit, Info, Clock } from 'lucide-react';
 import { AccountingEntry, AccountingEntryLine, getEntryLines, calculateEntryTotals } from '../types';
 import { AccountSelector } from './AccountSelector';
 import { getAccountName } from '../utils/accountingPlan';
 import { useToast } from './Toast';
 import { useIsReadOnly } from '../context/FiscalYearContext';
+import { ENTRY_TEMPLATES } from '../utils/entryTemplates';
 
 interface AccountingBooksProps {
   entries: AccountingEntry[];
@@ -37,6 +38,11 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   
   // Expanded entries (to show all lines)
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+  
+  // Help banner state
+  const [helpBannerOpen, setHelpBannerOpen] = useState(false);
+  // Template selector controlled state (resets to '' after applying)
+  const [selectedTemplate, setSelectedTemplate] = useState('');
   
   // Edit/Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,6 +105,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   };
 
   const openNewEntryModal = () => {
+    setSelectedTemplate('');
     setEditingEntry({
       id: '',
       date: new Date().toISOString().split('T')[0],
@@ -115,6 +122,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
   const openEditModal = (entry: AccountingEntry) => {
     // Ensure entry has lines array
     const lines = getEntryLines(entry);
+    setSelectedTemplate('');
     setEditingEntry({
       ...entry,
       lines: lines.length > 0 ? [...lines] : [createEmptyLine(), createEmptyLine()]
@@ -184,7 +192,14 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
     );
 
     if (validLines.length < 2) {
-      showToast('Un asiento debe tener al menos 2 líneas (debe y haber).', 'warning');
+      showToast('El asiento necesita al menos 2 líneas con cuenta e importe.', 'warning');
+      return;
+    }
+
+    const hasDebitLine = validLines.some(l => l.debit > 0);
+    const hasCreditLine = validLines.some(l => l.credit > 0);
+    if (!hasDebitLine || !hasCreditLine) {
+      showToast('El asiento debe tener al menos una línea en el Debe y una en el Haber.', 'warning');
       return;
     }
 
@@ -214,6 +229,55 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
     return calculateEntryTotals(entry);
   };
 
+  /** Saves entry as draft — skips balance validation but requires date, concept and at least one account line */
+  const handleSaveDraft = () => {
+    if (!editingEntry) return;
+    if (!editingEntry.date) {
+      showToast('El borrador necesita una fecha.', 'warning');
+      return;
+    }
+    if (!editingEntry.concept?.trim()) {
+      showToast('El borrador necesita un concepto.', 'warning');
+      return;
+    }
+    const linesWithData = editingEntry.lines.filter(line => line.accountCode);
+    if (linesWithData.length === 0) {
+      showToast('El borrador necesita al menos una línea con cuenta asignada.', 'warning');
+      return;
+    }
+    const draftEntry: AccountingEntry = {
+      ...editingEntry,
+      lines: linesWithData,
+      isDraft: true,
+      reconciled: false,
+      accountCode: linesWithData[0].accountCode,
+      accountName: linesWithData[0].accountName,
+      debit: linesWithData[0].debit,
+      credit: linesWithData[0].credit,
+    };
+    if (!editingEntry.id) {
+      onAddEntry({ ...draftEntry, id: `DRAFT-${Date.now()}` });
+    } else {
+      onUpdateEntry(draftEntry);
+    }
+    setIsModalOpen(false);
+    showToast('Asiento guardado como borrador.', 'warning');
+  };
+
+  /** Applies a template to the editing entry: pre-fills account lines */
+  const applyTemplate = (templateId: string) => {
+    if (!editingEntry || !templateId) return;
+    const template = ENTRY_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+    setEditingEntry({
+      ...editingEntry,
+      concept: editingEntry.concept || template.defaultConcept,
+      lines: template.lines.map(l => ({ ...l })),
+    });
+    setSelectedTemplate(''); // reset selector after applying
+  };
+
+
   return (
     <div className="p-4 md:p-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
       <div className="flex justify-between items-center mb-6">
@@ -228,6 +292,46 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
         >
             <Plus className="w-4 h-4" /> Nuevo Asiento
         </button>
+      </div>
+
+      {/* Collapsible help banner */}
+      <div className="mb-4 border border-blue-200 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setHelpBannerOpen(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-blue-50 hover:bg-blue-100 transition-colors text-sm text-blue-800 font-medium"
+        >
+          <span className="flex items-center gap-2">
+            <Info className="w-4 h-4 shrink-0" />
+            ¿Cómo funciona la conciliación bancaria?
+          </span>
+          {helpBannerOpen ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
+        </button>
+        {helpBannerOpen && (
+          <div className="px-4 py-4 bg-blue-50/50 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-700">
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">1</span>
+              <div>
+                <p className="font-semibold text-slate-900 mb-1">Importa el extracto bancario</p>
+                <p className="text-slate-500">Sube tu fichero CSV/OFX del banco en la sección <strong>Conciliación</strong>. Las transacciones aparecerán en estado PENDIENTE.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">2</span>
+              <div>
+                <p className="font-semibold text-slate-900 mb-1">Empareja con asientos</p>
+                <p className="text-slate-500">Asocia cada transacción bancaria a su asiento contable. Los asientos pasarán a estado CONCILIADO automáticamente.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">3</span>
+              <div>
+                <p className="font-semibold text-slate-900 mb-1">Verifica el cuadre</p>
+                <p className="text-slate-500">Comprueba que el saldo contable coincide con el saldo real del banco. Los asientos sin transacción asociada quedan como MANUAL.</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -288,6 +392,7 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                     <th className="px-4 py-4 w-8"></th>
                     <th className="px-4 py-4">Fecha</th>
                     <th className="px-4 py-4">Concepto</th>
+                    <th className="px-4 py-4">Estado</th>
                     <th className="px-4 py-4">Cuentas</th>
                     <th className="px-4 py-4 text-right">Debe</th>
                     <th className="px-4 py-4 text-right">Haber</th>
@@ -302,9 +407,19 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                     const isExpanded = expandedEntries.has(entry.id);
                     const hasMultipleLines = lines.length > 1;
                     
+                    // Determine reconciliation status badge
+                    const isManual = !entry.transactionId && !entry.invoiceId;
+                    const statusBadge = entry.isDraft
+                      ? <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-300 flex items-center gap-0.5"><Clock className="w-3 h-3"/>BORRADOR</span>
+                      : entry.reconciled
+                        ? <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">CONCILIADO</span>
+                        : isManual
+                          ? <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">MANUAL</span>
+                          : <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">PENDIENTE</span>;
+
                     return (
                       <React.Fragment key={entry.id}>
-                        <tr className={`hover:bg-slate-50 ${!entryTotals.isBalanced ? 'bg-red-50' : ''}`}>
+                        <tr className={`hover:bg-slate-50 ${!entryTotals.isBalanced && !entry.isDraft ? 'bg-red-50' : ''} ${entry.isDraft ? 'opacity-70' : ''}`}>
                             <td className="px-4 py-4">
                               {hasMultipleLines && (
                                 <button 
@@ -319,14 +434,16 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                             <td className="px-4 py-4 text-sm font-medium text-slate-900">
                                <div className="flex items-center gap-2">
                                  {entry.concept}
-                                 {entry.reconciled && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded border border-emerald-200">CONCILIADO</span>}
-                                 {!entryTotals.isBalanced && <span className="text-[10px] bg-red-100 text-red-700 px-1 rounded border border-red-200">DESCUADRADO</span>}
+                                 {!entryTotals.isBalanced && !entry.isDraft && <span className="text-[10px] bg-red-100 text-red-700 px-1 rounded border border-red-200">DESCUADRADO</span>}
                                </div>
                                {hasMultipleLines && !isExpanded && (
                                  <p className="text-xs text-slate-400 mt-1">
                                    {lines.length} líneas: {lines.map(l => l.accountCode).join(', ')}
                                  </p>
                                )}
+                            </td>
+                            <td className="px-4 py-4">
+                              {statusBadge}
                             </td>
                             <td className="px-4 py-4 text-sm">
                               {!hasMultipleLines || !isExpanded ? (
@@ -397,16 +514,22 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
             const lines = getEntryLines(entry);
             const entryTotals = getEntryDisplayTotals(entry);
             const isExpanded = expandedEntries.has(entry.id);
+            const isManual = !entry.transactionId && !entry.invoiceId;
             
             return (
-              <div key={entry.id} className={`bg-white p-4 rounded-lg shadow-sm border ${!entryTotals.isBalanced ? 'border-red-200 bg-red-50' : 'border-slate-100'}`}>
+              <div key={entry.id} className={`bg-white p-4 rounded-lg shadow-sm border ${!entryTotals.isBalanced && !entry.isDraft ? 'border-red-200 bg-red-50' : 'border-slate-100'} ${entry.isDraft ? 'opacity-70' : ''}`}>
                   <div className="flex justify-between mb-2">
                       <span className="text-xs text-slate-500">{entry.date}</span>
                       <div className="flex gap-1">
-                        {entry.reconciled && (
-                          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">CONCILIADO</span>
-                        )}
-                        {!entryTotals.isBalanced && (
+                        {entry.isDraft
+                          ? <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-300">BORRADOR</span>
+                          : entry.reconciled
+                            ? <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">CONCILIADO</span>
+                            : isManual
+                              ? <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">MANUAL</span>
+                              : <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">PENDIENTE</span>
+                        }
+                        {!entryTotals.isBalanced && !entry.isDraft && (
                           <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded">DESCUADRADO</span>
                         )}
                       </div>
@@ -461,6 +584,27 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                 </div>
                 
                 <div className="p-6 space-y-5 overflow-y-auto">
+                    {/* Template selector */}
+                    <div>
+                      <label htmlFor="entry-template-select" className="block text-xs font-bold text-slate-500 mb-1.5 flex items-center gap-1">
+                        <FileEdit className="w-3 h-3" /> Usar plantilla (opcional)
+                      </label>
+                      <select
+                        id="entry-template-select"
+                        value={selectedTemplate}
+                        onChange={e => {
+                          setSelectedTemplate(e.target.value);
+                          applyTemplate(e.target.value);
+                        }}
+                        className="w-full border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                      >
+                        <option value="">— Seleccionar plantilla —</option>
+                        {ENTRY_TEMPLATES.map(t => (
+                          <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     {/* Date and Concept */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -592,19 +736,29 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
                     </div>
                 </div>
 
-                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">Cancelar</button>
-                    <button 
-                      type="submit" 
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-200 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={(() => {
-                        const totalDebit = editingEntry.lines.reduce((sum, l) => sum + (l.debit || 0), 0);
-                        const totalCredit = editingEntry.lines.reduce((sum, l) => sum + (l.credit || 0), 0);
-                        return Math.abs(totalDebit - totalCredit) >= 0.01;
-                      })()}
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleSaveDraft}
+                      className="px-4 py-2 text-sm text-slate-600 border border-slate-300 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
+                      title="Guarda el asiento sin validar el cuadre"
                     >
-                        <Save className="w-4 h-4"/> Guardar Asiento
+                      <Clock className="w-4 h-4 text-slate-400" /> Guardar borrador
                     </button>
+                    <div className="flex gap-3">
+                      <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">Cancelar</button>
+                      <button 
+                        type="submit" 
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-200 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={(() => {
+                          const totalDebit = editingEntry.lines.reduce((sum, l) => sum + (l.debit || 0), 0);
+                          const totalCredit = editingEntry.lines.reduce((sum, l) => sum + (l.credit || 0), 0);
+                          return Math.abs(totalDebit - totalCredit) >= 0.01;
+                        })()}
+                      >
+                          <Save className="w-4 h-4"/> Guardar Asiento
+                      </button>
+                    </div>
                 </div>
             </form>
         </div>

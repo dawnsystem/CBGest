@@ -124,6 +124,7 @@ export interface AccountingEntry {
   appwriteFileId?: string; // Attachment ID
 
   reconciled: boolean;    // ¿Conciliado con banco?
+  isDraft?: boolean;      // Borrador: guardado sin validar cuadre
 
   // Audit fields
   createdBy?: string;     // User ID who created this

@@ -39,6 +39,24 @@ export const isTreasuryAccount = (code: string): boolean => {
   return code.startsWith('57');
 };
 
+/**
+ * Determina si una cuenta es de naturaleza deudora (saldo normal en el Debe).
+ *
+ * Regla general: grupos 1, 2, 3, 5, 6 son deudores.
+ * Excepción dentro del grupo 4: las cuentas 43x (Clientes) y 44x (Deudores varios)
+ * son activos de naturaleza deudora pese a pertenecer al grupo 4.
+ *
+ * @param accountCode - Código de cuenta PGC (ej: "430", "628", "400")
+ * @returns true si la cuenta tiene naturaleza deudora
+ */
+export const isDebitNatureAccount = (accountCode: string): boolean => {
+  return (
+    ['1', '2', '3', '5', '6'].some(g => accountCode.startsWith(g)) ||
+    accountCode.startsWith('43') ||
+    accountCode.startsWith('44')
+  );
+};
+
 // Verificar si una cuenta es de IVA
 export const isVATAccount = (code: string): boolean => {
   return code.startsWith('472') || code.startsWith('477');

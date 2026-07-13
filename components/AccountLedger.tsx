@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { BookOpen, Filter, Download, TrendingUp, TrendingDown, Search } from 'lucide-react';
 import { AccountingEntry, getEntryLines } from '../types';
-import { getAccountName } from '../utils/accountingPlan';
+import { getAccountName, isDebitNatureAccount } from '../utils/accountingPlan';
 
 interface AccountLedgerProps {
   entries: AccountingEntry[];
@@ -35,11 +35,11 @@ export const AccountLedger: React.FC<AccountLedgerProps> = ({ entries }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Get all unique accounts from entries
+  // Get all unique accounts from entries (excluding drafts)
   const allAccounts = useMemo(() => {
     const accountsMap = new Map<string, string>();
     
-    entries.forEach(entry => {
+    entries.filter(e => !e.isDraft).forEach(entry => {
       const lines = getEntryLines(entry);
       lines.forEach(line => {
         if (line.accountCode && !accountsMap.has(line.accountCode)) {
@@ -73,12 +73,12 @@ export const AccountLedger: React.FC<AccountLedgerProps> = ({ entries }) => {
     let totalCredit = 0;
     let runningBalance = 0;
 
-    // Filter entries by date
+    // Filter entries by date, excluding drafts
     const filteredEntries = entries
       .filter(entry => {
         const matchStart = !startDate || entry.date >= startDate;
         const matchEnd = !endDate || entry.date <= endDate;
-        return matchStart && matchEnd;
+        return matchStart && matchEnd && !entry.isDraft;
       })
       .sort((a, b) => a.date.localeCompare(b.date)); // Sort by date ascending
 
@@ -94,7 +94,8 @@ export const AccountLedger: React.FC<AccountLedgerProps> = ({ entries }) => {
           // Calculate running balance
           // For asset/expense accounts (1,2,3,5,6): Debit increases, Credit decreases
           // For liability/income accounts (4,7): Credit increases, Debit decreases
-          const isDebitNature = ['1', '2', '3', '5', '6'].some(g => selectedAccount.startsWith(g));
+          // Exception within group 4: 43x (Clientes) and 44x (Deudores) are debit-nature assets
+          const isDebitNature = isDebitNatureAccount(selectedAccount);
           
           if (isDebitNature) {
             runningBalance += (line.debit || 0) - (line.credit || 0);
