@@ -350,6 +350,8 @@ const MainLayout: React.FC = () => {
               console.error('❌ La aplicación requiere configuración de Appwrite');
               setConnectionError('La aplicación requiere conexión a Appwrite. Configura tu proyecto de Appwrite en Ajustes.');
               setIsDataLoading(false);
+              // BUG-022 FIX: Mark initialized even in the error path so the year-change
+              // effect is unblocked and does not wait forever for a fetch that never starts.
               setIsDataLayerInitialized(true);
           }
       };
