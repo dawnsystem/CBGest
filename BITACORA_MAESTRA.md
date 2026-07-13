@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-13 15:20:00 UTC*
+*Última actualización: 2026-07-13 20:49:00 UTC*
 
 ---
 
@@ -8,22 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-- **Identificador de Tarea:** `TSK-048`
-- **Objetivo Principal:** Implementar Bloques A-E de mejoras del módulo contable
-- **Estado Detallado:** Completado. Todos los bloques implementados, type-check y tests pasados.
-- **Próximo Micro-Paso Planificado:** Validación final con parallel_validation y creación de PR.
-
-
-### 📋 Análisis completado: Módulo Contable (2026-07-13)
-
-Se realizó análisis exhaustivo del módulo de contabilidad (partida doble + conciliación). Resultados:
-- **2 bugs identificados** (BUG-CTB-001 y BUG-CTB-002) catalogados en sección de Bugs
-- **5 mejoras propuestas** (plantillas, indicadores de estado, panel pendientes, guía, borradores)
-- **Documentación creada:** `docs/GUIA_CONTABILIDAD.md` con guía completa y ejemplos prácticos
-- La lógica principal (reconciliationUtils, invoiceUtils) funciona **correctamente**
-
+Estado actual: **A la espera de nuevas directivas del Director.**
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-13] - `FIX-049` - Race condition: datos del ejercicio anterior visibles al arrancar la app:** `BUG-023` corregido. Movido `setIsDataLayerInitialized(true)` al bloque `finally` del fetch inicial en `initDataLayer()`, en lugar de ejecutarlo síncronamente antes del trabajo asíncrono. Previene que el fetch inicial sin filtrar (todos los ejercicios) se resuelva después del fetch filtrado del año activo y sobreescriba los datos correctos.
 *   **[2026-07-12] - `TSK-047` - Eliminación de ejercicios con borrado en cascada opcional:** Botón "Eliminar" por tarjeta de ejercicio en `FiscalYearManager`. Modal en 2 fases: (1) consulta de dependencias en tiempo real (facturas, asientos, transacciones, reservas, proveedores, apartamentos) + oferta de borrado en cascada si hay datos; (2) confirmación por nombre exacto del ejercicio como seguridad extra. Servicios `getFiscalYearDependencies`, `deleteFiscalYear`, `deleteFiscalYearCascade` añadidos a `fiscalYearService.ts` y expuestos via `compatService.ts`. `FiscalYearContext` extendido con ambas operaciones. 12 tests unitarios. Validado con `npm run type-check && npm run test:ci && npm run build`.
 
 *   **[2026-07-12] - `FIX-044` - Limpieza integral de warnings ESLint:** Eliminadas las 433 advertencias de ESLint (tipado `unknown`/tipos concretos, metadatos Appwrite omitidos sin ruido, `console.log/info` migrados a `warn/error`, dependencias de hooks ajustadas y mocks/tests saneados). Validado con `npm run lint && npm run type-check && npm run test:ci && npm run build`.
@@ -97,6 +85,20 @@ Se realizó análisis exhaustivo del módulo de contabilidad (partida doble + co
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-13 20:49:00 UTC]
+*   **Directiva del Director:** "En ocasiones veo datos del ejercicio 2025 estando seleccionado el 2026. Cuando cambio de ejercicio y vuelvo al 2026, se corrige."
+*   **Plan de Acción:** Auditar el flujo de carga inicial en `App.tsx`: el efecto de inicialización (`initDataLayer`) y el efecto de cambio de ejercicio (`fetchForYear`). Verificar si existe race condition entre el fetch sin filtrar y el fetch filtrado por ejercicio.
+*   **Log de Acciones:**
+    - `[20:50:00]` - **AUDIT:** Lectura de `App.tsx` (initDataLayer, fetchForYear), `context/FiscalYearContext.tsx`, `services/appwrite/compatService.ts`.
+    - `[20:52:00]` - **HALLAZGO:** `BUG-023` identificado. En `App.tsx:195-196`, `setIsDataLayerInitialized(true)` se llama síncronamente ANTES de que la función asíncrona `initDataLayer()` complete su fetch inicial sin filtrar. Esto permite que el efecto `fetchForYear` (que filtra por ejercicio activo) se dispare concurrentemente con el fetch sin filtrar. Si el fetch sin filtrar resuelve más tarde, sobreescribe el estado con datos de TODOS los ejercicios mientras 2026 está seleccionado. Severidad: **ALTO**.
+    - `[20:55:00]` - **FIX:** `App.tsx`. **CAMBIOS:** (1) Eliminado `setIsDataLayerInitialized(true)` de la línea 196 (antes del trabajo asíncrono). (2) Añadido `setIsDataLayerInitialized(true)` en el bloque `finally` del fetch inicial dentro de `initDataLayer()`. (3) Añadido `setIsDataLayerInitialized(true)` en el branch `else` (no-APPWRITE), con comentario explicativo de BUG-023. Los dos fetches ahora son secuenciales: `fetchForYear` solo puede iniciarse DESPUÉS de que `initDataLayer` haya completado (o fallado) su carga.
+    - `[20:58:00]` - **VALIDACIÓN:** `npm run type-check`. **RESULTADO:** PASS (exit 0).
+    - `[21:00:00]` - **DOC:** Registrado `BUG-023` en sección de Bugs (✅ Resuelto). Actualizada `BITACORA_MAESTRA.md`. Actualizado Panel de Control.
+    - `[21:02:00]` - **COMMIT:** `fix(app): prevent race condition showing wrong fiscal year data (BUG-023)` + `fix(app): add BUG-023 comment on non-APPWRITE initialization path` pusheados al PR.
+*   **Resultado:** `FIX-049` completado. La race condition de arranque queda eliminada: el fetch filtrado por ejercicio activo siempre se ejecuta DESPUÉS del fetch inicial sin filtrar, garantizando que los datos finales en estado corresponden al ejercicio seleccionado.
+*   **Commit Asociado:** últimos dos commits en la rama
+*   **Observaciones/Decisiones de Diseño:** El fix es mínimo y quirúrgico: un movimiento de `setIsDataLayerInitialized(true)` de pre-async a post-async. No altera la lógica de carga ni introduce nuevas dependencias. El único efecto colateral es que el indicador `isDataLoading` permanece true durante un poco más de tiempo (hasta que el fetch inicial completa), lo cual es correcto semánticamente.
+
 ### Sesión: [2026-07-12 19:59:47 UTC]
 *   **Directiva del Director:** "en la gestión de ejercicios, no hay forma de eliminar un ejercicio existente… debe poder hacerlo desde el apartado de gestión de ejercicios… para eliminar un ejercicio se debe primero eliminar toda la información… y debe aparecer un modal que solicite introducir el nombre del ejercicio antes de suprimirlo."
 *   **Requisito adicional (mid-session):** "quiero que el dialogo solicite la aprobación para eliminación en cascada del ejercicio si ya hay datos o ofrezca eliminar al gusto del usuario."
@@ -544,7 +546,7 @@ Se realizó análisis exhaustivo del módulo de contabilidad (partida doble + co
 ### 🟠 ALTOS (23 hallazgos) — Bugs funcionales, riesgos de seguridad moderados o degradación significativa
 
 * **BUG-021:** `App.tsx:359-389` — **Race condition en `fetchForYear` effect.** Al crear el ejercicio 2027, `setActiveFiscalYear(2027)` dispara un fetch asíncrono para 2027. Si el usuario cambia inmediatamente a 2026, se lanza un segundo fetch para 2026. Si el fetch de 2027 termina DESPUÉS del de 2026, sobreescribe el estado con datos de 2027 mientras la UI muestra 2026 — haciendo parecer que el selector no funciona y que los alojamientos de 2026 "desaparecen". Estado: ✅ Resuelto (FIX-043).
-* **BUG-022:** `App.tsx:359-389` (consecuencia de BUG-021) — Los alojamientos del ejercicio 2026 parecen eliminados tras crear 2027, porque el fetch en vuelo de 2027 sobreescribe el estado con los alojamientos copiados (2027) mientras el usuario está en la vista de 2026. Estado: ✅ Resuelto (FIX-043).
+* **BUG-023:** `App.tsx:195-196` — **Race condition en arranque: datos del ejercicio equivocado visibles al cargar la app.** `setIsDataLayerInitialized(true)` se llamaba síncronamente ANTES de que `initDataLayer()` completara su fetch inicial sin filtrar. El efecto `fetchForYear` (que filtra por ejercicio activo) podía dispararse concurrentemente con el fetch sin filtrar. Si el fetch sin filtrar resolvía el último, sobreescribía el estado con datos de todos los ejercicios (ej. 2025+2026) mientras el usuario tenía seleccionado 2026. Al cambiar de ejercicio y volver, se corregía porque entonces solo corría `fetchForYear`. Estado: ✅ Resuelto (FIX-049).
 * **BUG-020:** `services/appwriteService.ts:1948-1979` — `ID.unique()` evaluado **dentro** del lambda de `withRetry` en `copyMasterDataToFiscalYear`. Un error de red post-creación (timeout, dropped response) provoca reintento con nuevo ID → alojamientos/proveedores duplicados en Appwrite al crear un nuevo ejercicio. Estado: ✅ Resuelto (FIX-042).
 * **SEC-006:** `validators.ts:220-242` — `isSafeString()` y `sanitizeString()` no detectan XSS con entidades HTML codificadas (`&#60;script&#62;`). Estado: Pendiente.
 * **SEC-007:** `ReservationManager.tsx:76-94` — CSV parsing no escapa HTML en campos. Guest name con `<img onerror=...>` se renderiza sin sanitizar. Estado: Pendiente.
