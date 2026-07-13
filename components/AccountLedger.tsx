@@ -94,7 +94,9 @@ export const AccountLedger: React.FC<AccountLedgerProps> = ({ entries }) => {
           // Calculate running balance
           // For asset/expense accounts (1,2,3,5,6): Debit increases, Credit decreases
           // For liability/income accounts (4,7): Credit increases, Debit decreases
-          const isDebitNature = ['1', '2', '3', '5', '6'].some(g => selectedAccount.startsWith(g));
+          // Exception within group 4: 43x (Clientes) and 44x (Deudores) are debit-nature assets
+          const isDebitNature = ['1', '2', '3', '5', '6'].some(g => selectedAccount.startsWith(g)) ||
+            selectedAccount.startsWith('43') || selectedAccount.startsWith('44');
           
           if (isDebitNature) {
             runningBalance += (line.debit || 0) - (line.credit || 0);
