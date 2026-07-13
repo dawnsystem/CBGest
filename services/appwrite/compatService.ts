@@ -30,6 +30,7 @@ import type {
   AIMatchHistory,
   Reservation,
   FiscalYear,
+  TouristTaxPeriod,
 } from '../../types';
 
 export const databaseService = {
@@ -93,6 +94,7 @@ export const databaseService = {
   createFiscalYear: fiscalYearSvc.createFiscalYear,
   getFiscalYears: fiscalYearSvc.getFiscalYears,
   updateFiscalYear: fiscalYearSvc.updateFiscalYear,
+  updateFiscalYearTouristTax: fiscalYearSvc.updateFiscalYearTouristTax,
   migrateLegacyData: fiscalYearSvc.migrateLegacyData,
   copyMasterDataToFiscalYear: fiscalYearSvc.copyMasterDataToFiscalYear,
   getFiscalYearDependencies: fiscalYearSvc.getFiscalYearDependencies,
@@ -192,6 +194,8 @@ export const deleteReservation = (id: string) => databaseService.deleteReservati
 export const fetchFiscalYears = () => databaseService.getFiscalYears();
 export const createFiscalYearDoc = (fiscalYear: FiscalYear) => databaseService.createFiscalYear(fiscalYear);
 export const updateFiscalYearDoc = (fiscalYear: FiscalYear) => databaseService.updateFiscalYear(fiscalYear);
+export const updateFiscalYearTouristTaxDoc = (fiscalYearDocId: string, periods: TouristTaxPeriod[]) =>
+  databaseService.updateFiscalYearTouristTax(fiscalYearDocId, periods);
 export const deleteFiscalYearDoc = (id: string) => databaseService.deleteFiscalYear(id);
 export const getFiscalYearDependencies = (id: string) => databaseService.getFiscalYearDependencies(id);
 export const deleteFiscalYearCascade = (

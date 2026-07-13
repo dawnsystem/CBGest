@@ -17,7 +17,7 @@ import React, {
   useCallback,
   ReactNode
 } from 'react';
-import { FiscalYear, FiscalYearDependencies } from '../types';
+import { FiscalYear, FiscalYearDependencies, TouristTaxPeriod } from '../types';
 import * as appwriteService from '../services/appwriteService';
 import { generateId } from '../utils/defaults';
 import { useAuth } from './AuthContext';
@@ -66,6 +66,14 @@ interface FiscalYearContextType {
     cascade: boolean,
     onProgress?: (phase: string, done: number) => void
   ) => Promise<void>;
+  /**
+   * Actualiza los períodos de vigencia de la tasa turística de un ejercicio.
+   * Si el ejercicio es el activo, actualiza también el estado local.
+   */
+  updateFiscalYearTouristTax: (
+    fiscalYearId: string,
+    periods: TouristTaxPeriod[]
+  ) => Promise<FiscalYear>;
 }
 
 // ============================================================================
@@ -306,6 +314,30 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   }, [fiscalYears, activeFiscalYear, onFiscalYearChange]);
 
   // ------------------------------------------------------------------
+  // ACTUALIZAR PERÍODOS DE TASA TURÍSTICA
+  // ------------------------------------------------------------------
+  const updateFiscalYearTouristTax = useCallback(async (
+    fiscalYearId: string,
+    periods: TouristTaxPeriod[]
+  ): Promise<FiscalYear> => {
+    const year = fiscalYears.find(y => y.id === fiscalYearId || y.appwriteId === fiscalYearId);
+    const docId = (year?.appwriteId || year?.id) ?? fiscalYearId;
+
+    const updated = await appwriteService.updateFiscalYearTouristTaxDoc(docId, periods);
+
+    const updatedYears = fiscalYears.map(y =>
+      y.id === fiscalYearId || y.appwriteId === fiscalYearId ? updated : y
+    );
+    setFiscalYears(updatedYears);
+
+    if (activeFiscalYear?.id === fiscalYearId || activeFiscalYear?.appwriteId === fiscalYearId) {
+      setActiveFiscalYear(updated);
+    }
+
+    return updated;
+  }, [fiscalYears, activeFiscalYear]);
+
+  // ------------------------------------------------------------------
   // RENDER
   // ------------------------------------------------------------------
   return (
@@ -321,6 +353,7 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
       refreshFiscalYears,
       getFiscalYearDependencies,
       deleteFiscalYear,
+      updateFiscalYearTouristTax,
     }}>
       {children}
     </FiscalYearContext.Provider>
