@@ -117,6 +117,7 @@ describe('deleteFiscalYear', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('llama a deleteDocument con el ID y colección correctos', async () => {
+    mockListDocuments.mockResolvedValue(emptyCollection(0));
     mockDeleteDocument.mockResolvedValue({});
 
     await deleteFiscalYear('fy-doc-123');
@@ -129,11 +130,21 @@ describe('deleteFiscalYear', () => {
     );
   });
 
+  it('no elimina el ejercicio si aparecen datos asociados antes de confirmar', async () => {
+    mockListDocuments
+      .mockResolvedValueOnce(emptyCollection(1))
+      .mockResolvedValue(emptyCollection(0));
+
+    await expect(deleteFiscalYear('fy-doc-123')).rejects.toThrow('contiene datos asociados');
+    expect(mockDeleteDocument).not.toHaveBeenCalled();
+  });
+
   it('propaga el error si deleteDocument falla', async () => {
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(
       ((cb: () => void) => { cb(); return 0; }) as typeof setTimeout
     );
     try {
+      mockListDocuments.mockResolvedValue(emptyCollection(0));
       mockDeleteDocument.mockRejectedValue(new Error('delete failed'));
       await expect(deleteFiscalYear('fy-doc-123')).rejects.toThrow('delete failed');
     } finally {
