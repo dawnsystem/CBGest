@@ -21,6 +21,13 @@ import { FiscalYear, FiscalYearDependencies, TouristTaxPeriod } from '../types';
 import * as appwriteService from '../services/appwriteService';
 import { generateId } from '../utils/defaults';
 import { useAuth } from './AuthContext';
+import {
+  parseTouristTaxPeriods,
+  createDefaultPeriodForYear,
+  sortPeriodsByDate,
+  serializeTouristTaxPeriods,
+} from '../utils/touristTaxUtils';
+import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
 
 const LS_KEY = 'gestcb_active_fiscal_year_id';
 
@@ -173,20 +180,56 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   ): Promise<{ fiscalYear: FiscalYear; copiedSuppliers: number; copiedApartments: number }> => {
     const now = new Date().toISOString();
 
+    // Buscar ejercicio previo (el de año inmediatamente anterior)
+    const previousYear = fiscalYears
+      .filter(y => y.year < year)
+      .sort((a, b) => b.year - a.year)[0];
+
+    // Construir períodos iniciales copiando y re-fechando los del ejercicio anterior
+    let initialPeriods: TouristTaxPeriod[] | undefined;
+    if (previousYear) {
+      const prevPeriods = parseTouristTaxPeriods(previousYear.touristTaxPeriods);
+      if (prevPeriods.length > 0) {
+        // Re-fechar cada período al nuevo año, preservando la configuración económica
+        const sortedPrev = sortPeriodsByDate(prevPeriods);
+        initialPeriods = sortedPrev.map((p, idx) => {
+          // La lógica de refechado: trasladar mes/día del startDate al nuevo año
+          const [, mm, dd] = p.startDate.split('-');
+          const newStart = `${year}-${mm}-${dd}`;
+          let newEnd: string | undefined;
+          if (p.endDate) {
+            const [, emm, edd] = p.endDate.split('-');
+            newEnd = `${year}-${emm}-${edd}`;
+          }
+          return {
+            id: crypto.randomUUID(),
+            startDate: idx === 0 ? `${year}-01-01` : newStart, // El primer período siempre arranca el 1 de enero
+            endDate: newEnd,
+            rate: p.rate,
+            maxNights: p.maxNights,
+            minAge: p.minAge,
+            enabled: p.enabled,
+            notes: p.notes ? `Copiado del ejercicio ${previousYear.year}` : undefined,
+          };
+        });
+      }
+    }
+
+    // Fallback: un único período con la config por defecto
+    if (!initialPeriods || initialPeriods.length === 0) {
+      initialPeriods = [createDefaultPeriodForYear(year, DEFAULT_TAX_CONFIG)];
+    }
+
     const newFiscalYear: FiscalYear = {
       id: generateId(),
       year,
       status: 'OPEN',
       openedAt: now,
-      notes: notes || ''
+      notes: notes || '',
+      touristTaxPeriods: serializeTouristTaxPeriods(initialPeriods),
     };
 
     const saved = await appwriteService.createFiscalYearDoc(newFiscalYear);
-
-    // Buscar ejercicio previo (el de año inmediatamente anterior)
-    const previousYear = fiscalYears
-      .filter(y => y.year < year)
-      .sort((a, b) => b.year - a.year)[0];
 
     let copiedSuppliers = 0;
     let copiedApartments = 0;
