@@ -350,12 +350,11 @@ const MainLayout: React.FC = () => {
               console.error('❌ La aplicación requiere configuración de Appwrite');
               setConnectionError('La aplicación requiere conexión a Appwrite. Configura tu proyecto de Appwrite en Ajustes.');
               setIsDataLoading(false);
-              // BUG-023 FIX: Mark initialized even in the error path so the year-change
-              // effect is unblocked and does not wait forever for a fetch that never starts.
-              setIsDataLayerInitialized(true);
           }
       };
-      initDataLayer();
+      initDataLayer().finally(() => {
+          setIsDataLayerInitialized(true);
+      });
       // Refs (defaultSettingsRef, settingsRef) and setState dispatcher (setSettings) are
       // stable across renders — including them would cause unnecessary re-inits.
       // Re-run only when the authenticated user or session readiness changes.
