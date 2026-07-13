@@ -210,7 +210,7 @@ describe('buildEntryFromInvoice — link propagation', () => {
 });
 
 describe('buildEntryFromInvoice — Appwrite document id constraints', () => {
-  it('keeps generated entry ids within Appwrite's 36 character limit', () => {
+  it("keeps generated entry ids within Appwrite's 36 character limit", () => {
     const uuid = '123e4567-e89b-12d3-a456-426614174000';
     const entry = buildEntryFromInvoice(makeInvoice({ id: uuid }));
 
