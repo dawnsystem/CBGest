@@ -1,11 +1,16 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   Receipt, Calendar, Users, Euro, Download, Check, X,
-  AlertTriangle, ChevronDown, ChevronUp, Palmtree, Baby
+  AlertTriangle, ChevronDown, ChevronUp, Palmtree, Baby, Clock
 } from 'lucide-react';
-import { Reservation, Apartment, AppSettings } from '../types';
+import { Reservation, Apartment, AppSettings, TouristTaxPeriod } from '../types';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
 import { useIsReadOnly, useFiscalYear } from '../context/FiscalYearContext';
+import {
+  getActivePeriodForDate,
+  getPeriodsForFiscalYear,
+  sortPeriodsByDate,
+} from '../utils/touristTaxUtils';
 
 interface TouristTaxPanelProps {
   reservations: Reservation[];
@@ -42,13 +47,15 @@ interface ConsecutiveStayGroup {
   guestName: string;
   reservations: Reservation[];
   totalNights: number;
-  taxableNights: number; // Max 7
-  totalGuests: number;        // Adults (≥17 years) - subject to tourist tax
-  totalChildren: number;      // Children (≤16 years) - exempt from tourist tax
+  taxableNights: number; // Max 7 (or period maxNights)
+  totalGuests: number;        // Adults (≥minAge years) - subject to tourist tax
+  totalChildren: number;      // Children (<minAge years) - exempt from tourist tax
   totalTax: number;
   taxableUnits: number;       // Unidades sujetas a tasa: adults × taxableNights
   exemptUnits: number;        // Unidades exentas: children × taxableNights
   allCollected: boolean;
+  /** Período de vigencia aplicado (según fecha de check-in del grupo) */
+  appliedPeriod: TouristTaxPeriod;
 }
 
 export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
@@ -86,8 +93,43 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
     setSelectedYear(defaultYear);
   }, [defaultYear]);
   
-  const taxConfig = settings.touristTaxConfig || DEFAULT_TAX_CONFIG;
   const isReadOnly = useIsReadOnly();
+
+  // Obtener los períodos de vigencia del ejercicio activo.
+  // Si el ejercicio no tiene períodos configurados, se usa AppSettings como fallback.
+  const taxPeriods = useMemo(() => {
+    if (!activeFiscalYear) {
+      // Sin ejercicio activo: período sintético desde el config global
+      const fallback = settings.touristTaxConfig ?? DEFAULT_TAX_CONFIG;
+      return [{
+        id: 'fallback',
+        startDate: `${selectedYear}-01-01`,
+        endDate: undefined,
+        rate: fallback.rate,
+        maxNights: fallback.maxNights,
+        minAge: fallback.minAge,
+        enabled: fallback.enabled,
+      } as TouristTaxPeriod];
+    }
+    return getPeriodsForFiscalYear(activeFiscalYear, settings.touristTaxConfig ?? DEFAULT_TAX_CONFIG);
+  }, [activeFiscalYear, settings.touristTaxConfig, selectedYear]);
+
+  // Período por defecto (el primero activo, para mostrar en la leyenda)
+  const defaultTaxConfig = taxPeriods[0] ?? DEFAULT_TAX_CONFIG;
+
+  // Períodos activos en el semestre seleccionado (para mostrar advertencia multi-período)
+  const periodsInSemester = useMemo(() => {
+    const startMonth = selectedSemester === 1 ? 1 : 7;
+    const endMonth = selectedSemester === 1 ? 6 : 12;
+    const semStart = `${selectedYear}-${String(startMonth).padStart(2, '0')}-01`;
+    const semEnd = `${selectedYear}-${String(endMonth).padStart(2, '0')}-31`;
+    return sortPeriodsByDate(
+      taxPeriods.filter(p => {
+        const pe = p.endDate ?? '9999-12-31';
+        return !(pe < semStart || p.startDate > semEnd);
+      })
+    );
+  }, [taxPeriods, selectedYear, selectedSemester]);
 
   // Filter reservations for selected period and tourist apartments only
   const filteredReservations = useMemo(() => {
@@ -120,6 +162,42 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       return new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
     });
 
+    /**
+     * Builds a ConsecutiveStayGroup from a raw reservations array.
+     * The period applied is determined by the check-in date of the FIRST reservation
+     * in the group (criterio de devengo al inicio de la estancia).
+     */
+    const buildGroup = (groupReservations: Reservation[], guestDisplayName: string): ConsecutiveStayGroup => {
+      const checkInDate = groupReservations[0].checkIn.substring(0, 10);
+      const period = getActivePeriodForDate(taxPeriods, checkInDate) ?? defaultTaxConfig;
+      const totalNights = groupReservations.reduce((sum, r) => sum + (r.nights || 0), 0);
+      const taxableNights = Math.min(totalNights, period.maxNights);
+      // BUG-001 fix: SUM guests across all reservations in the stay group,
+      // not Math.max — a group of 3 reservations with 2 guests each has 6
+      // taxable person-nights, not 2.
+      const totalGuests = groupReservations.reduce((sum, r) => sum + (r.numberOfGuests || 1), 0);
+      const totalChildren = groupReservations.reduce((sum, r) => sum + (r.numberOfChildren || 0), 0);
+      const taxableUnits = taxableNights * totalGuests;
+      const exemptUnits = taxableNights * totalChildren;
+      const totalTax = period.enabled ? taxableUnits * period.rate : 0;
+      const allCollected = groupReservations.every(r => r.touristTaxCollected);
+
+      return {
+        id: groupReservations.map(r => r.id).join('-'),
+        guestName: guestDisplayName || 'Huésped',
+        reservations: groupReservations,
+        totalNights,
+        taxableNights,
+        totalGuests,
+        totalChildren,
+        totalTax,
+        taxableUnits,
+        exemptUnits,
+        allCollected,
+        appliedPeriod: period,
+      };
+    };
+
     const groups: ConsecutiveStayGroup[] = [];
     let currentGroup: Reservation[] = [];
     let currentGuestName = '';
@@ -140,31 +218,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       } else {
         // Save current group and start new one
         if (currentGroup.length > 0) {
-          const totalNights = currentGroup.reduce((sum, r) => sum + (r.nights || 0), 0);
-          const taxableNights = Math.min(totalNights, taxConfig.maxNights);
-          // BUG-001 fix: SUM guests across all reservations in the stay group,
-          // not Math.max — a group of 3 reservations with 2 guests each has 6
-          // taxable person-nights, not 2.
-          const totalGuests = currentGroup.reduce((sum, r) => sum + (r.numberOfGuests || 1), 0);
-          const totalChildren = currentGroup.reduce((sum, r) => sum + (r.numberOfChildren || 0), 0);
-          const taxableUnits = taxableNights * totalGuests;
-          const exemptUnits = taxableNights * totalChildren;
-          const totalTax = taxableUnits * taxConfig.rate;
-          const allCollected = currentGroup.every(r => r.touristTaxCollected);
-          
-          groups.push({
-            id: currentGroup.map(r => r.id).join('-'),
-            guestName: currentGuestName || 'Huésped',
-            reservations: currentGroup,
-            totalNights,
-            taxableNights,
-            totalGuests,
-            totalChildren,
-            totalTax,
-            taxableUnits,
-            exemptUnits,
-            allCollected
-          });
+          groups.push(buildGroup(currentGroup, currentGuestName));
         }
         currentGroup = [reservation];
         currentGuestName = guestName;
@@ -173,33 +227,11 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
 
     // Don't forget the last group
     if (currentGroup.length > 0) {
-      const totalNights = currentGroup.reduce((sum, r) => sum + (r.nights || 0), 0);
-      const taxableNights = Math.min(totalNights, taxConfig.maxNights);
-      // BUG-001 fix: SUM guests (same as above)
-      const totalGuests = currentGroup.reduce((sum, r) => sum + (r.numberOfGuests || 1), 0);
-      const totalChildren = currentGroup.reduce((sum, r) => sum + (r.numberOfChildren || 0), 0);
-      const taxableUnits = taxableNights * totalGuests;
-      const exemptUnits = taxableNights * totalChildren;
-      const totalTax = taxableUnits * taxConfig.rate;
-      const allCollected = currentGroup.every(r => r.touristTaxCollected);
-      
-      groups.push({
-        id: currentGroup.map(r => r.id).join('-'),
-        guestName: currentGuestName || 'Huésped',
-        reservations: currentGroup,
-        totalNights,
-        taxableNights,
-        totalGuests,
-        totalChildren,
-        totalTax,
-        taxableUnits,
-        exemptUnits,
-        allCollected
-      });
+      groups.push(buildGroup(currentGroup, currentGuestName));
     }
 
     return groups;
-  }, [filteredReservations, taxConfig]);
+  }, [filteredReservations, taxPeriods, defaultTaxConfig]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -255,7 +287,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
         touristTaxCollected: true,
         touristTaxCollectedDate: today,
         touristTaxAmount: group.totalTax / group.reservations.length, // Distribute evenly
-        touristTaxNightsCounted: Math.min(r.nights || 0, taxConfig.maxNights)
+        touristTaxNightsCounted: Math.min(r.nights || 0, group.appliedPeriod.maxNights)
       });
     });
   };
@@ -415,14 +447,39 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-          <div className="text-sm text-amber-800">
-            <p className="font-medium mb-1">Configuración actual:</p>
-            <ul className="list-disc ml-4 space-y-1">
-              <li>Tarifa: <strong>{taxConfig.rate}€</strong> por noche y adulto (≥{taxConfig.minAge} años)</li>
-              <li><strong>Exentos:</strong> Menores de {taxConfig.minAge} años (≤{taxConfig.minAge - 1}) - se declaran pero no pagan</li>
-              <li>Máximo: <strong>{taxConfig.maxNights} noches</strong> por estancia (incluso si es consecutiva)</li>
-              <li>Las estancias consecutivas del mismo huésped cuentan como una única estancia</li>
-            </ul>
+          <div className="text-sm text-amber-800 w-full">
+            {periodsInSemester.length > 1 ? (
+              <>
+                <p className="font-medium mb-2 flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  Múltiples tarifas en vigor este semestre:
+                </p>
+                <div className="space-y-1">
+                  {periodsInSemester.map((p, i) => (
+                    <div key={p.id} className="flex items-start gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mt-1 shrink-0" />
+                      <span>
+                        <strong>Desde {p.startDate}{p.endDate ? ` hasta ${p.endDate}` : ''}</strong>
+                        {' — '}{p.rate}€/noche · máx. {p.maxNights} noches · edad ≥{p.minAge}
+                        {p.notes && <span className="text-amber-700 ml-1">({p.notes})</span>}
+                        {!p.enabled && <span className="ml-1 text-slate-500 italic">[desactivada]</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-amber-700">Cada estancia aplica la tarifa vigente en su fecha de check-in.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium mb-1">Configuración actual:</p>
+                <ul className="list-disc ml-4 space-y-1">
+                  <li>Tarifa: <strong>{defaultTaxConfig.rate}€</strong> por noche y adulto (≥{defaultTaxConfig.minAge} años)</li>
+                  <li><strong>Exentos:</strong> Menores de {defaultTaxConfig.minAge} años (≤{defaultTaxConfig.minAge - 1}) - se declaran pero no pagan</li>
+                  <li>Máximo: <strong>{defaultTaxConfig.maxNights} noches</strong> por estancia (incluso si es consecutiva)</li>
+                  <li>Las estancias consecutivas del mismo huésped cuentan como una única estancia</li>
+                </ul>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -443,7 +500,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
             Uds. Sujetas
           </div>
           <p className="text-2xl font-bold text-purple-600">{totals.totalTaxableUnits}</p>
-          <p className="text-xs text-slate-400">Adultos (≥{taxConfig.minAge})</p>
+          <p className="text-xs text-slate-400">Adultos (≥{defaultTaxConfig.minAge})</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-cyan-200 shadow-sm">
           <div className="flex items-center gap-2 text-cyan-600 text-xs mb-1">
@@ -451,7 +508,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
             Uds. Exentas
           </div>
           <p className="text-2xl font-bold text-cyan-600">{totals.totalExemptUnits}</p>
-          <p className="text-xs text-slate-400">Menores (≤{taxConfig.minAge - 1})</p>
+          <p className="text-xs text-slate-400">Menores (≤{defaultTaxConfig.minAge - 1})</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 text-amber-600 text-xs mb-1">
@@ -547,7 +604,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
                         {group.taxableNights} noches × ({group.totalGuests} ad.{group.totalChildren > 0 && ` + ${group.totalChildren} niños`})
                         {group.totalNights > group.taxableNights && (
                           <span className="text-amber-600 ml-1">
-                            (máx. {taxConfig.maxNights})
+                            (máx. {group.appliedPeriod.maxNights})
                           </span>
                         )}
                       </p>
