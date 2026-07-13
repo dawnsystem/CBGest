@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-12 20:58:00 UTC*
+*Última actualización: 2026-07-13 14:45:00 UTC*
 
 ---
 
@@ -9,6 +9,15 @@
 ### 🚧 Tarea en Progreso (WIP)
 
 Estado actual: **A la espera de nuevas directivas del Director.**
+
+### 📋 Análisis completado: Módulo Contable (2026-07-13)
+
+Se realizó análisis exhaustivo del módulo de contabilidad (partida doble + conciliación). Resultados:
+- **2 bugs identificados** (BUG-CTB-001 y BUG-CTB-002) catalogados en sección de Bugs
+- **5 mejoras propuestas** (plantillas, indicadores de estado, panel pendientes, guía, borradores)
+- **Documentación creada:** `docs/GUIA_CONTABILIDAD.md` con guía completa y ejemplos prácticos
+- La lógica principal (reconciliationUtils, invoiceUtils) funciona **correctamente**
+
 
 ### ✅ Implementaciones Recientes
 *   **[2026-07-12] - `TSK-047` - Eliminación de ejercicios con borrado en cascada opcional:** Botón "Eliminar" por tarjeta de ejercicio en `FiscalYearManager`. Modal en 2 fases: (1) consulta de dependencias en tiempo real (facturas, asientos, transacciones, reservas, proveedores, apartamentos) + oferta de borrado en cascada si hay datos; (2) confirmación por nombre exacto del ejercicio como seguridad extra. Servicios `getFiscalYearDependencies`, `deleteFiscalYear`, `deleteFiscalYearCascade` añadidos a `fiscalYearService.ts` y expuestos via `compatService.ts`. `FiscalYearContext` extendido con ambas operaciones. 12 tests unitarios. Validado con `npm run type-check && npm run test:ci && npm run build`.
@@ -583,3 +592,10 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 * **DEBT-016:** `lib/errorMessages.ts:138-168` — `parseError()` no captura stack traces de objetos no-Error. Pierde información de debugging. Estado: ✅ Resuelto (IMPL-006).
 * **DEBT-017:** `PartnerTaxForm.tsx:51` — Usa `new Date().getFullYear()` hardcodeado, no inyectable para tests. Estado: ✅ Resuelto (IMPL-006).
 * **DEBT-018:** `xlsxMappingService.ts:46-54` — `localStorage.getItem()` captura todas las excepciones silenciosamente. Si localStorage está lleno, retorna `{}` sin log. Estado: ✅ Resuelto (IMPL-006).
+
+### 🔵 MÓDULO CONTABLE — Nuevos hallazgos (2026-07-13)
+
+* **BUG-CTB-001:** `AccountingBooks.tsx:186` — Mensaje de error incorrecto. Cuando la validación rechaza un asiento por tener menos de 2 líneas válidas, el mensaje dice "Un asiento debe tener al menos 2 líneas (debe y haber)". El mensaje es impreciso: la validación comprueba el número de líneas, no que haya una línea en Debe y otra en Haber. Severidad: **BAJO**. Estado: Pendiente.
+
+* **BUG-CTB-002:** `AccountLedger.tsx:97` — Cálculo de saldo corriente incorrecto para cuenta 430 (Clientes). La condición `isDebitNature` incluye grupos 1,2,3,5,6 pero no el grupo 43 (Clientes), que es de naturaleza DEUDORA. Las cuentas 430 se calculan con la rama "acreedora" por defecto (rama else), mostrando el saldo acumulado invertido. Severidad: **MEDIO**. Estado: Pendiente.
+
