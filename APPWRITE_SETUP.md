@@ -188,8 +188,12 @@ Necesitas crear 4 colecciones:
    Storage Bucket ID: [Tu Bucket ID]
    ```
 5. Haz clic en **"Guardar y Activar Appwrite"**
-6. Se abrirá un modal de Login/Register
-7. Crea tu cuenta o inicia sesión
+6. Se abrirá la pantalla de Login (el auto-registro está deshabilitado)
+7. Crea manualmente el primer usuario administrador desde **Auth > Users** en
+   la consola de Appwrite (asígnale el label `admin`) e inicia sesión con esa
+   cuenta. A partir de ahí, ese administrador puede crear al resto de usuarios
+   desde **Configuración → Usuarios** en la propia app (ver
+   `functions/README.md` para configurar la función `manage-users`).
 
 ### Paso 8: ¡Listo!
 
