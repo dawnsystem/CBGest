@@ -1,0 +1,10 @@
+{
+  "name": "manage-users",
+  "version": "1.0.0",
+  "description": "Permite que administradores creen, listen, restablezcan contraseña o eliminen usuarios (sustituye al auto-registro)",
+  "main": "src/main.js",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^13.0.0"
+  }
+}

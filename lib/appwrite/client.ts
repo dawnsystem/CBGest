@@ -9,7 +9,7 @@
  * const user = await account.get();
  */
 
-import { Client, Account, Databases, Storage } from 'appwrite';
+import { Client, Account, Databases, Storage, Functions } from 'appwrite';
 import { APPWRITE_CONFIG } from '../../config/appwrite';
 import { dataLogger } from '../../services/logger';
 
@@ -31,7 +31,7 @@ const client = new Client()
 
 /**
  * Servicio de autenticación de Appwrite.
- * Usado para: login, logout, register, getCurrentUser, sessions.
+ * Usado para: login, logout, getCurrentUser, sessions, changePassword.
  */
 const account = new Account(client);
 
@@ -46,6 +46,12 @@ const databases = new Databases(client);
  * Usado para: upload, download, delete de archivos.
  */
 const storage = new Storage(client);
+
+/**
+ * Servicio de ejecución de funciones de Appwrite.
+ * Usado para: invocar Appwrite Functions (ej. gestión de usuarios por admin).
+ */
+const functions = new Functions(client);
 
 // ============================================================================
 // CONFIGURACIÓN EXPORTADA
@@ -103,6 +109,7 @@ export {
   account,
   databases,
   storage,
+  functions,
   config,
   isConfigured,
   getClientInfo,
@@ -114,5 +121,6 @@ export default {
   account,
   databases,
   storage,
+  functions,
   config,
 };

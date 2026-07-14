@@ -14,6 +14,7 @@ Este directorio contiene las funciones de Appwrite para automatizar tareas en CB
 | `calculate-profitability` | Rentabilidad mensual por apartamento | 1º de cada mes |
 | `prepare-modelo-184` | Prepara datos para declaración anual | 15 de enero |
 | `weekly-summary` | Resumen semanal | Lunes 10 AM |
+| `manage-users` | Crear/listar/restablecer contraseña/eliminar usuarios (solo admins) | HTTPS (bajo demanda) |
 
 ## Despliegue
 
@@ -52,7 +53,7 @@ Configura estas variables en **Function Settings > Variables**:
 
 | Variable | Descripción | Valor |
 |----------|-------------|-------|
-| `APPWRITE_API_KEY` | API Key con permisos de Database | (crear en Settings > API Keys) |
+| `APPWRITE_API_KEY` | API Key con permisos de Database (y `users.read`/`users.write` para `manage-users`) | (crear en Settings > API Keys) |
 | `DATABASE_ID` | ID de la base de datos | `691f288100019843d43e` |
 | `BACKUP_BUCKET_ID` | ID del bucket para backups (opcional) | `backups` |
 
@@ -77,6 +78,25 @@ Para `auto-reconcile`, configura el evento en **Function Settings > Events**:
 ```
 databases.691f288100019843d43e.collections.bankTransactions.documents.*.create
 ```
+
+## Configurar `manage-users` (gestión de usuarios sin auto-registro)
+
+Esta función sustituye al auto-registro: el cliente (`Login.tsx`) ya no permite
+crear cuentas por sí mismo, y la creación de usuarios se hace desde
+**Configuración → Usuarios** dentro de la app, que a su vez ejecuta esta función.
+
+1. Despliega la función con `functionId: manage-users`, entrypoint `src/main.js`.
+2. En **Function Settings > Execute Access**, marca **Users** (así la función
+   recibe el header `x-appwrite-user-id` de quien la ejecuta y puede verificar
+   que sea administrador).
+3. Configura la variable `APPWRITE_API_KEY` con una API Key que tenga el scope
+   `users.read`, `users.write`.
+4. **Bootstrap del primer administrador**: como no hay auto-registro, crea el
+   primer usuario manualmente desde **Auth > Users > Create user** en la
+   consola de Appwrite y añádele el label `admin` (**Auth > Users > [usuario] >
+   Labels**). A partir de ahí, ese usuario ya puede crear al resto desde la app.
+5. (Recomendado) En **Auth > Settings**, desactiva **"Self registration"** en el
+   proyecto para reforzar en el propio Appwrite que no se permite auto-registro.
 
 ## Testing manual
 
