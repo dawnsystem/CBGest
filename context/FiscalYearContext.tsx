@@ -193,13 +193,15 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
         // Re-fechar cada período al nuevo año, preservando la configuración económica
         const sortedPrev = sortPeriodsByDate(prevPeriods);
         initialPeriods = sortedPrev.map((p, idx) => {
-          // La lógica de refechado: trasladar mes/día del startDate al nuevo año
+          // La lógica de refechado: trasladar mes/día al nuevo año, ajustando días inválidos (p.ej. 29/02)
           const [, mm, dd] = p.startDate.split('-');
-          const newStart = `${year}-${mm}-${dd}`;
+          const startLastDay = new Date(year, parseInt(mm, 10), 0).getDate();
+          const newStart = `${year}-${mm}-${String(Math.min(parseInt(dd, 10), startLastDay)).padStart(2, '0')}`;
           let newEnd: string | undefined;
           if (p.endDate) {
             const [, emm, edd] = p.endDate.split('-');
-            newEnd = `${year}-${emm}-${edd}`;
+            const endLastDay = new Date(year, parseInt(emm, 10), 0).getDate();
+            newEnd = `${year}-${emm}-${String(Math.min(parseInt(edd, 10), endLastDay)).padStart(2, '0')}`;
           }
           return {
             id: generateId(),
