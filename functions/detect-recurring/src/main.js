@@ -23,7 +23,7 @@ export default async ({ req, res, log, error }) => {
 
     const transactions = await databases.listDocuments(
       databaseId,
-      'bankTransactions',
+      'transactions',
       [
         Query.greaterThan('date', sixMonthsAgo.toISOString().split('T')[0]),
         Query.lessThan('amount', 0), // Only expenses
@@ -49,13 +49,24 @@ export default async ({ req, res, log, error }) => {
       const amount = Math.abs(parseFloat(tx.amount));
       const key = `${normalizedConcept}_${Math.round(amount)}`;
 
+      // AI-suggested supplier (if any) is stored as a JSON string in aiMatchSuggestion,
+      // not as a direct attribute on the transaction document.
+      let suggestedSupplierId;
+      if (tx.aiMatchSuggestion) {
+        try {
+          suggestedSupplierId = JSON.parse(tx.aiMatchSuggestion)?.matchedSupplierId;
+        } catch {
+          suggestedSupplierId = undefined;
+        }
+      }
+
       if (!patterns.has(key)) {
         patterns.set(key, {
           concept: tx.concept,
           normalizedConcept,
           baseAmount: amount,
           occurrences: [],
-          supplierId: tx.matchedSupplierId || tx.suggestedSupplierId
+          supplierId: suggestedSupplierId
         });
       }
 
@@ -82,12 +93,14 @@ export default async ({ req, res, log, error }) => {
         const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
         const avgAmount = pattern.occurrences.reduce((a, b) => a + b.amount, 0) / pattern.occurrences.length;
 
-        // Determine frequency
+        // Determine frequency. Values must match the `frequency` enum defined on the
+        // recurring_expenses collection: MONTHLY | BIMONTHLY | QUARTERLY | SEMIANNUAL | ANNUAL
         let frequency = 'irregular';
-        if (avgInterval >= 25 && avgInterval <= 35) frequency = 'monthly';
-        else if (avgInterval >= 80 && avgInterval <= 100) frequency = 'quarterly';
-        else if (avgInterval >= 350 && avgInterval <= 380) frequency = 'yearly';
-        else if (avgInterval >= 12 && avgInterval <= 16) frequency = 'biweekly';
+        if (avgInterval >= 25 && avgInterval <= 35) frequency = 'MONTHLY';
+        else if (avgInterval >= 55 && avgInterval <= 65) frequency = 'BIMONTHLY';
+        else if (avgInterval >= 80 && avgInterval <= 100) frequency = 'QUARTERLY';
+        else if (avgInterval >= 170 && avgInterval <= 190) frequency = 'SEMIANNUAL';
+        else if (avgInterval >= 350 && avgInterval <= 380) frequency = 'ANNUAL';
 
         if (frequency !== 'irregular') {
           recurringPatterns.push({
@@ -129,7 +142,6 @@ export default async ({ req, res, log, error }) => {
             'recurring_expenses',
             ID.unique(),
             {
-              id: ID.unique(),
               name: `[Sugerido] ${suggestedName}`,
               description: `Detectado automáticamente: ${pattern.occurrences} ocurrencias`,
               estimatedAmount: pattern.avgAmount,
@@ -137,8 +149,7 @@ export default async ({ req, res, log, error }) => {
               supplierId: pattern.supplierId || null,
               isDeductible: true,
               isActive: false, // Inactive until user confirms
-              notes: `Detectado el ${new Date().toISOString().split('T')[0]}. Concepto original: ${pattern.concept}`,
-              createdAt: new Date().toISOString()
+              notes: `Detectado el ${new Date().toISOString().split('T')[0]}. Concepto original: ${pattern.concept}`
             }
           );
           created++;

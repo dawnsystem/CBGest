@@ -18,12 +18,16 @@ export default async ({ req, res, log, error }) => {
 
   const collections = [
     'invoices',
-    'accountingEntries',
-    'bankTransactions',
+    'entries',
+    'transactions',
     'suppliers',
     'apartments',
     'recurring_expenses',
-    'reservations'
+    'reservations',
+    'settings',
+    'notifications',
+    'ai_match_history',
+    'fiscal_years'
   ];
 
   const backup = {

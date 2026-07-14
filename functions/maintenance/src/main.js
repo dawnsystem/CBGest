@@ -64,7 +64,7 @@ export default async ({ req, res, log, error }) => {
     // Get accounting entries and check for orphans
     const entries = await databases.listDocuments(
       databaseId,
-      'accountingEntries',
+      'entries',
       [Query.limit(1000)]
     );
 

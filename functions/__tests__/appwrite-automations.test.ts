@@ -4,6 +4,8 @@ const mockState = vi.hoisted(() => ({
   listDocuments: vi.fn(),
   updateDocument: vi.fn(),
   createDocument: vi.fn(),
+  deleteDocument: vi.fn(),
+  createFile: vi.fn(),
   idUnique: vi.fn(() => 'unique-id'),
 }));
 
@@ -23,13 +25,24 @@ vi.mock('node-appwrite', () => ({
     createDocument(...args: unknown[]) {
       return mockState.createDocument(...args);
     }
+    deleteDocument(...args: unknown[]) {
+      return mockState.deleteDocument(...args);
+    }
+  },
+  Storage: class {
+    createFile(...args: unknown[]) {
+      return mockState.createFile(...args);
+    }
   },
   Query: {
     equal: (field: string, value: unknown) => ({ op: 'equal', field, value }),
     greaterThanEqual: (field: string, value: unknown) => ({ op: 'gte', field, value }),
     lessThanEqual: (field: string, value: unknown) => ({ op: 'lte', field, value }),
     greaterThan: (field: string, value: unknown) => ({ op: 'gt', field, value }),
+    lessThan: (field: string, value: unknown) => ({ op: 'lt', field, value }),
     limit: (value: number) => ({ op: 'limit', value }),
+    offset: (value: number) => ({ op: 'offset', value }),
+    orderAsc: (field: string) => ({ op: 'orderAsc', field }),
     orderDesc: (field: string) => ({ op: 'orderDesc', field }),
   },
   ID: {
@@ -47,6 +60,8 @@ describe('Appwrite automation functions', () => {
     vi.clearAllMocks();
     mockState.createDocument.mockResolvedValue({});
     mockState.updateDocument.mockResolvedValue({});
+    mockState.deleteDocument.mockResolvedValue({});
+    mockState.createFile.mockResolvedValue({ $id: 'file-1' });
   });
 
   it('auto-reconcile updates current transaction fields and invoice status', async () => {
@@ -301,5 +316,85 @@ describe('Appwrite automation functions', () => {
 
     expect(profitabilityPayload.apartments[0].irpf.rendimientoNeto).toBe(800);
     expect(modelo184Payload.modelo184.resumen.rendimientoNeto).toBe(800);
+  });
+
+  it('maintenance checks the real "entries" collection, not the legacy "accountingEntries" id', async () => {
+    mockState.listDocuments
+      .mockResolvedValueOnce({ documents: [] }) // old notifications
+      .mockResolvedValueOnce({ documents: [{ $id: 'inv-1' }] }) // invoices
+      .mockResolvedValueOnce({ documents: [{ $id: 'entry-1', invoiceId: 'missing-invoice' }] }); // entries
+
+    const { default: maintenance } = await import('../maintenance/src/main.js');
+    const res = makeRes();
+
+    await maintenance({ req: {}, res, log: vi.fn(), error: vi.fn() });
+
+    expect(mockState.listDocuments).toHaveBeenNthCalledWith(
+      3,
+      expect.any(String),
+      'entries',
+      expect.anything()
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      integrity: expect.objectContaining({ invoices: 1, orphanedEntries: 1 }),
+    }));
+  });
+
+  it('detect-recurring reads the real "transactions" collection and creates valid recurring_expenses documents', async () => {
+    const baseDate = new Date('2026-01-05');
+    const monthlyDates = [0, 1, 2, 3].map(i => {
+      const d = new Date(baseDate);
+      d.setMonth(d.getMonth() + i);
+      return d.toISOString().split('T')[0];
+    });
+
+    mockState.listDocuments
+      .mockResolvedValueOnce({
+        documents: monthlyDates.map(date => ({
+          $id: `tx-${date}`,
+          date,
+          amount: '-45.00',
+          concept: 'Cuota Comunidad Propietarios 123',
+        })),
+      })
+      .mockResolvedValueOnce({ documents: [] }); // existing recurring_expenses
+
+    const { default: detectRecurring } = await import('../detect-recurring/src/main.js');
+    const res = makeRes();
+
+    await detectRecurring({ req: {}, res, log: vi.fn(), error: vi.fn() });
+
+    expect(mockState.listDocuments).toHaveBeenNthCalledWith(
+      1,
+      expect.any(String),
+      'transactions',
+      expect.anything()
+    );
+    expect(mockState.createDocument).toHaveBeenCalledTimes(1);
+    const [, collectionId, , payload] = mockState.createDocument.mock.calls[0];
+    expect(collectionId).toBe('recurring_expenses');
+    // `id` and `createdAt` are not attributes of recurring_expenses ($id/$createdAt
+    // are managed by Appwrite) — sending them would throw "Unknown attribute".
+    expect(payload).not.toHaveProperty('id');
+    expect(payload).not.toHaveProperty('createdAt');
+    // `frequency` must match the enum defined on the collection.
+    expect(['MONTHLY', 'BIMONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL']).toContain(payload.frequency);
+  });
+
+  it('backup-data backs up the real "entries"/"transactions" collections, not legacy ids', async () => {
+    mockState.listDocuments.mockResolvedValue({ documents: [] });
+
+    const { default: backupData } = await import('../backup-data/src/main.js');
+    const res = makeRes();
+
+    await backupData({ req: {}, res, log: vi.fn(), error: vi.fn() });
+
+    const backedUpCollectionIds = mockState.listDocuments.mock.calls.map(call => call[1]);
+    expect(backedUpCollectionIds).toContain('entries');
+    expect(backedUpCollectionIds).toContain('transactions');
+    expect(backedUpCollectionIds).not.toContain('accountingEntries');
+    expect(backedUpCollectionIds).not.toContain('bankTransactions');
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 });
