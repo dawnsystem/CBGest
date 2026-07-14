@@ -440,7 +440,7 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
 
             {/* Períodos de vigencia por ejercicio */}
-            <TouristTaxPeriodsManager />
+            <TouristTaxPeriodsManager fallbackTaxConfig={formData.touristTaxConfig} />
 
             {/* Deposit Configuration */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">

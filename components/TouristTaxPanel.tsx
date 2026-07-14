@@ -279,12 +279,17 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
   // Mark group as collected
   const markGroupCollected = (group: ConsecutiveStayGroup) => {
     const today = new Date().toISOString().split('T')[0];
+    let remainingTaxableNights = group.taxableNights;
     group.reservations.forEach(r => {
+      const reservationNights = r.nights || 0;
+      const taxableNightsForReservation = Math.min(reservationNights, remainingTaxableNights);
+      remainingTaxableNights -= taxableNightsForReservation;
+
       onUpdateReservation(r.id, {
         touristTaxCollected: true,
         touristTaxCollectedDate: today,
         touristTaxAmount: group.totalTax / group.reservations.length, // Distribute evenly
-        touristTaxNightsCounted: Math.min(r.nights || 0, group.appliedPeriod.maxNights)
+        touristTaxNightsCounted: taxableNightsForReservation
       });
     });
   };

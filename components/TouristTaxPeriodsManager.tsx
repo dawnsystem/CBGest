@@ -13,7 +13,7 @@ import {
   Plus, Trash2, Edit2, Save, X, AlertTriangle, Calendar,
   Euro, Users, ChevronDown, ChevronUp, Info
 } from 'lucide-react';
-import type { TouristTaxPeriod, FiscalYear } from '../types';
+import type { TouristTaxPeriod, FiscalYear, TouristTaxConfig } from '../types';
 import { useIsReadOnly, useFiscalYear } from '../context/FiscalYearContext';
 import {
   hasOverlap,
@@ -318,6 +318,8 @@ const PeriodModal: React.FC<PeriodModalProps> = ({
 interface TouristTaxPeriodsManagerProps {
   /** Si se omite se usa el ejercicio activo del contexto */
   fiscalYear?: FiscalYear;
+  /** Configuración global de tasa para fallback en ejercicios legacy */
+  fallbackTaxConfig?: TouristTaxConfig;
 }
 
 /**
@@ -329,6 +331,7 @@ interface TouristTaxPeriodsManagerProps {
  */
 export const TouristTaxPeriodsManager: React.FC<TouristTaxPeriodsManagerProps> = ({
   fiscalYear: fiscalYearProp,
+  fallbackTaxConfig,
 }) => {
   const { activeFiscalYear, updateFiscalYearTouristTax } = useFiscalYear();
   const isReadOnly = useIsReadOnly();
@@ -345,9 +348,9 @@ export const TouristTaxPeriodsManager: React.FC<TouristTaxPeriodsManagerProps> =
     if (!fiscalYear) return [];
     const parsed = parseTouristTaxPeriods(fiscalYear.touristTaxPeriods);
     if (parsed.length > 0) return sortPeriodsByDate(parsed);
-    // Fallback: período sintético usando la config por defecto
-    return [createDefaultPeriodForYear(fiscalYear.year, DEFAULT_TAX_CONFIG)];
-  }, [fiscalYear]);
+    // Fallback: período sintético usando la config global (o default)
+    return [createDefaultPeriodForYear(fiscalYear.year, fallbackTaxConfig ?? DEFAULT_TAX_CONFIG)];
+  }, [fiscalYear, fallbackTaxConfig]);
 
   if (!fiscalYear) {
     return (
