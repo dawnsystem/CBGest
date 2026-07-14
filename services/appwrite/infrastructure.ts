@@ -278,6 +278,13 @@ export const verifyCollections = async (): Promise<{
     { id: config.collections.transactions, name: 'Transacciones' },
     { id: config.collections.settings, name: 'Configuración' },
     { id: config.collections.suppliers, name: 'Proveedores' },
+    { id: config.collections.notifications, name: 'Notificaciones' },
+    { id: config.collections.uploads, name: 'Cola de subidas' },
+    { id: config.collections.apartments, name: 'Apartamentos' },
+    { id: config.collections.recurringExpenses, name: 'Gastos recurrentes' },
+    { id: config.collections.aiMatchHistory, name: 'Historial IA' },
+    { id: config.collections.reservations, name: 'Reservas' },
+    { id: config.collections.fiscalYears, name: 'Ejercicios fiscales' },
   ];
 
   for (const col of collectionsToCheck) {
