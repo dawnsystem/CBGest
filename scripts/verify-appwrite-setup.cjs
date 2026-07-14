@@ -3,19 +3,26 @@
 /**
  * Script to verify Appwrite setup for CBGest
  *
- * This script checks:
+ * This script checks, for EVERY collection actually used by the app
+ * (kept in sync with `config/appwrite.ts`, `types.ts` and `services/appwrite/*`):
  * - Database exists
  * - Storage bucket exists
  * - All collections exist
- * - All attributes are present
- * - All indexes are available
+ * - All attributes are present (and flags ones still "processing")
+ * - All indexes are available (and flags "failed"/"processing" ones)
+ * - Indexes that MUST NOT be `unique` are not (e.g. suppliers.nif, since the
+ *   same NIF is legitimately duplicated across fiscal years)
+ *
+ * This is the authoritative list of expected attributes — it MUST be kept in
+ * sync with `scripts/setup-all-collections.cjs` (the script that creates them)
+ * and with the fields actually read/written by `services/appwrite/*.ts`.
  *
  * Usage:
  *   export APPWRITE_API_KEY="your-api-key"
  *   node scripts/verify-appwrite-setup.cjs
  */
 
-const { Client, Databases, Storage } = require('node-appwrite');
+const { Client, Databases, Storage, Query } = require('node-appwrite');
 
 // Configuration from config/appwrite.ts
 const CONFIG = {
@@ -66,15 +73,17 @@ const EXPECTED_COLLECTIONS = {
       { key: 'vatRate', type: 'double' },
       { key: 'vatAmount', type: 'double' },
       { key: 'totalAmount', type: 'double' },
-      { key: 'type', type: 'string' }, // enum
-      { key: 'status', type: 'string' }, // enum
+      { key: 'type', type: 'string' }, // enum: EXPENSE | INCOME
+      { key: 'status', type: 'string' }, // enum: PENDING | PROCESSED | PAID
       { key: 'category', type: 'string' },
       { key: 'history', type: 'string' },
       { key: 'fileData', type: 'string' },
       { key: 'fileType', type: 'string' },
       { key: 'appwriteFileId', type: 'string' },
+      { key: 'apartmentId', type: 'string' },
+      { key: 'fiscalYearId', type: 'string' },
     ],
-    indexes: ['date_index', 'status_index', 'type_index'],
+    indexes: ['date_index', 'status_index', 'type_index', 'apartmentId_index', 'fiscalYearId_index'],
   },
   entries: {
     name: 'Accounting Entries',
@@ -86,12 +95,21 @@ const EXPECTED_COLLECTIONS = {
       { key: 'debit', type: 'double' },
       { key: 'credit', type: 'double' },
       { key: 'invoiceId', type: 'string' },
+      { key: 'transactionId', type: 'string' },
       { key: 'reconciled', type: 'boolean' },
+      { key: 'number', type: 'integer' },
+      { key: 'lines', type: 'string' },
       { key: 'fileData', type: 'string' },
       { key: 'fileType', type: 'string' },
       { key: 'appwriteFileId', type: 'string' },
+      { key: 'createdBy', type: 'string' },
+      { key: 'createdByName', type: 'string' },
+      { key: 'supplierId', type: 'string' },
+      { key: 'apartmentId', type: 'string' },
+      { key: 'isDraft', type: 'boolean' },
+      { key: 'fiscalYearId', type: 'string' },
     ],
-    indexes: ['date_index', 'reconciled_index', 'invoiceId_index'],
+    indexes: ['date_index', 'reconciled_index', 'invoiceId_index', 'supplierId_index', 'apartmentId_index', 'fiscalYearId_index'],
   },
   transactions: {
     name: 'Bank Transactions',
@@ -102,18 +120,26 @@ const EXPECTED_COLLECTIONS = {
       { key: 'amount', type: 'double' },
       { key: 'balance', type: 'double' },
       { key: 'reconciledWithEntryId', type: 'string' },
-      { key: 'status', type: 'string' }, // enum
+      { key: 'status', type: 'string' }, // enum: PENDING | MATCHED
+      { key: 'platformDetected', type: 'string' },
+      { key: 'grossAmount', type: 'double' },
+      { key: 'aiMatchSuggestion', type: 'string' },
+      { key: 'reconciledWithInvoiceId', type: 'string' },
+      { key: 'createdBy', type: 'string' },
+      { key: 'createdByName', type: 'string' },
+      { key: 'fiscalYearId', type: 'string' },
     ],
-    indexes: ['date_index', 'status_index'],
+    indexes: ['date_index', 'status_index', 'platformDetected_index', 'fiscalYearId_index'],
   },
   settings: {
     name: 'App Settings',
     attributes: [
       { key: 'cbName', type: 'string' },
       { key: 'nif', type: 'string' },
-      { key: 'fiscalRegime', type: 'string' }, // enum
+      { key: 'fiscalRegime', type: 'string' }, // enum: GENERAL | ALQUILER_EXENTO
       { key: 'vatObligation', type: 'boolean' },
       { key: 'partners', type: 'string' },
+      { key: 'touristTaxConfig', type: 'string' },
     ],
     indexes: [],
   },
@@ -130,10 +156,14 @@ const EXPECTED_COLLECTIONS = {
       { key: 'phone', type: 'string' },
       { key: 'category', type: 'string' },
       { key: 'notes', type: 'string' },
-      { key: 'createdAt', type: 'string' },
-      { key: 'updatedAt', type: 'string' },
+      { key: 'fiscalYearId', type: 'string' },
     ],
-    indexes: ['name_index', 'nif_index'],
+    indexes: ['name_index', 'nif_index', 'fiscalYearId_index'],
+    // `nif` is intentionally duplicated across fiscal years by
+    // copyMasterDataToFiscalYear(), so nif_index must stay a plain `key` index.
+    // If it is `unique`, master-data copy to a new fiscal year silently fails
+    // (409 is swallowed by the caller as "already copied").
+    forbiddenUniqueIndexes: ['nif_index'],
   },
   notifications: {
     name: 'Notifications',
@@ -155,7 +185,8 @@ const EXPECTED_COLLECTIONS = {
       { key: 'uploadType', type: 'string' },
       { key: 'fileName', type: 'string' },
       { key: 'mimeType', type: 'string' },
-      { key: 'base64Data', type: 'string' },
+      { key: 'fileSize', type: 'integer' },
+      { key: 'storageFileId', type: 'string' },
       { key: 'status', type: 'string' },
       { key: 'progress', type: 'integer' },
       { key: 'error', type: 'string' },
@@ -165,7 +196,112 @@ const EXPECTED_COLLECTIONS = {
       { key: 'result', type: 'string' },
       { key: 'bankResult', type: 'string' },
     ],
-    indexes: ['timestamp_index', 'status_index'],
+    indexes: ['timestamp_index', 'status_index', 'storageFileId_index'],
+  },
+  apartments: {
+    name: 'Apartments',
+    attributes: [
+      { key: 'name', type: 'string' },
+      { key: 'code', type: 'string' },
+      { key: 'address', type: 'string' },
+      { key: 'cadastralRef', type: 'string' },
+      { key: 'surfaceArea', type: 'double' },
+      { key: 'maxOccupancy', type: 'integer' },
+      { key: 'licenseNumber', type: 'string' },
+      { key: 'apartmentType', type: 'string' }, // enum: TOURIST | RESIDENTIAL
+      { key: 'notes', type: 'string' },
+      { key: 'isActive', type: 'boolean' },
+      { key: 'fiscalYearId', type: 'string' },
+    ],
+    indexes: ['name_index', 'isActive_index', 'fiscalYearId_index'],
+  },
+  recurring_expenses: {
+    name: 'Recurring Expenses',
+    attributes: [
+      { key: 'name', type: 'string' },
+      { key: 'description', type: 'string' },
+      { key: 'estimatedAmount', type: 'double' },
+      { key: 'frequency', type: 'string' }, // enum: MONTHLY | BIMONTHLY | QUARTERLY | SEMIANNUAL | ANNUAL
+      { key: 'category', type: 'string' },
+      { key: 'apartmentId', type: 'string' },
+      { key: 'supplierId', type: 'string' },
+      { key: 'dayOfMonth', type: 'integer' },
+      { key: 'startDate', type: 'string' },
+      { key: 'endDate', type: 'string' },
+      { key: 'isDeductible', type: 'boolean' },
+      { key: 'isActive', type: 'boolean' },
+      { key: 'notes', type: 'string' },
+    ],
+    indexes: ['frequency_index', 'apartmentId_index', 'isActive_index'],
+  },
+  ai_match_history: {
+    name: 'AI Match History',
+    attributes: [
+      { key: 'bankConcept', type: 'string' },
+      { key: 'normalizedConcept', type: 'string' },
+      { key: 'amount', type: 'double' },
+      { key: 'matchType', type: 'string' }, // enum: INVOICE | SUPPLIER | CATEGORY | PLATFORM
+      { key: 'matchedInvoiceId', type: 'string' },
+      { key: 'matchedSupplierId', type: 'string' },
+      { key: 'matchedSupplierName', type: 'string' },
+      { key: 'matchedCategory', type: 'string' },
+      { key: 'matchedPlatform', type: 'string' },
+      { key: 'wasAiSuggestion', type: 'boolean' },
+      { key: 'userConfirmed', type: 'boolean' },
+      { key: 'usageCount', type: 'integer' },
+      { key: 'lastUsedAt', type: 'string' },
+    ],
+    indexes: ['matchType_index', 'usageCount_index'],
+  },
+  reservations: {
+    name: 'Reservations',
+    attributes: [
+      { key: 'apartmentId', type: 'string' },
+      { key: 'apartmentName', type: 'string' },
+      { key: 'checkIn', type: 'string' },
+      { key: 'checkOut', type: 'string' },
+      { key: 'nights', type: 'integer' },
+      { key: 'pricePerNight', type: 'double' },
+      { key: 'totalAmount', type: 'double' },
+      { key: 'paidAmount', type: 'double' },
+      { key: 'channel', type: 'string' }, // enum
+      { key: 'reservationNumber', type: 'string' },
+      { key: 'status', type: 'string' }, // enum
+      { key: 'guestInitials', type: 'string' },
+      { key: 'guestName', type: 'string' },
+      { key: 'guestEmail', type: 'string' },
+      { key: 'numberOfGuests', type: 'integer' },
+      { key: 'numberOfChildren', type: 'integer' },
+      { key: 'touristTaxAmount', type: 'double' },
+      { key: 'touristTaxCollected', type: 'boolean' },
+      { key: 'touristTaxCollectedDate', type: 'string' },
+      { key: 'touristTaxNightsCounted', type: 'integer' },
+      { key: 'depositAmount', type: 'double' },
+      { key: 'depositCollected', type: 'boolean' },
+      { key: 'depositCollectedDate', type: 'string' },
+      { key: 'depositReturned', type: 'boolean' },
+      { key: 'depositReturnedDate', type: 'string' },
+      { key: 'depositRetainedAmount', type: 'double' },
+      { key: 'importedAt', type: 'string' },
+      { key: 'notes', type: 'string' },
+      { key: 'fiscalYearId', type: 'string' },
+    ],
+    indexes: [
+      'checkIn_index', 'apartmentId_index', 'channel_index', 'status_index',
+      'touristTaxCollected_index', 'guestName_index', 'fiscalYearId_index',
+    ],
+  },
+  fiscal_years: {
+    name: 'Fiscal Years',
+    attributes: [
+      { key: 'year', type: 'integer' },
+      { key: 'status', type: 'string' }, // enum: OPEN | CLOSED
+      { key: 'openedAt', type: 'string' },
+      { key: 'closedAt', type: 'string' },
+      { key: 'notes', type: 'string' },
+      { key: 'touristTaxPeriods', type: 'string' },
+    ],
+    indexes: ['year_index', 'status_index'],
   },
 };
 
@@ -243,9 +379,13 @@ async function verifyCollection(collectionId, expected) {
 
   // Check attributes
   console.log('  📋 Checking attributes...');
+  // NOTE: listAttributes/listIndexes paginate like any other list endpoint
+  // (default limit 25) — without Query.limit() collections with more than 25
+  // attributes/indexes (e.g. `reservations`) would silently report the
+  // remaining ones as "missing".
   let attributes;
   try {
-    attributes = await databases.listAttributes(CONFIG.databaseId, collectionId);
+    attributes = await databases.listAttributes(CONFIG.databaseId, collectionId, [Query.limit(100)]);
   } catch (error) {
     logCheck(false, `Error listing attributes: ${error.message}`);
     return false;
@@ -256,7 +396,6 @@ async function verifyCollection(collectionId, expected) {
     existingAttrs.set(attr.key, attr);
   }
 
-  let attrIssues = 0;
   const missingAttrs = [];
   const processingAttrs = [];
 
@@ -264,7 +403,6 @@ async function verifyCollection(collectionId, expected) {
     const attr = existingAttrs.get(expectedAttr.key);
     if (!attr) {
       missingAttrs.push(expectedAttr.key);
-      attrIssues++;
     } else if (attr.status === 'processing') {
       processingAttrs.push(expectedAttr.key);
     }
@@ -282,12 +420,12 @@ async function verifyCollection(collectionId, expected) {
 
   // Check indexes
   console.log('  📇 Checking indexes...');
+  let indexes = { indexes: [] };
   if (expected.indexes.length === 0) {
     console.log('     (No indexes expected for this collection)');
   } else {
-    let indexes;
     try {
-      indexes = await databases.listIndexes(CONFIG.databaseId, collectionId);
+      indexes = await databases.listIndexes(CONFIG.databaseId, collectionId, [Query.limit(100)]);
     } catch (error) {
       logCheck(false, `Error listing indexes: ${error.message}`);
       return false;
@@ -326,6 +464,26 @@ async function verifyCollection(collectionId, expected) {
 
     if (processingIndexes.length > 0) {
       logWarning(`${processingIndexes.length} indexes still processing: ${processingIndexes.join(', ')}`);
+    }
+  }
+
+  // Check indexes that must NOT be unique (e.g. suppliers.nif_index)
+  if (expected.forbiddenUniqueIndexes && expected.forbiddenUniqueIndexes.length > 0) {
+    const existingIndexes = new Map();
+    for (const idx of indexes.indexes) {
+      existingIndexes.set(idx.key, idx);
+    }
+    for (const indexKey of expected.forbiddenUniqueIndexes) {
+      const idx = existingIndexes.get(indexKey);
+      if (idx && idx.type === 'unique') {
+        logCheck(
+          false,
+          `Index '${indexKey}' is UNIQUE — this breaks copying master data across fiscal years. ` +
+          `Delete it in the Appwrite Console and recreate it as a plain 'key' index.`
+        );
+      } else if (idx) {
+        logCheck(true, `Index '${indexKey}' is not unique (correct)`);
+      }
     }
   }
 
@@ -372,8 +530,11 @@ async function main() {
     console.log('');
     process.exit(0);
   } else {
-    console.log(`⚠️  Found ${totalIssues} issue(s). Run the setup script to fix:`);
+    console.log(`⚠️  Found ${totalIssues} issue(s). Run the setup script to fix missing collections/attributes/indexes:`);
     console.log('   node scripts/setup-all-collections.cjs');
+    console.log('');
+    console.log('   Note: a `unique` index that must be a plain `key` index (see above) cannot be');
+    console.log('   fixed by re-running the setup script — it must be deleted and recreated manually.');
     console.log('');
     process.exit(1);
   }

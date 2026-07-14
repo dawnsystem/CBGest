@@ -3,6 +3,20 @@
 /**
  * Script to automatically configure Appwrite for CBGest
  *
+ * ⚠️  DEPRECATED (Parts 1 & 2 — indexes/collections):
+ *   Use `scripts/setup-all-collections.cjs` instead. It is the current source of
+ *   truth for all 13 collections (invoices, entries, transactions, settings,
+ *   suppliers, notifications, uploads, apartments, recurring_expenses,
+ *   ai_match_history, reservations, fiscal_years) with the attribute names that
+ *   match the current codebase (e.g. `entries`/`transactions`, not the legacy
+ *   `accountingEntries`/`bankTransactions` IDs used below, and
+ *   `reconciledWithInvoiceId`, not `matchedInvoiceId`).
+ *   Running Parts 1 & 2 here again is safe (idempotent, 409s are skipped) but
+ *   redundant — kept only for historical reference.
+ *
+ * ✅ STILL USEFUL: Part 3 (Appwrite Functions creation) — this is the only
+ *   script that registers the scheduled/event-triggered Functions.
+ *
  * This script creates/updates:
  * - Collections with attributes and permissions
  * - Database indexes for query performance
@@ -24,10 +38,14 @@ const CONFIG = {
   projectId: 'cbgest',
   databaseId: '691f288100019843d43e',
   // Collection IDs (existing collections)
+  // NOTE: real collection IDs are `entries` and `transactions` — NOT
+  // `accountingEntries`/`bankTransactions`. Kept as named keys below for
+  // backward compatibility with the rest of this file, but pointing at the
+  // correct IDs so this script no longer targets non-existent collections.
   collections: {
     invoices: 'invoices',
-    accountingEntries: 'accountingEntries',
-    bankTransactions: 'bankTransactions',
+    accountingEntries: 'entries',
+    bankTransactions: 'transactions',
     suppliers: 'suppliers',
     settings: 'settings',
     notifications: 'notifications',
@@ -383,7 +401,7 @@ async function setupBankTransactionsIndexes() {
   const indexes = [
     { key: 'date_desc', type: 'key', attributes: ['date'], orders: ['DESC'] },
     { key: 'status_asc', type: 'key', attributes: ['status'], orders: ['ASC'] },
-    { key: 'matchedInvoiceId_asc', type: 'key', attributes: ['matchedInvoiceId'], orders: ['ASC'] },
+    { key: 'reconciledWithInvoiceId_asc', type: 'key', attributes: ['reconciledWithInvoiceId'], orders: ['ASC'] },
     // Fulltext index for concept search
     { key: 'concept_fulltext', type: 'fulltext', attributes: ['concept'], orders: ['ASC'] },
   ];
@@ -843,7 +861,7 @@ async function setupFunctions() {
       name: 'Conciliación Automática',
       runtime: 'node-18.0',
       execute: [Role.users()],
-      events: ['databases.*.collections.bankTransactions.documents.*.create'],
+      events: ['databases.*.collections.transactions.documents.*.create'],
       schedule: '',
       timeout: 30,
       enabled: true,
