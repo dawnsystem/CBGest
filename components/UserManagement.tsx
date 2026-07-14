@@ -32,8 +32,16 @@ const ROLE_DISPLAY_NAMES: Record<string, string> = {
 
 /** Genera una contraseña temporal sencilla (fácil de comunicar) pero válida para Appwrite (>= 8 caracteres). */
 const generateTemporaryPassword = (): string => {
-  const random = window.crypto.getRandomValues(new Uint32Array(1))[0];
-  const suffix = 100 + (random % 900);
+  const range = 900;
+  const maxUint32PlusOne = 0x100000000; // 2^32
+  const limit = maxUint32PlusOne - (maxUint32PlusOne % range);
+
+  let random: number;
+  do {
+    random = window.crypto.getRandomValues(new Uint32Array(1))[0];
+  } while (random >= limit);
+
+  const suffix = 100 + (random % range);
   return `cambiar${suffix}`;
 };
 
