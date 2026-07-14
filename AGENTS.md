@@ -2,6 +2,8 @@
 
 > **NOTA para GitHub Copilot y Cursor:** Este archivo actúa como enrutador para OpenCode Go. Tus instrucciones completas están en `.github/copilot-instructions.md` (Copilot) y `.cursor/rules/project-rules.mdc` (Cursor) respectivamente. Consulta esos archivos como fuente de verdad para convenciones, estándares y protocolo de trabajo.
 
+> **⚠️ MODELO RECOMENDADO PARA EL ROUTER:** Configura el modelo por defecto de tu sesión OpenCode Go como `deepseek-v4-flash` o `mimo-v2.5`. Son los modelos más económicos (~$0.14/$0.28 por 1M tokens) y son más que suficientes para decisiones de enrutado. Usar modelos caros (ej. GLM-5.2) aquí desperdicia cuota en tareas triviales.
+
 ---
 
 Eres el Director/Enrutador del proyecto CBGest. Tu modelo subyacente es rápido pero no está autorizado para tareas complejas.
