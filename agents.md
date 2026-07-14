@@ -248,3 +248,18 @@ Director del Proyecto: @dawnsystem
 Fecha de Vigencia: 2025-11-07 09:42:12 UTC
 Versión del Documento: 1.1
 "La excelencia no es un acto, sino un hábito. La documentación precisa no es un lujo, sino una necesidad."
+
+---
+
+## Cursor Cloud specific instructions
+
+CBGest is a single-product **frontend-only SPA** (React 19 + Vite 6 + TypeScript). There is **no local backend, database, or container**: the backend is **Appwrite Cloud** (endpoint/IDs hardcoded in `config/appwrite.ts`, project `cbgest`) and AI is **Google Gemini**. The only process to run locally is the Vite dev server.
+
+Standard commands live in `package.json` scripts: `npm run dev`, `npm run lint`, `npm run type-check`, `npm test` / `npm run test:ci`, `npm run build`.
+
+Non-obvious caveats:
+- **Dev server port is `3000`** (per `vite.config.ts`), not 5173. The root `README.md` says 5173 — that is wrong; `SETUP_LOCAL.md` (3000) is correct.
+- **App boots to a Login screen** because `dataConfig.type` defaults to `APPWRITE` (`config/defaultSettings.ts`). Self-registration is enabled on the live Appwrite project, so you can create a test account directly from the "Regístrate gratis" toggle on the Login screen (password min 8 chars). No pre-provisioned account is needed. There is also a `LOCAL_STORAGE` mode selectable in Configuración → "Datos y Conexiones" that runs fully offline.
+- **Gemini env var name is `VITE_GEMINI_API_KEY`** in `.env.local`, despite `README.md`/`SETUP_LOCAL.md` saying `GEMINI_API_KEY`. `vite.config.ts` maps `VITE_GEMINI_API_KEY` → `process.env.API_KEY`/`GEMINI_API_KEY`. The app runs and logs in without it; only invoice/bank-statement AI analysis fails. Restart `npm run dev` after changing `.env.local`.
+- **CI uses Node 20** (`.github/workflows/ci.yml`) and `npm audit --audit-level=critical`. `npm run lint` currently emits 2 warnings (0 errors) — that is expected and does not fail CI.
+- `functions/` are Appwrite serverless functions (each with its own `package.json`); they are deployed to Appwrite, not part of local dev/E2E. `scripts/*.cjs` are one-off Appwrite admin/setup helpers requiring an admin API key.
