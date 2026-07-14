@@ -38,12 +38,17 @@ interface AuthContextType {
   sessionReady: boolean;
   /** Función para iniciar sesión */
   login: (email: string, password: string) => Promise<void>;
-  /** Función para registrar nuevo usuario */
-  register: (email: string, password: string, name: string) => Promise<void>;
   /** Función para cerrar sesión */
   logout: () => Promise<void>;
   /** Atajo: true si hay usuario autenticado */
   isAuthenticated: boolean;
+  /**
+   * true si el usuario debe cambiar su contraseña antes de poder usar la app
+   * (ej. contraseña temporal asignada por un administrador en su creación).
+   */
+  mustChangePassword: boolean;
+  /** Cambia la contraseña del usuario actual y limpia `mustChangePassword`. */
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   /** Último error de autenticación */
   lastError: string | null;
   /** Limpiar el último error */
@@ -315,28 +320,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   /**
-   * Registrar nuevo usuario
+   * Cambiar contraseña del usuario actual (voluntario o forzado en primer login).
+   * Actualiza el usuario en memoria para reflejar `mustChangePassword: false`.
    */
-  const register = useCallback(async (
-    email: string,
-    password: string,
-    name: string
+  const changePassword = useCallback(async (
+    oldPassword: string,
+    newPassword: string
   ): Promise<void> => {
-    setAuthState('AUTHENTICATING');
     setLastError(null);
-    setSessionReady(false);
 
-    const result = await authService.register(email, password, name);
+    const result = await authService.changePassword(oldPassword, newPassword);
 
     if (result.success && result.user) {
       setUser(result.user);
-      setAuthState('AUTHENTICATED');
-      // sessionReady se establece por el callback onSessionReady
     } else {
-      setUser(null);
-      setAuthState('UNAUTHENTICATED');
-      setLastError(result.error || 'Error de registro');
-      throw new Error(result.error || 'Error de registro');
+      setLastError(result.error || 'Error al cambiar la contraseña');
+      throw new Error(result.error || 'Error al cambiar la contraseña');
     }
   }, []);
 
@@ -391,6 +390,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // VALOR DEL CONTEXTO
   // ============================================================================
 
+  const mustChangePassword = !!(user?.prefs && (user.prefs as { mustChangePassword?: boolean }).mustChangePassword);
+
   const value = useMemo(
     () => ({
       user,
@@ -398,13 +399,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       authState,
       sessionReady,
       login,
-      register,
       logout,
       isAuthenticated: !!user,
+      mustChangePassword,
+      changePassword,
       lastError,
       clearError,
     }),
-    [user, loading, authState, sessionReady, login, register, logout, lastError, clearError]
+    [user, loading, authState, sessionReady, login, logout, mustChangePassword, changePassword, lastError, clearError]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

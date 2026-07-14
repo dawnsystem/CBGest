@@ -20,6 +20,7 @@ import { ToastProvider, useToast } from './components/Toast';
 // AUTH Integration
 import { AuthProvider, useAuth, useSessionReady } from './context/AuthContext';
 import { Login } from './components/Login';
+import { ForcePasswordChange } from './components/ForcePasswordChange';
 
 // NOTIFICATIONS Integration
 import { NotificationProvider } from './context/NotificationContext';
@@ -85,7 +86,7 @@ type FilePickerWindow = typeof globalThis & {
 };
 
 const MainLayout: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, mustChangePassword } = useAuth();
   const sessionReady = useSessionReady();
   const { showToast, showConfirm } = useToast();
   const { activeFiscalYear, isReadOnly } = useFiscalYear();
@@ -618,6 +619,12 @@ const MainLayout: React.FC = () => {
 
   if (!user && settings.dataConfig?.type === 'APPWRITE') {
       return <Login />;
+  }
+
+  // Bloquea el acceso a la app hasta que el usuario cambie su contraseña
+  // temporal (asignada por un administrador) por una definitiva.
+  if (user && mustChangePassword && settings.dataConfig?.type === 'APPWRITE') {
+      return <ForcePasswordChange />;
   }
 
   // Show loading state while fetching data from Appwrite - with skeleton

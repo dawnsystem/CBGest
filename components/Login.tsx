@@ -1,6 +1,9 @@
 /**
  * @fileoverview Componente de Login
- * @description Formulario de inicio de sesión y registro.
+ * @description Formulario de inicio de sesión. El auto-registro está
+ *              deshabilitado: las cuentas las crea un administrador desde
+ *              Configuración → Usuarios, con una contraseña temporal que el
+ *              usuario debe cambiar en su primer inicio de sesión.
  *              Solo maneja UI - la lógica de auth está en AuthContext.
  */
 
@@ -9,13 +12,11 @@ import { useAuth } from '../context/AuthContext';
 import { Loader2, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const { login, register, lastError, clearError } = useAuth();
+  const { login, lastError, clearError } = useAuth();
 
   // Estado del formulario
-  const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
 
@@ -32,11 +33,7 @@ export const Login: React.FC = () => {
     clearError();
 
     try {
-      if (isRegister) {
-        await register(email, password, name);
-      } else {
-        await login(email, password);
-      }
+      await login(email, password);
       // Auth context actualizará automáticamente con el nuevo usuario
     } catch (err: unknown) {
       console.error('[Login] Error:', err);
@@ -50,15 +47,6 @@ export const Login: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  /**
-   * Cambiar entre login y registro
-   */
-  const toggleMode = () => {
-    setIsRegister(!isRegister);
-    setLocalError('');
-    clearError();
   };
 
   return (
@@ -87,7 +75,7 @@ export const Login: React.FC = () => {
         {/* Formulario */}
         <div className="p-8">
           <h2 className="text-xl font-bold text-slate-900 mb-6 text-center">
-            {isRegister ? 'Crear Cuenta Gestor' : 'Iniciar Sesión'}
+            Iniciar Sesión
           </h2>
 
           {/* Error */}
@@ -99,30 +87,6 @@ export const Login: React.FC = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Campo Nombre (solo registro) */}
-            {isRegister && (
-              <div>
-                <label
-                  htmlFor="name-input"
-                  className="block text-sm font-medium text-slate-700 mb-1"
-                >
-                  Nombre Completo
-                </label>
-                <input
-                  id="name-input"
-                  name="name"
-                  type="text"
-                  required
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
-                  placeholder="Ej: Juan Pérez"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  autoComplete="name"
-                  disabled={loading}
-                />
-              </div>
-            )}
-
             {/* Campo Email */}
             <div>
               <label
@@ -158,17 +122,13 @@ export const Login: React.FC = () => {
                 name="password"
                 type="password"
                 required
-                minLength={8}
                 className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                autoComplete={isRegister ? 'new-password' : 'current-password'}
+                autoComplete="current-password"
                 disabled={loading}
               />
-              {isRegister && (
-                <p className="text-xs text-slate-500 mt-1">Mínimo 8 caracteres</p>
-              )}
             </div>
 
             {/* Botón Submit */}
@@ -181,24 +141,18 @@ export const Login: React.FC = () => {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  {isRegister ? 'Registrarse' : 'Entrar'}
+                  Entrar
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Toggle Login/Register */}
+          {/* Nota: sin auto-registro */}
           <div className="mt-6 text-center">
-            <button
-              onClick={toggleMode}
-              className="text-sm text-blue-600 hover:underline font-medium"
-              disabled={loading}
-            >
-              {isRegister
-                ? '¿Ya tienes cuenta? Inicia sesión'
-                : '¿No tienes cuenta? Regístrate gratis'}
-            </button>
+            <p className="text-xs text-slate-500">
+              ¿No tienes cuenta? Contacta con el administrador para que te la cree.
+            </p>
           </div>
         </div>
       </div>
