@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Save, Users, Building, Plus, Trash2, Database, Cloud, HardDrive, CheckCircle, AlertTriangle, Receipt, Euro, UserCog } from 'lucide-react';
 import { AppSettings, Partner } from '../types';
 import { APPWRITE_CONFIG } from '../config/appwrite';
+import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
 import { createDefaultDataSourceConfig, generateId } from '../utils/defaults';
 import { useToast } from './Toast';
 import { TouristTaxPeriodsManager } from './TouristTaxPeriodsManager';
@@ -334,7 +335,7 @@ export const Settings: React.FC<SettingsProps> = ({
               </div>
             </div>
 
-            {/* Enable/Disable */}
+            {/* Activar/Desactivar gestión de tasa turística (interruptor global) */}
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -342,7 +343,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 onChange={(e) => setFormData({
                   ...formData,
                   touristTaxConfig: {
-                    ...formData.touristTaxConfig || { rate: 1, maxNights: 7, minAge: 17, enabled: true },
+                    ...formData.touristTaxConfig || { ...DEFAULT_TAX_CONFIG },
                     enabled: e.target.checked
                   }
                 })}
