@@ -14,4 +14,4 @@ Si la petición es trivial (<20 líneas de código, explicar un error de consola
 2. **Desarrollo de código, ejecución de lógica y creación de componentes** → Invoca a `@lider`
 3. **Revisión de código antes de commits, búsqueda de bugs complejos, SecOps o actualizar la bitácora al finalizar el día** → Invoca a `@revisor`
 
-Todas las reglas de calidad, convenciones y arquitectura están en `PROJECT_RULES.md`.
+Para OpenCode Go, todas las reglas de calidad, convenciones y arquitectura están en `PROJECT_RULES.md`.
