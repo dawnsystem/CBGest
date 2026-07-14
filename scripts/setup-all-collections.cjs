@@ -10,7 +10,7 @@
  *   node scripts/setup-all-collections.js
  */
 
-const { Client, Databases, Permission, Role } = require('node-appwrite');
+const { Client, Databases, Permission, Role, Query } = require('node-appwrite');
 
 // Configuration from config/appwrite.ts
 const CONFIG = {
@@ -199,7 +199,9 @@ async function createAttribute(collectionId, attributeConfig) {
  */
 async function getIndexStatus(collectionId, indexKey) {
   try {
-    const indexes = await databases.listIndexes(CONFIG.databaseId, collectionId);
+    // Query.limit(100): listIndexes paginates like any list endpoint (default
+    // limit 25); collections can have more indexes than that as they grow.
+    const indexes = await databases.listIndexes(CONFIG.databaseId, collectionId, [Query.limit(100)]);
     const existingIndex = indexes.indexes.find(idx => idx.key === indexKey);
     if (existingIndex) {
       return { exists: true, status: existingIndex.status, index: existingIndex };
@@ -983,7 +985,11 @@ async function setupFiscalYearsCollection() {
 
   const attributes = [
     { type: 'integer', key: 'year', required: true, min: 2000, max: 2200 },
-    { type: 'enum', key: 'status', elements: ['OPEN', 'CLOSED'], required: true, default: 'OPEN' },
+    // NOTE: Appwrite rejects a `default` value on a `required` attribute
+    // ("Cannot set default value for required attribute"). The app always
+    // sets `status` explicitly when creating a FiscalYear (it's a required
+    // field on the `FiscalYear` TS type), so no default is needed here.
+    { type: 'enum', key: 'status', elements: ['OPEN', 'CLOSED'], required: true },
     { type: 'string', key: 'openedAt', size: 30, required: false },
     { type: 'string', key: 'closedAt', size: 30, required: false },
     { type: 'string', key: 'notes', size: 500, required: false },

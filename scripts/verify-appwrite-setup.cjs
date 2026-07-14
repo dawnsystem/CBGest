@@ -22,7 +22,7 @@
  *   node scripts/verify-appwrite-setup.cjs
  */
 
-const { Client, Databases, Storage } = require('node-appwrite');
+const { Client, Databases, Storage, Query } = require('node-appwrite');
 
 // Configuration from config/appwrite.ts
 const CONFIG = {
@@ -379,9 +379,13 @@ async function verifyCollection(collectionId, expected) {
 
   // Check attributes
   console.log('  📋 Checking attributes...');
+  // NOTE: listAttributes/listIndexes paginate like any other list endpoint
+  // (default limit 25) — without Query.limit() collections with more than 25
+  // attributes/indexes (e.g. `reservations`) would silently report the
+  // remaining ones as "missing".
   let attributes;
   try {
-    attributes = await databases.listAttributes(CONFIG.databaseId, collectionId);
+    attributes = await databases.listAttributes(CONFIG.databaseId, collectionId, [Query.limit(100)]);
   } catch (error) {
     logCheck(false, `Error listing attributes: ${error.message}`);
     return false;
@@ -421,7 +425,7 @@ async function verifyCollection(collectionId, expected) {
     console.log('     (No indexes expected for this collection)');
   } else {
     try {
-      indexes = await databases.listIndexes(CONFIG.databaseId, collectionId);
+      indexes = await databases.listIndexes(CONFIG.databaseId, collectionId, [Query.limit(100)]);
     } catch (error) {
       logCheck(false, `Error listing indexes: ${error.message}`);
       return false;
