@@ -342,10 +342,11 @@ export const Settings: React.FC<SettingsProps> = ({
                 checked={formData.touristTaxConfig?.enabled ?? true}
                 onChange={(e) => setFormData({
                   ...formData,
-                  touristTaxConfig: {
-                    ...formData.touristTaxConfig || { ...DEFAULT_TAX_CONFIG },
-                    enabled: e.target.checked
-                  }
+touristTaxConfig: {
+  ...DEFAULT_TAX_CONFIG,
+  ...(formData.touristTaxConfig ?? {}),
+  enabled: e.target.checked
+}
                 })}
                 className="w-5 h-5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
               />
