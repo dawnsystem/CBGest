@@ -17,10 +17,17 @@ import React, {
   useCallback,
   ReactNode
 } from 'react';
-import { FiscalYear, FiscalYearDependencies } from '../types';
+import { FiscalYear, FiscalYearDependencies, TouristTaxPeriod } from '../types';
 import * as appwriteService from '../services/appwriteService';
 import { generateId } from '../utils/defaults';
 import { useAuth } from './AuthContext';
+import {
+  parseTouristTaxPeriods,
+  createDefaultPeriodForYear,
+  sortPeriodsByDate,
+  serializeTouristTaxPeriods,
+} from '../utils/touristTaxUtils';
+import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
 
 const LS_KEY = 'gestcb_active_fiscal_year_id';
 
@@ -66,6 +73,14 @@ interface FiscalYearContextType {
     cascade: boolean,
     onProgress?: (phase: string, done: number) => void
   ) => Promise<void>;
+  /**
+   * Actualiza los períodos de vigencia de la tasa turística de un ejercicio.
+   * Si el ejercicio es el activo, actualiza también el estado local.
+   */
+  updateFiscalYearTouristTax: (
+    fiscalYearId: string,
+    periods: TouristTaxPeriod[]
+  ) => Promise<FiscalYear>;
 }
 
 // ============================================================================
@@ -165,20 +180,58 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   ): Promise<{ fiscalYear: FiscalYear; copiedSuppliers: number; copiedApartments: number }> => {
     const now = new Date().toISOString();
 
+    // Buscar ejercicio previo (el de año inmediatamente anterior)
+    const previousYear = fiscalYears
+      .filter(y => y.year < year)
+      .sort((a, b) => b.year - a.year)[0];
+
+    // Construir períodos iniciales copiando y re-fechando los del ejercicio anterior
+    let initialPeriods: TouristTaxPeriod[] | undefined;
+    if (previousYear) {
+      const prevPeriods = parseTouristTaxPeriods(previousYear.touristTaxPeriods);
+      if (prevPeriods.length > 0) {
+        // Re-fechar cada período al nuevo año, preservando la configuración económica
+        const sortedPrev = sortPeriodsByDate(prevPeriods);
+        initialPeriods = sortedPrev.map((p, idx) => {
+          // La lógica de refechado: trasladar mes/día al nuevo año, ajustando días inválidos (p.ej. 29/02)
+          const [, mm, dd] = p.startDate.split('-');
+          const startLastDay = new Date(year, parseInt(mm, 10), 0).getDate();
+          const newStart = `${year}-${mm}-${String(Math.min(parseInt(dd, 10), startLastDay)).padStart(2, '0')}`;
+          let newEnd: string | undefined;
+          if (p.endDate) {
+            const [, emm, edd] = p.endDate.split('-');
+            const endLastDay = new Date(year, parseInt(emm, 10), 0).getDate();
+            newEnd = `${year}-${emm}-${String(Math.min(parseInt(edd, 10), endLastDay)).padStart(2, '0')}`;
+          }
+          return {
+            id: generateId(),
+            startDate: idx === 0 ? `${year}-01-01` : newStart, // El primer período siempre arranca el 1 de enero
+            endDate: newEnd,
+            rate: p.rate,
+            maxNights: p.maxNights,
+            minAge: p.minAge,
+            enabled: p.enabled,
+            notes: p.notes ? `Copiado del ejercicio ${previousYear.year}` : undefined,
+          };
+        });
+      }
+    }
+
+    // Fallback: un único período con la config por defecto
+    if (!initialPeriods || initialPeriods.length === 0) {
+      initialPeriods = [createDefaultPeriodForYear(year, DEFAULT_TAX_CONFIG)];
+    }
+
     const newFiscalYear: FiscalYear = {
       id: generateId(),
       year,
       status: 'OPEN',
       openedAt: now,
-      notes: notes || ''
+      notes: notes || '',
+      touristTaxPeriods: serializeTouristTaxPeriods(initialPeriods),
     };
 
     const saved = await appwriteService.createFiscalYearDoc(newFiscalYear);
-
-    // Buscar ejercicio previo (el de año inmediatamente anterior)
-    const previousYear = fiscalYears
-      .filter(y => y.year < year)
-      .sort((a, b) => b.year - a.year)[0];
 
     let copiedSuppliers = 0;
     let copiedApartments = 0;
@@ -306,6 +359,30 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   }, [fiscalYears, activeFiscalYear, onFiscalYearChange]);
 
   // ------------------------------------------------------------------
+  // ACTUALIZAR PERÍODOS DE TASA TURÍSTICA
+  // ------------------------------------------------------------------
+  const updateFiscalYearTouristTax = useCallback(async (
+    fiscalYearId: string,
+    periods: TouristTaxPeriod[]
+  ): Promise<FiscalYear> => {
+    const year = fiscalYears.find(y => y.id === fiscalYearId || y.appwriteId === fiscalYearId);
+    const docId = (year?.appwriteId || year?.id) ?? fiscalYearId;
+
+    const updated = await appwriteService.updateFiscalYearTouristTaxDoc(docId, periods);
+
+    const updatedYears = fiscalYears.map(y =>
+      y.id === fiscalYearId || y.appwriteId === fiscalYearId ? updated : y
+    );
+    setFiscalYears(updatedYears);
+
+    if (activeFiscalYear?.id === fiscalYearId || activeFiscalYear?.appwriteId === fiscalYearId) {
+      setActiveFiscalYear(updated);
+    }
+
+    return updated;
+  }, [fiscalYears, activeFiscalYear]);
+
+  // ------------------------------------------------------------------
   // RENDER
   // ------------------------------------------------------------------
   return (
@@ -321,6 +398,7 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
       refreshFiscalYears,
       getFiscalYearDependencies,
       deleteFiscalYear,
+      updateFiscalYearTouristTax,
     }}>
       {children}
     </FiscalYearContext.Provider>

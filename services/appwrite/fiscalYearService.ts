@@ -20,14 +20,31 @@ import {
 } from './infrastructure';
 import { getSuppliers } from './supplierService';
 import { getApartments } from './apartmentService';
-import type { FiscalYear, FiscalYearDependencies } from '../../types';
+import type { FiscalYear, FiscalYearDependencies, TouristTaxPeriod } from '../../types';
+import {
+  parseTouristTaxPeriods,
+  serializeTouristTaxPeriods,
+} from '../../utils/touristTaxUtils';
 
 type FiscalYearDocument = AppwriteEntity<FiscalYear> & { $id: string };
+
+/**
+ * Convierte un documento de Appwrite en un objeto FiscalYear,
+ * manteniendo touristTaxPeriods como string JSON (la deserialización
+ * a array ocurre en getPeriodsForFiscalYear de touristTaxUtils).
+ */
+function docToFiscalYear(doc: FiscalYearDocument): FiscalYear {
+  return {
+    ...doc,
+    id: doc.$id,
+    appwriteId: doc.$id,
+  } as unknown as FiscalYear;
+}
 
 export async function createFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYear> {
   try {
     const { id } = fiscalYear;
-    const data = omitFields(fiscalYear as AppwriteEntity<FiscalYear>, [
+    const dataRaw = omitFields(fiscalYear as AppwriteEntity<FiscalYear>, [
       'id',
       'appwriteId',
       '$id',
@@ -37,6 +54,14 @@ export async function createFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYe
       '$collectionId',
       '$permissions',
     ]);
+
+    // Asegurar que touristTaxPeriods se almacena como string JSON
+    const data = {
+      ...dataRaw,
+      touristTaxPeriods: fiscalYear.touristTaxPeriods
+        ? serializeTouristTaxPeriods(parseTouristTaxPeriods(fiscalYear.touristTaxPeriods))
+        : undefined,
+    };
 
     const doc = await withRetry(
       () => databases.createDocument(
@@ -50,7 +75,7 @@ export async function createFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYe
 
     notifySuccess('Ejercicio creado');
     setConnectionHealth(true);
-    return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as FiscalYear;
+    return docToFiscalYear(doc as FiscalYearDocument);
   } catch (error: unknown) {
     notifyError(getErrorMessage(error), 'createFiscalYear');
     setConnectionHealth(false);
@@ -71,12 +96,7 @@ export async function getFiscalYears(): Promise<FiscalYear[]> {
 
     setConnectionHealth(true);
     return response.documents.map((doc) => {
-      const fiscalYearDoc = doc as FiscalYearDocument;
-      return {
-        ...fiscalYearDoc,
-        id: fiscalYearDoc.$id,
-        appwriteId: fiscalYearDoc.$id
-      };
+      return docToFiscalYear(doc as FiscalYearDocument);
     }) as FiscalYear[];
   } catch (error: unknown) {
     if (getErrorCode(error) === 404) return [];
@@ -89,7 +109,7 @@ export async function getFiscalYears(): Promise<FiscalYear[]> {
 export async function updateFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYear> {
   try {
     const { id, appwriteId } = fiscalYear;
-    const data = omitFields(fiscalYear as AppwriteEntity<FiscalYear>, [
+    const dataRaw = omitFields(fiscalYear as AppwriteEntity<FiscalYear>, [
       'id',
       'appwriteId',
       '$id',
@@ -99,6 +119,12 @@ export async function updateFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYe
       '$collectionId',
       '$permissions',
     ]);
+    const data = {
+      ...dataRaw,
+      touristTaxPeriods: fiscalYear.touristTaxPeriods
+        ? serializeTouristTaxPeriods(parseTouristTaxPeriods(fiscalYear.touristTaxPeriods))
+        : undefined,
+    };
     const docId = appwriteId || id;
     if (!docId) {
       throw new Error('Fiscal year document id is required to update');
@@ -116,9 +142,44 @@ export async function updateFiscalYear(fiscalYear: FiscalYear): Promise<FiscalYe
 
     notifySuccess('Ejercicio actualizado');
     setConnectionHealth(true);
-    return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as FiscalYear;
+    return docToFiscalYear(doc as FiscalYearDocument);
   } catch (error: unknown) {
     notifyError(getErrorMessage(error), 'updateFiscalYear');
+    setConnectionHealth(false);
+    throw error;
+  }
+}
+
+/**
+ * Actualiza únicamente los períodos de vigencia de la tasa turística de un ejercicio.
+ * Es más eficiente que updateFiscalYear cuando solo cambia esta sección.
+ *
+ * @param fiscalYearDocId - Document ID del ejercicio en Appwrite (appwriteId || id)
+ * @param periods         - Array actualizado de períodos de vigencia
+ * @returns El ejercicio actualizado
+ *
+ * @example
+ * await updateFiscalYearTouristTax(activeFiscalYear.appwriteId, updatedPeriods);
+ */
+export async function updateFiscalYearTouristTax(
+  fiscalYearDocId: string,
+  periods: TouristTaxPeriod[]
+): Promise<FiscalYear> {
+  try {
+    const doc = await withRetry(
+      () => databases.updateDocument(
+        config.databaseId,
+        config.collections.fiscalYears,
+        fiscalYearDocId,
+        { touristTaxPeriods: serializeTouristTaxPeriods(periods) }
+      ),
+      'updateFiscalYearTouristTax'
+    );
+
+    setConnectionHealth(true);
+    return docToFiscalYear(doc as FiscalYearDocument);
+  } catch (error: unknown) {
+    notifyError(getErrorMessage(error), 'updateFiscalYearTouristTax');
     setConnectionHealth(false);
     throw error;
   }

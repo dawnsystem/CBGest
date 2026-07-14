@@ -5,6 +5,7 @@ import { AppSettings, Partner } from '../types';
 import { APPWRITE_CONFIG } from '../config/appwrite';
 import { createDefaultDataSourceConfig, generateId } from '../utils/defaults';
 import { useToast } from './Toast';
+import { TouristTaxPeriodsManager } from './TouristTaxPeriodsManager';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -438,7 +439,10 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
           </div>
 
-          {/* Deposit Configuration */}
+            {/* Períodos de vigencia por ejercicio */}
+            <TouristTaxPeriodsManager fallbackTaxConfig={formData.touristTaxConfig} />
+
+            {/* Deposit Configuration */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-blue-100 rounded-lg">

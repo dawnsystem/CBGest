@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-13 20:49:00 UTC*
+*Última actualización: 2026-07-13 23:05:00 UTC*
 
 ---
 
@@ -11,6 +11,7 @@
 Estado actual: **A la espera de nuevas directivas del Director.**
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-13] - `TSK-TT` - Configuración de tasa turística por ejercicio y períodos de vigencia:** `TouristTaxPeriod` y `TouristTaxConfig` (@deprecated) en `types.ts`; `utils/touristTaxUtils.ts` con parseo/serialización/selección de período activo/solapamiento/ordenación; `fiscalYearService.ts` + `FiscalYearContext` con `updateFiscalYearTouristTax`; `TouristTaxPanel.tsx` refactorizado para usar períodos del ejercicio activo; `TouristTaxPeriodsManager.tsx` (nuevo componente CRUD de períodos con modal de edición y validación de solapamiento); integración en `Settings.tsx` tab TAX; migración al crear ejercicio (copia y re-feching de períodos del ejercicio anterior); 34 tests unitarios en `utils/__tests__/touristTaxUtils.test.ts`. Validado: 260 tests OK, 0 errores lint, type-check OK, build OK.
 *   **[2026-07-13] - `FIX-049` - Race condition: datos del ejercicio anterior visibles al arrancar la app:** `BUG-023` corregido. Movido `setIsDataLayerInitialized(true)` al bloque `finally` del fetch inicial en `initDataLayer()`, en lugar de ejecutarlo síncronamente antes del trabajo asíncrono. Previene que el fetch inicial sin filtrar (todos los ejercicios) se resuelva después del fetch filtrado del año activo y sobreescriba los datos correctos.
 *   **[2026-07-12] - `TSK-047` - Eliminación de ejercicios con borrado en cascada opcional:** Botón "Eliminar" por tarjeta de ejercicio en `FiscalYearManager`. Modal en 2 fases: (1) consulta de dependencias en tiempo real (facturas, asientos, transacciones, reservas, proveedores, apartamentos) + oferta de borrado en cascada si hay datos; (2) confirmación por nombre exacto del ejercicio como seguridad extra. Servicios `getFiscalYearDependencies`, `deleteFiscalYear`, `deleteFiscalYearCascade` añadidos a `fiscalYearService.ts` y expuestos via `compatService.ts`. `FiscalYearContext` extendido con ambas operaciones. 12 tests unitarios. Validado con `npm run type-check && npm run test:ci && npm run build`.
 
@@ -85,6 +86,22 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-13 22:51:00 UTC]
+*   **Directiva del Director:** "Continuar desde TSK-TT-003 (verificar compilación) y completar TSK-TT-004 a TSK-TT-006."
+*   **Plan de Acción:** (1) Verificar que TSK-TT-001/002/003 compilan sin errores. (2) Crear `TouristTaxPeriodsManager.tsx` e integrar en `Settings.tsx`. (3) Añadir migración de períodos al crear ejercicio. (4) Tests unitarios de `touristTaxUtils.ts`.
+*   **Log de Acciones:**
+    - `[22:52:00]` - **AUDIT:** Lectura de `types.ts`, `utils/touristTaxUtils.ts`, `services/appwrite/fiscalYearService.ts`, `context/FiscalYearContext.tsx`, `components/TouristTaxPanel.tsx`, `components/Settings.tsx`.
+    - `[22:53:00]` - **VALIDACIÓN (TSK-TT-003):** `npm run build && npm run type-check`. **RESULTADO:** PASS. Compilación limpia.
+    - `[22:58:00]` - **CREACIÓN (TSK-TT-004):** `components/TouristTaxPeriodsManager.tsx`. Componente CRUD completo: lista de períodos ordenada, modal de creación/edición con validación de rango de fechas y solapamiento, tarjeta de período, acciones deshabilitadas en modo lectura (ejercicio cerrado o isReadOnly).
+    - `[22:59:00]` - **MOD (TSK-TT-004):** `components/Settings.tsx`. Añadida importación de `TouristTaxPeriodsManager` y renderizado en tab TAX tras la sección de configuración global.
+    - `[23:00:00]` - **MOD (TSK-TT-005):** `context/FiscalYearContext.tsx`. `createFiscalYear` ahora: (a) busca ejercicio anterior ANTES de crear el nuevo, (b) re-feching los períodos del ejercicio anterior al nuevo año (preservando tarifa/maxNights/minAge/enabled), (c) si no hay ejercicio anterior o no tiene períodos, crea un período sintético con `DEFAULT_TAX_CONFIG`, (d) persiste `touristTaxPeriods` serializado en el nuevo ejercicio.
+    - `[23:01:00]` - **CREACIÓN (TSK-TT-006):** `utils/__tests__/touristTaxUtils.test.ts`. 34 tests: parseTouristTaxPeriods (6), serializeTouristTaxPeriods (2), getActivePeriodForDate (8), getPeriodsForFiscalYear (4), createDefaultPeriodForYear (4), hasOverlap (6), sortPeriodsByDate (4).
+    - `[23:02:00]` - **FIX LINT:** `TouristTaxPeriodsManager.tsx` — escapado de comillas en JSX (`&ldquo;`/`&rdquo;`).
+    - `[23:05:00]` - **VALIDACIÓN FINAL:** `npm run lint` (0 errores), `npm run type-check` (OK), `npm run test:ci` (260 tests, 19 archivos), `npm run build` (OK).
+*   **Resultado:** `TSK-TT` completada íntegramente. Configuración de tasa turística por ejercicio y períodos de vigencia totalmente operativa.
+*   **Commit Asociado:** feat(tourist-tax): complete TSK-TT-004/005/006 — periods manager, migration, tests
+*   **Observaciones/Decisiones de Diseño:** La migración de períodos re-feching los datos económicos (tarifa, maxNights, minAge, enabled) pero ajusta la fecha al nuevo año y siempre fuerza el primer período a arrancar en 01-01. Los períodos quedan serializados en `FiscalYear.touristTaxPeriods` (string JSON) para compatibilidad con Appwrite. `TouristTaxConfig` queda marcada como `@deprecated` pero no se elimina para retrocompatibilidad con `AppSettings.touristTaxConfig` (fallback).
+
 ### Sesión: [2026-07-13 20:49:00 UTC]
 *   **Directiva del Director:** "En ocasiones veo datos del ejercicio 2025 estando seleccionado el 2026. Cuando cambio de ejercicio y vuelvo al 2026, se corrige."
 *   **Plan de Acción:** Auditar el flujo de carga inicial en `App.tsx`: el efecto de inicialización (`initDataLayer`) y el efecto de cambio de ejercicio (`fetchForYear`). Verificar si existe race condition entre el fetch sin filtrar y el fetch filtrado por ejercicio.
