@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { LayoutDashboard, FileText, PlusCircle, BookOpen, MoreHorizontal, Settings, Building2, Scale, X, CalendarCheck, Home, RefreshCw, Bookmark, BarChart3, CalendarRange } from 'lucide-react';
 
 export const MobileNavigation: React.FC = () => {
@@ -10,22 +11,7 @@ export const MobileNavigation: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
   const isMoreActive = ['/settings', '/suppliers', '/reconciliation', '/reservations', '/apartments', '/recurring', '/ledger', '/trial-balance', '/fiscal-years'].includes(location.pathname);
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMoreMenu(false);
-      }
-    };
-
-    if (showMoreMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showMoreMenu]);
+  useClickOutside(menuRef, () => setShowMoreMenu(false), showMoreMenu);
 
   // Close menu handler - called when clicking menu links
   // Using useCallback to ensure stable reference for event handlers

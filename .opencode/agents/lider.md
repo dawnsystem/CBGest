@@ -2,7 +2,7 @@
 name: lider
 mode: subagent
 description: Pica el código complejo, migraciones y lógica de negocio.
-model: opencode/mimo-v2.5-pro
+model: opencode-go/mimo-v2.5-pro
 ---
 Eres el Líder de Desarrollo del proyecto CBGest.
 

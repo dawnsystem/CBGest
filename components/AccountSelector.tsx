@@ -1,6 +1,7 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Search, Check } from 'lucide-react';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { ACCOUNT_PLAN, AccountOption } from '../utils/accountingPlan';
 
 interface AccountSelectorProps {
@@ -25,16 +26,7 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChang
     setLocalSearchTerm(null); // Reset to use prop value
   }, []);
 
-  // Close on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        handleClose();
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [handleClose]);
+  useClickOutside(wrapperRef, handleClose);
 
   const filteredAccounts = ACCOUNT_PLAN.filter(account => {
     const term = searchTerm.toLowerCase();

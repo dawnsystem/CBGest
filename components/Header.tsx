@@ -1,11 +1,12 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Bell, Search, User, ShieldCheck, LogOut, X, FileText, BookOpen, DollarSign, Settings as SettingsIcon, LogIn, Lock, LockOpen, ChevronDown } from 'lucide-react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useFiscalYear } from '../context/FiscalYearContext';
 import { useToast } from './Toast';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { NotificationType } from '../types';
 import { createLogger } from '../services/logger';
 
@@ -28,35 +29,8 @@ export const Header: React.FC<HeaderProps> = ({ isLocalFileMode }) => {
   const fiscalYearRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') ?? '');
 
-  // Close fiscal year dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (fiscalYearRef.current && !fiscalYearRef.current.contains(event.target as Node)) {
-        setShowFiscalYearDropdown(false);
-      }
-    };
-    if (showFiscalYearDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showFiscalYearDropdown]);
-
-  // Close notifications panel when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
-      }
-    };
-
-    if (showNotifications) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showNotifications]);
+  useClickOutside(fiscalYearRef, () => setShowFiscalYearDropdown(false), showFiscalYearDropdown);
+  useClickOutside(notificationRef, () => setShowNotifications(false), showNotifications);
 
   const handleLogout = async () => {
     try {
