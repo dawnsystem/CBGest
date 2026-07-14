@@ -8,7 +8,7 @@
  * const user = await authService.login(email, password);
  */
 
-import { ID, AppwriteException } from 'appwrite';
+import { AppwriteException } from 'appwrite';
 import { account } from '../lib/appwrite/client';
 import type { AppUser } from '../types';
 import { authLogger } from './logger';
@@ -249,58 +249,6 @@ export const authService = {
   },
 
   /**
-   * Registra un nuevo usuario.
-   *
-   * Flujo:
-   * 1. Crear cuenta
-   * 2. Auto-login después de registro
-   * 3. Emitir evento sessionReady
-   *
-   * @param email - Email del usuario
-   * @param password - Contraseña (mínimo 8 caracteres)
-   * @param name - Nombre completo
-   * @returns Resultado con usuario o error
-   */
-  async register(email: string, password: string, name: string): Promise<AuthResult> {
-    try {
-      // 1. Crear cuenta
-      authLogger.info('Registrando usuario...');
-      await account.create(ID.unique(), email, password, name);
-
-      // 2. Auto-login después de registro
-      authLogger.info('Auto-login post-registro...');
-      const loginResult = await this.login(email, password);
-
-      if (!loginResult.success) {
-        return loginResult;
-      }
-
-      authLogger.success('Registro exitoso');
-
-      return {
-        success: true,
-        user: loginResult.user,
-      };
-    } catch (error) {
-      const message = getErrorMessage(error);
-      const code = getErrorCode(error);
-
-      authLogger.error(`Register error: ${message}`);
-
-      if (onAuthError) {
-        onAuthError(message, code);
-      }
-
-      return {
-        success: false,
-        user: null,
-        error: message,
-        errorCode: code,
-      };
-    }
-  },
-
-  /**
    * Cierra la sesión actual.
    *
    * @returns true si se cerró correctamente
@@ -332,6 +280,41 @@ export const authService = {
     } catch (error) {
       authLogger.error(`LogoutAll error: ${getErrorMessage(error)}`);
       return false;
+    }
+  },
+
+  /**
+   * Cambia la contraseña del usuario actual y limpia el flag `mustChangePassword`.
+   *
+   * Se usa tanto para el cambio voluntario de contraseña como para el cambio
+   * obligatorio tras un primer login con contraseña temporal asignada por un
+   * administrador (ver `ForcePasswordChange.tsx`).
+   *
+   * @param oldPassword - Contraseña actual (o la temporal asignada por el admin)
+   * @param newPassword - Nueva contraseña definitiva (mínimo 8 caracteres)
+   * @returns Usuario actualizado con `prefs.mustChangePassword = false`
+   */
+  async changePassword(oldPassword: string, newPassword: string): Promise<AuthResult> {
+    try {
+      authLogger.info('Actualizando contraseña...');
+      await account.updatePassword(newPassword, oldPassword);
+
+      const current = await account.get();
+      const updated = await account.updatePrefs({
+        ...(current.prefs || {}),
+        mustChangePassword: false,
+      });
+
+      authLogger.success('Contraseña actualizada correctamente');
+
+      return { success: true, user: updated as AppUser };
+    } catch (error) {
+      const message = getErrorMessage(error);
+      const code = getErrorCode(error);
+
+      authLogger.error(`ChangePassword error: ${message}`);
+
+      return { success: false, user: null, error: message, errorCode: code };
     }
   },
 

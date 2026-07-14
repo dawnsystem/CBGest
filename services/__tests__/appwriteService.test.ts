@@ -67,33 +67,18 @@ describe('appwriteService', () => {
       initializeAppwrite(mockConfig);
     });
 
-    describe('register', () => {
-      it('should register a new user successfully', async () => {
-        const email = 'test@example.com';
-        const password = 'SecurePassword123!';
-        const name = 'Test User';
+    describe('changePassword', () => {
+      it('should change password and clear mustChangePassword successfully', async () => {
+        // Self-registration was removed: accounts are created by an admin with a
+        // temporary password, and the user must change it via this flow.
+        const result = await authService.changePassword('temporal123', 'NuevaContrasenaSegura1!');
 
-        const result = await authService.register(email, password, name);
-
-        // authService.register returns AuthResult { success, user, error?, errorCode? }
+        // authService.changePassword returns AuthResult { success, user, error?, errorCode? }
         expect(result).toBeDefined();
         expect(result).toHaveProperty('success');
         expect(result).toHaveProperty('user');
         expect(result.success).toBe(true);
         expect(result.user).toBeDefined();
-      });
-
-      it('should return error result on registration failure', async () => {
-        // Mock implementation would handle this
-        const email = 'invalid-email';
-        const password = 'weak';
-        const name = 'Test';
-
-        // authService.register doesn't throw - it returns AuthResult with success: false
-        const result = await authService.register(email, password, name);
-        expect(result).toHaveProperty('success');
-        // With our mock, it always succeeds
-        expect(result.success).toBe(true);
       });
     });
 

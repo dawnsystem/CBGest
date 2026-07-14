@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
-import { Save, Users, Building, Plus, Trash2, Database, Cloud, HardDrive, CheckCircle, AlertTriangle, Receipt, Euro } from 'lucide-react';
+import { Save, Users, Building, Plus, Trash2, Database, Cloud, HardDrive, CheckCircle, AlertTriangle, Receipt, Euro, UserCog } from 'lucide-react';
 import { AppSettings, Partner } from '../types';
 import { APPWRITE_CONFIG } from '../config/appwrite';
 import { createDefaultDataSourceConfig, generateId } from '../utils/defaults';
 import { useToast } from './Toast';
 import { TouristTaxPeriodsManager } from './TouristTaxPeriodsManager';
+import { UserManagement } from './UserManagement';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -29,7 +30,7 @@ export const Settings: React.FC<SettingsProps> = ({
     isLocalFileMode,
     lastSaved: _lastSaved
 }) => {
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'PARTNERS' | 'TAX' | 'DATA'>('GENERAL');
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'PARTNERS' | 'TAX' | 'DATA' | 'USERS'>('GENERAL');
   
   // Initialize form data with settings
   // Using a function to compute initial state avoids the need for useEffect sync
@@ -161,7 +162,13 @@ export const Settings: React.FC<SettingsProps> = ({
         <button onClick={() => setActiveTab('DATA')} className={`px-4 md:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === 'DATA' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             <Database className="w-4 h-4 inline mr-1 md:mr-2" /> <span className="hidden sm:inline">Datos y</span> Conexiones
         </button>
+        <button onClick={() => setActiveTab('USERS')} className={`px-4 md:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === 'USERS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            <UserCog className="w-4 h-4 inline mr-1 md:mr-2" /> Usuarios
+        </button>
       </div>
+
+      {/* --- USERS TAB CONTENT --- */}
+      {activeTab === 'USERS' && <UserManagement />}
 
       {/* --- DATA TAB CONTENT --- */}
       {activeTab === 'DATA' && (

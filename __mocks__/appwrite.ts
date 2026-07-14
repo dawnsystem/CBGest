@@ -39,6 +39,23 @@ export class Account {
     emailVerification: true,
   }));
 
+  updatePassword = vi.fn().mockResolvedValue({
+    $id: 'user123',
+    email: 'test@example.com',
+    name: 'Test User',
+    emailVerification: true,
+    prefs: {},
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updatePrefs = vi.fn().mockImplementation((prefs: any) => Promise.resolve({
+    $id: 'user123',
+    email: 'test@example.com',
+    name: 'Test User',
+    emailVerification: true,
+    prefs,
+  }));
+
   createRecovery = vi.fn().mockResolvedValue({});
 
   listSessions = vi.fn().mockResolvedValue({

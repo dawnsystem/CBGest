@@ -25,5 +25,12 @@ export const APPWRITE_CONFIG = {
     reservations: 'reservations',
     // Ejercicios contables
     fiscalYears: 'fiscal_years'
-  }
+  },
+
+  // Appwrite Function IDs
+  functions: {
+    // Gestión de usuarios (crear/listar/restablecer contraseña/eliminar).
+    // Sustituye al auto-registro: solo ejecutable por usuarios con label "admin".
+    manageUsers: 'manage-users',
+  },
 } as const;

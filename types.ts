@@ -483,7 +483,26 @@ export interface AppUser {
   email: string;
   name: string;
   emailVerification: boolean;
+  /** Labels de Appwrite usados para roles (ej: "admin", "gestor", "comunero"). */
+  labels?: string[];
   prefs: Record<string, unknown>;
+}
+
+/**
+ * Usuario administrado, tal como lo devuelve la función `manage-users`.
+ * No es una cuenta Appwrite completa: es la vista reducida que un admin
+ * necesita para gestionar altas, bajas y restablecimientos de contraseña.
+ */
+export interface ManagedUser {
+  id: string;
+  name: string;
+  email: string;
+  labels: string[];
+  status: boolean;
+  registration: string;
+  passwordUpdate: string;
+  /** true si el usuario debe cambiar su contraseña temporal en el próximo login. */
+  mustChangePassword: boolean;
 }
 
 // --- TOURIST TAX CONFIGURATION (IEET - Cataluña) ---
