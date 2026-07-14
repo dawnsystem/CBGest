@@ -284,11 +284,14 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       const reservationNights = r.nights || 0;
       const taxableNightsForReservation = Math.min(reservationNights, remainingTaxableNights);
       remainingTaxableNights -= taxableNightsForReservation;
+      const touristTaxAmount = group.taxableNights > 0
+        ? (group.totalTax * taxableNightsForReservation) / group.taxableNights
+        : 0;
 
       onUpdateReservation(r.id, {
         touristTaxCollected: true,
         touristTaxCollectedDate: today,
-        touristTaxAmount: group.totalTax / group.reservations.length, // Distribute evenly
+        touristTaxAmount,
         touristTaxNightsCounted: taxableNightsForReservation
       });
     });
