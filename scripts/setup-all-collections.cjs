@@ -342,6 +342,9 @@ async function setupInvoicesCollection() {
 
     // Apartment tracking (NEW - for per-property expense tracking)
     { type: 'string', key: 'apartmentId', size: 100, required: false },
+
+    // Ejercicio contable (NEW - links this invoice to a FiscalYear document)
+    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
   ];
 
   for (const attr of attributes) {
@@ -359,6 +362,7 @@ async function setupInvoicesCollection() {
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
     { key: 'type_index', type: 'key', attributes: ['type'], orders: ['ASC'] },
     { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
+    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -406,6 +410,10 @@ async function setupEntriesCollection() {
     // Links copied from the originating invoice (for filtering and reporting)
     { type: 'string', key: 'supplierId', size: 100, required: false },
     { type: 'string', key: 'apartmentId', size: 100, required: false },
+    // Draft flag: entry saved without validating that debit === credit ("Guardar borrador")
+    { type: 'boolean', key: 'isDraft', required: false, default: false },
+    // Ejercicio contable (NEW - links this entry to a FiscalYear document)
+    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
   ];
 
   for (const attr of attributes) {
@@ -424,6 +432,7 @@ async function setupEntriesCollection() {
     { key: 'invoiceId_index', type: 'key', attributes: ['invoiceId'], orders: ['ASC'] },
     { key: 'supplierId_index', type: 'key', attributes: ['supplierId'], orders: ['ASC'] },
     { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
+    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -466,6 +475,9 @@ async function setupTransactionsCollection() {
     // Audit fields
     { type: 'string', key: 'createdBy', size: 100, required: false },
     { type: 'string', key: 'createdByName', size: 255, required: false },
+
+    // Ejercicio contable (NEW - links this transaction to a FiscalYear document)
+    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
   ];
 
   for (const attr of attributes) {
@@ -482,6 +494,7 @@ async function setupTransactionsCollection() {
     { key: 'date_index', type: 'key', attributes: ['date'], orders: ['DESC'] },
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
     { key: 'platformDetected_index', type: 'key', attributes: ['platformDetected'], orders: ['ASC'] },
+    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -546,6 +559,8 @@ async function setupSuppliersCollection() {
     { type: 'string', key: 'phone', size: 50, required: false },
     { type: 'string', key: 'category', size: 200, required: false },
     { type: 'string', key: 'notes', size: 2000, required: false },
+    // Ejercicio contable (NEW - se copia de un ejercicio al siguiente)
+    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
     // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
@@ -561,7 +576,14 @@ async function setupSuppliersCollection() {
 
   const indexes = [
     { key: 'name_index', type: 'key', attributes: ['name'], orders: ['ASC'] },
-    { key: 'nif_index', type: 'unique', attributes: ['nif'], orders: ['ASC'] },
+    // NOTE: intentionally a plain `key` index, NOT `unique`. Suppliers are duplicated
+    // (same `nif`, different document) into every new fiscal year by
+    // copyMasterDataToFiscalYear(), so the same NIF legitimately appears in multiple
+    // documents. A unique index here would make that copy fail with a 409 on every
+    // supplier after the first fiscal year — and that 409 is currently swallowed by
+    // the caller as "already copied", so the failure would be silent.
+    { key: 'nif_index', type: 'key', attributes: ['nif'], orders: ['ASC'] },
+    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -714,6 +736,8 @@ async function setupApartmentsCollection() {
     { type: 'enum', key: 'apartmentType', elements: ['TOURIST', 'RESIDENTIAL'], required: false, default: 'TOURIST' }, // Tipo de apartamento
     { type: 'string', key: 'notes', size: 2000, required: false },
     { type: 'boolean', key: 'isActive', required: false, default: true },
+    // Ejercicio contable (NEW - se copia de un ejercicio al siguiente)
+    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
     // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
@@ -730,6 +754,7 @@ async function setupApartmentsCollection() {
   const indexes = [
     { key: 'name_index', type: 'key', attributes: ['name'], orders: ['ASC'] },
     { key: 'isActive_index', type: 'key', attributes: ['isActive'], orders: ['ASC'] },
+    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -906,6 +931,9 @@ async function setupReservationsCollection() {
     // Metadata
     { type: 'string', key: 'importedAt', size: 50, required: false },
     { type: 'string', key: 'notes', size: 2000, required: false },
+
+    // Ejercicio contable (NEW - links this reservation to a FiscalYear document)
+    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
   ];
 
   for (const attr of attributes) {
@@ -925,6 +953,7 @@ async function setupReservationsCollection() {
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
     { key: 'touristTaxCollected_index', type: 'key', attributes: ['touristTaxCollected'], orders: ['ASC'] },
     { key: 'guestName_index', type: 'key', attributes: ['guestName'], orders: ['ASC'] },
+    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -933,6 +962,57 @@ async function setupReservationsCollection() {
   }
 
   console.log('\n✅ Reservations collection setup complete!\n');
+}
+
+/**
+ * FISCAL_YEARS Collection (NEW - Ejercicios Contables)
+ *
+ * Previously only documented as a manual step in APPWRITE_SETUP.md (Fase 1).
+ * `fiscalYearId` (a string reference to a document in this collection) is used
+ * extensively by fiscalYearService.ts and by invoices/entries/transactions/
+ * reservations/suppliers/apartments to scope data per accounting year.
+ */
+async function setupFiscalYearsCollection() {
+  console.log('\n=== Setting up FISCAL_YEARS collection ===\n');
+  const collectionId = 'fiscal_years';
+
+  await createCollection(collectionId, 'Fiscal Years');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'integer', key: 'year', required: true, min: 2000, max: 2200 },
+    { type: 'enum', key: 'status', elements: ['OPEN', 'CLOSED'], required: true, default: 'OPEN' },
+    { type: 'string', key: 'openedAt', size: 30, required: false },
+    { type: 'string', key: 'closedAt', size: 30, required: false },
+    { type: 'string', key: 'notes', size: 500, required: false },
+    // Tourist tax rate periods for this fiscal year, stored as JSON string
+    // (mirrors `partners`/`touristTaxConfig` on the settings collection)
+    { type: 'string', key: 'touristTaxPeriods', size: 20000, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'year_index', type: 'unique', attributes: ['year'], orders: ['DESC'] },
+    { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Fiscal Years collection setup complete!\n');
 }
 
 /**
@@ -960,22 +1040,24 @@ async function main() {
     await setupRecurringExpensesCollection();
     await setupAiMatchHistoryCollection();
     await setupReservationsCollection();
+    await setupFiscalYearsCollection();
 
     console.log('');
     console.log('🎉 ALL collections have been set up successfully!');
     console.log('');
     console.log('Collections configured:');
-    console.log('  ✅ invoices (+ apartmentId field)');
-    console.log('  ✅ entries');
-    console.log('  ✅ transactions (+ platformDetected, grossAmount, aiMatchSuggestion fields)');
+    console.log('  ✅ invoices (+ apartmentId, fiscalYearId fields)');
+    console.log('  ✅ entries (+ isDraft, fiscalYearId fields)');
+    console.log('  ✅ transactions (+ platformDetected, grossAmount, aiMatchSuggestion, fiscalYearId fields)');
     console.log('  ✅ settings (+ touristTaxConfig field)');
-    console.log('  ✅ suppliers');
+    console.log('  ✅ suppliers (+ fiscalYearId field)');
     console.log('  ✅ notifications');
     console.log('  ✅ uploads');
-    console.log('  ✅ apartments (+ apartmentType field: TOURIST/RESIDENTIAL)');
+    console.log('  ✅ apartments (+ apartmentType field: TOURIST/RESIDENTIAL, + fiscalYearId)');
     console.log('  ✅ recurring_expenses');
     console.log('  ✅ ai_match_history');
-    console.log('  ✅ reservations (+ tourist tax and deposit fields)');
+    console.log('  ✅ reservations (+ tourist tax and deposit fields, + fiscalYearId)');
+    console.log('  ✅ fiscal_years (year, status, openedAt, closedAt, notes, touristTaxPeriods)');
     console.log('');
     console.log('Next steps:');
     console.log('  1. Verify the collections in Appwrite Console');
