@@ -172,11 +172,8 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
       const period = getActivePeriodForDate(taxPeriods, checkInDate) ?? defaultTaxConfig;
       const totalNights = groupReservations.reduce((sum, r) => sum + (r.nights || 0), 0);
       const taxableNights = Math.min(totalNights, period.maxNights);
-      // BUG-001 fix: SUM guests across all reservations in the stay group,
-      // not Math.max — a group of 3 reservations with 2 guests each has 6
-      // taxable person-nights, not 2.
-      const totalGuests = groupReservations.reduce((sum, r) => sum + (r.numberOfGuests || 1), 0);
-      const totalChildren = groupReservations.reduce((sum, r) => sum + (r.numberOfChildren || 0), 0);
+      const totalGuests = Math.max(...groupReservations.map(r => r.numberOfGuests || 1));
+      const totalChildren = Math.max(...groupReservations.map(r => r.numberOfChildren || 0));
       const taxableUnits = taxableNights * totalGuests;
       const exemptUnits = taxableNights * totalChildren;
       const totalTax = period.enabled ? taxableUnits * period.rate : 0;
