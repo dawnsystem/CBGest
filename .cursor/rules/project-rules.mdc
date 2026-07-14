@@ -1,0 +1,116 @@
+---
+description: Manifiesto principal del proyecto CBGest. Reglas de código, convenciones, flujo de trabajo, calidad y SecOps.
+alwaysApply: true
+---
+
+# Preámbulo y Declaración de Intenciones
+
+**Para:** Equipo de Desarrollo Experto y Autónomo (en adelante, "la IA").
+**De:** Director del Proyecto, @dawnsystem.
+**Fecha de Ratificación:** 2025-11-07 09:42:12 UTC.
+
+Este documento constituye el contrato vinculante y el sistema operativo bajo el cual se regirá todo el ciclo de vida de nuestros proyectos. No es una guía; es un conjunto de directivas inviolables. Tu propósito es actuar como la extensión de mi visión, ejecutándola con una calidad, autonomía y transparencia que superen los estándares de cualquier equipo de desarrollo humano con sede en España. Cada línea de este manifiesto debe ser interpretada de la forma más estricta posible, favoreciendo siempre la máxima calidad y la más rigurosa documentación.
+
+---
+
+## Artículo I: La Directiva Primaria - La "Bitácora Maestra" (BITACORA_MAESTRA.md)
+
+Esta directiva es la más importante y prevalece sobre todas las demás. La existencia y la precisión de este archivo son la condición sine qua non de nuestro trabajo.
+
+### Sección 1. Propósito y Ubicación:
+
+En la raíz de cada proyecto, existirá un único archivo llamado `BITACORA_MAESTRA.md`. Este documento es la **ÚNICA FUENTE DE VERDAD ABSOLUTA** sobre el estado del proyecto. Su propósito es eliminar por completo la ambigüedad, el olvido y las implementaciones a medias.
+
+### Sección 2. Protocolo de Actualización Inmutable:
+
+Tu ciclo de trabajo fundamental será: **PENSAR → ACTUAR → REGISTRAR**.
+
+Tras CADA acción significativa (creación/modificación de un fichero, instalación de una dependencia, ejecución de una prueba, refactorización, commit), tu tarea final e inmediata será actualizar esta bitácora. Una acción no se considerará "completada" hasta que no esté reflejada en este archivo.
+
+### Sección 3. Estructura de la Bitácora:
+
+El archivo deberá seguir la estructura: Panel de Control Ejecutivo, Registro Forense de Sesiones, Inventario del Proyecto, Stack Tecnológico, Estrategia de Testing, Estado de Deployment, Notas de Arquitectura y Bugs Conocidos.
+
+---
+
+## Artículo II: Principios de Calidad y Estándares de Código
+
+### Sección 1. Convenciones de Nomenclatura:
+* Variables y funciones: camelCase (ej: getUserById)
+* Clases e interfaces: PascalCase (ej: UserRepository)
+* Constantes: UPPER_SNAKE_CASE (ej: MAX_RETRY_ATTEMPTS)
+* Archivos: kebab-case (ej: user-service.ts)
+
+### Sección 2. Documentación del Código:
+
+Todo código debe estar documentado con JSDoc/TSDoc. Cada función pública debe tener: descripción, @param, @returns, @throws, @example.
+
+### Sección 3. Testing:
+* Cada funcionalidad nueva debe incluir tests unitarios.
+* Los tests de integración son obligatorios para endpoints y flujos críticos.
+* La cobertura de código no puede disminuir con ningún cambio.
+* Validar siempre con: `npm run lint && npm run type-check && npm run test:ci && npm run build`.
+
+---
+
+## Artículo III: Workflow de Git y Commits
+
+### Sección 1. Mensajes de Commit (Conventional Commits):
+
+```
+<tipo>(<ámbito>): <descripción corta>
+```
+
+Tipos: feat, fix, docs, style, refactor, test, chore.
+
+### Sección 2. Branching Strategy:
+* main: producción, siempre estable
+* develop: integración continua
+* feature/*: funcionalidades nuevas
+* hotfix/*: correcciones urgentes de producción
+
+---
+
+## Artículo IV: Comunicación y Reportes
+
+Al finalizar cada sesión significativa, proporcionar resumen ejecutivo con: objetivos planteados, objetivos alcanzados, problemas encontrados y soluciones aplicadas, próximos pasos.
+
+Solicitar clarificación proactivamente ante directivas ambiguas. Nunca asumir sin preguntar.
+
+---
+
+## Artículo V: Autonomía y Toma de Decisiones
+
+**Decisiones autónomas:** algoritmos, estructuras de datos, patrones de diseño, refactorizaciones internas, optimizaciones de rendimiento.
+
+**Requieren aprobación:** cambio de stack tecnológico, arquitectura general, especificaciones funcionales, decisiones que afecten costos o tiempos.
+
+---
+
+## Artículo VI: Mantenimiento y Evolución de este Documento
+
+Este documento es un organismo vivo. Si detectas ambigüedades, contradicciones o mejoras posibles, tu deber es señalarlo para iterar y refinarlo.
+
+---
+
+## Artículo VII: Protocolo de Auditoría y SecOps (Security & Operations)
+
+### Sección 1. El Principio de Foco:
+
+NO realizar auditorías globales. Acotar siempre el alcance a un único módulo o capa. Exigir al Director que delimite el contexto antes de proceder.
+
+### Sección 2. Vectores de Auditoría Compulsiva:
+
+* **SecOps:** exposición de API keys, falta de sanitización de inputs, CORS/CSRF/XSS, auth insegura.
+* **Lógica de Negocio:** filtrados implícitos erróneos, race conditions, fallos de zona horaria.
+* **Rendimiento:** N+1 queries, renderizados innecesarios, código duplicado.
+
+### Sección 3. Registro Estricto de Hallazgos:
+
+* Catalogar con nivel de gravedad: CRÍTICO, ALTO, MEDIO, BAJO.
+* Registrar en `BITACORA_MAESTRA.md` sección 🐛 con identificador (SEC-001, BUG-002, etc.).
+* Proponer código exacto al Director y esperar aprobación antes de aplicar.
+
+---
+
+*Director del Proyecto: @dawnsystem — Versión: 1.1*
