@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-15 23:00:00 UTC*
+*Última actualización: 2026-07-15 23:05:00 UTC*
 
 ---
 
@@ -8,13 +8,15 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **`SEC-016` + `BUG-RT-001` completados** — passwords temporales crypto + cleanup realtime (issues #138/#139).
+Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora resueltos). Pendiente push y merge del PR.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `FIX-140` - Wiring App (recurrentes, settings Dashboard, supplierId):** Corregidos BUG-FY-001 (`fetchForYear` recarga `fetchRecurringExpenses`), BUG-WIRE-001 (Dashboard usa `handleUpdateSettings` en lugar de `setSettings`), BUG-INV-001 (`handleAddInvoice` persiste `supplierId` con `updateInvoice` tras enlazar proveedor). Issue: #140. Validado: lint 0 errores / 2 warnings, test:ci OK, build OK.
 *   **[2026-07-15] - `SEC-016` + `BUG-RT-001` - Auth temporal segura + fuga realtime:** `utils/temporaryPassword.ts` genera secretos ≥128 bits (base64url) y rechaza el patrón legacy `cambiarNNN`. `UserManagement` y `manage-users` validan la política; la function hace rollback (delete) si prefs/labels fallan post-create (BUG-026 parcial) y bloquea admins con `mustChangePassword`. `App.tsx`: no carga datos ni abre realtime mientras hay password temporal pendiente; `unsubscribe` guardado en `useRef` con cleanup real del `useEffect` (Strict Mode / logout). Issues #138/#139. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (307 tests).
 *   **[2026-07-15] - `IEET-001` - Filtro semestral IEET timezone-safe:** Extraídas `getSemesterDateBounds` e `isDateInSemester` en `utils/touristTaxUtils.ts`. `TouristTaxPanel` filtra check-ins y períodos del semestre comparando `YYYY-MM-DD` (sin `Date` local vs UTC). Corrige 1-jul en semestre 1 y 1-ene fuera de semestre. 8 tests unitarios nuevos. Issue #137. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (294 tests).
 *   **[2026-07-15] - `CTB-001` - Guardar asiento formal limpia isDraft:** Extraída `buildFormalEntryToSave` en `utils/accountingEntrySave.ts`; `AccountingBooks.handleSave` la usa y fuerza `isDraft: false` al persistir un asiento oficial. Evita que un borrador cuadrado siga excluido de TrialBalance / AccountLedger / DebtsPendingPanel. 5 tests unitarios nuevos. Issue #136 / PR #149. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (286 tests).
 *   **[2026-07-15] - `TOOL-001` - Restaurar type-check: @types/react + tsconfig.types:** Añadidos `@types/react@^19` y `@types/react-dom@^19` a `devDependencies`. Eliminada restricción `compilerOptions.types: ["node"]` en `tsconfig.json` (tipos de Vite/React resueltos vía `vite-env.d.ts` y dependencias explícitas). Corregidos 4 errores TS latentes expuestos al instalar tipos React (`App.tsx` Blob en escritura cifrada + `name` en `WritableFileHandle`; `AppwriteConfig.tsx` defaults completos; `TouristTaxPanel.tsx` fallback `TouristTaxPeriod` tipado). `LINT-001` resuelto: `DebtsPendingPanel` usa `todayKey` como ancla de cálculo de antigüedad; `TouristTaxPanel` elimina índice no usado y memoriza `defaultTaxConfig`. `strict: true` **no** activado (PR dedicado futuro). Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS, 0 warnings lint.
+*   **[2026-07-16] - `AUDIT-013` - Auditoría escalonada módulo → app:** Revisión estática por capas (Auth/Appwrite/Settings, Contabilidad/Fiscal/IEET/Conciliación, Shell/Reservas/Facturas/Functions). Hallazgos nuevos priorizados (TOOL-001, CTB-001, IEET-001, SEC-016…); orden de corrección en 6 fases para no romper la app. Canvas: `auditoria-modulo-a-modulo.canvas.tsx`. Issues: https://github.com/dawnsystem/CBGest/issues?q=label%3Aaudit-2026-07.
 *   **[2026-07-14] - `TSK-050` - Eliminación de auto-registro + gestión de usuarios por admin + cambio de contraseña obligatorio:** El auto-registro ("Regístrate gratis") se eliminó de `Login.tsx` y `AuthModal.tsx`; `authService.register` y `AuthContext.register` fueron retirados. Se creó la Appwrite Function `manage-users` (`functions/manage-users/`, Users API + node-appwrite, requiere label `admin` en quien la ejecuta) con acciones `list/create/resetPassword/updateLabels/delete`; nuevo `services/userAdminService.ts` la invoca vía `Functions.createExecution`. Nuevo panel `components/UserManagement.tsx` integrado como pestaña "Usuarios" en `Settings.tsx` (visible solo si `user.labels` incluye `admin`), permite crear usuarios con contraseña temporal (mín. 8 caracteres, límite real de Appwrite) marcándolos con `prefs.mustChangePassword = true`, restablecer contraseña y eliminar usuarios. `authService.changePassword` + `AuthContext.changePassword`/`mustChangePassword` añadidos; nuevo componente `ForcePasswordChange.tsx` bloquea el acceso a la app hasta que el usuario cambia su contraseña temporal (gate añadido en `App.tsx` justo después del gate de `<Login/>`). `types.ts`: `AppUser.labels` y nuevo `ManagedUser`. `lib/appwrite/client.ts` expone `functions` (SDK `Functions`); `config/appwrite.ts` añade `functions.manageUsers`. Documentado bootstrap del primer admin (manual, vía consola Appwrite) en `functions/README.md`. 19 tests nuevos (`authService`/`appwriteService`/`userAdminService`/`Login`/`ForcePasswordChange`/`UserManagement`). Validado: 278 tests OK, 0 errores lint, type-check OK, build OK. Verificación manual: pantalla de login real (sin opción de registro) probada contra el backend Appwrite en vivo, confirmando el error real de credenciales. Limitación de entorno: no se pudo probar end-to-end el flujo de admin (crear usuario/forzar cambio de contraseña) por no disponer de credenciales/API Key reales de Appwrite en este entorno; requiere desplegar la function y hacer bootstrap manual del primer admin (ver `functions/README.md`).
 *   **[2026-07-13] - `TSK-TT` - Configuración de tasa turística por ejercicio y períodos de vigencia:** `TouristTaxPeriod` y `TouristTaxConfig` (@deprecated) en `types.ts`; `utils/touristTaxUtils.ts` con parseo/serialización/selección de período activo/solapamiento/ordenación; `fiscalYearService.ts` + `FiscalYearContext` con `updateFiscalYearTouristTax`; `TouristTaxPanel.tsx` refactorizado para usar períodos del ejercicio activo; `TouristTaxPeriodsManager.tsx` (nuevo componente CRUD de períodos con modal de edición y validación de solapamiento); integración en `Settings.tsx` tab TAX; migración al crear ejercicio (copia y re-feching de períodos del ejercicio anterior); 34 tests unitarios en `utils/__tests__/touristTaxUtils.test.ts`. Validado: 260 tests OK, 0 errores lint, type-check OK, build OK.
 *   **[2026-07-13] - `FIX-049` - Race condition: datos del ejercicio anterior visibles al arrancar la app:** `BUG-023` corregido. Movido `setIsDataLayerInitialized(true)` al bloque `finally` del fetch inicial en `initDataLayer()`, en lugar de ejecutarlo síncronamente antes del trabajo asíncrono. Previene que el fetch inicial sin filtrar (todos los ejercicios) se resuelva después del fetch filtrado del año activo y sobreescriba los datos correctos.
@@ -91,6 +93,29 @@ Estado actual: **`SEC-016` + `BUG-RT-001` completados** — passwords temporales
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 00:49:00 UTC]
+*   **Directiva del Director:** `[BUG-FY-001][BUG-WIRE-001][BUG-INV-001] #140`
+*   **Plan de Acción:** (1) Incluir `fetchRecurringExpenses` en `fetchForYear`. (2) Pasar `handleUpdateSettings` al Dashboard. (3) Persistir `supplierId` con `updateInvoice`. (4) Validar lint/test/build y registrar en bitácora.
+*   **Log de Acciones:**
+    - `[00:50:00]` - **FIX (BUG-FY-001):** `App.tsx` — `fetchForYear` añade `fetchRecurringExpenses` + `setRecurringExpenses`.
+    - `[00:51:00]` - **FIX (BUG-WIRE-001):** `App.tsx` — Dashboard `onUpdateSettings={handleUpdateSettings}` (antes `setSettings`).
+    - `[00:52:00]` - **FIX (BUG-INV-001):** `hooks/useDataHandlers.ts` — tras enlazar proveedor, `updateInvoice` con `supplierId`.
+    - `[00:54:00]` - **VALIDACIÓN:** lint 0 errores / 2 warnings; test:ci OK; build OK.
+    - `[23:05:00]` - **MERGE:** Integrado `origin/main` (conflictos solo en `BITACORA_MAESTRA.md`; `App.tsx` auto-merge OK).
+*   **Resultado:** Tres altos de wiring del #140 corregidos en rama `fix/issue-140-wiring-bugs`.
+*   **Observaciones:** Commits separados por bug según el issue.
+
+### Sesión: [2026-07-16 00:00:00 UTC]
+*   **Directiva del Director:** Analizar el repo módulo a módulo (bugs, tipado, inconsistencias, lógica), escalonar hasta la app en conjunto, entregar informe accionable y crear issues en GitHub.
+*   **Plan de Acción:** (1) Validar lint/type-check. (2) Auditar por capas en paralelo (Auth/Appwrite, Contabilidad/Fiscal, Shell/Datos/Functions). (3) Consolidar orden de corrección en 6 fases. (4) Canvas + issues GitHub #135–#147. (5) Registrar en bitácora.
+*   **Log de Acciones:**
+    - `[00:01:00]` - **VALIDACIÓN:** `npm run type-check` FAIL (TS7016/TS7026 masivos: faltan `@types/react`; `types:["node"]` en tsconfig; cambio local `strict:true`). `npm run lint` PASS con 2 warnings.
+    - `[00:05:00]` - **AUDIT:** Capas Auth/Appwrite/Settings, Contabilidad/Fiscal/IEET/Conciliación, Shell/Reservas/Facturas/Functions.
+    - `[00:12:00]` - **DOC:** Canvas `auditoria-modulo-a-modulo.canvas.tsx` con fases 0–5 y tabla de hallazgos.
+    - `[00:15:00]` - **ISSUES:** Creados #135–#147 con label `audit-2026-07` y fases.
+*   **Resultado:** `AUDIT-013` completada. Bloqueante: TOOL-001. Críticos de negocio: CTB-001, IEET-001, SEC-016.
+*   **Observaciones:** No se aplicaron fixes de código (solo análisis + issues). SEC-001 sigue aceptado conscientemente. Pendientes históricos SEC-005..015 agrupados en #146.
+
 ### Sesión: [2026-07-15 22:47:00 UTC]
 *   **Directiva del Director:** "sigue con el issue sec-016, y bug-rt-001"
 *   **Plan de Acción:** (1) Sustituir passwords temporales predecibles por secretos crypto + validación server-side y rollback BUG-026. (2) Gate de datos mientras `mustChangePassword`. (3) Mover cleanup realtime al `useEffect`. (4) Tests + pipeline + bitácora.
@@ -696,4 +721,20 @@ Estado actual: **`SEC-016` + `BUG-RT-001` completados** — passwords temporales
 * **BUG-CTB-001:** `AccountingBooks.tsx:186` — Mensaje de error incorrecto. Cuando la validación rechaza un asiento por tener menos de 2 líneas válidas, el mensaje dice "Un asiento debe tener al menos 2 líneas (debe y haber)". El mensaje es impreciso: la validación comprueba el número de líneas, no que haya una línea en Debe y otra en Haber. Severidad: **BAJO**. Estado: ✅ Resuelto (TSK-048).
 
 * **BUG-CTB-002:** `AccountLedger.tsx:97` — Cálculo de saldo corriente incorrecto para cuenta 430 (Clientes). La condición `isDebitNature` incluye grupos 1,2,3,5,6 pero no el grupo 43 (Clientes), que es de naturaleza DEUDORA. Las cuentas 430 se calculan con la rama "acreedora" por defecto (rama else), mostrando el saldo acumulado invertido. Severidad: **MEDIO**. Estado: ✅ Resuelto (TSK-048).
+
+### 🟣 AUDITORÍA 2026-07-16 (AUDIT-013) — Nuevos hallazgos abiertos
+
+> Orden de corrección: Fase 0 → 5. Issues: [#135–#147](https://github.com/dawnsystem/CBGest/issues?q=label%3Aaudit-2026-07).
+
+* **TOOL-001:** type-check roto (`@types/react` ausente + `types:["node"]`). Severidad: **CRÍTICO**. Issue: #135. Estado: ✅ Resuelto (PR #148).
+* **CTB-001:** `AccountingBooks.handleSave` no pone `isDraft:false`. Severidad: **CRÍTICO**. Issue: #136. Estado: ✅ Resuelto (PR #149).
+* **IEET-001:** Filtro semestral timezone UTC vs local. Severidad: **CRÍTICO**. Issue: #137. Estado: ✅ Resuelto (PR #150).
+* **SEC-016:** Password temporal ~900 valores + gate solo UI. Severidad: **CRÍTICO**. Issue: #138. Estado: ✅ Resuelto (PR #151).
+* **BUG-FY-001 / BUG-WIRE-001 / BUG-INV-001:** Wiring App (recurrentes, settings Dashboard, supplierId). Issue: #140. Estado: ✅ Resuelto (FIX-140, rama `fix/issue-140-wiring-bugs`).
+* **BUG-RT-001:** Fuga realtime unsubscribe. Issue: #139. Estado: ✅ Resuelto (PR #151).
+* **CONC-001 / CTB-002 / IEET-002 / FIS-001 / SEC-017 / BUG-024..026:** Altos de wiring, contabilidad, auth. Issues: #141–#143. Estado: Pendiente (BUG-026 parcial vía SEC-016).
+* **BUG-FY-002 / BUG-RES-001 / CTB-003:** Modelo datos / límites. Issue: #144. Estado: Pendiente.
+* **BUG-FN-001 / BUG-FN-002 / BUG-AI-001:** Automations + IVA. Issue: #145. Estado: Pendiente.
+* **SEC-PEND:** SEC-005..015 (excepto SEC-001 aceptado). Issue: #146. Estado: Pendiente.
+* **MEDIOS residuales:** settings TOCTOU, drafts, toast, realtime, filtros FY. Issue: #147. Estado: Pendiente.
 

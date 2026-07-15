@@ -291,10 +291,13 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
 
     setters.setInvoices(prev => [invoiceWithAudit, ...prev]);
 
+    let persistedInvoice: Invoice = invoiceWithAudit;
+
     if (data.settings.dataConfig?.type === 'APPWRITE') {
       try {
         const saved = await appwriteService.createInvoice(invoiceWithAudit);
-        setters.setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? { ...saved, status: saved.status || originalStatus } : i));
+        persistedInvoice = { ...saved, status: saved.status || originalStatus };
+        setters.setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? persistedInvoice : i));
       } catch (error: unknown) {
         setters.setInvoices(prev => prev.filter(i => i.id !== invoiceWithAudit.id));
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
@@ -307,43 +310,60 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       addNotification({
         type: 'INVOICE_CREATED',
         title: 'Nueva factura creada',
-        message: `${invoiceWithAudit.type === 'INCOME' ? 'Ingreso' : 'Gasto'} de ${invoiceWithAudit.issuerName} por ${(invoiceWithAudit.totalAmount ?? 0).toFixed(2)}€`,
+        message: `${persistedInvoice.type === 'INCOME' ? 'Ingreso' : 'Gasto'} de ${persistedInvoice.issuerName} por ${(persistedInvoice.totalAmount ?? 0).toFixed(2)}€`,
         userId: user.$id,
         userName: user.name,
-        relatedId: invoiceWithAudit.id
+        relatedId: persistedInvoice.id
       });
     }
 
-    // Auto-create supplier if needed
-    if ((originalStatus === 'PROCESSED' || originalStatus === 'PAID') && invoiceWithAudit.issuerNif && invoiceWithAudit.issuerName) {
+    // Auto-create supplier if needed and persist supplierId (BUG-INV-001)
+    if ((originalStatus === 'PROCESSED' || originalStatus === 'PAID') && persistedInvoice.issuerNif && persistedInvoice.issuerName) {
       const existingSupplier = data.suppliers.find(s =>
-        s.nif.toUpperCase().replace(/\s/g, '') === invoiceWithAudit.issuerNif.toUpperCase().replace(/\s/g, '')
+        s.nif.toUpperCase().replace(/\s/g, '') === persistedInvoice.issuerNif.toUpperCase().replace(/\s/g, '')
       );
+
+      let linkedSupplierId: string | undefined;
 
       if (!existingSupplier) {
         const newSupplier: Supplier = {
           id: generateId(),
-          name: invoiceWithAudit.issuerName,
-          nif: invoiceWithAudit.issuerNif.toUpperCase(),
-          nifType: detectNifType(invoiceWithAudit.issuerNif),
-          address: invoiceWithAudit.issuerAddress,
-          city: invoiceWithAudit.issuerCity,
-          postalCode: invoiceWithAudit.issuerPostalCode,
+          name: persistedInvoice.issuerName,
+          nif: persistedInvoice.issuerNif.toUpperCase(),
+          nifType: detectNifType(persistedInvoice.issuerNif),
+          address: persistedInvoice.issuerAddress,
+          city: persistedInvoice.issuerCity,
+          postalCode: persistedInvoice.issuerPostalCode,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           createdBy: user?.$id,
           createdByName: user?.name
         };
         handleAddSupplier(newSupplier);
-        setters.setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? { ...i, supplierId: newSupplier.id } : i));
-      } else if (!invoiceWithAudit.supplierId) {
-        setters.setInvoices(prev => prev.map(i => i.id === invoiceWithAudit.id ? { ...i, supplierId: existingSupplier.id } : i));
+        linkedSupplierId = newSupplier.id;
+      } else if (!persistedInvoice.supplierId) {
+        linkedSupplierId = existingSupplier.id;
+      }
+
+      if (linkedSupplierId) {
+        const linkedInvoice: Invoice = { ...persistedInvoice, supplierId: linkedSupplierId };
+        setters.setInvoices(prev => prev.map(i => i.id === persistedInvoice.id ? linkedInvoice : i));
+        persistedInvoice = linkedInvoice;
+
+        if (data.settings.dataConfig?.type === 'APPWRITE') {
+          try {
+            await appwriteService.updateInvoice(linkedInvoice);
+          } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            showError(`Error al enlazar proveedor en factura: ${errorMessage}`);
+          }
+        }
       }
     }
 
     // Auto-create accounting entry
     if (originalStatus === 'PROCESSED' || originalStatus === 'PAID') {
-      createEntryFromInvoice(invoiceWithAudit);
+      createEntryFromInvoice(persistedInvoice);
     }
   }, [isReadOnly, showToast, withFiscalYearId, user, data.settings, data.suppliers, setters, showError, addNotification, handleAddSupplier, createEntryFromInvoice]);
 
