@@ -43,11 +43,11 @@ describe('userAdminService', () => {
       user: { id: 'u2', name: 'Nuevo', email: 'nuevo@test.com', labels: ['comunero'], status: true, registration: '', passwordUpdate: '', mustChangePassword: true },
     }));
 
-    const created = await userAdminService.createUser('nuevo@test.com', 'Nuevo', 'cambiar123', ['comunero']);
+    const created = await userAdminService.createUser('nuevo@test.com', 'Nuevo', 'xK9_mPqR2nVwL0sT8uAbCd', ['comunero']);
 
     expect(createExecutionMock).toHaveBeenCalledWith(
       'manage-users',
-      JSON.stringify({ action: 'create', email: 'nuevo@test.com', name: 'Nuevo', password: 'cambiar123', labels: ['comunero'] }),
+      JSON.stringify({ action: 'create', email: 'nuevo@test.com', name: 'Nuevo', password: 'xK9_mPqR2nVwL0sT8uAbCd', labels: ['comunero'] }),
       false
     );
     expect(created?.mustChangePassword).toBe(true);
@@ -56,11 +56,11 @@ describe('userAdminService', () => {
   it('resets a password and marks mustChangePassword', async () => {
     createExecutionMock.mockResolvedValueOnce(mockExecution({ success: true }));
 
-    await expect(userAdminService.resetPassword('u2', 'nuevaTemp123')).resolves.toBeUndefined();
+    await expect(userAdminService.resetPassword('u2', 'nuevaTempSegura_16ch')).resolves.toBeUndefined();
 
     expect(createExecutionMock).toHaveBeenCalledWith(
       'manage-users',
-      JSON.stringify({ action: 'resetPassword', userId: 'u2', password: 'nuevaTemp123' }),
+      JSON.stringify({ action: 'resetPassword', userId: 'u2', password: 'nuevaTempSegura_16ch' }),
       false
     );
   });

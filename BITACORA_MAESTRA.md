@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-15 22:50:00 UTC*
+*Última actualización: 2026-07-15 23:00:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **`IEET-001` completado** — filtro semestral IEET por strings `YYYY-MM-DD` (issue #137).
+Estado actual: **`SEC-016` + `BUG-RT-001` completados** — passwords temporales crypto + cleanup realtime (issues #138/#139).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-15] - `SEC-016` + `BUG-RT-001` - Auth temporal segura + fuga realtime:** `utils/temporaryPassword.ts` genera secretos ≥128 bits (base64url) y rechaza el patrón legacy `cambiarNNN`. `UserManagement` y `manage-users` validan la política; la function hace rollback (delete) si prefs/labels fallan post-create (BUG-026 parcial) y bloquea admins con `mustChangePassword`. `App.tsx`: no carga datos ni abre realtime mientras hay password temporal pendiente; `unsubscribe` guardado en `useRef` con cleanup real del `useEffect` (Strict Mode / logout). Issues #138/#139. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (307 tests).
 *   **[2026-07-15] - `IEET-001` - Filtro semestral IEET timezone-safe:** Extraídas `getSemesterDateBounds` e `isDateInSemester` en `utils/touristTaxUtils.ts`. `TouristTaxPanel` filtra check-ins y períodos del semestre comparando `YYYY-MM-DD` (sin `Date` local vs UTC). Corrige 1-jul en semestre 1 y 1-ene fuera de semestre. 8 tests unitarios nuevos. Issue #137. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (294 tests).
 *   **[2026-07-15] - `CTB-001` - Guardar asiento formal limpia isDraft:** Extraída `buildFormalEntryToSave` en `utils/accountingEntrySave.ts`; `AccountingBooks.handleSave` la usa y fuerza `isDraft: false` al persistir un asiento oficial. Evita que un borrador cuadrado siga excluido de TrialBalance / AccountLedger / DebtsPendingPanel. 5 tests unitarios nuevos. Issue #136 / PR #149. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (286 tests).
 *   **[2026-07-15] - `TOOL-001` - Restaurar type-check: @types/react + tsconfig.types:** Añadidos `@types/react@^19` y `@types/react-dom@^19` a `devDependencies`. Eliminada restricción `compilerOptions.types: ["node"]` en `tsconfig.json` (tipos de Vite/React resueltos vía `vite-env.d.ts` y dependencias explícitas). Corregidos 4 errores TS latentes expuestos al instalar tipos React (`App.tsx` Blob en escritura cifrada + `name` en `WritableFileHandle`; `AppwriteConfig.tsx` defaults completos; `TouristTaxPanel.tsx` fallback `TouristTaxPeriod` tipado). `LINT-001` resuelto: `DebtsPendingPanel` usa `todayKey` como ancla de cálculo de antigüedad; `TouristTaxPanel` elimina índice no usado y memoriza `defaultTaxConfig`. `strict: true` **no** activado (PR dedicado futuro). Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS, 0 warnings lint.
@@ -90,6 +91,21 @@ Estado actual: **`IEET-001` completado** — filtro semestral IEET por strings `
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-15 22:47:00 UTC]
+*   **Directiva del Director:** "sigue con el issue sec-016, y bug-rt-001"
+*   **Plan de Acción:** (1) Sustituir passwords temporales predecibles por secretos crypto + validación server-side y rollback BUG-026. (2) Gate de datos mientras `mustChangePassword`. (3) Mover cleanup realtime al `useEffect`. (4) Tests + pipeline + bitácora.
+*   **Log de Acciones:**
+    - `[22:48:00]` - **AUDIT:** Issues #138/#139 — `cambiar`+100–999 (~900 valores); gate solo UI; `return () => unsubscribe()` dentro de async en `App.tsx` descartado por el effect.
+    - `[22:50:00]` - **CREATE:** `utils/temporaryPassword.ts` + tests (generación base64url ≥16 chars, rechazo legacy).
+    - `[22:51:00]` - **MOD:** `UserManagement.tsx` — usa util SEC-016; copy UX actualizado.
+    - `[22:52:00]` - **MOD:** `functions/manage-users/src/main.js` — min 16, rechazo `cambiarNNN`, rollback delete si prefs/labels fallan, 403 si admin con mustChangePassword.
+    - `[22:54:00]` - **MOD:** `App.tsx` — `realtimeUnsubscribeRef` + cleanup real (BUG-RT-001); skip data/realtime si `mustChangePassword` (SEC-016); flag `cancelled` anti-race Strict Mode.
+    - `[22:55:00]` - **CREATE/MOD:** tests `manage-users`, `UserManagement`, `userAdminService`; README functions SEC-016.
+    - `[22:58:00]` - **DOC:** Registro SEC-016 / BUG-RT-001 / BUG-026 (parcial) en bitácora.
+    - `[23:00:00]` - **VALIDACIÓN FINAL:** `npm run type-check && npm run lint && npm run test:ci && npm run build`. **RESULTADO:** PASS — 307 tests, 0 errores lint, build OK.
+*   **Resultado:** `SEC-016` + `BUG-RT-001` completados (issues #138/#139). BUG-026 cubierto en create rollback; resto de #143 (SEC-017/BUG-024/025) pendiente.
+*   **Observaciones/Decisiones de Diseño:** No se rediseñaron permisos de colección Appwrite (invasivo para bootstrap admin). El refuerzo server-side es: secretos fuertes + validación en function + bloqueo de manage-users con mustChangePassword + no init de data layer en cliente. Tras merge, redesplegar `manage-users`.
+
 ### Sesión: [2026-07-15 22:37:00 UTC]
 *   **Directiva del Director:** "issue IEET-001"
 *   **Plan de Acción:** (1) Confirmar bug timezone en filtro semestral de `TouristTaxPanel`. (2) Extraer comparación por strings `YYYY-MM-DD`. (3) Tests de regresión 1-jul / 1-ene. (4) Validar pipeline y documentar.
@@ -664,6 +680,12 @@ Estado actual: **`IEET-001` completado** — filtro semestral IEET por strings `
 ### 🔵 MÓDULO CONTABLE — Auditoría 2026-07-16 (issue tracker)
 
 * **CTB-001:** `AccountingBooks.tsx` `handleSave` — Guardar asiento formal no limpiaba `isDraft`. Un borrador cuadrado seguía marcado como borrador tras “Guardar Asiento” y quedaba excluido de `TrialBalance` / `AccountLedger` / `DebtsPendingPanel`. Severidad: **CRÍTICO**. Estado: ✅ Resuelto (`buildFormalEntryToSave` fuerza `isDraft: false`). Issue #136.
+
+### 🔵 AUTH / REALTIME — Auditoría 2026-07-16 (issue tracker)
+
+* **SEC-016:** Password temporal predecible (`cambiar` + 100–999, ~900 valores) + gate solo UI (`ForcePasswordChange`). Sesión Appwrite válida permitía API/data layer sin pasar el gate. Severidad: **CRÍTICO**. Estado: ✅ Resuelto — `utils/temporaryPassword.ts` (≥128 bits), validación en cliente + `manage-users`, 403 si admin con mustChangePassword, App no inicia data/realtime hasta cambiar password. Issue #138.
+* **BUG-RT-001:** `App.tsx` — `return () => unsubscribe()` dentro de `initDataLayer` async; el `useEffect` descartaba el cleanup → fugas de suscripción en Strict Mode / re-login. Severidad: **ALTO**. Estado: ✅ Resuelto — `realtimeUnsubscribeRef` + cleanup real del effect + flag `cancelled`. Issue #139.
+* **BUG-026:** (parcial, coordinado con SEC-016) Create user: si `updatePrefs`/`updateLabels` fallan tras create, rollback con `users.delete`. Resto de issue #143 pendiente.
 
 ### 🔵 MÓDULO TASA TURÍSTICA (IEET) — Auditoría 2026-07-16
 
