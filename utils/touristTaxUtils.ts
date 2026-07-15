@@ -185,3 +185,67 @@ export function hasOverlap(
 export function sortPeriodsByDate(periods: TouristTaxPeriod[]): TouristTaxPeriod[] {
   return [...periods].sort((a, b) => a.startDate.localeCompare(b.startDate));
 }
+
+// ============================================================================
+// FILTRO SEMESTRAL IEET (límites como YYYY-MM-DD)
+// ============================================================================
+
+export type IeetSemester = 1 | 2;
+
+export interface SemesterDateBounds {
+  /** Inclusive start date as YYYY-MM-DD (1-ene or 1-jul). */
+  start: string;
+  /** Inclusive end date as YYYY-MM-DD (30-jun or 31-dic). */
+  end: string;
+}
+
+/**
+ * Devuelve los límites inclusivos de un semestre IEET como strings YYYY-MM-DD.
+ *
+ * IEET-001: se usan strings de calendario (no `Date`) para evitar el desfase
+ * entre `new Date(year, month, day)` (local) y `new Date('YYYY-MM-DD')` (UTC).
+ *
+ * @param year - Año civil del semestre
+ * @param semester - 1 = ene–jun, 2 = jul–dic
+ * @returns Límites inclusivos `{ start, end }`
+ *
+ * @example
+ * getSemesterDateBounds(2026, 1) // { start: '2026-01-01', end: '2026-06-30' }
+ * getSemesterDateBounds(2026, 2) // { start: '2026-07-01', end: '2026-12-31' }
+ */
+export function getSemesterDateBounds(year: number, semester: IeetSemester): SemesterDateBounds {
+  if (semester === 1) {
+    return { start: `${year}-01-01`, end: `${year}-06-30` };
+  }
+  return { start: `${year}-07-01`, end: `${year}-12-31` };
+}
+
+/**
+ * Indica si una fecha ISO (o YYYY-MM-DD) cae dentro del semestre IEET indicado.
+ *
+ * Compara solo la parte de calendario `YYYY-MM-DD` (substring 0..10), el mismo
+ * patrón que `areDatesConsecutive` tras BUG-003 / IEET-001.
+ *
+ * @param dateStr - Fecha ISO o `YYYY-MM-DD` (p. ej. check-in de reserva)
+ * @param year - Año civil del semestre
+ * @param semester - 1 = ene–jun, 2 = jul–dic
+ * @returns `true` si la fecha está dentro del semestre (inclusive)
+ * @throws Never — fechas vacías o malformadas devuelven `false`
+ *
+ * @example
+ * isDateInSemester('2026-07-01', 2026, 2) // true (límite inferior semestre 2)
+ * isDateInSemester('2026-07-01', 2026, 1) // false
+ * isDateInSemester('2026-01-01T00:00:00.000Z', 2026, 1) // true
+ */
+export function isDateInSemester(
+  dateStr: string | undefined | null,
+  year: number,
+  semester: IeetSemester
+): boolean {
+  if (!dateStr) return false;
+  const day = dateStr.substring(0, 10);
+  // Guardrail: must look like YYYY-MM-DD for lexicographic compare to be safe
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const { start, end } = getSemesterDateBounds(year, semester);
+  return day >= start && day <= end;
+}

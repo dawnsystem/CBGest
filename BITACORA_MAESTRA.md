@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-15 22:40:00 UTC*
+*Última actualización: 2026-07-15 22:50:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **`CTB-001` completado** — guardar asiento formal fuerza `isDraft: false` (issue #136 / PR #149).
+Estado actual: **`IEET-001` completado** — filtro semestral IEET por strings `YYYY-MM-DD` (issue #137).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-15] - `IEET-001` - Filtro semestral IEET timezone-safe:** Extraídas `getSemesterDateBounds` e `isDateInSemester` en `utils/touristTaxUtils.ts`. `TouristTaxPanel` filtra check-ins y períodos del semestre comparando `YYYY-MM-DD` (sin `Date` local vs UTC). Corrige 1-jul en semestre 1 y 1-ene fuera de semestre. 8 tests unitarios nuevos. Issue #137. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (294 tests).
 *   **[2026-07-15] - `CTB-001` - Guardar asiento formal limpia isDraft:** Extraída `buildFormalEntryToSave` en `utils/accountingEntrySave.ts`; `AccountingBooks.handleSave` la usa y fuerza `isDraft: false` al persistir un asiento oficial. Evita que un borrador cuadrado siga excluido de TrialBalance / AccountLedger / DebtsPendingPanel. 5 tests unitarios nuevos. Issue #136 / PR #149. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (286 tests).
 *   **[2026-07-15] - `TOOL-001` - Restaurar type-check: @types/react + tsconfig.types:** Añadidos `@types/react@^19` y `@types/react-dom@^19` a `devDependencies`. Eliminada restricción `compilerOptions.types: ["node"]` en `tsconfig.json` (tipos de Vite/React resueltos vía `vite-env.d.ts` y dependencias explícitas). Corregidos 4 errores TS latentes expuestos al instalar tipos React (`App.tsx` Blob en escritura cifrada + `name` en `WritableFileHandle`; `AppwriteConfig.tsx` defaults completos; `TouristTaxPanel.tsx` fallback `TouristTaxPeriod` tipado). `LINT-001` resuelto: `DebtsPendingPanel` usa `todayKey` como ancla de cálculo de antigüedad; `TouristTaxPanel` elimina índice no usado y memoriza `defaultTaxConfig`. `strict: true` **no** activado (PR dedicado futuro). Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS, 0 warnings lint.
 *   **[2026-07-14] - `TSK-050` - Eliminación de auto-registro + gestión de usuarios por admin + cambio de contraseña obligatorio:** El auto-registro ("Regístrate gratis") se eliminó de `Login.tsx` y `AuthModal.tsx`; `authService.register` y `AuthContext.register` fueron retirados. Se creó la Appwrite Function `manage-users` (`functions/manage-users/`, Users API + node-appwrite, requiere label `admin` en quien la ejecuta) con acciones `list/create/resetPassword/updateLabels/delete`; nuevo `services/userAdminService.ts` la invoca vía `Functions.createExecution`. Nuevo panel `components/UserManagement.tsx` integrado como pestaña "Usuarios" en `Settings.tsx` (visible solo si `user.labels` incluye `admin`), permite crear usuarios con contraseña temporal (mín. 8 caracteres, límite real de Appwrite) marcándolos con `prefs.mustChangePassword = true`, restablecer contraseña y eliminar usuarios. `authService.changePassword` + `AuthContext.changePassword`/`mustChangePassword` añadidos; nuevo componente `ForcePasswordChange.tsx` bloquea el acceso a la app hasta que el usuario cambia su contraseña temporal (gate añadido en `App.tsx` justo después del gate de `<Login/>`). `types.ts`: `AppUser.labels` y nuevo `ManagedUser`. `lib/appwrite/client.ts` expone `functions` (SDK `Functions`); `config/appwrite.ts` añade `functions.manageUsers`. Documentado bootstrap del primer admin (manual, vía consola Appwrite) en `functions/README.md`. 19 tests nuevos (`authService`/`appwriteService`/`userAdminService`/`Login`/`ForcePasswordChange`/`UserManagement`). Validado: 278 tests OK, 0 errores lint, type-check OK, build OK. Verificación manual: pantalla de login real (sin opción de registro) probada contra el backend Appwrite en vivo, confirmando el error real de credenciales. Limitación de entorno: no se pudo probar end-to-end el flujo de admin (crear usuario/forzar cambio de contraseña) por no disponer de credenciales/API Key reales de Appwrite en este entorno; requiere desplegar la function y hacer bootstrap manual del primer admin (ver `functions/README.md`).
@@ -89,6 +90,19 @@ Estado actual: **`CTB-001` completado** — guardar asiento formal fuerza `isDra
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-15 22:37:00 UTC]
+*   **Directiva del Director:** "issue IEET-001"
+*   **Plan de Acción:** (1) Confirmar bug timezone en filtro semestral de `TouristTaxPanel`. (2) Extraer comparación por strings `YYYY-MM-DD`. (3) Tests de regresión 1-jul / 1-ene. (4) Validar pipeline y documentar.
+*   **Log de Acciones:**
+    - `[22:38:00]` - **AUDIT:** Issue #137 — `filteredReservations` usa `new Date(year, m, d)` local vs `new Date(checkIn)` UTC midnight. Impacto: liquidación IEET incorrecta en límites de semestre.
+    - `[22:42:00]` - **CREATE/MOD:** `utils/touristTaxUtils.ts` — `getSemesterDateBounds` + `isDateInSemester`.
+    - `[22:43:00]` - **MOD:** `components/TouristTaxPanel.tsx` — filtro de reservas y períodos del semestre vía helpers timezone-safe.
+    - `[22:44:00]` - **MOD:** `utils/__tests__/touristTaxUtils.test.ts` — 8 tests IEET-001 (límites, 1-jul, 1-ene, ISO completo, malformados).
+    - `[22:48:00]` - **DOC:** Registro `IEET-001` en Panel Ejecutivo, Registro Forense y Bugs Conocidos.
+    - `[22:50:00]` - **VALIDACIÓN FINAL:** `npm run type-check && npm run lint && npm run test:ci && npm run build`. **RESULTADO:** PASS — 294 tests, 0 errores lint, build OK.
+*   **Resultado:** `IEET-001` completado (issue #137). No mezclado con IEET-002.
+*   **Observaciones/Decisiones de Diseño:** Misma estrategia que BUG-003 (`areDatesConsecutive`): comparar calendario como string, nunca mezclar constructores `Date` local y UTC.
+
 ### Sesión: [2026-07-15 22:32:00 UTC]
 *   **Directiva del Director:** "quiero que empieces a trabajar en el issue CTB-001"
 *   **Plan de Acción:** (1) Confirmar causa en `AccountingBooks.handleSave`. (2) Extraer builder formal con `isDraft: false`. (3) Tests unitarios. (4) Validar pipeline y documentar en bitácora.
@@ -650,6 +664,10 @@ Estado actual: **`CTB-001` completado** — guardar asiento formal fuerza `isDra
 ### 🔵 MÓDULO CONTABLE — Auditoría 2026-07-16 (issue tracker)
 
 * **CTB-001:** `AccountingBooks.tsx` `handleSave` — Guardar asiento formal no limpiaba `isDraft`. Un borrador cuadrado seguía marcado como borrador tras “Guardar Asiento” y quedaba excluido de `TrialBalance` / `AccountLedger` / `DebtsPendingPanel`. Severidad: **CRÍTICO**. Estado: ✅ Resuelto (`buildFormalEntryToSave` fuerza `isDraft: false`). Issue #136.
+
+### 🔵 MÓDULO TASA TURÍSTICA (IEET) — Auditoría 2026-07-16
+
+* **IEET-001:** `TouristTaxPanel.tsx` filtro semestral — Límites con `new Date(year, month-1, 1)` (local) vs `new Date(r.checkIn)` (UTC midnight para `YYYY-MM-DD`). En España (UTC+1/+2) el 1-jul caía en semestre 1 y el 1-ene podía quedar fuera. Severidad: **CRÍTICO**. Estado: ✅ Resuelto (`getSemesterDateBounds` / `isDateInSemester` comparan strings `YYYY-MM-DD`). Issue #137.
 
 ### 🔵 MÓDULO CONTABLE — Nuevos hallazgos (2026-07-13)
 

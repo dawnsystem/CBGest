@@ -7,6 +7,8 @@ import {
   createDefaultPeriodForYear,
   hasOverlap,
   sortPeriodsByDate,
+  getSemesterDateBounds,
+  isDateInSemester,
 } from '../touristTaxUtils';
 import type { FiscalYear, TouristTaxConfig, TouristTaxPeriod } from '../../types';
 
@@ -299,5 +301,65 @@ describe('sortPeriodsByDate', () => {
   it('handles a single period', () => {
     const p = makePeriod({ startDate: '2025-04-01' });
     expect(sortPeriodsByDate([p])).toEqual([p]);
+  });
+});
+
+// ============================================================================
+// getSemesterDateBounds / isDateInSemester (IEET-001)
+// ============================================================================
+
+describe('getSemesterDateBounds', () => {
+  it('returns ene–jun bounds for semester 1', () => {
+    expect(getSemesterDateBounds(2026, 1)).toEqual({
+      start: '2026-01-01',
+      end: '2026-06-30',
+    });
+  });
+
+  it('returns jul–dic bounds for semester 2', () => {
+    expect(getSemesterDateBounds(2026, 2)).toEqual({
+      start: '2026-07-01',
+      end: '2026-12-31',
+    });
+  });
+});
+
+describe('isDateInSemester (IEET-001 timezone-safe)', () => {
+  it('includes 1-jul in semester 2 (regression: UTC midnight vs local)', () => {
+    // Before the fix, new Date('2026-07-01') (UTC) compared to
+    // new Date(2026, 6, 1) (local Spain) put 1-jul into semester 1.
+    expect(isDateInSemester('2026-07-01', 2026, 2)).toBe(true);
+    expect(isDateInSemester('2026-07-01', 2026, 1)).toBe(false);
+  });
+
+  it('includes 1-ene in semester 1 (regression: may fall outside with Date UTC)', () => {
+    expect(isDateInSemester('2026-01-01', 2026, 1)).toBe(true);
+    expect(isDateInSemester('2026-01-01', 2026, 2)).toBe(false);
+  });
+
+  it('includes semester boundary end dates', () => {
+    expect(isDateInSemester('2026-06-30', 2026, 1)).toBe(true);
+    expect(isDateInSemester('2026-06-30', 2026, 2)).toBe(false);
+    expect(isDateInSemester('2026-12-31', 2026, 2)).toBe(true);
+    expect(isDateInSemester('2026-12-31', 2026, 1)).toBe(false);
+  });
+
+  it('excludes dates just outside the semester', () => {
+    expect(isDateInSemester('2025-12-31', 2026, 1)).toBe(false);
+    expect(isDateInSemester('2026-07-01', 2026, 1)).toBe(false);
+    expect(isDateInSemester('2026-06-30', 2026, 2)).toBe(false);
+    expect(isDateInSemester('2027-01-01', 2026, 2)).toBe(false);
+  });
+
+  it('uses only the YYYY-MM-DD prefix of full ISO datetimes', () => {
+    expect(isDateInSemester('2026-07-01T00:00:00.000Z', 2026, 2)).toBe(true);
+    expect(isDateInSemester('2026-01-01T23:59:59.999Z', 2026, 1)).toBe(true);
+  });
+
+  it('returns false for empty or malformed dates', () => {
+    expect(isDateInSemester(undefined, 2026, 1)).toBe(false);
+    expect(isDateInSemester(null, 2026, 1)).toBe(false);
+    expect(isDateInSemester('', 2026, 1)).toBe(false);
+    expect(isDateInSemester('not-a-date', 2026, 1)).toBe(false);
   });
 });

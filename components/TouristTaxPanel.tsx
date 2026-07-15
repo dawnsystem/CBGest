@@ -9,6 +9,8 @@ import { useIsReadOnly, useFiscalYear } from '../context/FiscalYearContext';
 import {
   getActivePeriodForDate,
   getPeriodsForFiscalYear,
+  getSemesterDateBounds,
+  isDateInSemester,
   sortPeriodsByDate,
 } from '../utils/touristTaxUtils';
 
@@ -126,10 +128,8 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
 
   // Períodos activos en el semestre seleccionado (para mostrar advertencia multi-período)
   const periodsInSemester = useMemo(() => {
-    const startMonth = selectedSemester === 1 ? 1 : 7;
-    const endMonth = selectedSemester === 1 ? 6 : 12;
-    const semStart = `${selectedYear}-${String(startMonth).padStart(2, '0')}-01`;
-    const semEnd = `${selectedYear}-${String(endMonth).padStart(2, '0')}-31`;
+    // IEET-001: límites como YYYY-MM-DD (sin Date local/UTC)
+    const { start: semStart, end: semEnd } = getSemesterDateBounds(selectedYear, selectedSemester);
     return sortPeriodsByDate(
       taxPeriods.filter(p => {
         const pe = p.endDate ?? '9999-12-31';
@@ -140,23 +140,17 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
 
   // Filter reservations for selected period and tourist apartments only
   const filteredReservations = useMemo(() => {
-    const startMonth = selectedSemester === 1 ? 1 : 7;
-    const endMonth = selectedSemester === 1 ? 6 : 12;
-    
-    const startDate = new Date(selectedYear, startMonth - 1, 1);
-    const endDate = new Date(selectedYear, endMonth, 0, 23, 59, 59);
-    
     return reservations.filter(r => {
       // Only non-cancelled reservations
       if (r.status === 'Cancelled') return false;
-      
+
       // Check if in tourist apartment
       const apt = apartments.find(a => a.id === r.apartmentId);
       if (!apt || apt.apartmentType !== 'TOURIST') return false;
-      
-      // Check if check-in is in the selected period
-      const checkIn = new Date(r.checkIn);
-      return checkIn >= startDate && checkIn <= endDate;
+
+      // IEET-001: comparar check-in como YYYY-MM-DD vs límites de semestre
+      // (evita desfase UTC midnight vs Date local en España UTC+1/+2)
+      return isDateInSemester(r.checkIn, selectedYear, selectedSemester);
     });
   }, [reservations, apartments, selectedYear, selectedSemester]);
 
