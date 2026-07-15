@@ -115,7 +115,7 @@ describe('UserManagement', () => {
       expect(createUserMock).toHaveBeenCalledWith(
         'nueva@cbgest.com',
         'Nueva Persona',
-        expect.stringMatching(/^cambiar\d+$/),
+        expect.stringMatching(/^[A-Za-z0-9_-]{16,}$/),
         ['comunero']
       );
     });

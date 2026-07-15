@@ -1,4 +1,5 @@
 import { Client, Users } from 'node-appwrite';
+import { randomBytes } from 'crypto';
 
 /**
  * Manage Users Function
@@ -21,15 +22,17 @@ import { Client, Users } from 'node-appwrite';
  *
  * Variables de entorno requeridas: APPWRITE_API_KEY, DATABASE_ID (no usada
  * aquí pero mantenida por consistencia con el resto de funciones).
+ *
+ * SEC-016: contraseñas temporales ≥16 chars / ≥128 bits; se rechaza el
+ * patrón legacy `cambiarNNN`. BUG-026: si falla updatePrefs/labels tras
+ * create, se hace rollback eliminando el usuario recién creado.
  */
 
 const VALID_LABELS = ['admin', 'gestor', 'comunero'];
-// Appwrite exige un mínimo de 8 caracteres para cualquier contraseña, incluso
-// las creadas por un admin vía Users API. No se puede usar algo tan corto
-// como "1234"; en su lugar se recomienda una contraseña simple pero >= 8
-// caracteres (ej. "cambiar123"), que el usuario deberá cambiar de todos
-// modos en su primer login.
-const MIN_TEMP_PASSWORD_LENGTH = 8;
+/** SEC-016: mínimo de contraseña temporal (Appwrite exige ≥8; política CBGest ≥16). */
+const MIN_TEMP_PASSWORD_LENGTH = 16;
+const TEMP_PASSWORD_ENTROPY_BYTES = 16;
+const WEAK_TEMP_PASSWORD_PATTERN = /^cambiar\d{1,4}$/i;
 
 const jsonResponse = (res, payload, statusCode = 200) => res.json(payload, statusCode);
 
@@ -38,6 +41,27 @@ const isNonEmptyString = (value) => typeof value === 'string' && value.trim().le
 const sanitizeLabels = (labels) => {
   if (!Array.isArray(labels)) return [];
   return labels.filter((label) => VALID_LABELS.includes(label));
+};
+
+/**
+ * @param {string} password
+ * @returns {boolean}
+ */
+const isAcceptableTemporaryPassword = (password) => {
+  if (typeof password !== 'string') return false;
+  const trimmed = password.trim();
+  if (trimmed.length < MIN_TEMP_PASSWORD_LENGTH) return false;
+  if (WEAK_TEMP_PASSWORD_PATTERN.test(trimmed)) return false;
+  return true;
+};
+
+/**
+ * Genera un secreto temporal en base64url (≥128 bits).
+ * @returns {string}
+ */
+const generateTemporaryPassword = () => {
+  const bytes = randomBytes(TEMP_PASSWORD_ENTROPY_BYTES);
+  return bytes.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 };
 
 const toPublicUser = (user) => ({
@@ -50,6 +74,24 @@ const toPublicUser = (user) => ({
   passwordUpdate: user.passwordUpdate,
   mustChangePassword: !!(user.prefs && user.prefs.mustChangePassword),
 });
+
+/**
+ * Resuelve la contraseña temporal a usar: si el cliente envía una aceptable la
+ * respeta; si no, genera una en el servidor (SEC-016).
+ * @param {unknown} candidate
+ * @returns {{ password: string, generated: boolean } | { error: string }}
+ */
+const resolveTemporaryPassword = (candidate) => {
+  if (isNonEmptyString(candidate) && isAcceptableTemporaryPassword(candidate)) {
+    return { password: candidate.trim(), generated: false };
+  }
+  if (isNonEmptyString(candidate) && !isAcceptableTemporaryPassword(candidate)) {
+    return {
+      error: `La contraseña temporal debe tener al menos ${MIN_TEMP_PASSWORD_LENGTH} caracteres y no puede ser un patrón predecible (p. ej. cambiar123).`,
+    };
+  }
+  return { password: generateTemporaryPassword(), generated: true };
+};
 
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -84,6 +126,15 @@ export default async ({ req, res, log, error }) => {
     }, 403);
   }
 
+  // SEC-016 (gate server-side): un admin con mustChangePassword pendiente no
+  // puede gestionar usuarios hasta completar el cambio de contraseña.
+  if (caller.prefs && caller.prefs.mustChangePassword) {
+    return jsonResponse(res, {
+      success: false,
+      error: 'Debes cambiar tu contraseña temporal antes de gestionar usuarios.',
+    }, 403);
+  }
+
   // 3. Parsear body.
   let body;
   try {
@@ -107,38 +158,50 @@ export default async ({ req, res, log, error }) => {
       case 'create': {
         const { email, name, password, labels } = body;
 
-        if (!isNonEmptyString(email) || !isNonEmptyString(name) || !isNonEmptyString(password)) {
-          return jsonResponse(res, { success: false, error: 'Nombre, email y contraseña son obligatorios.' }, 400);
+        if (!isNonEmptyString(email) || !isNonEmptyString(name)) {
+          return jsonResponse(res, { success: false, error: 'Nombre y email son obligatorios.' }, 400);
         }
-        if (password.length < MIN_TEMP_PASSWORD_LENGTH) {
-          return jsonResponse(res, {
-            success: false,
-            error: `La contraseña temporal debe tener al menos ${MIN_TEMP_PASSWORD_LENGTH} caracteres.`,
-          }, 400);
+
+        const resolved = resolveTemporaryPassword(password);
+        if ('error' in resolved) {
+          return jsonResponse(res, { success: false, error: resolved.error }, 400);
         }
 
         const created = await users.create({
           userId: 'unique()',
           email,
-          password,
+          password: resolved.password,
           name,
         });
 
         const cleanLabels = sanitizeLabels(labels);
-        if (cleanLabels.length > 0) {
-          await users.updateLabels({ userId: created.$id, labels: cleanLabels });
-        }
 
-        // El usuario deberá cambiar su contraseña temporal en el primer login.
-        await users.updatePrefs({
-          userId: created.$id,
-          prefs: { mustChangePassword: true },
-        });
+        // BUG-026 / SEC-016: si labels o prefs fallan tras el create, rollback
+        // eliminando el usuario para no dejar cuentas usables sin mustChangePassword.
+        try {
+          if (cleanLabels.length > 0) {
+            await users.updateLabels({ userId: created.$id, labels: cleanLabels });
+          }
+
+          await users.updatePrefs({
+            userId: created.$id,
+            prefs: { mustChangePassword: true },
+          });
+        } catch (postCreateError) {
+          try {
+            await users.delete({ userId: created.$id });
+            log(`Rollback SEC-016/BUG-026: usuario ${created.$id} eliminado tras fallo post-create`);
+          } catch (rollbackError) {
+            error(`Rollback fallido para ${created.$id}: ${rollbackError.message}`);
+          }
+          throw postCreateError;
+        }
 
         log(`Usuario creado por admin ${callerId}: ${created.$id} (${email})`);
 
         return jsonResponse(res, {
           success: true,
+          temporaryPassword: resolved.generated ? resolved.password : undefined,
           user: toPublicUser({ ...created, labels: cleanLabels, prefs: { mustChangePassword: true } }),
         });
       }
@@ -146,17 +209,16 @@ export default async ({ req, res, log, error }) => {
       case 'resetPassword': {
         const { userId, password } = body;
 
-        if (!isNonEmptyString(userId) || !isNonEmptyString(password)) {
-          return jsonResponse(res, { success: false, error: 'userId y password son obligatorios.' }, 400);
-        }
-        if (password.length < MIN_TEMP_PASSWORD_LENGTH) {
-          return jsonResponse(res, {
-            success: false,
-            error: `La contraseña temporal debe tener al menos ${MIN_TEMP_PASSWORD_LENGTH} caracteres.`,
-          }, 400);
+        if (!isNonEmptyString(userId)) {
+          return jsonResponse(res, { success: false, error: 'userId es obligatorio.' }, 400);
         }
 
-        await users.updatePassword({ userId, password });
+        const resolved = resolveTemporaryPassword(password);
+        if ('error' in resolved) {
+          return jsonResponse(res, { success: false, error: resolved.error }, 400);
+        }
+
+        await users.updatePassword({ userId, password: resolved.password });
         const existing = await users.get({ userId });
         await users.updatePrefs({
           userId,
@@ -165,7 +227,10 @@ export default async ({ req, res, log, error }) => {
 
         log(`Contraseña restablecida por admin ${callerId} para usuario: ${userId}`);
 
-        return jsonResponse(res, { success: true });
+        return jsonResponse(res, {
+          success: true,
+          temporaryPassword: resolved.generated ? resolved.password : undefined,
+        });
       }
 
       case 'updateLabels': {
