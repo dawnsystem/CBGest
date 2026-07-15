@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-15 22:20:00 UTC*
+*Última actualización: 2026-07-15 22:40:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **`TOOL-001` completado** — type-check restaurado con `@types/react` + ajuste `tsconfig.json`; `LINT-001` resuelto (0 warnings).
+Estado actual: **`CTB-001` en progreso** — guardar asiento formal fuerza `isDraft: false` (issue #136).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-15] - `CTB-001` - Guardar asiento formal limpia isDraft:** Extraída `buildFormalEntryToSave` en `utils/accountingEntrySave.ts`; `AccountingBooks.handleSave` la usa y fuerza `isDraft: false` al persistir un asiento oficial. Evita que un borrador cuadrado siga excluido de TrialBalance / AccountLedger / DebtsPendingPanel. 5 tests unitarios nuevos. Issue #136 (auditoría 2026-07, fase 1 críticos).
 *   **[2026-07-15] - `TOOL-001` - Restaurar type-check: @types/react + tsconfig.types:** Añadidos `@types/react@^19` y `@types/react-dom@^19` a `devDependencies`. Eliminada restricción `compilerOptions.types: ["node"]` en `tsconfig.json` (tipos de Vite/React resueltos vía `vite-env.d.ts` y dependencias explícitas). Corregidos 4 errores TS latentes expuestos al instalar tipos React (`App.tsx` Blob en escritura cifrada + `name` en `WritableFileHandle`; `AppwriteConfig.tsx` defaults completos; `TouristTaxPanel.tsx` fallback `TouristTaxPeriod` tipado). `LINT-001` resuelto: `DebtsPendingPanel` usa `todayKey` como ancla de cálculo de antigüedad; `TouristTaxPanel` elimina índice no usado y memoriza `defaultTaxConfig`. `strict: true` **no** activado (PR dedicado futuro). Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS, 0 warnings lint.
 *   **[2026-07-14] - `TSK-050` - Eliminación de auto-registro + gestión de usuarios por admin + cambio de contraseña obligatorio:** El auto-registro ("Regístrate gratis") se eliminó de `Login.tsx` y `AuthModal.tsx`; `authService.register` y `AuthContext.register` fueron retirados. Se creó la Appwrite Function `manage-users` (`functions/manage-users/`, Users API + node-appwrite, requiere label `admin` en quien la ejecuta) con acciones `list/create/resetPassword/updateLabels/delete`; nuevo `services/userAdminService.ts` la invoca vía `Functions.createExecution`. Nuevo panel `components/UserManagement.tsx` integrado como pestaña "Usuarios" en `Settings.tsx` (visible solo si `user.labels` incluye `admin`), permite crear usuarios con contraseña temporal (mín. 8 caracteres, límite real de Appwrite) marcándolos con `prefs.mustChangePassword = true`, restablecer contraseña y eliminar usuarios. `authService.changePassword` + `AuthContext.changePassword`/`mustChangePassword` añadidos; nuevo componente `ForcePasswordChange.tsx` bloquea el acceso a la app hasta que el usuario cambia su contraseña temporal (gate añadido en `App.tsx` justo después del gate de `<Login/>`). `types.ts`: `AppUser.labels` y nuevo `ManagedUser`. `lib/appwrite/client.ts` expone `functions` (SDK `Functions`); `config/appwrite.ts` añade `functions.manageUsers`. Documentado bootstrap del primer admin (manual, vía consola Appwrite) en `functions/README.md`. 19 tests nuevos (`authService`/`appwriteService`/`userAdminService`/`Login`/`ForcePasswordChange`/`UserManagement`). Validado: 278 tests OK, 0 errores lint, type-check OK, build OK. Verificación manual: pantalla de login real (sin opción de registro) probada contra el backend Appwrite en vivo, confirmando el error real de credenciales. Limitación de entorno: no se pudo probar end-to-end el flujo de admin (crear usuario/forzar cambio de contraseña) por no disponer de credenciales/API Key reales de Appwrite en este entorno; requiere desplegar la function y hacer bootstrap manual del primer admin (ver `functions/README.md`).
 *   **[2026-07-13] - `TSK-TT` - Configuración de tasa turística por ejercicio y períodos de vigencia:** `TouristTaxPeriod` y `TouristTaxConfig` (@deprecated) en `types.ts`; `utils/touristTaxUtils.ts` con parseo/serialización/selección de período activo/solapamiento/ordenación; `fiscalYearService.ts` + `FiscalYearContext` con `updateFiscalYearTouristTax`; `TouristTaxPanel.tsx` refactorizado para usar períodos del ejercicio activo; `TouristTaxPeriodsManager.tsx` (nuevo componente CRUD de períodos con modal de edición y validación de solapamiento); integración en `Settings.tsx` tab TAX; migración al crear ejercicio (copia y re-feching de períodos del ejercicio anterior); 34 tests unitarios en `utils/__tests__/touristTaxUtils.test.ts`. Validado: 260 tests OK, 0 errores lint, type-check OK, build OK.
@@ -88,6 +89,19 @@ Estado actual: **`TOOL-001` completado** — type-check restaurado con `@types/r
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-15 22:32:00 UTC]
+*   **Directiva del Director:** "quiero que empieces a trabajar en el issue CTB-001"
+*   **Plan de Acción:** (1) Confirmar causa en `AccountingBooks.handleSave`. (2) Extraer builder formal con `isDraft: false`. (3) Tests unitarios. (4) Validar pipeline y documentar en bitácora.
+*   **Log de Acciones:**
+    - `[22:33:00]` - **AUDIT:** Issue #136 — `handleSave` hace spread de `editingEntry` sin limpiar `isDraft`. Impacto: borrador cuadrado excluido de saldos.
+    - `[22:35:00]` - **CREATE:** `utils/accountingEntrySave.ts` — `buildFormalEntryToSave` fuerza `isDraft: false` y sincroniza campos legacy.
+    - `[22:36:00]` - **MOD:** `components/AccountingBooks.tsx` — `handleSave` usa `buildFormalEntryToSave`.
+    - `[22:37:00]` - **CREATE:** `utils/__tests__/accountingEntrySave.test.ts` — 5 tests de regresión CTB-001.
+    - `[22:40:00]` - **DOC:** Registro `CTB-001` en Panel Ejecutivo, Registro Forense y Bugs Conocidos.
+*   **Resultado:** Fix CTB-001 implementado; pendiente validación final en esta sesión.
+*   **Commit Asociado:** pendiente
+*   **Observaciones/Decisiones de Diseño:** Se extrajo util puro (en lugar de solo parche inline) para cubrir el contrato con tests unitarios sin montar el modal completo de `AccountingBooks`.
+
 ### Sesión: [2026-07-15 22:13:00 UTC]
 *   **Directiva del Director:** "@cursoragent encargate con el modelo cursor grok 4.5 high fast" — PR `[TOOL-001] Restaurar type-check: @types/react + tsconfig.types`.
 *   **Plan de Acción:** Fase 0 obligatoria: instalar tipos React, ajustar `tsconfig.json`, resolver warnings `LINT-001`, validar pipeline completo sin activar `strict: true`.
@@ -631,6 +645,10 @@ Estado actual: **`TOOL-001` completado** — type-check restaurado con `@types/r
 * **DEBT-016:** `lib/errorMessages.ts:138-168` — `parseError()` no captura stack traces de objetos no-Error. Pierde información de debugging. Estado: ✅ Resuelto (IMPL-006).
 * **DEBT-017:** `PartnerTaxForm.tsx:51` — Usa `new Date().getFullYear()` hardcodeado, no inyectable para tests. Estado: ✅ Resuelto (IMPL-006).
 * **DEBT-018:** `xlsxMappingService.ts:46-54` — `localStorage.getItem()` captura todas las excepciones silenciosamente. Si localStorage está lleno, retorna `{}` sin log. Estado: ✅ Resuelto (IMPL-006).
+
+### 🔵 MÓDULO CONTABLE — Auditoría 2026-07-16 (issue tracker)
+
+* **CTB-001:** `AccountingBooks.tsx` `handleSave` — Guardar asiento formal no limpiaba `isDraft`. Un borrador cuadrado seguía marcado como borrador tras “Guardar Asiento” y quedaba excluido de `TrialBalance` / `AccountLedger` / `DebtsPendingPanel`. Severidad: **CRÍTICO**. Estado: ✅ Resuelto (`buildFormalEntryToSave` fuerza `isDraft: false`). Issue #136.
 
 ### 🔵 MÓDULO CONTABLE — Nuevos hallazgos (2026-07-13)
 
