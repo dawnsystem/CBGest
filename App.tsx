@@ -383,12 +383,13 @@ const MainLayout: React.FC = () => {
       const fyId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
       setIsDataLoading(true);
       try {
-        const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteReservations] = await Promise.all([
+        const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses, remoteReservations] = await Promise.all([
           appwriteService.fetchInvoices(fyId).catch((e) => { console.warn('Failed to fetch invoices on year change:', e); return []; }),
           appwriteService.fetchEntries(fyId).catch((e) => { console.warn('Failed to fetch entries on year change:', e); return []; }),
           appwriteService.fetchTransactions(fyId).catch((e) => { console.warn('Failed to fetch transactions on year change:', e); return []; }),
           appwriteService.fetchSuppliers(fyId).catch((e) => { console.warn('Failed to fetch suppliers on year change:', e); return []; }),
           appwriteService.fetchApartments(fyId).catch((e) => { console.warn('Failed to fetch apartments on year change:', e); return []; }),
+          appwriteService.fetchRecurringExpenses().catch((e) => { console.warn('Failed to fetch recurring expenses on year change:', e); return []; }),
           appwriteService.fetchReservations(fyId).catch((e) => { console.warn('Failed to fetch reservations on year change:', e); return []; }),
         ]);
 
@@ -400,6 +401,7 @@ const MainLayout: React.FC = () => {
         setBankTransactions(remoteTransactions);
         setSuppliers(remoteSuppliers);
         setApartments(remoteApartments);
+        setRecurringExpenses(remoteRecurringExpenses);
         setReservations(remoteReservations);
         console.warn(`[App] Data reloaded for fiscal year: ${activeFiscalYear?.year ?? 'all'}`);
       } catch (e: unknown) {
