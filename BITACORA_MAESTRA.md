@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-14 08:45:00 UTC*
+*Última actualización: 2026-07-15 22:20:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **A la espera de nuevas directivas del Director.**
+Estado actual: **`TOOL-001` completado** — type-check restaurado con `@types/react` + ajuste `tsconfig.json`; `LINT-001` resuelto (0 warnings).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-15] - `TOOL-001` - Restaurar type-check: @types/react + tsconfig.types:** Añadidos `@types/react@^19` y `@types/react-dom@^19` a `devDependencies`. Eliminada restricción `compilerOptions.types: ["node"]` en `tsconfig.json` (tipos de Vite/React resueltos vía `vite-env.d.ts` y dependencias explícitas). Corregidos 4 errores TS latentes expuestos al instalar tipos React (`App.tsx` Blob en escritura cifrada + `name` en `WritableFileHandle`; `AppwriteConfig.tsx` defaults completos; `TouristTaxPanel.tsx` fallback `TouristTaxPeriod` tipado). `LINT-001` resuelto: `DebtsPendingPanel` usa `todayKey` como ancla de cálculo de antigüedad; `TouristTaxPanel` elimina índice no usado y memoriza `defaultTaxConfig`. `strict: true` **no** activado (PR dedicado futuro). Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS, 0 warnings lint.
 *   **[2026-07-14] - `TSK-050` - Eliminación de auto-registro + gestión de usuarios por admin + cambio de contraseña obligatorio:** El auto-registro ("Regístrate gratis") se eliminó de `Login.tsx` y `AuthModal.tsx`; `authService.register` y `AuthContext.register` fueron retirados. Se creó la Appwrite Function `manage-users` (`functions/manage-users/`, Users API + node-appwrite, requiere label `admin` en quien la ejecuta) con acciones `list/create/resetPassword/updateLabels/delete`; nuevo `services/userAdminService.ts` la invoca vía `Functions.createExecution`. Nuevo panel `components/UserManagement.tsx` integrado como pestaña "Usuarios" en `Settings.tsx` (visible solo si `user.labels` incluye `admin`), permite crear usuarios con contraseña temporal (mín. 8 caracteres, límite real de Appwrite) marcándolos con `prefs.mustChangePassword = true`, restablecer contraseña y eliminar usuarios. `authService.changePassword` + `AuthContext.changePassword`/`mustChangePassword` añadidos; nuevo componente `ForcePasswordChange.tsx` bloquea el acceso a la app hasta que el usuario cambia su contraseña temporal (gate añadido en `App.tsx` justo después del gate de `<Login/>`). `types.ts`: `AppUser.labels` y nuevo `ManagedUser`. `lib/appwrite/client.ts` expone `functions` (SDK `Functions`); `config/appwrite.ts` añade `functions.manageUsers`. Documentado bootstrap del primer admin (manual, vía consola Appwrite) en `functions/README.md`. 19 tests nuevos (`authService`/`appwriteService`/`userAdminService`/`Login`/`ForcePasswordChange`/`UserManagement`). Validado: 278 tests OK, 0 errores lint, type-check OK, build OK. Verificación manual: pantalla de login real (sin opción de registro) probada contra el backend Appwrite en vivo, confirmando el error real de credenciales. Limitación de entorno: no se pudo probar end-to-end el flujo de admin (crear usuario/forzar cambio de contraseña) por no disponer de credenciales/API Key reales de Appwrite en este entorno; requiere desplegar la function y hacer bootstrap manual del primer admin (ver `functions/README.md`).
 *   **[2026-07-13] - `TSK-TT` - Configuración de tasa turística por ejercicio y períodos de vigencia:** `TouristTaxPeriod` y `TouristTaxConfig` (@deprecated) en `types.ts`; `utils/touristTaxUtils.ts` con parseo/serialización/selección de período activo/solapamiento/ordenación; `fiscalYearService.ts` + `FiscalYearContext` con `updateFiscalYearTouristTax`; `TouristTaxPanel.tsx` refactorizado para usar períodos del ejercicio activo; `TouristTaxPeriodsManager.tsx` (nuevo componente CRUD de períodos con modal de edición y validación de solapamiento); integración en `Settings.tsx` tab TAX; migración al crear ejercicio (copia y re-feching de períodos del ejercicio anterior); 34 tests unitarios en `utils/__tests__/touristTaxUtils.test.ts`. Validado: 260 tests OK, 0 errores lint, type-check OK, build OK.
 *   **[2026-07-13] - `FIX-049` - Race condition: datos del ejercicio anterior visibles al arrancar la app:** `BUG-023` corregido. Movido `setIsDataLayerInitialized(true)` al bloque `finally` del fetch inicial en `initDataLayer()`, en lugar de ejecutarlo síncronamente antes del trabajo asíncrono. Previene que el fetch inicial sin filtrar (todos los ejercicios) se resuelva después del fetch filtrado del año activo y sobreescriba los datos correctos.
@@ -87,6 +88,20 @@ Estado actual: **A la espera de nuevas directivas del Director.**
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-15 22:13:00 UTC]
+*   **Directiva del Director:** "@cursoragent encargate con el modelo cursor grok 4.5 high fast" — PR `[TOOL-001] Restaurar type-check: @types/react + tsconfig.types`.
+*   **Plan de Acción:** Fase 0 obligatoria: instalar tipos React, ajustar `tsconfig.json`, resolver warnings `LINT-001`, validar pipeline completo sin activar `strict: true`.
+*   **Log de Acciones:**
+    - `[22:14:00]` - **AUDIT:** Baseline en `main`: `type-check` pasaba sin `@types/react` solo porque `strict` no estaba activo; con `strict: true` reproducidos miles de `TS7016`/`TS7026`.
+    - `[22:15:00]` - **MOD:** `package.json` + `package-lock.json`. **CAMBIOS:** `@types/react@^19.2.17`, `@types/react-dom@^19.2.3`.
+    - `[22:16:00]` - **MOD:** `tsconfig.json`. **CAMBIOS:** eliminado `compilerOptions.types: ["node"]` para no excluir tipado JSX/Vite.
+    - `[22:17:00]` - **MOD:** `App.tsx`, `components/AppwriteConfig.tsx`, `components/TouristTaxPanel.tsx`. **CAMBIOS:** 4 errores TS latentes corregidos tras instalar tipos React.
+    - `[22:18:00]` - **MOD:** `components/DebtsPendingPanel.tsx`, `components/TouristTaxPanel.tsx`. **CAMBIOS:** `LINT-001` — dependencia `todayKey` legítima en `useCallback`; índice `i` no usado eliminado; `defaultTaxConfig` memorizado.
+    - `[22:20:00]` - **VALIDACIÓN FINAL:** `npm run type-check && npm run lint && npm run test:ci && npm run build`. **RESULTADO:** PASS, 0 warnings lint, 278 tests, build OK.
+*   **Resultado:** `TOOL-001` + `LINT-001` completados.
+*   **Commit Asociado:** pendiente push
+*   **Observaciones/Decisiones de Diseño:** `strict: true` queda fuera de alcance (PR dedicado). Sin `@types/react`, CI reportaba verde pero el tipado JSX era implícitamente `any`.
+
 ### Sesión: [2026-07-13 22:51:00 UTC]
 *   **Directiva del Director:** "Continuar desde TSK-TT-003 (verificar compilación) y completar TSK-TT-004 a TSK-TT-006."
 *   **Plan de Acción:** (1) Verificar que TSK-TT-001/002/003 compilan sin errores. (2) Crear `TouristTaxPeriodsManager.tsx` e integrar en `Settings.tsx`. (3) Añadir migración de períodos al crear ejercicio. (4) Tests unitarios de `touristTaxUtils.ts`.
