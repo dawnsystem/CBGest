@@ -18,6 +18,9 @@ export const AppwriteConfig: React.FC<AppwriteConfigProps> = ({ config, onSave, 
     entriesCollectionId: '',
     transactionsCollectionId: '',
     settingsCollectionId: '',
+    notificationsCollectionId: '',
+    uploadsCollectionId: '',
+    suppliersCollectionId: '',
     storageBucketId: ''
   });
 

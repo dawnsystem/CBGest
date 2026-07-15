@@ -69,6 +69,7 @@ const PageLoader = () => (
 );
 
 type WritableFileHandle = {
+  name: string;
   createWritable: () => Promise<{
     write: (data: Blob) => Promise<void>;
     close: () => Promise<void>;
@@ -485,9 +486,9 @@ const MainLayout: React.FC = () => {
           saveTimeoutRef.current = setTimeout(async () => {
               const fullData = { invoices, entries: accountingEntries, transactions: bankTransactions, settings };
               try {
-                  const encryptedBlob = await encryptData(JSON.stringify(fullData), encryptionKeyRef.current!);
+                  const encryptedPayload = await encryptData(JSON.stringify(fullData), encryptionKeyRef.current!);
                   const writable = await fileHandleRef.current.createWritable();
-                  await writable.write(encryptedBlob);
+                  await writable.write(new Blob([encryptedPayload], { type: 'application/octet-stream' }));
                   await writable.close();
                   setLastSaved(new Date());
               } catch (err) {

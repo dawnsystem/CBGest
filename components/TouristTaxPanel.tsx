@@ -115,7 +115,14 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
   }, [activeFiscalYear, settings.touristTaxConfig, selectedYear]);
 
   // Período por defecto (el primero activo, para mostrar en la leyenda)
-  const defaultTaxConfig = taxPeriods[0] ?? DEFAULT_TAX_CONFIG;
+  const defaultTaxConfig: TouristTaxPeriod = useMemo(
+    () => taxPeriods[0] ?? {
+      id: 'fallback',
+      startDate: `${selectedYear}-01-01`,
+      ...DEFAULT_TAX_CONFIG,
+    },
+    [taxPeriods, selectedYear],
+  );
 
   // Períodos activos en el semestre seleccionado (para mostrar advertencia multi-período)
   const periodsInSemester = useMemo(() => {
@@ -460,7 +467,7 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
                   Múltiples tarifas en vigor este semestre:
                 </p>
                 <div className="space-y-1">
-                  {periodsInSemester.map((p, i) => (
+                  {periodsInSemester.map((p) => (
                     <div key={p.id} className="flex items-start gap-2 text-xs">
                       <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mt-1 shrink-0" />
                       <span>
