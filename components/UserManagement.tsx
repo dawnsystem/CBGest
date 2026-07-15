@@ -13,10 +13,12 @@ import { UserPlus, KeyRound, Trash2, ShieldAlert, ShieldCheck, Loader2, RefreshC
 import { useAuth } from '../context/AuthContext';
 import { userAdminService } from '../services/userAdminService';
 import { ManagedUser, UserRole } from '../types';
+import {
+  generateTemporaryPassword,
+  isAcceptableTemporaryPassword,
+  MIN_TEMP_PASSWORD_LENGTH,
+} from '../utils/temporaryPassword';
 import { useToast } from './Toast';
-
-/** Appwrite exige contraseñas de al menos 8 caracteres, incluso para las creadas por un admin. */
-const MIN_TEMP_PASSWORD_LENGTH = 8;
 
 const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.ADMIN]: 'admin',
@@ -28,21 +30,6 @@ const ROLE_DISPLAY_NAMES: Record<string, string> = {
   admin: 'Administrador',
   gestor: 'Gestor',
   comunero: 'Comunero',
-};
-
-/** Genera una contraseña temporal sencilla (fácil de comunicar) pero válida para Appwrite (>= 8 caracteres). */
-const generateTemporaryPassword = (): string => {
-  const range = 900;
-  const maxUint32PlusOne = 0x100000000; // 2^32
-  const limit = maxUint32PlusOne - (maxUint32PlusOne % range);
-
-  let random: number;
-  do {
-    random = window.crypto.getRandomValues(new Uint32Array(1))[0];
-  } while (random >= limit);
-
-  const suffix = 100 + (random % range);
-  return `cambiar${suffix}`;
 };
 
 interface NewUserFormState {
@@ -116,8 +103,11 @@ export const UserManagement: React.FC = () => {
       showToast('Nombre y email son obligatorios.', 'warning');
       return;
     }
-    if (form.password.length < MIN_TEMP_PASSWORD_LENGTH) {
-      showToast(`La contraseña temporal debe tener al menos ${MIN_TEMP_PASSWORD_LENGTH} caracteres.`, 'warning');
+    if (!isAcceptableTemporaryPassword(form.password)) {
+      showToast(
+        `La contraseña temporal debe tener al menos ${MIN_TEMP_PASSWORD_LENGTH} caracteres y no puede ser un patrón predecible.`,
+        'warning'
+      );
       return;
     }
 
@@ -148,8 +138,11 @@ export const UserManagement: React.FC = () => {
   };
 
   const handleResetPassword = async (managedUser: ManagedUser) => {
-    if (resetPasswordDraft.length < MIN_TEMP_PASSWORD_LENGTH) {
-      showToast(`La contraseña temporal debe tener al menos ${MIN_TEMP_PASSWORD_LENGTH} caracteres.`, 'warning');
+    if (!isAcceptableTemporaryPassword(resetPasswordDraft)) {
+      showToast(
+        `La contraseña temporal debe tener al menos ${MIN_TEMP_PASSWORD_LENGTH} caracteres y no puede ser un patrón predecible.`,
+        'warning'
+      );
       return;
     }
     setBusyUserId(managedUser.id);
@@ -267,8 +260,8 @@ export const UserManagement: React.FC = () => {
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Puede ser sencilla (mínimo {MIN_TEMP_PASSWORD_LENGTH} caracteres, requisito de Appwrite); el usuario
-              deberá cambiarla en su primer login.
+              Secreto criptográfico (mín. {MIN_TEMP_PASSWORD_LENGTH} caracteres, ≥128 bits). Cópialo y
+              comunícalo al usuario; deberá cambiarlo en su primer login.
             </p>
           </div>
 

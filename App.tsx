@@ -69,6 +69,7 @@ const PageLoader = () => (
 );
 
 type WritableFileHandle = {
+  name: string;
   createWritable: () => Promise<{
     write: (data: Blob) => Promise<void>;
     close: () => Promise<void>;
@@ -161,18 +162,23 @@ const MainLayout: React.FC = () => {
 
   // --- SYNC SETTINGS FROM LOCALSTORAGE ---
   // Refs are now managed by useAppSettings.
-  // Ref to prevent double initialization in React Strict Mode
+  // Ref to prevent overlapping initializations while an async init is in flight.
   const dataLayerInitializedRef = useRef(false);
   const [isDataLayerInitialized, setIsDataLayerInitialized] = useState(false);
+  // BUG-RT-001: store realtime unsubscribe so the useEffect cleanup can actually call it.
+  const realtimeUnsubscribeRef = useRef<(() => void) | null>(null);
 
   // --- DATA LAYER INITIALIZATION & REALTIME ---
-  // NOTE: This effect depends on `user` AND `sessionReady` to ensure:
+  // NOTE: This effect depends on `user`, `sessionReady` and `mustChangePassword` to ensure:
   // 1. User is authenticated
   // 2. Session has stabilized after login (avoids 401 race conditions)
+  // 3. SEC-016: no data fetch / realtime while a temporary password is still pending
   // It uses refs (settingsRef, defaultSettingsRef) to access current settings without
   // triggering re-runs when settings change.
   useEffect(() => {
       if (!user) {
+          realtimeUnsubscribeRef.current?.();
+          realtimeUnsubscribeRef.current = null;
           setIsDataLoading(false);
           // Reset initialization flag on logout so we can re-initialize on next login
           dataLayerInitializedRef.current = false;
@@ -188,7 +194,16 @@ const MainLayout: React.FC = () => {
           return;
       }
 
-      // Prevent double initialization in React Strict Mode
+      // SEC-016: do not load business data or open realtime subscriptions until the
+      // user has replaced their temporary password. The UI gate (ForcePasswordChange)
+      // alone is not enough — effects still run when the early return is only in render.
+      if (mustChangePassword) {
+          console.warn('[App] mustChangePassword activo — omitiendo carga de datos (SEC-016)');
+          setIsDataLoading(false);
+          return;
+      }
+
+      // Prevent overlapping inits while a previous async init is still running
       if (dataLayerInitializedRef.current) {
           console.warn('[App] Data layer already initialized, skipping...');
           return;
@@ -199,6 +214,8 @@ const MainLayout: React.FC = () => {
       // caused a race condition (BUG-023): the year-change effect could start its
       // filtered fetch while the unfiltered initial fetch was still in flight, and
       // whichever resolved last would win — showing data from the wrong fiscal year.
+
+      let cancelled = false;
 
       const initDataLayer = async () => {
           // Use ref to get current settings as fallback, avoiding dependency issues
@@ -217,6 +234,7 @@ const MainLayout: React.FC = () => {
               setIsReconnecting(true);
               try {
                   const healthResult = await appwriteService.performHealthCheck();
+                  if (cancelled) return;
                   setConnectionChecked(true);
                   setIsReconnecting(false);
 
@@ -259,8 +277,10 @@ const MainLayout: React.FC = () => {
                   console.error('❌ Health check error:', healthError);
                   // Don't block on health check errors - the login was already successful
                   console.warn('[App] Health check failed, but proceeding with data load');
-                  setIsReconnecting(false);
+                  if (!cancelled) setIsReconnecting(false);
               }
+
+              if (cancelled) return;
 
               // 1. Initial Fetch - Load ALL data from Appwrite
               try {
@@ -268,6 +288,7 @@ const MainLayout: React.FC = () => {
 
                 // Sync settings first
                 const remoteSettings = await appwriteService.syncSettings(freshSettings);
+                if (cancelled) return;
                 if (remoteSettings) {
                     const mergedSettings = {
                         ...remoteSettings,
@@ -294,6 +315,8 @@ const MainLayout: React.FC = () => {
                     appwriteService.fetchReservations().catch((e) => { console.warn('Failed to fetch reservations:', e); return []; })
                 ]);
 
+                if (cancelled) return;
+
                 // Update state with remote data
                 setInvoices(remoteInvoices);
                 setAccountingEntries(remoteEntries);
@@ -306,20 +329,27 @@ const MainLayout: React.FC = () => {
                 console.warn(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos, ${remoteRecurringExpenses.length} gastos recurrentes, ${remoteReservations.length} reservas`);
                 setConnectionError(null);
               } catch (e: unknown) {
-                  console.warn("Initial sync failed:", e);
-                 setConnectionError(`Error al cargar datos: ${e instanceof Error ? e.message : 'Error desconocido'}`);
+                  if (!cancelled) {
+                    console.warn("Initial sync failed:", e);
+                    setConnectionError(`Error al cargar datos: ${e instanceof Error ? e.message : 'Error desconocido'}`);
+                  }
               } finally {
-                  setIsDataLoading(false);
-                  // BUG-023 FIX: Signal that initial setup is done only AFTER the data fetch
-                  // completes (or fails).  The year-change effect guards on this flag, so
-                  // marking it true here ensures the two fetches are sequential rather than
-                  // concurrent, preventing unfiltered data from overwriting filtered data.
-                  setIsDataLayerInitialized(true);
+                  if (!cancelled) {
+                    setIsDataLoading(false);
+                    // BUG-023 FIX: Signal that initial setup is done only AFTER the data fetch
+                    // completes (or fails).  The year-change effect guards on this flag, so
+                    // marking it true here ensures the two fetches are sequential rather than
+                    // concurrent, preventing unfiltered data from overwriting filtered data.
+                    setIsDataLayerInitialized(true);
+                  }
               }
+
+              if (cancelled) return;
 
               // 2. REALTIME SUBSCRIPTION - OPTIMIZED
               // Instead of fetching all data on every change (which causes rate limiting),
-              // we invalidate the cache and let the next user action trigger a fresh fetch
+              // we invalidate the cache and let the next user action trigger a fresh fetch.
+              // BUG-RT-001: keep unsubscribe in a ref; cleanup belongs to the useEffect return.
               const unsubscribe = appwriteService.subscribeToChanges((payload) => {
                   if (payload.events.some((e:string) => e.includes('.create') || e.includes('.update') || e.includes('.delete'))) {
                       // Import cache dynamically to avoid circular deps
@@ -342,9 +372,11 @@ const MainLayout: React.FC = () => {
                   }
               });
 
-              return () => {
+              if (cancelled) {
                   unsubscribe();
-              };
+                  return;
+              }
+              realtimeUnsubscribeRef.current = unsubscribe;
           } else {
               // Mode is not APPWRITE - this should not happen in normal usage
               // The app requires Appwrite to function
@@ -354,13 +386,23 @@ const MainLayout: React.FC = () => {
           }
       };
       initDataLayer().finally(() => {
-          setIsDataLayerInitialized(true);
+          if (!cancelled) {
+            setIsDataLayerInitialized(true);
+          }
       });
+
+      // BUG-RT-001: real cleanup on unmount / dep change (Strict Mode, logout, password gate).
+      return () => {
+          cancelled = true;
+          realtimeUnsubscribeRef.current?.();
+          realtimeUnsubscribeRef.current = null;
+          dataLayerInitializedRef.current = false;
+      };
       // Refs (defaultSettingsRef, settingsRef) and setState dispatcher (setSettings) are
       // stable across renders — including them would cause unnecessary re-inits.
-      // Re-run only when the authenticated user or session readiness changes.
+      // Re-run only when the authenticated user, session readiness or password gate changes.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionReady, user]); // Only re-init on login/logout — fiscal year changes handled below
+  }, [sessionReady, user, mustChangePassword]); // Only re-init on login/logout/password-gate — fiscal year changes handled below
 
   // --- RELOAD DATA WHEN ACTIVE FISCAL YEAR CHANGES ---
   // Separate from the heavy initDataLayer so health checks are not repeated.
@@ -487,9 +529,9 @@ const MainLayout: React.FC = () => {
           saveTimeoutRef.current = setTimeout(async () => {
               const fullData = { invoices, entries: accountingEntries, transactions: bankTransactions, settings };
               try {
-                  const encryptedBlob = await encryptData(JSON.stringify(fullData), encryptionKeyRef.current!);
+                  const encryptedPayload = await encryptData(JSON.stringify(fullData), encryptionKeyRef.current!);
                   const writable = await fileHandleRef.current.createWritable();
-                  await writable.write(encryptedBlob);
+                  await writable.write(new Blob([encryptedPayload], { type: 'application/octet-stream' }));
                   await writable.close();
                   setLastSaved(new Date());
               } catch (err) {

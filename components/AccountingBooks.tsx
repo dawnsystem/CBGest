@@ -7,6 +7,7 @@ import { getAccountName } from '../utils/accountingPlan';
 import { useToast } from './Toast';
 import { useIsReadOnly } from '../context/FiscalYearContext';
 import { ENTRY_TEMPLATES } from '../utils/entryTemplates';
+import { buildFormalEntryToSave } from '../utils/accountingEntrySave';
 
 interface AccountingBooksProps {
   entries: AccountingEntry[];
@@ -203,15 +204,8 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
       return;
     }
 
-    const entryToSave: AccountingEntry = {
-      ...editingEntry,
-      lines: validLines,
-      // Set legacy fields from first line for compatibility
-      accountCode: validLines[0].accountCode,
-      accountName: validLines[0].accountName,
-      debit: validLines[0].debit,
-      credit: validLines[0].credit
-    };
+    // CTB-001: forzar isDraft:false al guardar formal (un borrador cuadrado no debe seguir como borrador)
+    const entryToSave: AccountingEntry = buildFormalEntryToSave(editingEntry, validLines);
 
     if (!editingEntry.id) {
        // Create

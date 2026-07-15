@@ -16,13 +16,11 @@ interface PendingItem {
   daysElapsed: number;
 }
 
-/** Calcula los días transcurridos desde una fecha ISO hasta hoy */
-const daysElapsed = (dateStr: string): number => {
+/** Calcula los días transcurridos desde una fecha ISO hasta un ancla de "hoy" */
+const daysElapsed = (dateStr: string, todayAnchor: Date): number => {
   const [year, month, day] = dateStr.split('-').map(Number);
   const entry = new Date(year, month - 1, day);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.floor((today.getTime() - entry.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.floor((todayAnchor.getTime() - entry.getTime()) / (1000 * 60 * 60 * 24));
 };
 
 /** Devuelve las clases de color del badge según días transcurridos */
@@ -53,6 +51,8 @@ export const DebtsPendingPanel: React.FC<DebtsPendingPanelProps> = ({ entries })
   const computeSection = useCallback((prefixes: string[]) => {
     const items: PendingItem[] = [];
     let totalBalance = 0;
+    const todayAnchor = new Date(todayKey);
+    todayAnchor.setHours(0, 0, 0, 0);
 
     entries
       .filter(e => !e.isDraft)
@@ -77,7 +77,7 @@ export const DebtsPendingPanel: React.FC<DebtsPendingPanelProps> = ({ entries })
               concept: entry.concept,
               amount: lineBalance,
               accountCode: line.accountCode,
-              daysElapsed: daysElapsed(entry.date),
+              daysElapsed: daysElapsed(entry.date, todayAnchor),
             });
           }
         });

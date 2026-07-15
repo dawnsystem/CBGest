@@ -98,6 +98,18 @@ crear cuentas por sí mismo, y la creación de usuarios se hace desde
 5. (Recomendado) En **Auth > Settings**, desactiva **"Self registration"** en el
    proyecto para reforzar en el propio Appwrite que no se permite auto-registro.
 
+### Política SEC-016 (contraseñas temporales)
+
+- Longitud mínima: **16 caracteres** (≥128 bits de entropía si se genera con
+  `crypto` / `randomBytes`).
+- Se rechaza el patrón legacy predecible `cambiar` + dígitos (~900 valores).
+- Si `updateLabels` / `updatePrefs` fallan tras `users.create`, la función hace
+  **rollback** eliminando el usuario (BUG-026) para no dejar cuentas usables
+  sin `mustChangePassword`.
+- Un admin con `prefs.mustChangePassword === true` recibe 403 al invocar la
+  función hasta completar el cambio de contraseña.
+- Tras desplegar esta versión, vuelve a publicar el deployment de `manage-users`.
+
 ## Testing manual
 
 Puedes ejecutar cualquier función manualmente desde la consola:
