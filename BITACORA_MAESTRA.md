@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-15 23:05:00 UTC*
+*Última actualización: 2026-07-16 00:40:00 UTC*
 
 ---
 
@@ -8,7 +8,7 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora resueltos). Pendiente push y merge del PR.
+Sin tareas activas.
 
 ### ✅ Implementaciones Recientes
 *   **[2026-07-16] - `FIX-140` - Wiring App (recurrentes, settings Dashboard, supplierId):** Corregidos BUG-FY-001 (`fetchForYear` recarga `fetchRecurringExpenses`), BUG-WIRE-001 (Dashboard usa `handleUpdateSettings` en lugar de `setSettings`), BUG-INV-001 (`handleAddInvoice` persiste `supplierId` con `updateInvoice` tras enlazar proveedor). Issue: #140. Validado: lint 0 errores / 2 warnings, test:ci OK, build OK.
