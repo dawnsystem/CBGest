@@ -418,6 +418,14 @@ describe('Appwrite automation functions', () => {
         expect.objectContaining({ op: 'equal', field: 'fiscalYearId', value: 'fy-2026' }),
       ])
     );
+    expect(mockState.listDocuments).toHaveBeenNthCalledWith(
+      3,
+      expect.any(String),
+      'recurring_expenses',
+      expect.arrayContaining([
+        expect.objectContaining({ op: 'equal', field: 'fiscalYearId', value: 'fy-2026' }),
+      ])
+    );
     expect(mockState.createDocument).toHaveBeenCalledTimes(1);
     const [, collectionId, , payload] = mockState.createDocument.mock.calls[0];
     expect(collectionId).toBe('recurring_expenses');
@@ -427,6 +435,7 @@ describe('Appwrite automation functions', () => {
     expect(payload).not.toHaveProperty('createdAt');
     // `frequency` must match the enum defined on the collection.
     expect(['MONTHLY', 'BIMONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL']).toContain(payload.frequency);
+    expect(payload.fiscalYearId).toBe('fy-2026');
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
       fiscalYearId: 'fy-2026',
