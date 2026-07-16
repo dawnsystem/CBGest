@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 10:50:00 UTC*
+*Última actualización: 2026-07-16 11:02:00 UTC*
 
 ---
 
@@ -11,6 +11,7 @@
 Estado actual: **Lote residual #147 (fase final acotada)** en rama `fix/issue-147-residual-lote`; clasificación y fixes mínimos aplicados; issue #147 puede seguir abierto si se prefiere registrar el cierre por merge/PR.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `BUG-FY-003` - Gastos recurrentes siempre acotados al ejercicio activo:** `App.tsx` pasa `fyId` a `fetchRecurringExpenses` al cambiar de ejercicio; `detect-recurring` filtra duplicados por `fiscalYearId` y crea sugerencias con `fiscalYearId` del ejercicio OPEN activo. Evita mezcla/mutación cross-FY y documentos huérfanos. Validado con tests focalizados (11 PASS) + `npm run lint && npm run type-check && npm run test:ci && npm run build` (359 PASS, build OK).
 *   **[2026-07-16] - `RESIDUAL-147-B` - SEC-018 / RO-001 / BUG-UI-001 / DEBT-019 / BUG-ARCH-001 / DEBT-020 / DEBT-021:** `authService.verifySession()` ya no devuelve `true` durante 401 post-login (el grace period inseguro se elimina también de `handleUnauthorizedError`). `BankReconciliation` ahora recibe `isReadOnly` y deshabilita `Crear Asiento`/`CASAR`; `App.tsx` bloquea cambio de estado y borrado de facturas en ejercicio cerrado. Se elimina código muerto confirmado: `components/AuthModal.tsx` y `hooks/useAppwriteData.ts` con su re-export. Clasificación final del lote: `DEBT-020` y `DEBT-021` no aplican ya en `main`; `BUG-ARCH-001` queda como deuda descartable/no reproducible tras eliminar la dualidad muerta. Validado con tests focalizados + lint + type-check + build.
 *   **[2026-07-16] - `MEDIOS-147` - Settings/drafts/toast/realtime/filtros FY:** Cerrados BUG-027/028/029/030, CTB-004/005/006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001. Settings: mapeo limpio + ID fijo `app_settings` + revert sync. Drafts: totales sin borradores, Debe/Haber mutuamente excluyentes, deudas alineadas, matching sin drafts, suma multi-línea 57x. Toast resuelve confirm previo. Realtime re-fetch a React state. Charts por `fiscalYearId`. Issue: #147 (parcial). Tests focalizados PASS.
 *   **[2026-07-16] - `SEC-017` + `BUG-024` + `BUG-025` + `BUG-026` - Auth functions + rateLimiter:** `manage-users`: guardas SEC-017 en `updateLabels` (no auto-degradación, ≥1 admin); paginación BUG-025 (`listAllUsers`); rollback BUG-026 en create. `rateLimiter`: relanzar `processQueue` en `finally` (BUG-024). Issue #143. Tests focalizados 5 PASS.

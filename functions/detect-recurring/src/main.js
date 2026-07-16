@@ -138,7 +138,10 @@ export default async ({ req, res, log, error }) => {
     const existingRecurring = await databases.listDocuments(
       databaseId,
       'recurring_expenses',
-      [Query.limit(100)]
+      [
+        Query.equal('fiscalYearId', activeFiscalYear.id),
+        Query.limit(100)
+      ]
     );
 
     const existingNames = new Set(
@@ -164,6 +167,7 @@ export default async ({ req, res, log, error }) => {
               supplierId: pattern.supplierId || null,
               isDeductible: true,
               isActive: false, // Inactive until user confirms
+              fiscalYearId: activeFiscalYear.id,
               notes: `Detectado el ${new Date().toISOString().split('T')[0]}. Concepto original: ${pattern.concept}. FY: ${activeFiscalYear.id}`
             }
           );
