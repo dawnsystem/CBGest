@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type Dispatch, type SetStateAction, type M
 import { AppSettings } from '../types';
 import { loadPersistedState } from '../utils/stateStorage';
 import { createDefaultSettings } from '../config/defaultSettings';
+import { redactSettingsForLocalStorage } from '../utils/settingsLocalStorage';
 import * as appwriteService from '../services/appwriteService';
 
 interface UseAppSettingsReturn {
@@ -56,13 +57,13 @@ export function useAppSettings(
   // Persist settings to localStorage on every change (unless in encrypted file mode).
   useEffect(() => {
     if (!isLocalFileMode) {
-      localStorage.setItem('gestcb_settings', JSON.stringify(settings));
+      localStorage.setItem('gestcb_settings', JSON.stringify(redactSettingsForLocalStorage(settings)));
     }
   }, [settings, isLocalFileMode]);
 
   const handleUpdateSettings = async (newSettings: AppSettings): Promise<void> => {
     setSettings(newSettings);
-    localStorage.setItem('gestcb_settings', JSON.stringify(newSettings));
+    localStorage.setItem('gestcb_settings', JSON.stringify(redactSettingsForLocalStorage(newSettings)));
 
     if (newSettings.dataConfig?.type === 'APPWRITE') {
       try {

@@ -127,17 +127,25 @@ describe('authService direct coverage', () => {
   });
 
   it('should support profile and recovery helpers', async () => {
+    const origin = window.location.origin;
     await expect(authService.updateName('Nuevo Nombre')).resolves.toMatchObject({ name: 'Nuevo Nombre' });
-    await expect(authService.recoverPassword('test@example.com', 'https://cbgest.test/reset')).resolves.toBe(true);
-    await expect(authService.sendEmailVerification('https://cbgest.test/verify')).resolves.toBe(true);
+    await expect(authService.recoverPassword('test@example.com', `${origin}/reset`)).resolves.toBe(true);
+    await expect(authService.sendEmailVerification(`${origin}/verify`)).resolves.toBe(true);
     await expect(authService.confirmEmailVerification('user123', 'secret')).resolves.toBe(true);
     await expect(authService.createJWT()).resolves.toBe('jwt-token');
 
     expect(updateNameMock).toHaveBeenCalledWith('Nuevo Nombre');
-    expect(createRecoveryMock).toHaveBeenCalledWith('test@example.com', 'https://cbgest.test/reset');
-    expect(createVerificationMock).toHaveBeenCalledWith('https://cbgest.test/verify');
+    expect(createRecoveryMock).toHaveBeenCalledWith('test@example.com', `${origin}/reset`);
+    expect(createVerificationMock).toHaveBeenCalledWith(`${origin}/verify`);
     expect(updateVerificationMock).toHaveBeenCalledWith('user123', 'secret');
     expect(createJWTMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('should block recovery/verification URLs outside allowlist (SEC-014)', async () => {
+    await expect(authService.recoverPassword('test@example.com', 'https://evil.example/phish')).resolves.toBe(false);
+    await expect(authService.sendEmailVerification('https://evil.example/phish')).resolves.toBe(false);
+    expect(createRecoveryMock).not.toHaveBeenCalled();
+    expect(createVerificationMock).not.toHaveBeenCalled();
   });
 
   it('should logout current and all sessions', async () => {

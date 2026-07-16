@@ -15,13 +15,8 @@
  */
 
 const { Client, Databases } = require('node-appwrite');
-
-// Configuration
-const CONFIG = {
-  endpoint: 'https://fra.cloud.appwrite.io/v1',
-  projectId: 'cbgest',
-  databaseId: '691f288100019843d43e',
-};
+const { getAppwriteConfig } = require('./load-appwrite-config.cjs');
+const CONFIG = getAppwriteConfig();
 
 // Get API key from environment variable
 const API_KEY = process.env.APPWRITE_API_KEY;

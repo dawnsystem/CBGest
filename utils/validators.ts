@@ -213,27 +213,24 @@ export const isValidSpanishPostalCode = (code: string): boolean => {
 /**
  * Check if a string contains potential XSS/injection content
  */
-export const isSafeString = (str: string): boolean => {
-  if (!str) return true;
-  // Basic check for script tags and event handlers
-  const dangerousPatterns = [
-    /<script/i,
-    /javascript:/i,
-    /on\w+\s*=/i,
-    /<iframe/i,
-    /<object/i,
-  ];
-  return !dangerousPatterns.some(pattern => pattern.test(str));
-};
-
-/**
- * Sanitize a string for safe display (basic XSS prevention)
- */
-export const sanitizeString = (str: string): string => {
+export const decodeHtmlEntities = (str: string): string => {
   if (!str) return '';
   return str
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
+    .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"')
+    .replace(/&#x27;/gi, "'").replace(/&#39;/gi, "'").replace(/&apos;/gi, "'").replace(/&amp;/gi, '&')
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(parseInt(dec, 10)));
+};
+
+const DANGEROUS = [/<script/i, /javascript:/i, /on\w+\s*=/i, /<iframe/i, /<object/i, /<embed/i, /<img/i, /<svg/i];
+
+export const isSafeString = (str: string): boolean => {
+  if (!str) return true;
+  const decoded = decodeHtmlEntities(str);
+  return !DANGEROUS.some((p) => p.test(decoded) || p.test(str));
+};
+
+export const sanitizeString = (str: string): string => {
+  if (!str) return '';
+  return decodeHtmlEntities(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 };

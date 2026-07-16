@@ -6,6 +6,7 @@ import { storageService } from '../services/appwriteService';
 import { useAuth } from './AuthContext';
 import { generateId } from '../utils/defaults';
 import { uploadLogger } from '../services/logger';
+import { isAllowedGeminiMimeType, normalizeMimeType } from '../utils/mimeAllowlist';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
 
@@ -420,9 +421,13 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         throw new Error('Error convirtiendo archivo a base64');
       }
 
-      // Procesar según tipo
+      const safeMime = normalizeMimeType(item.mimeType);
+      if (!isAllowedGeminiMimeType(safeMime, item.fileName)) {
+        throw new Error(`Tipo de archivo no permitido para análisis IA: ${item.mimeType || '(vacío)'} (${item.fileName})`);
+      }
+
       if (item.uploadType === 'INVOICE') {
-        const data = await analyzeInvoiceImage(base64ForApi, item.mimeType, suppliers);
+        const data = await analyzeInvoiceImage(base64ForApi, safeMime, suppliers);
 
         // Buscar proveedor si la IA lo sugirió
         let matchedSupplierId: string | undefined = undefined;
@@ -469,7 +474,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       } else if (item.uploadType === 'BANK_STATEMENT') {
         // PDF/imagen de extracto bancario - procesar con IA
         // (Los XLSX ya fueron manejados arriba y retornaron)
-        const transactions = await analyzeBankStatement(base64ForApi, item.mimeType);
+        const transactions = await analyzeBankStatement(base64ForApi, safeMime);
 
         const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
           id: generateId(),
