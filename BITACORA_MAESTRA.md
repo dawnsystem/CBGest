@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 01:15:00 UTC*
+*Última actualización: 2026-07-16 01:20:00 UTC*
 
 ---
 
@@ -12,6 +12,7 @@ Estado actual: **PR-5 — BUG-FN-001/002 + BUG-AI-001** (#145) en rama `fix/pr5-
 
 ### ✅ Implementaciones Recientes
 *   **[2026-07-16] - `BUG-FN-001` + `BUG-FN-002` + `BUG-AI-001` - Automations enums + detect-recurring FY + vatRate confirm:** `cleanup-uploads` consulta `COMPLETED`/`ERROR`. `detect-recurring` filtra por ejercicio OPEN (`getActiveFiscalYear` + `fiscalYearId`) y hace skip si no hay FY. `useInvoiceReview` normaliza `vatRate` (0.21→21) en `startInvoiceReview` y `confirmInvoice`. Issue: #145. Tests focalizados 15 PASS.
+*   **[2026-07-16] - `IEET-002` + `FIS-001` - Huéspedes IEET por reserva + IRPF simétrico base/total:** Extraída `calculateConsecutiveStayTaxUnits` (Σ noches_i×huéspedes_i con tope `maxNights` a nivel grupo). `TouristTaxPanel` la usa. `calculateTaxData`: `ALQUILER_EXENTO`→`totalAmount` simétrico; `GENERAL`→`baseAmount`. Dashboard chart alineado. Issue: #142. Tests focalizados PASS.
 *   **[2026-07-16] - `FIX-140` - Wiring App (recurrentes, settings Dashboard, supplierId):** Corregidos BUG-FY-001 (`fetchForYear` recarga `fetchRecurringExpenses`), BUG-WIRE-001 (Dashboard usa `handleUpdateSettings` en lugar de `setSettings`), BUG-INV-001 (`handleAddInvoice` persiste `supplierId` con `updateInvoice` tras enlazar proveedor). Issue: #140. Validado: lint 0 errores / 2 warnings, test:ci OK, build OK.
 *   **[2026-07-15] - `SEC-016` + `BUG-RT-001` - Auth temporal segura + fuga realtime:** `utils/temporaryPassword.ts` genera secretos ≥128 bits (base64url) y rechaza el patrón legacy `cambiarNNN`. `UserManagement` y `manage-users` validan la política; la function hace rollback (delete) si prefs/labels fallan post-create (BUG-026 parcial) y bloquea admins con `mustChangePassword`. `App.tsx`: no carga datos ni abre realtime mientras hay password temporal pendiente; `unsubscribe` guardado en `useRef` con cleanup real del `useEffect` (Strict Mode / logout). Issues #138/#139. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (307 tests).
 *   **[2026-07-15] - `IEET-001` - Filtro semestral IEET timezone-safe:** Extraídas `getSemesterDateBounds` e `isDateInSemester` en `utils/touristTaxUtils.ts`. `TouristTaxPanel` filtra check-ins y períodos del semestre comparando `YYYY-MM-DD` (sin `Date` local vs UTC). Corrige 1-jul en semestre 1 y 1-ene fuera de semestre. 8 tests unitarios nuevos. Issue #137. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (294 tests).
@@ -103,8 +104,19 @@ Estado actual: **PR-5 — BUG-FN-001/002 + BUG-AI-001** (#145) en rama `fix/pr5-
     - `[00:54:00]` - **FIX (BUG-AI-001):** `hooks/useInvoiceReview.ts` — `normalizeVatRate` en start + confirm + edit.
     - `[00:55:00]` - **TEST:** `appwrite-automations.test.ts` + `useInvoiceReview.test.ts` — 15 PASS.
     - `[01:15:00]` - **GIT:** rama `fix/pr5-automations-ai-fn-ai` aislada desde `origin/main`; PR con `Closes #145`.
+    - `[01:20:00]` - **MERGE:** Integrado `origin/main` (conflicto bitácora con PR-2 resuelto conservando ambas entradas).
 *   **Resultado:** Tres medios del #145 corregidos y listos para merge.
 *   **Observaciones:** Working tree del repo principal tenía mezclas de otras PRs; se aisló vía worktree.
+
+### Sesión: [2026-07-16 01:10:00 UTC]
+*   **Directiva del Director:** PR-2 — `[IEET-002][FIS-001]` (#142). Commit/push/PR con `Closes #142`.
+*   **Plan de Acción:** (1) Aislar archivos en `fix/pr2-ieet-fis-001`. (2) Commit + push + PR. (3) Auto-merge si posible.
+*   **Log de Acciones:**
+    - `[00:49:00]` - **FIX (IEET-002):** `calculateConsecutiveStayTaxUnits` + `TouristTaxPanel`.
+    - `[00:50:00]` - **FIX (FIS-001):** `taxCalculationService` simétrico + `Dashboard` chart.
+    - `[00:52:00]` - **TEST:** 57 PASS focalizados; type-check OK; lint 0 errores.
+    - `[01:10:00]` - **GIT:** Rama `fix/pr2-ieet-fis-001` desde `origin/main`; commit + PR `Closes #142`.
+*   **Resultado:** IEET-002 y FIS-001 listos para merge (issue #142).
 
 ### Sesión: [2026-07-16 00:49:00 UTC]
 *   **Directiva del Director:** `[BUG-FY-001][BUG-WIRE-001][BUG-INV-001] #140`
@@ -728,6 +740,11 @@ Estado actual: **PR-5 — BUG-FN-001/002 + BUG-AI-001** (#145) en rama `fix/pr5-
 ### 🔵 MÓDULO TASA TURÍSTICA (IEET) — Auditoría 2026-07-16
 
 * **IEET-001:** `TouristTaxPanel.tsx` filtro semestral — Límites con `new Date(year, month-1, 1)` (local) vs `new Date(r.checkIn)` (UTC midnight para `YYYY-MM-DD`). En España (UTC+1/+2) el 1-jul caía en semestre 1 y el 1-ene podía quedar fuera. Severidad: **CRÍTICO**. Estado: ✅ Resuelto (`getSemesterDateBounds` / `isDateInSemester` comparan strings `YYYY-MM-DD`). Issue #137.
+* **IEET-002:** Estancias consecutivas usaban `Math.max(huéspedes) × noches_totales` → sobre/infragravamen si cambia la ocupación. Severidad: **ALTO**. Estado: ✅ Resuelto — `calculateConsecutiveStayTaxUnits` suma `noches_i × huéspedes_i` con tope `maxNights` a nivel grupo. Issue #142.
+
+### 🔵 MÓDULO FISCAL / IRPF — Auditoría 2026-07-16
+
+* **FIS-001:** `taxCalculationService.calculateTaxData` — ingresos siempre `baseAmount`; gastos en `ALQUILER_EXENTO` con `totalAmount` → Modelo 184 sesgado. Severidad: **ALTO**. Estado: ✅ Resuelto — criterio simétrico: `ALQUILER_EXENTO`→`totalAmount`, `GENERAL`→`baseAmount`. Dashboard chart alineado. Issue #142.
 
 ### 🔵 MÓDULO CONTABLE — Nuevos hallazgos (2026-07-13)
 
@@ -745,7 +762,10 @@ Estado actual: **PR-5 — BUG-FN-001/002 + BUG-AI-001** (#145) en rama `fix/pr5-
 * **SEC-016:** Password temporal ~900 valores + gate solo UI. Severidad: **CRÍTICO**. Issue: #138. Estado: ✅ Resuelto (PR #151).
 * **BUG-FY-001 / BUG-WIRE-001 / BUG-INV-001:** Wiring App (recurrentes, settings Dashboard, supplierId). Issue: #140. Estado: ✅ Resuelto (FIX-140, rama `fix/issue-140-wiring-bugs`).
 * **BUG-RT-001:** Fuga realtime unsubscribe. Issue: #139. Estado: ✅ Resuelto (PR #151).
-* **CONC-001 / CTB-002 / IEET-002 / FIS-001 / SEC-017 / BUG-024..026:** Altos de wiring, contabilidad, auth. Issues: #141–#143. Estado: Pendiente (BUG-026 parcial vía SEC-016).
+* **CONC-001 / CTB-002:** Conciliación por signo + naturaleza deudora 470–474. Issue: #141. Estado: Pendiente.
+* **IEET-002:** Huéspedes IEET por reserva (`Math.max`×noches). Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
+* **FIS-001:** Asimetría IRPF base/total en `ALQUILER_EXENTO`. Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
+* **SEC-017 / BUG-024..026:** Altos auth. Issue: #143. Estado: Pendiente (BUG-026 parcial vía SEC-016).
 * **BUG-FY-002 / BUG-RES-001 / CTB-003:** Modelo datos / límites. Issue: #144. Estado: Pendiente.
 * **BUG-FN-001:** `cleanup-uploads` buscaba `completed`/`error` (minúsculas); la app escribe `COMPLETED`/`ERROR` → no limpiaba Storage. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **BUG-FN-002:** `detect-recurring` analizaba transacciones sin `fiscalYearId` → contaminaba sugerencias del ejercicio activo. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).

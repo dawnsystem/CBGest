@@ -116,8 +116,64 @@ describe('pdfService', () => {
       rendimientoNeto: 800,
     });
 
-    expect(exempt.totalGastos).toBe(242);
-    expect(exempt.rendimientoNeto).toBe(758);
+    // FIS-001: en ALQUILER_EXENTO ingresos y gastos usan totalAmount (simétrico)
+    expect(exempt).toEqual({
+      totalIngresos: 1210,
+      totalGastos: 242,
+      rendimientoNeto: 968,
+    });
+  });
+
+  it('FIS-001: ALQUILER_EXENTO no mezcla baseAmount en ingresos con totalAmount en gastos', () => {
+    const filters = {
+      fiscalYearId: 'fy-2026',
+      period: {
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      },
+    };
+    const asymmetricInvoices: Invoice[] = [
+      {
+        ...invoices[0],
+        id: 'inc-asym',
+        type: 'INCOME',
+        baseAmount: 1000,
+        totalAmount: 1210,
+        status: 'PROCESSED',
+      },
+      {
+        ...invoices[1],
+        id: 'exp-asym',
+        type: 'EXPENSE',
+        baseAmount: 200,
+        totalAmount: 242,
+        status: 'PROCESSED',
+      },
+    ];
+    const result = calculateTaxData(
+      asymmetricInvoices,
+      { ...settings, fiscalRegime: 'ALQUILER_EXENTO', vatObligation: false },
+      filters
+    );
+    // Antes: ingresos 1000 (base) − gastos 242 (total) = 758 (sesgado)
+    // Ahora: 1210 − 242 = 968
+    expect(result.totalIngresos).toBe(1210);
+    expect(result.totalGastos).toBe(242);
+    expect(result.rendimientoNeto).toBe(968);
+  });
+
+  it('FIS-001: GENERAL usa baseAmount simétrico en ingresos y gastos', () => {
+    const filters = {
+      fiscalYearId: 'fy-2026',
+      period: {
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      },
+    };
+    const result = calculateTaxData(invoices, settings, filters);
+    expect(result.totalIngresos).toBe(1000);
+    expect(result.totalGastos).toBe(200);
+    expect(result.rendimientoNeto).toBe(800);
   });
 
   it('should throw when required fiscal filters are missing', () => {
