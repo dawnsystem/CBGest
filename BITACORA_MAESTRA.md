@@ -108,6 +108,7 @@ Estado actual: **Lote residual #147 (fase final acotada)** en rama `fix/issue-14
     - `[10:42:00]` - **FIX:** `components/BankReconciliation.tsx` + `App.tsx` — propagado `isReadOnly` y deshabilitadas acciones mutadoras en conciliación y listado de facturas (`RO-001`, `BUG-UI-001`).
     - `[10:44:00]` - **CLEANUP:** eliminados `components/AuthModal.tsx` y `hooks/useAppwriteData.ts` + re-export muerto en `hooks/index.ts` (`DEBT-019`, `BUG-ARCH-001`).
     - `[10:47:00]` - **TEST:** `services/__tests__/authService.test.ts` + nuevo `components/__tests__/BankReconciliation.test.tsx` — PASS. `npm run lint`, `npm run type-check`, `npm run build` — PASS.
+    - `[11:36:00]` - **CI-FIX:** `components/__tests__/BankReconciliation.test.tsx` — añadidos `accountName` requeridos por `AccountingEntryLine` para dejar verde la PR residual `#163`.
 *   **Resultado:** Lote residual verificado y acotado. `SEC-018`, `RO-001`, `BUG-UI-001` y `DEBT-019` corregidos. `DEBT-020` y `DEBT-021` clasificados como no aplicables ya en `main`. `BUG-ARCH-001` rebajado a deuda descartable/no reproducible tras eliminar la implementación duplicada no usada.
 
 ### Sesión: [2026-07-16 10:40:00 UTC]

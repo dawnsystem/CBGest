@@ -26,8 +26,8 @@ describe('BankReconciliation', () => {
       date: '2026-01-15',
       concept: 'Factura proveedor',
       lines: [
-        { accountCode: '600', debit: 120, credit: 0 },
-        { accountCode: '410', debit: 0, credit: 120 },
+        { accountCode: '600', accountName: 'Compras', debit: 120, credit: 0 },
+        { accountCode: '410', accountName: 'Acreedores', debit: 0, credit: 120 },
       ],
       reconciled: false,
       isDraft: false,
