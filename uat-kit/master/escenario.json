@@ -1,0 +1,116 @@
+{
+  "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+  "description": "Escenario UAT completo: ejercicio 2027 + parcial 2028 hasta 17/07",
+  "fiscalYears": [
+    {
+      "id": "fy-2027",
+      "year": 2027,
+      "status": "OPEN",
+      "startDate": "2027-01-01",
+      "endDate": "2027-12-31",
+      "notes": "Ejercicio completo para UAT anual"
+    },
+    {
+      "id": "fy-2028",
+      "year": 2028,
+      "status": "OPEN",
+      "startDate": "2028-01-01",
+      "endDate": "2028-07-17",
+      "notes": "Ejercicio parcial UAT: solo datos hasta 17/07/2028 inclusive"
+    }
+  ],
+  "volumes": {
+    "2027": {
+      "expenseInvoices": 72,
+      "incomeInvoices": 36,
+      "bankStatements": 12,
+      "reservations": 60
+    },
+    "2028": {
+      "expenseInvoices": 40,
+      "incomeInvoices": 20,
+      "bankStatements": 7,
+      "reservations": 30,
+      "hardCutoff": "2028-07-17"
+    }
+  },
+  "edges": [
+    {
+      "id": "EDGE-01",
+      "year": 2027,
+      "title": "Factura pendiente sin pagar",
+      "description": "Neteja 15/11/2027 total 242€ (200+IVA21%). Sin movimiento bancario.",
+      "expected": "Aparece en deudas 400; no conciliada; status no PAID"
+    },
+    {
+      "id": "EDGE-02",
+      "year": 2027,
+      "title": "Pago diferido 30 días",
+      "description": "Gestoría factura 10/06/2027; cargo banco 10/07/2027",
+      "expected": "Match factura↔banco con desfase; liquidación 400/572 en julio"
+    },
+    {
+      "id": "EDGE-03",
+      "year": 2027,
+      "title": "Comisión bancaria",
+      "description": "Movimiento 28/03/2027 COMISION MANTENIMIENTO CUENTA -6.50€ sin factura",
+      "expected": "Asiento 626/572; no exige PDF"
+    },
+    {
+      "id": "EDGE-04",
+      "year": 2027,
+      "title": "Ingreso Airbnb",
+      "description": "Liquidación I-2027-019 12/08/2027 neto 1842.35€ + mov AIRBNB PAYMENTS",
+      "expected": "Match plataforma; cuenta 705"
+    },
+    {
+      "id": "EDGE-05",
+      "year": 2027,
+      "title": "Gasto sin factura",
+      "description": "Bizum ferretería 03/05/2027 -38.20€",
+      "expected": "Apunte manual 622/572; sin justificante"
+    },
+    {
+      "id": "EDGE-06",
+      "year": 2027,
+      "title": "IVA 21% vs 10%",
+      "description": "Endesa IVA 21% y Aigües IVA 10% en el mismo trimestre",
+      "expected": "vatRate correcto en ficha y asiento"
+    },
+    {
+      "id": "EDGE-07",
+      "year": 2027,
+      "title": "Reserva cancelada",
+      "description": "BK-2027-CANCEL-01 CB-A1 sept 2027 Cancelled paidAmount=0",
+      "expected": "No suma ingresos ni IEET"
+    },
+    {
+      "id": "EDGE-08",
+      "year": 2027,
+      "title": "IEET tasa turística",
+      "description": "Reserva Airbnb CB-A2 4 adultos 5 noches julio 2027",
+      "expected": "IEET solo TOURIST; RESIDENTIAL=0"
+    },
+    {
+      "id": "EDGE-09",
+      "year": 2028,
+      "title": "Factura 2027 pagada en 2028",
+      "description": "Factura gasto dic-2027 pagada en extracto ene-2028",
+      "expected": "Conciliación cross-year o deuda cerrada en 2028 según flujo app"
+    },
+    {
+      "id": "EDGE-10",
+      "year": 2027,
+      "title": "Reserva con niños",
+      "description": "Reserva con adults+children; IEET solo adultos",
+      "expected": "numberOfChildren no genera IEET"
+    },
+    {
+      "id": "EDGE-11",
+      "year": 2028,
+      "title": "Corte duro 17/07/2028",
+      "description": "Ningún documento con fecha > 2028-07-17 en el kit 2028",
+      "expected": "Extracto julio truncado; sin facturas/reservas posteriores"
+    }
+  ]
+}

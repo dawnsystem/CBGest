@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 13:10:00 UTC*
+*Última actualización: 2026-07-16 22:20:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Schema fiscalYearId aplicado en Appwrite Cloud.** `recurring_expenses.fiscalYearId` creado + índice. Maestros 2025→2026 copiados (8 apartamentos, 1 proveedor). Facturas/asientos en DB = 0 (no recuperables desde Appwrite). Datos transaccionales existentes siguen en ejercicio 2025.
+Estado actual: **Kit UAT manual listo** (`uat-kit/`). Escenario ficticio C.B. Mediterránea Costa Brava — ejercicios 2027 completo + 2028 hasta 17/07. Pendiente ejecución humana de [`uat-kit/GUIA_UAT.md`](uat-kit/GUIA_UAT.md) para validar la app de punta a punta. Schema FY en Cloud sigue aplicado; datos productivos 2025/2026 no afectados por el kit (artefactos estáticos en repo).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `UAT-001` - Kit UAT manual (2027 + 2028 parcial):** Carpeta `uat-kit/` con empresa ficticia, 4 comuneros (perfiles fiscales distintos), 6 apartamentos, 8 proveedores, 9 recurrentes; 72+36 facturas 2027 y 40+20 en 2028 (PDF + JSON); 19 extractos XLSX; 90 reservas CSV; edges EDGE-01…11; guía paso a paso `GUIA_UAT.md` + checklist PASS/FAIL. Generador `scripts/generate-uat-kit.mjs` (`npm run generate:uat-kit`); dep `write-excel-file`. NIFs/CIFs validados. No modifica lógica de negocio de la app.
 *   **[2026-07-16] - `OPS-FY-002` - setup-all-collections alineado con Cloud:** `fiscalYearId` unificado a size **36** + constantes compartidas; pase final `ensureFiscalYearIdSchema()`; paginación de `listAttributes`; scripts `add-*` alineados. Evita instalaciones parciales como la de `recurring_expenses`.
 *   **[2026-07-16] - `OPS-FY-001` - Schema + datos 2026 en Appwrite Cloud:** Con API Key de schema: creado `fiscalYearId` en `recurring_expenses` (era la colección que rompía la migración). Verificado atributo/índice en las 7 colecciones. Inventario: invoices=0, entries=0; apartments/reservations/transactions/suppliers todos con `fiscalYearId` del ejercicio **2025**. Copiados maestros a 2026 (`mrlspalb-66qm1lz`): 8 apartamentos + 1 proveedor. **Rotar la API Key** expuesta en chat.
 *   **[2026-07-16] - `BUG-FY-004b` - Schema: atributo fiscalYearId ausente:** Confirmado por error de migración («attribute fiscalYearId does not exist»). Añadido `scripts/add-fiscal-year-id-attributes.cjs`, actualizado `add-missing-attributes.cjs` + README, y mensajes de migración/diagnóstico con instrucción exacta. Sin este atributo el filtro por ejercicio vacía la UI y la migración no puede asignar 2026.
@@ -103,6 +104,17 @@ Estado actual: **Schema fiscalYearId aplicado en Appwrite Cloud.** `recurring_ex
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 22:20:00 UTC]
+*   **Directiva del Director:** Crear carpeta de prueba UAT con facturas, extractos, comuneros, reservas y guía paso a paso para simular el trabajo diario de un gestor (ejercicio 2027 completo + 2028 hasta 17/07; PDFs + fichas).
+*   **Log de Acciones:**
+    - `[22:05:00]` - **BRANCH:** `cursor/uat-kit-manual-5112` + `write-excel-file` (devDependency).
+    - `[22:08:00]` - **CREATE:** `uat-kit/master/*.json` (empresa, comuneros, apartamentos, proveedores, recurrentes, escenario).
+    - `[22:14:00]` - **CREATE:** `scripts/generate-uat-kit.mjs` — genera PDFs (jspdf), XLSX banco, CSV reservas, fichas JSON, edges y balances esperados.
+    - `[22:15:00]` - **GEN:** 2027: 72 gasto + 36 ingreso + 12 extractos + 60 reservas; 2028: 40+20 + 7 extractos + 30 reservas; EDGE-01…11.
+    - `[22:18:00]` - **DOC:** `uat-kit/README.md`, `GUIA_UAT.md` (pasos 0–12 PASS/FAIL), `expected/checklist-resultados.md`.
+    - `[22:20:00]` - **DOC:** Registro `UAT-001` en bitácora.
+*   **Resultado:** Kit regenerable y versionado listo para UAT humana. Comando: `npm run generate:uat-kit`.
+
 ### Sesión: [2026-07-16 13:00:00 UTC]
 *   **Directiva del Director:** Al migrar registros sin año al 2026, Appwrite responde que no existe el atributo `fiscalYearId`.
 *   **Log de Acciones:**
@@ -580,6 +592,13 @@ Estado actual: **Schema fiscalYearId aplicado en Appwrite Cloud.** `recurring_ex
 ---
 
 ## 🧪 Estrategia de Testing y QA
+
+### Kit UAT manual (`uat-kit/`)
+*   **Propósito:** Prueba de aceptación humana simulando el trabajo diario de un gestor (sin seed automático a Appwrite).
+*   **Escenario:** C.B. Mediterránea Costa Brava (`E45678901`) — FY 2027 completo + FY 2028 hasta 17/07/2028.
+*   **Artefactos:** PDFs/JSON de facturas, extractos XLSX (`Fecha|Concepto|Importe`), reservas CSV `;`, master JSON, edges EDGE-01…11.
+*   **Guía:** [`uat-kit/GUIA_UAT.md`](uat-kit/GUIA_UAT.md) + checklist [`uat-kit/expected/checklist-resultados.md`](uat-kit/expected/checklist-resultados.md).
+*   **Regeneración:** `npm run generate:uat-kit` → [`scripts/generate-uat-kit.mjs`](scripts/generate-uat-kit.mjs).
 
 ### Stack Tecnológico de Testing
 *   **Test Runner:** Vitest 4.0.12 - Framework de testing compatible con Vite

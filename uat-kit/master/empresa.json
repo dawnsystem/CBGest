@@ -1,0 +1,22 @@
+{
+  "cbName": "C.B. Mediterránea Costa Brava",
+  "nif": "E45678901",
+  "nifType": "CIF",
+  "fiscalRegime": "GENERAL",
+  "vatObligation": true,
+  "address": "C/ Sant Jordi 18, 2º",
+  "postalCode": "17200",
+  "city": "Palafrugell",
+  "province": "Girona",
+  "iban": "ES9121000418450200051332",
+  "ibanFormatted": "ES91 2100 0418 4502 0005 1332",
+  "bic": "CAIXESBBXXX",
+  "bankName": "BBVA Empresas (ficticio)",
+  "touristTaxConfig": {
+    "enabled": true,
+    "rate": 1,
+    "maxNights": 7,
+    "minAge": 17
+  },
+  "notes": "Comunidad de Bienes ficticia para UAT. Régimen GENERAL con IVA."
+}

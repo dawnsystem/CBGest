@@ -1,0 +1,4404 @@
+{
+  "generatedAt": "2026-07-16T22:14:30.839Z",
+  "script": "scripts/generate-uat-kit.mjs",
+  "nifValidation": "PASS",
+  "edge11Validation": "PASS",
+  "results": {
+    "2027": {
+      "year": 2027,
+      "expenseCount": 72,
+      "incomeCount": 36,
+      "bankStatements": 12,
+      "reservations": 60,
+      "movements": 108,
+      "openingBalance": 12500,
+      "closingBalance": 43607.51,
+      "allMovements": [
+        {
+          "date": "2027-01-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-001",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-01-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-002",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-01-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-001",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-01-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -400.22,
+          "invoiceNumber": "G-2027-002",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-01-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-003",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-01-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-004",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-01-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -106.26,
+          "invoiceNumber": "G-2027-005",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-01-13",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 1030.89,
+          "invoiceNumber": "I-2027-003",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-004",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-005",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-006",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -321.11,
+          "invoiceNumber": "G-2027-007",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-008",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-009",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-12",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 1737.48,
+          "invoiceNumber": "I-2027-006",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -122.61,
+          "invoiceNumber": "G-2027-010",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-20",
+          "concept": "PAGO AIGÜES DE GIRONA, S.A.",
+          "amount": -51.02,
+          "invoiceNumber": "G-2027-011",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-02-22",
+          "concept": "PAGO FERRETERÍA CB",
+          "amount": -55.06,
+          "invoiceNumber": "G-2027-068",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-007",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-008",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-012",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -312.23,
+          "invoiceNumber": "G-2027-013",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-014",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-015",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -126.42,
+          "invoiceNumber": "G-2027-016",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-15",
+          "concept": "PAGO MAPFRE SEGUROS GENERALES",
+          "amount": -1280,
+          "invoiceNumber": "G-2027-017",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-17",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 1135.09,
+          "invoiceNumber": "I-2027-009",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-03-28",
+          "concept": "COMISION MANTENIMIENTO CUENTA",
+          "amount": -6.5,
+          "invoiceNumber": null,
+          "edgeIds": [
+            "EDGE-03"
+          ]
+        },
+        {
+          "date": "2027-04-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-010",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-04-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-011",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-04-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-018",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-04-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -407.64,
+          "invoiceNumber": "G-2027-019",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-04-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-020",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-04-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-021",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-04-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -122.66,
+          "invoiceNumber": "G-2027-022",
+          "edgeIds": [
+            "EDGE-06"
+          ]
+        },
+        {
+          "date": "2027-04-14",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 1484.47,
+          "invoiceNumber": "I-2027-012",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-04-20",
+          "concept": "PAGO AIGÜES DE GIRONA, S.A.",
+          "amount": -57.15,
+          "invoiceNumber": "G-2027-023",
+          "edgeIds": [
+            "EDGE-06"
+          ]
+        },
+        {
+          "date": "2027-05-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-013",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-05-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-014",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-05-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-024",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-05-03",
+          "concept": "BIZUM FERRETERIA LOCAL",
+          "amount": -38.2,
+          "invoiceNumber": null,
+          "edgeIds": [
+            "EDGE-05"
+          ]
+        },
+        {
+          "date": "2027-05-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -383.98,
+          "invoiceNumber": "G-2027-025",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-05-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-026",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-05-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-027",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-05-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -103.45,
+          "invoiceNumber": "G-2027-028",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-05-16",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 1594.85,
+          "invoiceNumber": "I-2027-015",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-05-18",
+          "concept": "PAGO MANTENIMIENTO ASCENSOR",
+          "amount": -145.2,
+          "invoiceNumber": "G-2027-069",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-06-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-016",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-06-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-017",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-06-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-029",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-06-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -394.3,
+          "invoiceNumber": "G-2027-030",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-06-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-031",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-06-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -120.4,
+          "invoiceNumber": "G-2027-033",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-06-15",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 2198.17,
+          "invoiceNumber": "I-2027-018",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-06-20",
+          "concept": "PAGO AIGÜES DE GIRONA, S.A.",
+          "amount": -44.24,
+          "invoiceNumber": "G-2027-034",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-07-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-019",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-07-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-020",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-07-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-035",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-07-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -346.86,
+          "invoiceNumber": "G-2027-036",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-07-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-037",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-07-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-032",
+          "edgeIds": [
+            "EDGE-02"
+          ]
+        },
+        {
+          "date": "2027-07-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-038",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-07-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -95.2,
+          "invoiceNumber": "G-2027-039",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-07-13",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 1271.5,
+          "invoiceNumber": "I-2027-021",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-07-25",
+          "concept": "PAGO SUMINISTROS LIMPIEZA",
+          "amount": -82.04,
+          "invoiceNumber": "G-2027-070",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-08-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-022",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-08-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-023",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-08-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-040",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-08-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -306.21,
+          "invoiceNumber": "G-2027-041",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-08-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-042",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-08-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-043",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-08-12",
+          "concept": "AIRBNB PAYMENTS",
+          "amount": 1842.35,
+          "invoiceNumber": "I-2027-024",
+          "edgeIds": [
+            "EDGE-04"
+          ]
+        },
+        {
+          "date": "2027-08-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -103.58,
+          "invoiceNumber": "G-2027-044",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-08-20",
+          "concept": "PAGO AIGÜES DE GIRONA, S.A.",
+          "amount": -46.04,
+          "invoiceNumber": "G-2027-045",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-09-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-025",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-09-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-026",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-09-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-046",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-09-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -312.77,
+          "invoiceNumber": "G-2027-047",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-09-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-048",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-09-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-049",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-09-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -122.75,
+          "invoiceNumber": "G-2027-050",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-09-14",
+          "concept": "PAGO REPARACIÓN PERSIANA CB-B1",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-071",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-09-18",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 1142.44,
+          "invoiceNumber": "I-2027-027",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-028",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-029",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-051",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-05",
+          "concept": "PAGO NETEJA COSTA BRAVA, S.L.",
+          "amount": -385.58,
+          "invoiceNumber": "G-2027-052",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-053",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-054",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -127.93,
+          "invoiceNumber": "G-2027-055",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-16",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 1653.31,
+          "invoiceNumber": "I-2027-030",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-20",
+          "concept": "PAGO AIGÜES DE GIRONA, S.A.",
+          "amount": -52.2,
+          "invoiceNumber": "G-2027-056",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-10-28",
+          "concept": "PAGO MATERIAL OFICINA",
+          "amount": -39.2,
+          "invoiceNumber": "G-2027-072",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-11-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-031",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-11-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-032",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-11-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-057",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-11-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-059",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-11-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-060",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-11-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -101.17,
+          "invoiceNumber": "G-2027-061",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-11-13",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 2094.34,
+          "invoiceNumber": "I-2027-033",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-12-01",
+          "concept": "COBRO ALQUILER CB-R1",
+          "amount": 850,
+          "invoiceNumber": "I-2027-034",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-12-01",
+          "concept": "COBRO ALQUILER CB-R2",
+          "amount": 1100,
+          "invoiceNumber": "I-2027-035",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-12-01",
+          "concept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI",
+          "amount": -180,
+          "invoiceNumber": "G-2027-062",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-12-08",
+          "concept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U.",
+          "amount": -60.38,
+          "invoiceNumber": "G-2027-064",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-12-10",
+          "concept": "PAGO GESTORIA EMPORDÀ, S.L.",
+          "amount": -114.95,
+          "invoiceNumber": "G-2027-065",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-12-12",
+          "concept": "COBRO AIRBNB PAYMENTS",
+          "amount": 1792.21,
+          "invoiceNumber": "I-2027-036",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-12-12",
+          "concept": "PAGO ENDESA ENERGÍA, S.A.U.",
+          "amount": -115,
+          "invoiceNumber": "G-2027-066",
+          "edgeIds": []
+        },
+        {
+          "date": "2027-12-20",
+          "concept": "PAGO AIGÜES DE GIRONA, S.A.",
+          "amount": -55.5,
+          "invoiceNumber": "G-2027-067",
+          "edgeIds": []
+        }
+      ],
+      "expenses": [
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-001",
+          "number": "G-2027-001",
+          "date": "2027-01-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-01-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-002",
+          "number": "G-2027-002",
+          "date": "2027-01-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 330.76,
+          "vatRate": 21,
+          "vatAmount": 69.46,
+          "totalAmount": 400.22,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-01-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-003",
+          "number": "G-2027-003",
+          "date": "2027-01-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-01-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-004",
+          "number": "G-2027-004",
+          "date": "2027-01-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-01-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-005",
+          "number": "G-2027-005",
+          "date": "2027-01-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-a1",
+          "baseAmount": 87.82,
+          "vatRate": 21,
+          "vatAmount": 18.44,
+          "totalAmount": 106.26,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-01-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-006",
+          "number": "G-2027-006",
+          "date": "2027-02-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-02-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-007",
+          "number": "G-2027-007",
+          "date": "2027-02-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 265.38,
+          "vatRate": 21,
+          "vatAmount": 55.73,
+          "totalAmount": 321.11,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-02-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-008",
+          "number": "G-2027-008",
+          "date": "2027-02-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-02-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-009",
+          "number": "G-2027-009",
+          "date": "2027-02-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-02-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-010",
+          "number": "G-2027-010",
+          "date": "2027-02-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-a2",
+          "baseAmount": 101.33,
+          "vatRate": 21,
+          "vatAmount": 21.28,
+          "totalAmount": 122.61,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-02-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO AIGÜES DE GIRONA, S.A."
+          },
+          "id": "inv-g-2027-011",
+          "number": "G-2027-011",
+          "date": "2027-02-20",
+          "issuerName": "Aigües de Girona, S.A.",
+          "issuerNif": "B66781238",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-aigues",
+          "apartmentId": null,
+          "baseAmount": 46.38,
+          "vatRate": 10,
+          "vatAmount": 4.64,
+          "totalAmount": 51.02,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-02-20",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO FERRETERÍA CB"
+          },
+          "id": "inv-g-2027-068",
+          "number": "G-2027-068",
+          "date": "2027-02-22",
+          "issuerName": "Ferretería CB",
+          "issuerNif": "B12345674",
+          "issuerNifType": "CIF",
+          "supplierId": null,
+          "apartmentId": null,
+          "baseAmount": 45.5,
+          "vatRate": 21,
+          "vatAmount": 9.56,
+          "totalAmount": 55.06,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-02-22",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-012",
+          "number": "G-2027-012",
+          "date": "2027-03-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-03-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-013",
+          "number": "G-2027-013",
+          "date": "2027-03-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 258.04,
+          "vatRate": 21,
+          "vatAmount": 54.19,
+          "totalAmount": 312.23,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-03-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-014",
+          "number": "G-2027-014",
+          "date": "2027-03-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-03-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-015",
+          "number": "G-2027-015",
+          "date": "2027-03-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-03-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-016",
+          "number": "G-2027-016",
+          "date": "2027-03-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-b1",
+          "baseAmount": 104.48,
+          "vatRate": 21,
+          "vatAmount": 21.94,
+          "totalAmount": 126.42,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-03-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO MAPFRE SEGUROS GENERALES"
+          },
+          "id": "inv-g-2027-017",
+          "number": "G-2027-017",
+          "date": "2027-03-15",
+          "issuerName": "Mapfre Seguros Generales",
+          "issuerNif": "B61239877",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-seguros",
+          "apartmentId": null,
+          "baseAmount": 1280,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1280,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "625",
+          "history": [
+            {
+              "date": "2027-03-15",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-018",
+          "number": "G-2027-018",
+          "date": "2027-04-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-04-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-019",
+          "number": "G-2027-019",
+          "date": "2027-04-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 336.89,
+          "vatRate": 21,
+          "vatAmount": 70.75,
+          "totalAmount": 407.64,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-04-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-020",
+          "number": "G-2027-020",
+          "date": "2027-04-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-04-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-021",
+          "number": "G-2027-021",
+          "date": "2027-04-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-04-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [
+              "EDGE-06"
+            ],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-022",
+          "number": "G-2027-022",
+          "date": "2027-04-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-c1",
+          "baseAmount": 101.37,
+          "vatRate": 21,
+          "vatAmount": 21.29,
+          "totalAmount": 122.66,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-04-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [
+              "EDGE-06"
+            ],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO AIGÜES DE GIRONA, S.A."
+          },
+          "id": "inv-g-2027-023",
+          "number": "G-2027-023",
+          "date": "2027-04-20",
+          "issuerName": "Aigües de Girona, S.A.",
+          "issuerNif": "B66781238",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-aigues",
+          "apartmentId": null,
+          "baseAmount": 51.95,
+          "vatRate": 10,
+          "vatAmount": 5.2,
+          "totalAmount": 57.15,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-04-20",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-024",
+          "number": "G-2027-024",
+          "date": "2027-05-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-05-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-025",
+          "number": "G-2027-025",
+          "date": "2027-05-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 317.34,
+          "vatRate": 21,
+          "vatAmount": 66.64,
+          "totalAmount": 383.98,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-05-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-026",
+          "number": "G-2027-026",
+          "date": "2027-05-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-05-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-027",
+          "number": "G-2027-027",
+          "date": "2027-05-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-05-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-028",
+          "number": "G-2027-028",
+          "date": "2027-05-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-a1",
+          "baseAmount": 85.5,
+          "vatRate": 21,
+          "vatAmount": 17.95,
+          "totalAmount": 103.45,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-05-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO MANTENIMIENTO ASCENSOR"
+          },
+          "id": "inv-g-2027-069",
+          "number": "G-2027-069",
+          "date": "2027-05-18",
+          "issuerName": "Mantenimiento ascensor",
+          "issuerNif": "B12345674",
+          "issuerNifType": "CIF",
+          "supplierId": null,
+          "apartmentId": null,
+          "baseAmount": 120,
+          "vatRate": 21,
+          "vatAmount": 25.2,
+          "totalAmount": 145.2,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-05-18",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-029",
+          "number": "G-2027-029",
+          "date": "2027-06-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-06-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-030",
+          "number": "G-2027-030",
+          "date": "2027-06-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 325.87,
+          "vatRate": 21,
+          "vatAmount": 68.43,
+          "totalAmount": 394.3,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-06-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-031",
+          "number": "G-2027-031",
+          "date": "2027-06-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-06-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [
+              "EDGE-02"
+            ],
+            "skipBank": false,
+            "expectedBankDate": "2027-07-10",
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-032",
+          "number": "G-2027-032",
+          "date": "2027-06-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-06-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-033",
+          "number": "G-2027-033",
+          "date": "2027-06-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-a2",
+          "baseAmount": 99.5,
+          "vatRate": 21,
+          "vatAmount": 20.9,
+          "totalAmount": 120.4,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-06-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO AIGÜES DE GIRONA, S.A."
+          },
+          "id": "inv-g-2027-034",
+          "number": "G-2027-034",
+          "date": "2027-06-20",
+          "issuerName": "Aigües de Girona, S.A.",
+          "issuerNif": "B66781238",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-aigues",
+          "apartmentId": null,
+          "baseAmount": 40.22,
+          "vatRate": 10,
+          "vatAmount": 4.02,
+          "totalAmount": 44.24,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-06-20",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-035",
+          "number": "G-2027-035",
+          "date": "2027-07-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-07-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-036",
+          "number": "G-2027-036",
+          "date": "2027-07-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 286.66,
+          "vatRate": 21,
+          "vatAmount": 60.2,
+          "totalAmount": 346.86,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-07-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-037",
+          "number": "G-2027-037",
+          "date": "2027-07-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-07-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-038",
+          "number": "G-2027-038",
+          "date": "2027-07-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-07-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-039",
+          "number": "G-2027-039",
+          "date": "2027-07-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-b1",
+          "baseAmount": 78.68,
+          "vatRate": 21,
+          "vatAmount": 16.52,
+          "totalAmount": 95.2,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-07-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO SUMINISTROS LIMPIEZA"
+          },
+          "id": "inv-g-2027-070",
+          "number": "G-2027-070",
+          "date": "2027-07-25",
+          "issuerName": "Suministros limpieza",
+          "issuerNif": "B12345674",
+          "issuerNifType": "CIF",
+          "supplierId": null,
+          "apartmentId": null,
+          "baseAmount": 67.8,
+          "vatRate": 21,
+          "vatAmount": 14.24,
+          "totalAmount": 82.04,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-07-25",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-040",
+          "number": "G-2027-040",
+          "date": "2027-08-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-08-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-041",
+          "number": "G-2027-041",
+          "date": "2027-08-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 253.07,
+          "vatRate": 21,
+          "vatAmount": 53.14,
+          "totalAmount": 306.21,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-08-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-042",
+          "number": "G-2027-042",
+          "date": "2027-08-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-08-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-043",
+          "number": "G-2027-043",
+          "date": "2027-08-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-08-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-044",
+          "number": "G-2027-044",
+          "date": "2027-08-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-c1",
+          "baseAmount": 85.6,
+          "vatRate": 21,
+          "vatAmount": 17.98,
+          "totalAmount": 103.58,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-08-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO AIGÜES DE GIRONA, S.A."
+          },
+          "id": "inv-g-2027-045",
+          "number": "G-2027-045",
+          "date": "2027-08-20",
+          "issuerName": "Aigües de Girona, S.A.",
+          "issuerNif": "B66781238",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-aigues",
+          "apartmentId": null,
+          "baseAmount": 41.85,
+          "vatRate": 10,
+          "vatAmount": 4.19,
+          "totalAmount": 46.04,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-08-20",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-046",
+          "number": "G-2027-046",
+          "date": "2027-09-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-09-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-047",
+          "number": "G-2027-047",
+          "date": "2027-09-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 258.49,
+          "vatRate": 21,
+          "vatAmount": 54.28,
+          "totalAmount": 312.77,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-09-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-048",
+          "number": "G-2027-048",
+          "date": "2027-09-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-09-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-049",
+          "number": "G-2027-049",
+          "date": "2027-09-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-09-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-050",
+          "number": "G-2027-050",
+          "date": "2027-09-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-a1",
+          "baseAmount": 101.45,
+          "vatRate": 21,
+          "vatAmount": 21.3,
+          "totalAmount": 122.75,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-09-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO REPARACIÓN PERSIANA CB-B1"
+          },
+          "id": "inv-g-2027-071",
+          "number": "G-2027-071",
+          "date": "2027-09-14",
+          "issuerName": "Reparación persiana CB-B1",
+          "issuerNif": "B12345674",
+          "issuerNifType": "CIF",
+          "supplierId": null,
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-09-14",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-051",
+          "number": "G-2027-051",
+          "date": "2027-10-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-10-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-052",
+          "number": "G-2027-052",
+          "date": "2027-10-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 318.66,
+          "vatRate": 21,
+          "vatAmount": 66.92,
+          "totalAmount": 385.58,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-10-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-053",
+          "number": "G-2027-053",
+          "date": "2027-10-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-10-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-054",
+          "number": "G-2027-054",
+          "date": "2027-10-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-10-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-055",
+          "number": "G-2027-055",
+          "date": "2027-10-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-a2",
+          "baseAmount": 105.73,
+          "vatRate": 21,
+          "vatAmount": 22.2,
+          "totalAmount": 127.93,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-10-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO AIGÜES DE GIRONA, S.A."
+          },
+          "id": "inv-g-2027-056",
+          "number": "G-2027-056",
+          "date": "2027-10-20",
+          "issuerName": "Aigües de Girona, S.A.",
+          "issuerNif": "B66781238",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-aigues",
+          "apartmentId": null,
+          "baseAmount": 47.45,
+          "vatRate": 10,
+          "vatAmount": 4.75,
+          "totalAmount": 52.2,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-10-20",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO MATERIAL OFICINA"
+          },
+          "id": "inv-g-2027-072",
+          "number": "G-2027-072",
+          "date": "2027-10-28",
+          "issuerName": "Material oficina",
+          "issuerNif": "B12345674",
+          "issuerNifType": "CIF",
+          "supplierId": null,
+          "apartmentId": null,
+          "baseAmount": 32.4,
+          "vatRate": 21,
+          "vatAmount": 6.8,
+          "totalAmount": 39.2,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-10-28",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-057",
+          "number": "G-2027-057",
+          "date": "2027-11-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-11-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-059",
+          "number": "G-2027-059",
+          "date": "2027-11-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-11-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-060",
+          "number": "G-2027-060",
+          "date": "2027-11-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-11-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-061",
+          "number": "G-2027-061",
+          "date": "2027-11-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-b1",
+          "baseAmount": 83.61,
+          "vatRate": 21,
+          "vatAmount": 17.56,
+          "totalAmount": 101.17,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-11-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [
+              "EDGE-01"
+            ],
+            "skipBank": true,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-058",
+          "number": "G-2027-058",
+          "date": "2027-11-15",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 200,
+          "vatRate": 21,
+          "vatAmount": 42,
+          "totalAmount": 242,
+          "type": "EXPENSE",
+          "status": "PENDING",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-11-15",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO COMUNIDAD PROP. EDIFICIO SANT JORDI"
+          },
+          "id": "inv-g-2027-062",
+          "number": "G-2027-062",
+          "date": "2027-12-01",
+          "issuerName": "Comunidad Prop. Edificio Sant Jordi",
+          "issuerNif": "H12345674",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-comunidad",
+          "apartmentId": null,
+          "baseAmount": 180,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 180,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-12-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [
+              "EDGE-09"
+            ],
+            "skipBank": false,
+            "expectedBankDate": "2028-01-08",
+            "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+          },
+          "id": "inv-g-2027-063",
+          "number": "G-2027-063",
+          "date": "2027-12-05",
+          "issuerName": "Neteja Costa Brava, S.L.",
+          "issuerNif": "B78345121",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-limpieza",
+          "apartmentId": null,
+          "baseAmount": 348.91,
+          "vatRate": 21,
+          "vatAmount": 73.27,
+          "totalAmount": 422.18,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "622",
+          "history": [
+            {
+              "date": "2027-12-05",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+          },
+          "id": "inv-g-2027-064",
+          "number": "G-2027-064",
+          "date": "2027-12-08",
+          "issuerName": "Telefónica de España, S.A.U.",
+          "issuerNif": "A82018474",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-telefonica",
+          "apartmentId": null,
+          "baseAmount": 49.9,
+          "vatRate": 21,
+          "vatAmount": 10.48,
+          "totalAmount": 60.38,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "626",
+          "history": [
+            {
+              "date": "2027-12-08",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+          },
+          "id": "inv-g-2027-065",
+          "number": "G-2027-065",
+          "date": "2027-12-10",
+          "issuerName": "Gestoria Empordà, S.L.",
+          "issuerNif": "B70123450",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-gestoria",
+          "apartmentId": null,
+          "baseAmount": 95,
+          "vatRate": 21,
+          "vatAmount": 19.95,
+          "totalAmount": 114.95,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "623",
+          "history": [
+            {
+              "date": "2027-12-10",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+          },
+          "id": "inv-g-2027-066",
+          "number": "G-2027-066",
+          "date": "2027-12-12",
+          "issuerName": "Endesa Energía, S.A.U.",
+          "issuerNif": "A58923418",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-endesa",
+          "apartmentId": "apt-cb-c1",
+          "baseAmount": 95.04,
+          "vatRate": 21,
+          "vatAmount": 19.96,
+          "totalAmount": 115,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-12-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "PAGO AIGÜES DE GIRONA, S.A."
+          },
+          "id": "inv-g-2027-067",
+          "number": "G-2027-067",
+          "date": "2027-12-20",
+          "issuerName": "Aigües de Girona, S.A.",
+          "issuerNif": "B66781238",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-aigues",
+          "apartmentId": null,
+          "baseAmount": 50.45,
+          "vatRate": 10,
+          "vatAmount": 5.05,
+          "totalAmount": 55.5,
+          "type": "EXPENSE",
+          "status": "PAID",
+          "category": "628",
+          "history": [
+            {
+              "date": "2027-12-20",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        }
+      ],
+      "incomes": [
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-001",
+          "number": "I-2027-001",
+          "date": "2027-01-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-01-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-002",
+          "number": "I-2027-002",
+          "date": "2027-01-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-01-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-003",
+          "number": "I-2027-003",
+          "date": "2027-01-13",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1030.89,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1030.89,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-01-13",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-004",
+          "number": "I-2027-004",
+          "date": "2027-02-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-02-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-005",
+          "number": "I-2027-005",
+          "date": "2027-02-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-02-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-006",
+          "number": "I-2027-006",
+          "date": "2027-02-12",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1737.48,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1737.48,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-02-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-007",
+          "number": "I-2027-007",
+          "date": "2027-03-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-03-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-008",
+          "number": "I-2027-008",
+          "date": "2027-03-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-03-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-009",
+          "number": "I-2027-009",
+          "date": "2027-03-17",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1135.09,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1135.09,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-03-17",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-010",
+          "number": "I-2027-010",
+          "date": "2027-04-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-04-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-011",
+          "number": "I-2027-011",
+          "date": "2027-04-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-04-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-012",
+          "number": "I-2027-012",
+          "date": "2027-04-14",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1484.47,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1484.47,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-04-14",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-013",
+          "number": "I-2027-013",
+          "date": "2027-05-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-05-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-014",
+          "number": "I-2027-014",
+          "date": "2027-05-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-05-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-015",
+          "number": "I-2027-015",
+          "date": "2027-05-16",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1594.85,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1594.85,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-05-16",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-016",
+          "number": "I-2027-016",
+          "date": "2027-06-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-06-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-017",
+          "number": "I-2027-017",
+          "date": "2027-06-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-06-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-018",
+          "number": "I-2027-018",
+          "date": "2027-06-15",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 2198.17,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 2198.17,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-06-15",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-019",
+          "number": "I-2027-019",
+          "date": "2027-07-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-07-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-020",
+          "number": "I-2027-020",
+          "date": "2027-07-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-07-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-021",
+          "number": "I-2027-021",
+          "date": "2027-07-13",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1271.5,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1271.5,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-07-13",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-022",
+          "number": "I-2027-022",
+          "date": "2027-08-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-08-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-023",
+          "number": "I-2027-023",
+          "date": "2027-08-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-08-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [
+              "EDGE-04"
+            ],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-024",
+          "number": "I-2027-024",
+          "date": "2027-08-12",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1842.35,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1842.35,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-08-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-025",
+          "number": "I-2027-025",
+          "date": "2027-09-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-09-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-026",
+          "number": "I-2027-026",
+          "date": "2027-09-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-09-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-027",
+          "number": "I-2027-027",
+          "date": "2027-09-18",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1142.44,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1142.44,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-09-18",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-028",
+          "number": "I-2027-028",
+          "date": "2027-10-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-10-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-029",
+          "number": "I-2027-029",
+          "date": "2027-10-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-10-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-030",
+          "number": "I-2027-030",
+          "date": "2027-10-16",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1653.31,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1653.31,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-10-16",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-031",
+          "number": "I-2027-031",
+          "date": "2027-11-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-11-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-032",
+          "number": "I-2027-032",
+          "date": "2027-11-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-11-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-033",
+          "number": "I-2027-033",
+          "date": "2027-11-13",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 2094.34,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 2094.34,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-11-13",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R1"
+          },
+          "id": "inv-i-2027-034",
+          "number": "I-2027-034",
+          "date": "2027-12-01",
+          "issuerName": "Inquilino CB-R1 UAT",
+          "issuerNif": "87654321X",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r1",
+          "baseAmount": 850,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 850,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-12-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO ALQUILER CB-R2"
+          },
+          "id": "inv-i-2027-035",
+          "number": "I-2027-035",
+          "date": "2027-12-01",
+          "issuerName": "Inquilino CB-R2 UAT",
+          "issuerNif": "76543210S",
+          "issuerNifType": "DNI",
+          "supplierId": null,
+          "apartmentId": "apt-cb-r2",
+          "baseAmount": 1100,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1100,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-12-01",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        },
+        {
+          "uatMeta": {
+            "kitVersion": "1.0.0",
+            "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+            "fictitious": true,
+            "edgeIds": [],
+            "skipBank": false,
+            "expectedBankDate": null,
+            "bankConcept": "COBRO AIRBNB PAYMENTS"
+          },
+          "id": "inv-i-2027-036",
+          "number": "I-2027-036",
+          "date": "2027-12-12",
+          "issuerName": "Airbnb Payments UK Ltd",
+          "issuerNif": "N82659368",
+          "issuerNifType": "CIF",
+          "supplierId": "sup-airbnb",
+          "apartmentId": null,
+          "baseAmount": 1792.21,
+          "vatRate": 0,
+          "vatAmount": 0,
+          "totalAmount": 1792.21,
+          "type": "INCOME",
+          "status": "PAID",
+          "category": "705",
+          "history": [
+            {
+              "date": "2027-12-12",
+              "action": "GENERATED_UAT",
+              "user": "generate-uat-kit"
+            }
+          ]
+        }
+      ]
+    },
+    "2028": {
+      "year": 2028,
+      "expenseCount": 40,
+      "incomeCount": 20,
+      "bankStatements": 7,
+      "reservations": 30,
+      "movements": 61,
+      "openingBalance": 43607.51,
+      "closingBalance": 57208.43
+    }
+  },
+  "counts": {
+    "2027": {
+      "expenseInvoices": 72,
+      "incomeInvoices": 36,
+      "bankStatements": 12,
+      "reservations": 60,
+      "bankMovements": 108
+    },
+    "2028": {
+      "expenseInvoices": 40,
+      "incomeInvoices": 20,
+      "bankStatements": 7,
+      "reservations": 30,
+      "bankMovements": 61,
+      "hardCutoff": "2028-07-17"
+    },
+    "generatedAt": "2026-07-16T22:14:30.839Z",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "master": {
+      "empresa": 1,
+      "comuneros": 4,
+      "apartamentos": 6,
+      "proveedores": 8,
+      "gastosRecurrentes": 9
+    }
+  }
+}

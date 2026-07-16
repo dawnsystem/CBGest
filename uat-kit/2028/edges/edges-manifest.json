@@ -1,0 +1,27 @@
+{
+  "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+  "year": 2028,
+  "generatedAt": "2026-07-16T22:14:30.839Z",
+  "edges": [
+    {
+      "id": "EDGE-09",
+      "title": "Factura 2027 pagada en 2028",
+      "description": "Factura gasto dic-2027 pagada en extracto ene-2028",
+      "references": {
+        "invoices": [],
+        "bankOnly": [],
+        "reservations": []
+      }
+    },
+    {
+      "id": "EDGE-11",
+      "title": "Corte duro 17/07/2028",
+      "description": "Ningún documento con fecha > 2028-07-17 en el kit 2028",
+      "references": {
+        "invoices": [],
+        "bankOnly": [],
+        "reservations": []
+      }
+    }
+  ]
+}

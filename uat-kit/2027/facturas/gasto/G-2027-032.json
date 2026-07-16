@@ -1,0 +1,35 @@
+{
+  "uatMeta": {
+    "kitVersion": "1.0.0",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "fictitious": true,
+    "edgeIds": [
+      "EDGE-02"
+    ],
+    "skipBank": false,
+    "expectedBankDate": "2027-07-10",
+    "bankConcept": "PAGO GESTORIA EMPORDÀ, S.L."
+  },
+  "id": "inv-g-2027-032",
+  "number": "G-2027-032",
+  "date": "2027-06-10",
+  "issuerName": "Gestoria Empordà, S.L.",
+  "issuerNif": "B70123450",
+  "issuerNifType": "CIF",
+  "supplierId": "sup-gestoria",
+  "apartmentId": null,
+  "baseAmount": 95,
+  "vatRate": 21,
+  "vatAmount": 19.95,
+  "totalAmount": 114.95,
+  "type": "EXPENSE",
+  "status": "PAID",
+  "category": "623",
+  "history": [
+    {
+      "date": "2027-06-10",
+      "action": "GENERATED_UAT",
+      "user": "generate-uat-kit"
+    }
+  ]
+}

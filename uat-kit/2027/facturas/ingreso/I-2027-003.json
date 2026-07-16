@@ -1,0 +1,33 @@
+{
+  "uatMeta": {
+    "kitVersion": "1.0.0",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "fictitious": true,
+    "edgeIds": [],
+    "skipBank": false,
+    "expectedBankDate": null,
+    "bankConcept": "COBRO AIRBNB PAYMENTS"
+  },
+  "id": "inv-i-2027-003",
+  "number": "I-2027-003",
+  "date": "2027-01-13",
+  "issuerName": "Airbnb Payments UK Ltd",
+  "issuerNif": "N82659368",
+  "issuerNifType": "CIF",
+  "supplierId": "sup-airbnb",
+  "apartmentId": null,
+  "baseAmount": 1030.89,
+  "vatRate": 0,
+  "vatAmount": 0,
+  "totalAmount": 1030.89,
+  "type": "INCOME",
+  "status": "PAID",
+  "category": "705",
+  "history": [
+    {
+      "date": "2027-01-13",
+      "action": "GENERATED_UAT",
+      "user": "generate-uat-kit"
+    }
+  ]
+}

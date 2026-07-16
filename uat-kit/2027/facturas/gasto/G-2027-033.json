@@ -1,0 +1,33 @@
+{
+  "uatMeta": {
+    "kitVersion": "1.0.0",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "fictitious": true,
+    "edgeIds": [],
+    "skipBank": false,
+    "expectedBankDate": null,
+    "bankConcept": "PAGO ENDESA ENERGÍA, S.A.U."
+  },
+  "id": "inv-g-2027-033",
+  "number": "G-2027-033",
+  "date": "2027-06-12",
+  "issuerName": "Endesa Energía, S.A.U.",
+  "issuerNif": "A58923418",
+  "issuerNifType": "CIF",
+  "supplierId": "sup-endesa",
+  "apartmentId": "apt-cb-a2",
+  "baseAmount": 99.5,
+  "vatRate": 21,
+  "vatAmount": 20.9,
+  "totalAmount": 120.4,
+  "type": "EXPENSE",
+  "status": "PAID",
+  "category": "628",
+  "history": [
+    {
+      "date": "2027-06-12",
+      "action": "GENERATED_UAT",
+      "user": "generate-uat-kit"
+    }
+  ]
+}

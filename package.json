@@ -14,7 +14,8 @@
     "test:watch": "vitest --watch",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "generate:uat-kit": "node scripts/generate-uat-kit.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
@@ -54,6 +55,7 @@
     "tailwindcss": "^4.1.17",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vitest": "^4.0.12"
+    "vitest": "^4.0.12",
+    "write-excel-file": "^4.1.1"
   }
 }

@@ -1,0 +1,33 @@
+{
+  "uatMeta": {
+    "kitVersion": "1.0.0",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "fictitious": true,
+    "edgeIds": [],
+    "skipBank": false,
+    "expectedBankDate": null,
+    "bankConcept": "PAGO AIGÜES DE GIRONA, S.A."
+  },
+  "id": "inv-g-2027-034",
+  "number": "G-2027-034",
+  "date": "2027-06-20",
+  "issuerName": "Aigües de Girona, S.A.",
+  "issuerNif": "B66781238",
+  "issuerNifType": "CIF",
+  "supplierId": "sup-aigues",
+  "apartmentId": null,
+  "baseAmount": 40.22,
+  "vatRate": 10,
+  "vatAmount": 4.02,
+  "totalAmount": 44.24,
+  "type": "EXPENSE",
+  "status": "PAID",
+  "category": "628",
+  "history": [
+    {
+      "date": "2027-06-20",
+      "action": "GENERATED_UAT",
+      "user": "generate-uat-kit"
+    }
+  ]
+}

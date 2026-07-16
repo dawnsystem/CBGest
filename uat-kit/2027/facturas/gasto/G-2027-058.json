@@ -1,0 +1,35 @@
+{
+  "uatMeta": {
+    "kitVersion": "1.0.0",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "fictitious": true,
+    "edgeIds": [
+      "EDGE-01"
+    ],
+    "skipBank": true,
+    "expectedBankDate": null,
+    "bankConcept": "PAGO NETEJA COSTA BRAVA, S.L."
+  },
+  "id": "inv-g-2027-058",
+  "number": "G-2027-058",
+  "date": "2027-11-15",
+  "issuerName": "Neteja Costa Brava, S.L.",
+  "issuerNif": "B78345121",
+  "issuerNifType": "CIF",
+  "supplierId": "sup-limpieza",
+  "apartmentId": null,
+  "baseAmount": 200,
+  "vatRate": 21,
+  "vatAmount": 42,
+  "totalAmount": 242,
+  "type": "EXPENSE",
+  "status": "PENDING",
+  "category": "622",
+  "history": [
+    {
+      "date": "2027-11-15",
+      "action": "GENERATED_UAT",
+      "user": "generate-uat-kit"
+    }
+  ]
+}

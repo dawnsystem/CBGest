@@ -1,0 +1,33 @@
+{
+  "uatMeta": {
+    "kitVersion": "1.0.0",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "fictitious": true,
+    "edgeIds": [],
+    "skipBank": false,
+    "expectedBankDate": null,
+    "bankConcept": "PAGO TELEFÓNICA DE ESPAÑA, S.A.U."
+  },
+  "id": "inv-g-2027-053",
+  "number": "G-2027-053",
+  "date": "2027-10-08",
+  "issuerName": "Telefónica de España, S.A.U.",
+  "issuerNif": "A82018474",
+  "issuerNifType": "CIF",
+  "supplierId": "sup-telefonica",
+  "apartmentId": null,
+  "baseAmount": 49.9,
+  "vatRate": 21,
+  "vatAmount": 10.48,
+  "totalAmount": 60.38,
+  "type": "EXPENSE",
+  "status": "PAID",
+  "category": "626",
+  "history": [
+    {
+      "date": "2027-10-08",
+      "action": "GENERATED_UAT",
+      "user": "generate-uat-kit"
+    }
+  ]
+}
