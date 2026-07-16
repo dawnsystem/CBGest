@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 10:30:00 UTC*
+*Última actualización: 2026-07-16 10:50:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **PR-7 — MEDIOS residuales #147** en rama `fix/pr7-medios-residual`; issue #147 permanece abierto (cierre parcial).
+Estado actual: **Lote residual #147 (fase final acotada)** en rama `fix/issue-147-residual-lote`; clasificación y fixes mínimos aplicados; issue #147 puede seguir abierto si se prefiere registrar el cierre por merge/PR.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `RESIDUAL-147-B` - SEC-018 / RO-001 / BUG-UI-001 / DEBT-019 / BUG-ARCH-001 / DEBT-020 / DEBT-021:** `authService.verifySession()` ya no devuelve `true` durante 401 post-login (el grace period inseguro se elimina también de `handleUnauthorizedError`). `BankReconciliation` ahora recibe `isReadOnly` y deshabilita `Crear Asiento`/`CASAR`; `App.tsx` bloquea cambio de estado y borrado de facturas en ejercicio cerrado. Se elimina código muerto confirmado: `components/AuthModal.tsx` y `hooks/useAppwriteData.ts` con su re-export. Clasificación final del lote: `DEBT-020` y `DEBT-021` no aplican ya en `main`; `BUG-ARCH-001` queda como deuda descartable/no reproducible tras eliminar la dualidad muerta. Validado con tests focalizados + lint + type-check + build.
 *   **[2026-07-16] - `MEDIOS-147` - Settings/drafts/toast/realtime/filtros FY:** Cerrados BUG-027/028/029/030, CTB-004/005/006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001. Settings: mapeo limpio + ID fijo `app_settings` + revert sync. Drafts: totales sin borradores, Debe/Haber mutuamente excluyentes, deudas alineadas, matching sin drafts, suma multi-línea 57x. Toast resuelve confirm previo. Realtime re-fetch a React state. Charts por `fiscalYearId`. Issue: #147 (parcial). Tests focalizados PASS.
 *   **[2026-07-16] - `SEC-017` + `BUG-024` + `BUG-025` + `BUG-026` - Auth functions + rateLimiter:** `manage-users`: guardas SEC-017 en `updateLabels` (no auto-degradación, ≥1 admin); paginación BUG-025 (`listAllUsers`); rollback BUG-026 en create. `rateLimiter`: relanzar `processQueue` en `finally` (BUG-024). Issue #143. Tests focalizados 5 PASS.
 *   **[2026-07-16] - `CONC-001` + `CTB-002` - Conciliación por signo + naturaleza deudora 470–474:** Matching via `findReconciliationMatches`/`isSignCompatibleMatch` (cargo↔400/6xx, abono↔430/7xx; excluye `isDraft`). `isDebitNatureAccount` amplía 460 y 470–474. Issue: #141. Tests 46 PASS.
@@ -99,13 +100,16 @@ Estado actual: **PR-7 — MEDIOS residuales #147** en rama `fix/pr7-medios-resid
 ---
 
 ## 🔬 Registro Forense de Sesiones
-### Sesión: [2026-07-16 10:30:00 UTC]
-*   **Directiva del Director:** PR-7 — commit/push/PR deuda MEDIOS (#147). Sin `Closes #147`.
+### Sesión: [2026-07-16 10:50:00 UTC]
+*   **Directiva del Director:** Cerrar el lote residual acotado de #147 (`SEC-018`, `RO-001`, `BUG-ARCH-001`, `BUG-UI-001`, `DEBT-019`, `DEBT-020`, `DEBT-021`) o clasificar con evidencia lo que no convenga tocar.
 *   **Log de Acciones:**
-    - `[10:28:00]` - **GIT:** Rama `fix/pr7-medios-residual` desde `origin/main` con diff aislado PR-7.
-    - `[10:29:00]` - **TEST:** settingsService, fiscalPeriodFilter, Toast, accountingPlan CONC-002 — PASS.
-    - `[10:30:00]` - **DOC:** Bitácora MEDIOS #147; PR + comentario en issue #147.
-*   **Resultado:** PR-7 lista para merge. #147 parcial (quedan SEC-018, RO-001, BUG-ARCH-001, BUG-UI-001, DEBT-019..021).
+    - `[10:35:00]` - **AUDIT:** Verificados `services/authService.ts`, `components/BankReconciliation.tsx`, `App.tsx`, `config/defaultSettings.ts`, `components/UserManagement.tsx`, `hooks/useAppwriteData.ts`, `components/AuthModal.tsx` y referencias globales.
+    - `[10:39:00]` - **FIX:** `services/authService.ts` — eliminado grace period que devolvía `true` en `verifySession()`/`handleUnauthorizedError()` ante 401 post-login (`SEC-018`).
+    - `[10:42:00]` - **FIX:** `components/BankReconciliation.tsx` + `App.tsx` — propagado `isReadOnly` y deshabilitadas acciones mutadoras en conciliación y listado de facturas (`RO-001`, `BUG-UI-001`).
+    - `[10:44:00]` - **CLEANUP:** eliminados `components/AuthModal.tsx` y `hooks/useAppwriteData.ts` + re-export muerto en `hooks/index.ts` (`DEBT-019`, `BUG-ARCH-001`).
+    - `[10:47:00]` - **TEST:** `services/__tests__/authService.test.ts` + nuevo `components/__tests__/BankReconciliation.test.tsx` — PASS. `npm run lint`, `npm run type-check`, `npm run build` — PASS.
+    - `[11:36:00]` - **CI-FIX:** `components/__tests__/BankReconciliation.test.tsx` — añadidos `accountName` requeridos por `AccountingEntryLine` para dejar verde la PR residual `#163`.
+*   **Resultado:** Lote residual verificado y acotado. `SEC-018`, `RO-001`, `BUG-UI-001` y `DEBT-019` corregidos. `DEBT-020` y `DEBT-021` clasificados como no aplicables ya en `main`. `BUG-ARCH-001` rebajado a deuda descartable/no reproducible tras eliminar la implementación duplicada no usada.
 
 ### Sesión: [2026-07-16 10:40:00 UTC]
 *   **Directiva:** PR-1 `[CONC-001][CTB-002]` (#141). Rama `fix/pr1-conc-ctb002`.
@@ -822,5 +826,12 @@ Estado actual: **PR-7 — MEDIOS residuales #147** en rama `fix/pr7-medios-resid
 * **BUG-FN-002:** `detect-recurring` analizaba transacciones sin `fiscalYearId` → contaminaba sugerencias del ejercicio activo. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **BUG-AI-001:** `useInvoiceReview.confirmInvoice` podía persistir `vatRate` decimal crudo de Gemini (p. ej. `0.21`); la normalización BUG-014 solo estaba en edit. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **SEC-PEND:** SEC-005..015. Issue #146. Estado: ✅ Resuelto (PR-6).
-* **MEDIOS residuales (#147):** settings/drafts/toast/realtime/filtros FY → **parcialmente resuelto** (BUG-027..030, CTB-004..006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001). Pendientes fuera de alcance PR-7: SEC-018, RO-001, BUG-ARCH-001, BUG-UI-001, DEBT-019..021.
+* **MEDIOS residuales (#147):** settings/drafts/toast/realtime/filtros FY → ✅ **resuelto a nivel de código actual en `main` + lote final acotado**.
+  * **SEC-018:** `services/authService.ts` devolvía `true` en `verifySession()` durante una ventana fija de 5s tras login aunque `account.get()` respondiera 401. Estado: ✅ **Resuelto** (se elimina el grace period inseguro).
+  * **RO-001:** `components/BankReconciliation.tsx` no aplicaba `isReadOnly` en UI/acciones. Estado: ✅ **Resuelto** (`isReadOnly` propagado desde `App.tsx`, botones mutadores deshabilitados).
+  * **BUG-UI-001:** listado de facturas en `App.tsx` permitía cambiar estado y borrar en ejercicio cerrado. Estado: ✅ **Resuelto** (`disabled={isReadOnly}` + affordance visual).
+  * **DEBT-019:** `components/AuthModal.tsx` seguía muerto/no referenciado. Estado: ✅ **Resuelto** (archivo eliminado).
+  * **DEBT-020:** deuda sobre defaults `touristTax` ya absorbida por `config/defaultSettings.ts` (`DEFAULT_TAX_CONFIG`) y su uso centralizado. Estado: ⛔ **No aplica / ya resuelto en `main`**.
+  * **DEBT-021:** dualidad `UserRole` vs labels queda encapsulada explícitamente en `components/UserManagement.tsx` (`ROLE_LABELS`/`ROLE_DISPLAY_NAMES`) y en `manage-users`. Estado: ⛔ **No aplica / aceptable en diseño actual**.
+  * **BUG-ARCH-001:** existía dualidad histórica `useAppwriteData` vs `App.tsx`, pero no era reproducible en runtime porque el hook ya no se usaba. Estado: ⚪ **Deuda descartable / no reproducible**; se elimina la implementación duplicada no usada para cerrar el residuo sin abrir una refactorización mayor.
 

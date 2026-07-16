@@ -24,6 +24,7 @@ interface BankReconciliationProps {
   invoices: Invoice[];
   suppliers: Supplier[];
   recurringExpenses: RecurringExpense[];
+  isReadOnly?: boolean;
   /**
    * Called when reconciling a movement with an entry.
    * @param sourceId - ID of the source movement (transaction ID if IMPORTED, bank entry ID if ACCOUNTING)
@@ -40,6 +41,7 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
   invoices,
   suppliers,
   recurringExpenses,
+  isReadOnly = false,
   onReconcile,
   onCreateEntryFromTransaction
 }) => {
@@ -146,6 +148,9 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
 
   // Handle reconciliation based on movement source
   const handleReconcile = (movementId: string, entryId: string) => {
+    if (isReadOnly) {
+      return;
+    }
     const movement = allPendingMovements.find(m => m.id === movementId);
     if (!movement) return;
 
@@ -160,6 +165,9 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
 
   // Handle creating entry from imported transaction
   const handleCreateEntry = (movement: BankMovement) => {
+    if (isReadOnly) {
+      return;
+    }
     if (movement.source === 'IMPORTED' && movement.originalTransaction) {
       onCreateEntryFromTransaction(movement.originalTransaction);
     }
@@ -206,7 +214,9 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
                     <div
                         key={movement.id}
                         onClick={() => setSelectedMovement(movement.id)}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        className={`p-3 rounded-lg border transition-all ${
+                            isReadOnly ? 'cursor-default' : 'cursor-pointer'
+                        } ${
                             selectedMovement === movement.id
                             ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
                             : movement.source === 'ACCOUNTING'
@@ -265,7 +275,8 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
                                <div className="flex justify-end">
                                  <button
                                    onClick={(e) => { e.stopPropagation(); handleCreateEntry(movement); }}
-                                   className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 flex items-center gap-1"
+                                   disabled={isReadOnly}
+                                   className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
                                  >
                                     <Plus className="w-3 h-3" /> Crear Asiento
                                  </button>
@@ -321,7 +332,8 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
                                 </div>
                                 <button
                                     onClick={() => handleReconcile(selectedMovement, match.id)}
-                                    className="w-full bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-emerald-600 flex items-center justify-center gap-1"
+                                    disabled={isReadOnly}
+                                    className="w-full bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                                 >
                                     <Check className="w-3 h-3" /> CASAR
                                 </button>

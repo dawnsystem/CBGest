@@ -6,12 +6,6 @@ import { AppwriteException } from 'appwrite';
 import { authService, setAuthCallbacks } from '../authService';
 import { account } from '../../lib/appwrite/client';
 
-// authService uses a 5000ms grace period after login; we wait slightly longer
-// so tests assert the post-grace behavior deterministically.
-const AUTH_GRACE_PERIOD_BUFFER_MS = 5200;
-const waitForGracePeriodToExpire = (): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, AUTH_GRACE_PERIOD_BUFFER_MS));
-
 describe('authService direct coverage', () => {
   const getMock = vi.mocked(account.get);
   const createSessionMock = vi.mocked(account.createEmailPasswordSession);
@@ -55,22 +49,24 @@ describe('authService direct coverage', () => {
     expect(deleteSessionMock).toHaveBeenCalledWith('current');
   });
 
-  it('should treat session as valid during grace period after login', async () => {
+  it('should mark session as invalid immediately on 401 verification failure', async () => {
+    const onSessionExpired = vi.fn();
+    setAuthCallbacks({ onSessionExpired });
     await authService.login('test@example.com', 'secret');
     getMock.mockRejectedValueOnce(new AppwriteException('expired', 401));
 
-    await expect(authService.verifySession()).resolves.toBe(true);
+    await expect(authService.verifySession()).resolves.toBe(false);
+    expect(onSessionExpired).toHaveBeenCalledTimes(1);
   });
 
   it('should notify session expiration when verification fails outside grace period', async () => {
     const onSessionExpired = vi.fn();
     setAuthCallbacks({ onSessionExpired });
-    await waitForGracePeriodToExpire();
     getMock.mockRejectedValueOnce(new AppwriteException('expired', 401));
 
     await expect(authService.verifySession()).resolves.toBe(false);
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
-  }, 15000);
+  });
 
   it('should not expire session on unauthorized collection error if account is still valid', async () => {
     const onSessionExpired = vi.fn();
@@ -84,18 +80,16 @@ describe('authService direct coverage', () => {
   it('should expire session on unauthorized error when account check also fails', async () => {
     const onSessionExpired = vi.fn();
     setAuthCallbacks({ onSessionExpired });
-    await waitForGracePeriodToExpire();
     getMock.mockRejectedValueOnce(new AppwriteException('expired', 401));
 
     await authService.handleUnauthorizedError();
 
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
-  }, 15000);
+  });
 
   it('should NOT expire session when verification fails with network error (non-401)', async () => {
     const onSessionExpired = vi.fn();
     setAuthCallbacks({ onSessionExpired });
-    await waitForGracePeriodToExpire();
     // Simulate a network error (no code) during the account.get() verification
     getMock.mockRejectedValueOnce(new Error('Failed to fetch'));
 
@@ -103,7 +97,7 @@ describe('authService direct coverage', () => {
 
     // Should NOT call onSessionExpired because the error is transient, not auth-related
     expect(onSessionExpired).not.toHaveBeenCalled();
-  }, 15000);
+  });
 
   it('should propagate network errors from getCurrentUser', async () => {
     getMock.mockRejectedValueOnce(new Error('Failed to fetch'));
