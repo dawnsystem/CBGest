@@ -76,13 +76,6 @@ let onSessionExpired: SessionExpiredCallback | null = null;
 let onAuthError: AuthErrorCallback | null = null;
 
 /**
- * Grace period after login where 401 errors won't trigger session expiration.
- * This prevents race conditions during initial data load after login.
- */
-const LOGIN_GRACE_PERIOD_MS = 5000;
-let loginGraceUntil: number = 0;
-
-/**
  * Configura callbacks para eventos de autenticación
  */
 export const setAuthCallbacks = (callbacks: {
@@ -216,12 +209,7 @@ export const authService = {
       const user = await account.get();
       authLogger.success('Login exitoso');
 
-      // 5. Set grace period for 401 errors during initial data load
-      // This prevents race conditions from triggering false session expiration
-      loginGraceUntil = Date.now() + LOGIN_GRACE_PERIOD_MS;
-      authLogger.debug(`Período de gracia establecido por ${LOGIN_GRACE_PERIOD_MS} ms`);
-
-      // 6. Emitir evento sessionReady
+      // 5. Emitir evento sessionReady
       if (onSessionReady) {
         onSessionReady();
       }
@@ -381,9 +369,6 @@ export const authService = {
    * Verifica si la sesión actual es válida.
    * Útil para health checks periódicos.
    *
-   * NOTE: During the grace period after login, session errors won't trigger
-   * expiration to prevent race conditions during initial data load.
-   *
    * @returns true si la sesión es válida
    */
   async verifySession(): Promise<boolean> {
@@ -393,12 +378,6 @@ export const authService = {
     } catch (error) {
       const code = getErrorCode(error);
       if (SESSION_INVALID_CODES.includes(code || 0)) {
-        // Check if we're in the grace period after login
-        if (Date.now() < loginGraceUntil) {
-          authLogger.warn('verifySession falló pero dentro del período de gracia - ignorando');
-          return true; // Pretend session is valid during grace period
-        }
-
         if (onSessionExpired) {
           onSessionExpired();
         }
@@ -418,12 +397,6 @@ export const authService = {
    * trigger session expiration if the user's session is still valid.
    */
   async handleUnauthorizedError(): Promise<void> {
-    // Check if we're in the grace period after login
-    if (Date.now() < loginGraceUntil) {
-      authLogger.warn('Error 401 detectado pero dentro del período de gracia post-login - ignorando');
-      return;
-    }
-
     // IMPORTANT: Verify if the session is actually invalid before triggering expiration
     // A 401 from a collection (permissions issue) should NOT trigger session expiration
     try {

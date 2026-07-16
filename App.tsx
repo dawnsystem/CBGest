@@ -902,7 +902,8 @@ const MainLayout: React.FC = () => {
                                     <select
                                       value={inv.status}
                                       onChange={(e) => handleUpdateInvoice({...inv, status: e.target.value as Invoice['status']})}
-                                      className={`text-xs px-2 py-1 rounded border font-medium ${statusColor}`}
+                                      disabled={isReadOnly}
+                                      className={`text-xs px-2 py-1 rounded border font-medium disabled:opacity-50 disabled:cursor-not-allowed ${statusColor}`}
                                     >
                                       <option value="PENDING">PENDIENTE</option>
                                       <option value="PROCESSED">PROCESADA</option>
@@ -930,8 +931,9 @@ const MainLayout: React.FC = () => {
                                           handleDeleteInvoice(inv.id);
                                         }
                                       }}
-                                      className="p-1 text-slate-400 hover:text-red-600"
-                                      title="Eliminar factura"
+                                      disabled={isReadOnly}
+                                      className="p-1 text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                      title={isReadOnly ? 'Ejercicio cerrado — solo consulta' : 'Eliminar factura'}
                                     >
                                       <Trash className="w-4 h-4" />
                                     </button>
@@ -963,7 +965,8 @@ const MainLayout: React.FC = () => {
                                 <select
                                   value={inv.status}
                                   onChange={(e) => handleUpdateInvoice({...inv, status: e.target.value as Invoice['status']})}
-                                  className={`text-xs px-2 py-1 rounded border font-medium ${statusColor}`}
+                                  disabled={isReadOnly}
+                                  className={`text-xs px-2 py-1 rounded border font-medium disabled:opacity-50 disabled:cursor-not-allowed ${statusColor}`}
                                 >
                                   <option value="PENDING">PENDIENTE</option>
                                   <option value="PROCESSED">PROCESADA</option>
@@ -990,7 +993,8 @@ const MainLayout: React.FC = () => {
                                       handleDeleteInvoice(inv.id);
                                     }
                                   }}
-                                  className="flex-1 text-red-500 text-xs font-medium uppercase"
+                                  disabled={isReadOnly}
+                                  className="flex-1 text-red-500 text-xs font-medium uppercase disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                   Borrar
                                 </button>
@@ -1060,6 +1064,7 @@ const MainLayout: React.FC = () => {
                         invoices={invoices}
                         suppliers={suppliers}
                         recurringExpenses={recurringExpenses}
+                        isReadOnly={isReadOnly}
                         onReconcile={handleReconcileTransaction}
                         onCreateEntryFromTransaction={handleCreateEntryFromTransaction}
                     />

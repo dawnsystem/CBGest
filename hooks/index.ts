@@ -3,7 +3,7 @@
  * @description Re-exporta hooks de diferentes módulos para uso centralizado.
  *
  * APPWRITE FEATURES AVAILABLE:
- * - Realtime subscriptions (implemented in useAppwriteData)
+ * - Realtime subscriptions
  * - Offline queue (lib/appwrite/offlineQueue.ts)
  * - Rate limiting (lib/appwrite/rateLimiter.ts)
  * - Caching (lib/appwrite/cache.ts)
@@ -18,7 +18,6 @@
 export { useAuth, useUser, useSessionReady, useAuthState } from '../context/AuthContext';
 
 // Data hooks
-export { useAppwriteData } from './useAppwriteData';
 export { useDataHandlers } from './useDataHandlers';
 
 // Settings hook
