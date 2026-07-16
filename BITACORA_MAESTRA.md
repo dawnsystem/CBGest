@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-15 23:05:00 UTC*
+*Última actualización: 2026-07-16 01:20:00 UTC*
 
 ---
 
@@ -8,9 +8,14 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora resueltos). Pendiente push y merge del PR.
+Estado actual: **PR-6 — SEC-PEND #146** (SEC-005..015 excepto ya resueltos). Código SecOps aplicado; issue #146 pendiente de cierre vía `Closes #146` al merge.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `SEC-PEND` / PR-6 - Cierre SecOps SEC-005..015:** SEC-005 `parseSpanishNumber` finito+rango; SEC-006 decode entidades HTML en `isSafeString`/`sanitizeString`; SEC-007 sanitize CSV en `ReservationManager`; SEC-008 scripts vía `load-appwrite-config.cjs` + env; SEC-009 audit trail + log al forzar NIF; SEC-010 ya resuelto (IMPL-007); SEC-011 allowlist MIME antes de Gemini; SEC-012/013 no existen en inventario (no aplica); SEC-014 allowlist redirect auth; SEC-015 redact NIF en localStorage. Issue: #146. Tests: `secOpsPend` + authService SEC-014 + useInvoiceReview SEC-009.
+*   **[2026-07-16] - `FIX-144` - FY recurrentes + reservas parciales + límite 1000:** BUG-FY-002: `RecurringExpense.fiscalYearId`, filtro en `getRecurringExpenses`, `withFiscalYearId` al crear, copia/remap `apartmentId`/`supplierId` en `copyMasterDataToFiscalYear`, migrate/deps/cascade. BUG-RES-001: `createReservations` → `{created,failed}` + UI elimina fantasmas. CTB-003: cursor pagination en `getEntries`/`getTransactions` via `listAllDocumentsPaginated`. Issue: #144. Tests focalizados 23 PASS; type-check OK.
+*   **[2026-07-16] - `MEDIOS-147` - Settings/drafts/toast/realtime/filtros FY:** Cerrados BUG-027/028/029/030, CTB-004/005/006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001. Settings: mapeo limpio + ID fijo `app_settings` + revert sync. Drafts: totales sin borradores, Debe/Haber mutuamente excluyentes, deudas alineadas, matching sin drafts, suma multi-línea 57x. Toast resuelve confirm previo. Realtime re-fetch a React state. Charts por `fiscalYearId`. Issue: #147 (parcial). Tests focalizados PASS.
+*   **[2026-07-16] - `IEET-002` + `FIS-001` - Huéspedes IEET por reserva + IRPF simétrico base/total:** Extraída `calculateConsecutiveStayTaxUnits` (Σ noches_i×huéspedes_i con tope `maxNights` a nivel grupo; deja de usar `Math.max`×noches). `TouristTaxPanel` la usa. `calculateTaxData`: en `ALQUILER_EXENTO` ingresos y gastos usan `totalAmount`; en `GENERAL`, `baseAmount` (simétrico). Dashboard chart alineado. Issue: #142. Tests: 7 IEET-002 + 2 FIS-001 — PASS (57 focalizados).
+*   **[2026-07-16] - `CONC-001` + `CTB-002` - Conciliación por signo + naturaleza deudora 470–474:** Matching de `BankReconciliation` via `findReconciliationMatches` / `isSignCompatibleMatch` (cargo↔400/6xx, abono↔430/7xx; excluye `isDraft`). `isDebitNatureAccount` amplía excepciones PGC: 460 y 470–474 (sin 465/475–479). Issue: #141. Tests focalizados en `reconciliationUtils` + `accountingPlan`.
 *   **[2026-07-16] - `FIX-140` - Wiring App (recurrentes, settings Dashboard, supplierId):** Corregidos BUG-FY-001 (`fetchForYear` recarga `fetchRecurringExpenses`), BUG-WIRE-001 (Dashboard usa `handleUpdateSettings` en lugar de `setSettings`), BUG-INV-001 (`handleAddInvoice` persiste `supplierId` con `updateInvoice` tras enlazar proveedor). Issue: #140. Validado: lint 0 errores / 2 warnings, test:ci OK, build OK.
 *   **[2026-07-15] - `SEC-016` + `BUG-RT-001` - Auth temporal segura + fuga realtime:** `utils/temporaryPassword.ts` genera secretos ≥128 bits (base64url) y rechaza el patrón legacy `cambiarNNN`. `UserManagement` y `manage-users` validan la política; la function hace rollback (delete) si prefs/labels fallan post-create (BUG-026 parcial) y bloquea admins con `mustChangePassword`. `App.tsx`: no carga datos ni abre realtime mientras hay password temporal pendiente; `unsubscribe` guardado en `useRef` con cleanup real del `useEffect` (Strict Mode / logout). Issues #138/#139. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (307 tests).
 *   **[2026-07-15] - `IEET-001` - Filtro semestral IEET timezone-safe:** Extraídas `getSemesterDateBounds` e `isDateInSemester` en `utils/touristTaxUtils.ts`. `TouristTaxPanel` filtra check-ins y períodos del semestre comparando `YYYY-MM-DD` (sin `Date` local vs UTC). Corrige 1-jul en semestre 1 y 1-ene fuera de semestre. 8 tests unitarios nuevos. Issue #137. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (294 tests).
@@ -93,6 +98,63 @@ Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora r
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 01:20:00 UTC]
+*   **Directiva del Director:** PR-6 — cerrar SecOps pendientes SEC-005..015 (excepto ya aceptados/resueltos). NO SEC-017. Sin commit/push. Al merge: `Closes #146`.
+*   **Plan de Acción:** (1) Inventario bitácora. (2) Fix mínimo + tests. (3) Bitácora solo SEC-005..015. (4) No tocar CONC/IEET/FY/automations/deuda media.
+*   **Log de Acciones:**
+    - `[00:48:00]` - **AUDIT:** Pendientes SEC-005..009,011,014,015; SEC-010 ya ✅; SEC-012/013 ausentes del inventario.
+    - `[00:55:00]` - **FIX:** SEC-005/006/007/008/009/011/014/015 (utilidades + ReservationManager + validators + scripts + auth + UploadQueue + useAppSettings redact).
+    - `[01:07:00]` - **TEST:** `secOpsPend` + authService SEC-014 — 22 PASS; SEC-009 en useInvoiceReview.
+    - `[01:20:00]` - **DOC:** Bitácora SEC-005..015 + SEC-PEND → resuelto en código (cierre issue al merge).
+*   **Resultado:** SecOps históricos del lote cerrados o marcados no-aplica. Issue #146 permanece abierto hasta merge con `Closes #146`.
+*   **Observaciones:** `gh` GraphQL Forbidden en este entorno. Concurrencia con PR-7: `useAppSettings` conserva redact SEC-015 + revert BUG-030.
+
+### Sesión: [2026-07-16 01:15:00 UTC]
+*   **Directiva del Director:** PR-4 — `[BUG-FY-002][BUG-RES-001][CTB-003]` (#144). Sin commit/push. Al merge: `Closes #144`.
+*   **Plan de Acción:** (1) Modelo FY en recurrentes + copia/remap. (2) Reservas parciales reportadas + revert fantasmas. (3) Paginación cursor entries/transactions. (4) Tests + bitácora solo estos IDs.
+*   **Log de Acciones:**
+    - `[00:52:00]` - **FIX (BUG-FY-002):** `types`/`recurringExpenseService`/`useDataHandlers`/`fiscalYearService`/`App`/`FiscalYearContext`/`FiscalYearManager` + schema scripts (`fiscalYearId` + índice).
+    - `[00:55:00]` - **FIX (BUG-RES-001):** `createReservations` retorna `{created,failed}`; handler filtra IDs fallidos y reporta errores.
+    - `[00:58:00]` - **FIX (CTB-003):** `listAllDocumentsPaginated` en infrastructure; `getEntries`/`getTransactions` paginan con cursor.
+    - `[01:05:00]` - **TEST:** copyMasterData (+remap), deleteFY deps, createReservations, listPagination — 23 PASS; type-check OK.
+    - `[01:15:00]` - **DOC:** Bitácora solo BUG-FY-002 / BUG-RES-001 / CTB-003.
+*   **Resultado:** Tres tickets corregidos en código. Issue #144 permanece abierto hasta merge con `Closes #144`.
+*   **Observaciones:** Bloqueo operativo: hay que crear atributo `fiscalYearId` (+ índice) en colección Appwrite `recurring_expenses` en cloud antes de filtrar/crear con FY; scripts de setup/verify actualizados.
+
+### Sesión: [2026-07-16 01:10:00 UTC]
+*   **Directiva del Director:** PR-7 — Deuda residual MEDIOS (#147): settings, drafts, toast, realtime, filtros FY. Sin commit/push. Verificar reproducibilidad antes de fix.
+*   **Plan de Acción:** (1) Verificar cada ID del lote. (2) Fix mínimo + tests. (3) Bitácora solo entradas MEDIOS de este alcance. (4) No tocar CONC-001/IEET/SEC/FY-002/RES/CTB-003/FN/AI.
+*   **Log de Acciones:**
+    - `[00:52:00]` - **VERIFY:** Todos los IDs del alcance seguían reproducibles en código (excepto CONC-003 parcial en `nonBankEntries`).
+    - `[00:55:00]` - **FIX settings:** BUG-027/028 `settingsService` — `mapSettingsDocument` + ID fijo `app_settings` + 409→update. BUG-029/030 `useAppSettings` — sync partners + revert/throw.
+    - `[00:57:00]` - **FIX drafts:** CTB-004/005 `AccountingBooks`; CTB-006 `DebtsPendingPanel`; CONC-002 `getBankLineAmount` suma 57x; CONC-003 excluye drafts en movimientos banco.
+    - `[00:58:00]` - **FIX toast/realtime/FY:** BUG-TOAST-001 resolve previo; BUG-RT-002 re-fetch state; BUG-FILT-001 `fiscalPeriodFilter` + Dashboard/Profitability/Expenses.
+    - `[01:05:00]` - **TEST:** settingsService, fiscalPeriodFilter, Toast BUG-TOAST-001, accountingPlan CONC-002 — PASS.
+    - `[01:10:00]` - **DOC:** Bitácora MEDIOS #147 parcial; issue permanece abierto por IDs fuera de alcance.
+*   **Resultado:** 12 hallazgos MEDIOS del alcance temático corregidos. #147 no se cierra aún (quedan SEC-018/RO-001/ARCH/UI/DEBT).
+*   **Observaciones:** `useAppSettings` se re-aplicó sobre cambios SEC-015 (redact LS) de PR-6 concurrente.
+
+### Sesión: [2026-07-16 00:58:00 UTC]
+*   **Directiva del Director:** PR-2 — `[IEET-002][FIS-001]` (#142). Sin commit/push. Al merge: `Closes #142`.
+*   **Plan de Acción:** (1) Σ noches×huéspedes por reserva con tope maxNights. (2) Unificar criterio IRPF ingresos/gastos por régimen. (3) Tests + bitácora solo estos tickets.
+*   **Log de Acciones:**
+    - `[00:49:00]` - **FIX (IEET-002):** `utils/touristTaxUtils.ts` — `calculateConsecutiveStayTaxUnits`; `TouristTaxPanel` deja `Math.max(guests)×nights`.
+    - `[00:50:00]` - **FIX (FIS-001):** `taxCalculationService.ts` — `ALQUILER_EXENTO`→`totalAmount` simétrico; `GENERAL`→`baseAmount`. `Dashboard` chart alineado.
+    - `[00:52:00]` - **TEST:** touristTaxUtils (+7) + pdfService FIS-001 (+2) — 57 PASS; type-check OK; lint 0 errores.
+    - `[00:58:00]` - **DOC:** Bitácora actualizada solo IEET-002 y FIS-001.
+*   **Resultado:** IEET-002 y FIS-001 corregidos en código. Issue #142 permanece abierto hasta merge con `Closes #142`.
+*   **Observaciones:** No se tocó conciliación, auth, FY, automations, SecOps ni deuda media. `gh` GraphQL Forbidden en este entorno; cierre de issue vía `Closes #142` en body de PR.
+
+### Sesión: [2026-07-16 00:55:00 UTC]
+*   **Directiva del Director:** PR-1 — `[CONC-001][CTB-002]` (#141)
+*   **Plan de Acción:** (1) Matching por signo + excluir drafts. (2) Ampliar `isDebitNatureAccount` 460/470–474. (3) Tests + type-check. (4) Bitácora solo estos tickets.
+*   **Log de Acciones:**
+    - `[00:50:00]` - **FIX (CONC-001):** `reconciliationUtils.ts` — `isSignCompatibleMatch` + `findReconciliationMatches`; `BankReconciliation` las usa y filtra `isDraft`.
+    - `[00:51:00]` - **FIX (CTB-002):** `accountingPlan.ts` — prefijos deudores 460 y 470–474.
+    - `[00:53:00]` - **TEST:** tests CONC-001/CTB-002 en `reconciliationUtils.test.ts` y `accountingPlan.test.ts` — PASS (46).
+*   **Resultado:** CONC-001 y CTB-002 cerrados en código (issue #141).
+*   **Observaciones:** No se tocó IEET/auth/FY/automations/SecOps ni deuda media.
+
 ### Sesión: [2026-07-16 00:49:00 UTC]
 *   **Directiva del Director:** `[BUG-FY-001][BUG-WIRE-001][BUG-INV-001] #140`
 *   **Plan de Acción:** (1) Incluir `fetchRecurringExpenses` en `fetchForYear`. (2) Pasar `handleUpdateSettings` al Dashboard. (3) Persistir `supplierId` con `updateInvoice`. (4) Validar lint/test/build y registrar en bitácora.
@@ -635,7 +697,7 @@ Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora r
 * **SEC-002:** `geminiService.ts:12` — GoogleGenAI se inicializa a nivel de módulo con `process.env.API_KEY || ''`, creando instancia con clave vacía si la variable falta. Estado: ✅ Resuelto (IMPL-007). Inicialización movida a función `getAiClient()` (lazy init).
 * **SEC-003:** `validators.ts:80` — Comparación con `==` en lugar de `===` en validación de CIF. Estado: ✅ Resuelto (IMPL-007).
 * **SEC-004:** `security.yml:50` — CI/CD permite hasta 3 vulnerabilidades HIGH en `npm audit`. Demasiado permisivo para una app financiera. Estado: ✅ Resuelto (IMPL-006).
-* **SEC-005:** `ReservationManager.tsx:32-40` — `parseSpanishNumber()` sin validación de límites. Input extremo causa Infinity via `parseFloat`. Estado: Pendiente.
+* **SEC-005:** `ReservationManager.tsx` — `parseSpanishNumber()` sin validación de límites. Input extremo causa Infinity via `parseFloat`. Estado: ✅ Resuelto (PR-6). `Number.isFinite` + tope ±1e9.
 * **BUG-001:** `TouristTaxPanel.tsx:123-124` — **Cálculo incorrecto de huéspedes para tasa turística.** Usa `Math.max()` en vez de `SUM` para contar huéspedes. Grupo con 3 reservas de 2 huéspedes calcula impuesto para 2 en vez de 6. Impacto fiscal directo. Estado: ✅ Resuelto (IMPL-001).
 * **BUG-002:** `ExpenseProjections.tsx:28` — Lógica bimensual rota. `targetMonth % 2 === 0 ? 1 : 0` no tiene referencia a la fecha de inicio del gasto. Gastos bimensuales que empiezan en febrero nunca se disparan. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-003:** `TouristTaxPanel.tsx:30-35` — `areDatesConsecutive()` usa `setHours(0,0,0,0)` que asume medianoche local. En UTC+2, "2024-12-31 22:00 UTC" se convierte en día siguiente. Rompe agrupación de estancias consecutivas. Estado: ✅ Resuelto (IMPL-001).
@@ -651,13 +713,13 @@ Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora r
 * **BUG-021:** `App.tsx:359-389` — **Race condition en `fetchForYear` effect.** Al crear el ejercicio 2027, `setActiveFiscalYear(2027)` dispara un fetch asíncrono para 2027. Si el usuario cambia inmediatamente a 2026, se lanza un segundo fetch para 2026. Si el fetch de 2027 termina DESPUÉS del de 2026, sobreescribe el estado con datos de 2027 mientras la UI muestra 2026 — haciendo parecer que el selector no funciona y que los alojamientos de 2026 "desaparecen". Estado: ✅ Resuelto (FIX-043).
 * **BUG-023:** `App.tsx:195-196` — **Race condition en arranque: datos del ejercicio equivocado visibles al cargar la app.** `setIsDataLayerInitialized(true)` se llamaba síncronamente ANTES de que `initDataLayer()` completara su fetch inicial sin filtrar. El efecto `fetchForYear` (que filtra por ejercicio activo) podía dispararse concurrentemente con el fetch sin filtrar. Si el fetch sin filtrar resolvía el último, sobreescribía el estado con datos de todos los ejercicios (ej. 2025+2026) mientras el usuario tenía seleccionado 2026. Al cambiar de ejercicio y volver, se corregía porque entonces solo corría `fetchForYear`. Estado: ✅ Resuelto (FIX-049).
 * **BUG-020:** `services/appwriteService.ts:1948-1979` — `ID.unique()` evaluado **dentro** del lambda de `withRetry` en `copyMasterDataToFiscalYear`. Un error de red post-creación (timeout, dropped response) provoca reintento con nuevo ID → alojamientos/proveedores duplicados en Appwrite al crear un nuevo ejercicio. Estado: ✅ Resuelto (FIX-042).
-* **SEC-006:** `validators.ts:220-242` — `isSafeString()` y `sanitizeString()` no detectan XSS con entidades HTML codificadas (`&#60;script&#62;`). Estado: Pendiente.
-* **SEC-007:** `ReservationManager.tsx:76-94` — CSV parsing no escapa HTML en campos. Guest name con `<img onerror=...>` se renderiza sin sanitizar. Estado: Pendiente.
-* **SEC-008:** `scripts/add-missing-attributes.cjs:21-23`, `scripts/migrate-uploads-collection.cjs:22-24`, `scripts/setup-all-collections.cjs:17-19`, `scripts/setup-appwrite-collections.js:23-25`, `scripts/verify-appwrite-fetch.cjs:8-10`, `scripts/verify-appwrite-setup.cjs:22-24` — Credenciales de Appwrite (endpoint, projectId, databaseId) hardcodeadas en scripts operativos. Deberían cargarse de `.env`. Estado: Pendiente.
-* **SEC-009:** `InvoiceUploader.tsx:201` — Bypass de validación NIF vía checkbox "Forzar aceptación" sin registro de auditoría. Estado: Pendiente.
-* **SEC-010:** `aiMatching.ts:195-204` — Match de NIF case-insensitive con `includes()` permite coincidencias parciales peligrosas. Estado: ✅ Resuelto (IMPL-007). Cambiado a regex con lookbehind/lookahead `(?<![A-Z0-9])NIF(?![A-Z0-9])` para match exacto de palabra.
-* **SEC-014:** `authService.ts:361-364` y `authService.ts:496-500` — `recoverPassword()` y `sendEmailVerification()` aceptan URLs arbitrarias sin validación de origen/allowlist. Riesgo de enlaces de recuperación/verificación enviados a dominios maliciosos (phishing / token leakage). Estado: Pendiente.
-* **SEC-015:** `App.tsx:275-276`, `App.tsx:393-395`, `App.tsx:436` — Persistencia en `localStorage` de `gestcb_settings` en claro (incluye NIF y datos fiscales de partícipes). Exposición ante XSS/extensiones maliciosas/equipos compartidos. Estado: Pendiente.
+* **SEC-006:** `validators.ts` — `isSafeString()`/`sanitizeString()` no detectaban XSS con entidades HTML (`&#60;script&#62;`). Estado: ✅ Resuelto (PR-6). Decode entidades + patrones ampliados.
+* **SEC-007:** `ReservationManager.tsx` — CSV parsing no escapaba HTML en campos. Estado: ✅ Resuelto (PR-6). `sanitizeString` en guest/apartment/channel/reservationNumber.
+* **SEC-008:** Scripts operativos con endpoint/projectId/databaseId hardcodeados. Estado: ✅ Resuelto (PR-6). `scripts/load-appwrite-config.cjs` carga `.env`/`.env.local` (`APPWRITE_*` / `VITE_APPWRITE_*`).
+* **SEC-009:** Bypass NIF "Forzar aceptación" sin auditoría. Estado: ✅ Resuelto (PR-6). Entrada en `invoice.history` + `invoiceReviewLogger.warn`.
+* **SEC-010:** `aiMatching.ts` — Match de NIF case-insensitive con `includes()` permite coincidencias parciales peligrosas. Estado: ✅ Resuelto (IMPL-007). Cambiado a regex con lookbehind/lookahead `(?<![A-Z0-9])NIF(?![A-Z0-9])` para match exacto de palabra.
+* **SEC-014:** `authService` — `recoverPassword`/`sendEmailVerification` URLs arbitrarias. Estado: ✅ Resuelto (PR-6). Allowlist origen (`utils/authRedirect.ts` + `VITE_AUTH_REDIRECT_ORIGINS`).
+* **SEC-015:** `gestcb_settings` en localStorage en claro (NIF/partícipes). Estado: ✅ Resuelto (PR-6). `redactSettingsForLocalStorage` limpia NIFs; fuente de verdad Appwrite/memoria.
 * **BUG-010:** `TrialBalance.tsx:105-106` — Error de precisión floating-point. `difference < 0.01` falla cuando difference es exactamente 0.009999999. Debe usar redondeo explícito. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-011:** `Dashboard.tsx:76` — Inconsistencia IVA: régimen alquiler usa `totalAmount` (base+IVA) pero régimen general usa `baseAmount`. Crea diferencias inexplicables en totales. Estado: ✅ Resuelto (IMPL-001).
 * **BUG-012:** `ProfitabilityByApartment.tsx:65-71` — `incomeFromReservations` declarado pero nunca populado. Siempre muestra 0€ para ingresos de reservas en todos los apartamentos. Estado: ✅ Resuelto (IMPL-002).
@@ -677,7 +739,9 @@ Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora r
 
 ### 🟡 MEDIOS (17 hallazgos) — Inconsistencias, deuda técnica acumulada o mejoras de robustez
 
-* **SEC-011:** `context/UploadQueueContext.tsx:412` — mimeType del archivo confiado sin validación server-side antes de enviar a Gemini. Estado: Pendiente.
+* **SEC-011:** `UploadQueueContext` — mimeType confiado sin validación antes de Gemini. Estado: ✅ Resuelto (PR-6). Allowlist cliente `utils/mimeAllowlist.ts` (nota: no hay server-side en SPA; defensa en profundidad).
+* **SEC-012:** Identificador nunca asignado en inventario SecOps histórico. Estado: **No aplica**.
+* **SEC-013:** Identificador nunca asignado en inventario SecOps histórico. Estado: **No aplica**.
 * **BUG-017:** `context/AuthContext.tsx:259-275` — Refresh de sesión solo se activa si `user && sessionReady` son truthy, pero sessionReady puede retrasarse. Sesión puede expirar antes del primer refresh. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-018:** `stateStorage.ts:30-42` — Fallo silencioso de JSON.parse en localStorage corrupto. Retorna defaults sin notificar al usuario, causando pérdida de datos invisible. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-019:** `Header.tsx:96-107` — `formatTimestamp()` usa `Date.now()` sin considerar timezone del usuario. Tiempos relativos ("Hace 5h") pueden ser imprecisos. Estado: ✅ Resuelto (IMPL-002).
@@ -715,12 +779,32 @@ Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora r
 ### 🔵 MÓDULO TASA TURÍSTICA (IEET) — Auditoría 2026-07-16
 
 * **IEET-001:** `TouristTaxPanel.tsx` filtro semestral — Límites con `new Date(year, month-1, 1)` (local) vs `new Date(r.checkIn)` (UTC midnight para `YYYY-MM-DD`). En España (UTC+1/+2) el 1-jul caía en semestre 1 y el 1-ene podía quedar fuera. Severidad: **CRÍTICO**. Estado: ✅ Resuelto (`getSemesterDateBounds` / `isDateInSemester` comparan strings `YYYY-MM-DD`). Issue #137.
+* **IEET-002:** Estancias consecutivas usaban `Math.max(huéspedes) × noches_totales` → sobre/infragravamen si cambia la ocupación. Severidad: **ALTO**. Estado: ✅ Resuelto — `calculateConsecutiveStayTaxUnits` suma `noches_i × huéspedes_i` con tope `maxNights` a nivel grupo. Issue #142.
+
+### 🔵 MÓDULO FISCAL / IRPF — Auditoría 2026-07-16
+
+* **FIS-001:** `taxCalculationService.calculateTaxData` — ingresos siempre `baseAmount`; gastos en `ALQUILER_EXENTO` con `totalAmount` → Modelo 184 sesgado. Severidad: **ALTO**. Estado: ✅ Resuelto — criterio simétrico: `ALQUILER_EXENTO`→`totalAmount`, `GENERAL`→`baseAmount` (ingresos y gastos). Dashboard chart alineado. Issue #142.
 
 ### 🔵 MÓDULO CONTABLE — Nuevos hallazgos (2026-07-13)
 
 * **BUG-CTB-001:** `AccountingBooks.tsx:186` — Mensaje de error incorrecto. Cuando la validación rechaza un asiento por tener menos de 2 líneas válidas, el mensaje dice "Un asiento debe tener al menos 2 líneas (debe y haber)". El mensaje es impreciso: la validación comprueba el número de líneas, no que haya una línea en Debe y otra en Haber. Severidad: **BAJO**. Estado: ✅ Resuelto (TSK-048).
 
 * **BUG-CTB-002:** `AccountLedger.tsx:97` — Cálculo de saldo corriente incorrecto para cuenta 430 (Clientes). La condición `isDebitNature` incluye grupos 1,2,3,5,6 pero no el grupo 43 (Clientes), que es de naturaleza DEUDORA. Las cuentas 430 se calculan con la rama "acreedora" por defecto (rama else), mostrando el saldo acumulado invertido. Severidad: **MEDIO**. Estado: ✅ Resuelto (TSK-048).
+
+### 🟡 MEDIOS residuales AUDIT-013 — Issue #147 (2026-07-16)
+
+* **BUG-027:** `getSettings`/`saveSettings` spread de metadatos Appwrite. Severidad: **MEDIO**. Estado: ✅ Resuelto — `mapSettingsDocument` + `buildSettingsPayload`.
+* **BUG-028:** TOCTOU doble documento settings. Severidad: **MEDIO**. Estado: ✅ Resuelto — ID fijo `app_settings` + manejo 409.
+* **BUG-029:** `useAppSettings` descartaba fix de partners si `dataConfig` igual. Severidad: **MEDIO**. Estado: ✅ Resuelto.
+* **BUG-030:** save settings sin revert ni error UI. Severidad: **MEDIO**. Estado: ✅ Resuelto — revert + throw + toast en Settings.
+* **CTB-004:** Totales Libro Diario incluían drafts. Severidad: **MEDIO**. Estado: ✅ Resuelto.
+* **CTB-005:** Línea con Debe y Haber simultáneos. Severidad: **MEDIO**. Estado: ✅ Resuelto.
+* **CTB-006:** Deudas: total vs lista criterios distintos. Severidad: **MEDIO**. Estado: ✅ Resuelto — solo no conciliados.
+* **CONC-002:** `getBankLineAmount` solo primera línea 57x. Severidad: **MEDIO**. Estado: ✅ Resuelto — suma todas.
+* **CONC-003:** Matching/movimientos con drafts. Severidad: **MEDIO**. Estado: ✅ Resuelto — filtro `!isDraft` en movimientos 57x (+ ya en nonBank).
+* **BUG-TOAST-001:** `showConfirm` sustituye sin resolve previo. Severidad: **MEDIO**. Estado: ✅ Resuelto.
+* **BUG-RT-002:** Realtime solo invalidaba caché. Severidad: **MEDIO**. Estado: ✅ Resuelto — re-fetch filtrado a state.
+* **BUG-FILT-001:** Charts por año calendario vs `fiscalYearId`. Severidad: **MEDIO**. Estado: ✅ Resuelto — `utils/fiscalPeriodFilter.ts`.
 
 ### 🟣 AUDITORÍA 2026-07-16 (AUDIT-013) — Nuevos hallazgos abiertos
 
@@ -732,9 +816,17 @@ Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora r
 * **SEC-016:** Password temporal ~900 valores + gate solo UI. Severidad: **CRÍTICO**. Issue: #138. Estado: ✅ Resuelto (PR #151).
 * **BUG-FY-001 / BUG-WIRE-001 / BUG-INV-001:** Wiring App (recurrentes, settings Dashboard, supplierId). Issue: #140. Estado: ✅ Resuelto (FIX-140, rama `fix/issue-140-wiring-bugs`).
 * **BUG-RT-001:** Fuga realtime unsubscribe. Issue: #139. Estado: ✅ Resuelto (PR #151).
-* **CONC-001 / CTB-002 / IEET-002 / FIS-001 / SEC-017 / BUG-024..026:** Altos de wiring, contabilidad, auth. Issues: #141–#143. Estado: Pendiente (BUG-026 parcial vía SEC-016).
-* **BUG-FY-002 / BUG-RES-001 / CTB-003:** Modelo datos / límites. Issue: #144. Estado: Pendiente.
-* **BUG-FN-001 / BUG-FN-002 / BUG-AI-001:** Automations + IVA. Issue: #145. Estado: Pendiente.
-* **SEC-PEND:** SEC-005..015 (excepto SEC-001 aceptado). Issue: #146. Estado: Pendiente.
-* **MEDIOS residuales:** settings TOCTOU, drafts, toast, realtime, filtros FY. Issue: #147. Estado: Pendiente.
+* **CONC-001:** Matching solo por valor absoluto en `BankReconciliation` (cargo/abono invertidos). Severidad: **ALTO**. Issue: #141. Estado: ✅ Resuelto (PR-1).
+* **CTB-002:** `isDebitNatureAccount` no incluye 460/470–474 → saldo invertido en 472/473. Severidad: **ALTO**. Issue: #141. Estado: ✅ Resuelto (PR-1).
+* **IEET-002:** Huéspedes IEET con `Math.max`×noches en estancias consecutivas. Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; cierre al merge con `Closes #142`).
+* **FIS-001:** Asimetría IRPF base/total en `ALQUILER_EXENTO`. Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; cierre al merge con `Closes #142`).
+* **SEC-017 / BUG-024..026:** Altos auth restantes. Issue: #143. Estado: Pendiente (BUG-026 parcial vía SEC-016).
+* **BUG-FY-002:** `RecurringExpense` sin `fiscalYearId`; no se copia en maestros; `handleAdd` sin `withFiscalYearId`. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
+* **BUG-RES-001:** `createReservations` tragaba errores por ítem; UI dejaba reservas fantasma. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
+* **CTB-003:** `getEntries`/`getTransactions` limit 1000 sin paginación → libros incompletos en silencio. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
+* **BUG-FN-001:** `cleanup-uploads` buscaba `completed`/`error` (minúsculas); la app escribe `COMPLETED`/`ERROR` → no limpiaba Storage. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
+* **BUG-FN-002:** `detect-recurring` analizaba transacciones sin `fiscalYearId` → contaminaba sugerencias del ejercicio activo. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
+* **BUG-AI-001:** `useInvoiceReview.confirmInvoice` podía persistir `vatRate` decimal crudo de Gemini (p. ej. `0.21`); la normalización BUG-014 solo estaba en edit. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
+* **SEC-PEND:** SEC-005..015. Issue: #146. Estado: ✅ Resuelto en código (PR-6); cierre formal del issue al merge (`Closes #146`). SEC-010 ya estaba cerrado; SEC-012/013 no aplican.
+* **MEDIOS residuales (#147):** settings/drafts/toast/realtime/filtros FY → **parcialmente resuelto** (BUG-027..030, CTB-004..006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001). Pendientes fuera de alcance temático PR-7: SEC-018, RO-001, BUG-ARCH-001, BUG-UI-001, DEBT-019..021.
 

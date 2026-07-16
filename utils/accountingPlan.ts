@@ -39,22 +39,37 @@ export const isTreasuryAccount = (code: string): boolean => {
   return code.startsWith('57');
 };
 
+/** Prefijos PGC del grupo 4 con naturaleza deudora (CTB-002). */
+const DEBIT_NATURE_GROUP4_PREFIXES = [
+  '43',  // Clientes
+  '44',  // Deudores varios
+  '460', // Anticipos de remuneraciones
+  '470', // Hacienda Pública, deudora por diversos conceptos
+  '471', // Organismos de la Seguridad Social, deudores
+  '472', // Hacienda Pública, IVA soportado
+  '473', // Hacienda Pública, retenciones y pagos a cuenta
+  '474', // Activos por impuesto diferido
+] as const;
+
 /**
  * Determina si una cuenta es de naturaleza deudora (saldo normal en el Debe).
  *
  * Regla general: grupos 1, 2, 3, 5, 6 son deudores.
- * Excepción dentro del grupo 4: las cuentas 43x (Clientes) y 44x (Deudores varios)
- * son activos de naturaleza deudora pese a pertenecer al grupo 4.
+ * Excepciones dentro del grupo 4 (activos pese a ser grupo 4):
+ * 43x/44x, 460 y 470–474. No incluye 465 ni 475–479 (acreedoras).
  *
- * @param accountCode - Código de cuenta PGC (ej: "430", "628", "400")
+ * @param accountCode - Código de cuenta PGC (ej: "430", "472", "400")
  * @returns true si la cuenta tiene naturaleza deudora
+ * @example
+ * isDebitNatureAccount('472') // true — IVA soportado
+ * isDebitNatureAccount('477') // false — IVA repercutido
+ * isDebitNatureAccount('400') // false — Proveedores
  */
 export const isDebitNatureAccount = (accountCode: string): boolean => {
-  return (
-    ['1', '2', '3', '5', '6'].some(g => accountCode.startsWith(g)) ||
-    accountCode.startsWith('43') ||
-    accountCode.startsWith('44')
-  );
+  if (['1', '2', '3', '5', '6'].some(g => accountCode.startsWith(g))) {
+    return true;
+  }
+  return DEBIT_NATURE_GROUP4_PREFIXES.some(prefix => accountCode.startsWith(prefix));
 };
 
 // Verificar si una cuenta es de IVA
@@ -301,15 +316,24 @@ export const entryHasBankLine = (entry: AccountingEntry): boolean => {
  * Returns the net bank movement amount from the entry.
  * Debit on a bank account → positive (money in).
  * Credit on a bank account → negative (money out).
+ * CONC-002: suma todas las líneas 57x (no solo la primera).
+ *
+ * @param entry - Asiento contable
+ * @returns Importe neto de tesorería
+ * @example
+ * getBankLineAmount(entryWithTwoBankLines); // suma netos 572+573…
  */
 export const getBankLineAmount = (entry: AccountingEntry): number => {
   const lines = getEntryLines(entry);
+  let total = 0;
+  let found = false;
   for (const line of lines) {
     if (isTreasuryAccount(line.accountCode)) {
-      return line.debit > 0 ? line.debit : -line.credit;
+      found = true;
+      total += line.debit > 0 ? line.debit : -line.credit;
     }
   }
-  return 0;
+  return found ? total : 0;
 };
 
 /**

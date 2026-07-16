@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildEntryFromUnmatchedTransaction, buildInvoiceSettlementEntry } from '../reconciliationUtils';
+import {
+  buildEntryFromUnmatchedTransaction,
+  buildInvoiceSettlementEntry,
+  findReconciliationMatches,
+  isSignCompatibleMatch,
+} from '../reconciliationUtils';
 import { AccountingEntry, BankTransaction, Invoice } from '../../types';
 
 const baseTransaction: BankTransaction = {
@@ -19,7 +24,82 @@ const invoiceEntry: AccountingEntry = {
   reconciled: false
 };
 
+const supplierEntry: AccountingEntry = {
+  id: 'entry-400',
+  date: '2026-07-09',
+  concept: 'Factura proveedor',
+  lines: [
+    { accountCode: '628', accountName: 'Suministros', debit: 100, credit: 0 },
+    { accountCode: '400', accountName: 'Proveedores', debit: 0, credit: 100 },
+  ],
+  reconciled: false,
+};
+
+const clientEntry: AccountingEntry = {
+  id: 'entry-430',
+  date: '2026-07-09',
+  concept: 'Factura cliente',
+  lines: [
+    { accountCode: '430', accountName: 'Clientes', debit: 100, credit: 0 },
+    { accountCode: '705', accountName: 'Prestaciones', debit: 0, credit: 100 },
+  ],
+  reconciled: false,
+};
+
 describe('reconciliationUtils', () => {
+  describe('findReconciliationMatches (CONC-001)', () => {
+    it('matches cargo only with supplier/expense entries, not client entries', () => {
+      const matches = findReconciliationMatches(-100, [supplierEntry, clientEntry]);
+      expect(matches.map((e) => e.id)).toEqual(['entry-400']);
+    });
+
+    it('matches abono only with client/income entries, not supplier entries', () => {
+      const matches = findReconciliationMatches(100, [supplierEntry, clientEntry]);
+      expect(matches.map((e) => e.id)).toEqual(['entry-430']);
+    });
+
+    it('excludes draft entries from candidates', () => {
+      const draftSupplier: AccountingEntry = { ...supplierEntry, id: 'draft-400', isDraft: true };
+      const matches = findReconciliationMatches(-100, [draftSupplier, supplierEntry]);
+      expect(matches.map((e) => e.id)).toEqual(['entry-400']);
+    });
+
+    it('rejects amount mismatch even when sign is compatible', () => {
+      const matches = findReconciliationMatches(-50, [supplierEntry]);
+      expect(matches).toHaveLength(0);
+    });
+
+    it('uses precomputed amount map when provided', () => {
+      const amountMap = new Map([['entry-400', 100]]);
+      const matches = findReconciliationMatches(-100, [supplierEntry], amountMap);
+      expect(matches).toHaveLength(1);
+    });
+  });
+
+  describe('isSignCompatibleMatch (CONC-001)', () => {
+    it('classifies 400 as cargo-compatible and 430 as abono-compatible', () => {
+      expect(isSignCompatibleMatch(-100, supplierEntry)).toBe(true);
+      expect(isSignCompatibleMatch(100, supplierEntry)).toBe(false);
+      expect(isSignCompatibleMatch(100, clientEntry)).toBe(true);
+      expect(isSignCompatibleMatch(-100, clientEntry)).toBe(false);
+    });
+
+    it('infers sign from 6xx debit / 7xx credit when 400/430 are absent', () => {
+      expect(isSignCompatibleMatch(-120, invoiceEntry)).toBe(true);
+      expect(isSignCompatibleMatch(120, invoiceEntry)).toBe(false);
+
+      const incomeOnly: AccountingEntry = {
+        id: 'inc-1',
+        date: '2026-07-09',
+        concept: 'Ingreso',
+        lines: [{ accountCode: '705', accountName: 'Prestaciones', debit: 0, credit: 120 }],
+        reconciled: false,
+      };
+      expect(isSignCompatibleMatch(120, incomeOnly)).toBe(true);
+      expect(isSignCompatibleMatch(-120, incomeOnly)).toBe(false);
+    });
+  });
+
   describe('buildEntryFromUnmatchedTransaction', () => {
     it('uses 6xx/7xx against 572 for non-financial transactions', () => {
       const expenseEntry = buildEntryFromUnmatchedTransaction(baseTransaction, 'BANK-1');

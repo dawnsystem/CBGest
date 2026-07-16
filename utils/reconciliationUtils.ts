@@ -1,9 +1,99 @@
-import { AccountingEntry, BankTransaction, Invoice } from '../types';
+import { AccountingEntry, BankTransaction, Invoice, calculateEntryTotals, getEntryLines } from '../types';
 
 const BANK_ACCOUNT = {
   code: '572',
   name: 'Bancos e instituciones de crédito c/c vista, euros'
 } as const;
+
+/** Tolerancia en euros para emparejar importes de conciliación (CONC-001). */
+export const RECONCILIATION_AMOUNT_TOLERANCE = 0.05;
+
+/**
+ * Indica si el signo del movimiento bancario es compatible con el asiento candidato.
+ *
+ * Cargo (importe &lt; 0) → asiento de proveedores (400/41x) o gasto (6xx en Debe).
+ * Abono (importe &gt; 0) → asiento de clientes (430/44x) o ingreso (7xx en Haber).
+ * Si hay 400 y 430 a la vez, se acepta (asiento mixto raro). Si no hay pistas, se rechaza.
+ *
+ * @param movementAmount - Importe del movimiento (negativo = cargo, positivo = abono)
+ * @param entry - Asiento candidato sin línea de banco
+ * @returns true si el signo encaja con la naturaleza del asiento
+ * @example
+ * isSignCompatibleMatch(-120, entryWith400) // true
+ * isSignCompatibleMatch(-120, entryWith430) // false
+ */
+export const isSignCompatibleMatch = (
+  movementAmount: number,
+  entry: AccountingEntry
+): boolean => {
+  if (movementAmount === 0) return false;
+
+  const lines = getEntryLines(entry);
+  const hasPayable = lines.some(
+    (line) => line.accountCode.startsWith('400') || line.accountCode.startsWith('41')
+  );
+  const hasReceivable = lines.some(
+    (line) => line.accountCode.startsWith('430') || line.accountCode.startsWith('44')
+  );
+
+  if (hasPayable !== hasReceivable) {
+    return movementAmount < 0 ? hasPayable : hasReceivable;
+  }
+
+  if (hasPayable && hasReceivable) return true;
+
+  const hasExpenseDebit = lines.some(
+    (line) => line.accountCode.startsWith('6') && (line.debit || 0) > 0
+  );
+  const hasIncomeCredit = lines.some(
+    (line) => line.accountCode.startsWith('7') && (line.credit || 0) > 0
+  );
+
+  if (hasExpenseDebit !== hasIncomeCredit) {
+    return movementAmount < 0 ? hasExpenseDebit : hasIncomeCredit;
+  }
+
+  return false;
+};
+
+/**
+ * Filtra asientos candidatos para conciliar un movimiento bancario por importe y signo.
+ *
+ * Excluye borradores (`isDraft`). Compara el valor absoluto del movimiento con el
+ * mayor de Debe/Haber del asiento, con tolerancia de 5 céntimos, y exige compatibilidad
+ * de signo (CONC-001: cargo ↔ 400/gasto, abono ↔ 430/ingreso).
+ *
+ * @param movementAmount - Importe firmado del movimiento bancario
+ * @param candidates - Asientos no conciliados sin línea de tesorería
+ * @param amountByEntryId - Mapa opcional id→importe precalculado (PERF)
+ * @param tolerance - Tolerancia en euros (por defecto {@link RECONCILIATION_AMOUNT_TOLERANCE})
+ * @returns Asientos compatibles por importe y signo
+ * @example
+ * findReconciliationMatches(-100, [supplierEntry, clientEntry])
+ * // → [supplierEntry]
+ */
+export const findReconciliationMatches = (
+  movementAmount: number,
+  candidates: AccountingEntry[],
+  amountByEntryId?: Map<string, number>,
+  tolerance: number = RECONCILIATION_AMOUNT_TOLERANCE
+): AccountingEntry[] => {
+  const movementAmountAbs = Math.abs(movementAmount);
+
+  return candidates.filter((entry) => {
+    if (entry.isDraft) return false;
+
+    const entryAmount =
+      amountByEntryId?.get(entry.id) ??
+      (() => {
+        const totals = calculateEntryTotals(entry);
+        return Math.max(totals.totalDebit, totals.totalCredit);
+      })();
+
+    if (Math.abs(movementAmountAbs - entryAmount) >= tolerance) return false;
+    return isSignCompatibleMatch(movementAmount, entry);
+  });
+};
 
 const FINANCIAL_KEYWORDS = [
   'comision',

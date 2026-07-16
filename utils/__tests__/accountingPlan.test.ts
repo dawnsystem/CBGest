@@ -1,7 +1,43 @@
 import { describe, it, expect } from 'vitest';
-import { ACCOUNT_PLAN } from '../accountingPlan';
+import { ACCOUNT_PLAN, isDebitNatureAccount, getBankLineAmount } from '../accountingPlan';
 
 describe('accountingPlan', () => {
+  describe('isDebitNatureAccount (CTB-002)', () => {
+    it('treats groups 1,2,3,5,6 as debit nature', () => {
+      expect(isDebitNatureAccount('100')).toBe(true);
+      expect(isDebitNatureAccount('200')).toBe(true);
+      expect(isDebitNatureAccount('300')).toBe(true);
+      expect(isDebitNatureAccount('572')).toBe(true);
+      expect(isDebitNatureAccount('628')).toBe(true);
+    });
+
+    it('treats 43x/44x clients and debtors as debit nature', () => {
+      expect(isDebitNatureAccount('430')).toBe(true);
+      expect(isDebitNatureAccount('440')).toBe(true);
+    });
+
+    it('treats 460 and 470–474 as debit nature', () => {
+      expect(isDebitNatureAccount('460')).toBe(true);
+      expect(isDebitNatureAccount('470')).toBe(true);
+      expect(isDebitNatureAccount('4700')).toBe(true);
+      expect(isDebitNatureAccount('471')).toBe(true);
+      expect(isDebitNatureAccount('472')).toBe(true);
+      expect(isDebitNatureAccount('4720')).toBe(true);
+      expect(isDebitNatureAccount('473')).toBe(true);
+      expect(isDebitNatureAccount('474')).toBe(true);
+    });
+
+    it('keeps supplier and tax payable accounts as credit nature', () => {
+      expect(isDebitNatureAccount('400')).toBe(false);
+      expect(isDebitNatureAccount('410')).toBe(false);
+      expect(isDebitNatureAccount('465')).toBe(false);
+      expect(isDebitNatureAccount('475')).toBe(false);
+      expect(isDebitNatureAccount('476')).toBe(false);
+      expect(isDebitNatureAccount('477')).toBe(false);
+      expect(isDebitNatureAccount('705')).toBe(false);
+    });
+  });
+
   describe('ACCOUNT_PLAN structure', () => {
     it('should be an array', () => {
       expect(Array.isArray(ACCOUNT_PLAN)).toBe(true);
@@ -209,6 +245,37 @@ describe('accountingPlan', () => {
       ACCOUNT_PLAN.forEach((account) => {
         expect(account.name.length).toBeGreaterThan(3);
       });
+    });
+  });
+
+  describe('getBankLineAmount (CONC-002)', () => {
+    it('sums all treasury lines, not only the first', () => {
+      const entry = {
+        id: 'e1',
+        date: '2026-01-01',
+        concept: 'Traspaso',
+        reconciled: false,
+        lines: [
+          { accountCode: '572', accountName: 'Banco A', debit: 100, credit: 0 },
+          { accountCode: '573', accountName: 'Banco B', debit: 0, credit: 40 },
+          { accountCode: '572', accountName: 'Banco A', debit: 10, credit: 0 },
+        ],
+      };
+      expect(getBankLineAmount(entry as never)).toBe(70);
+    });
+
+    it('returns 0 when there is no treasury line', () => {
+      const entry = {
+        id: 'e2',
+        date: '2026-01-01',
+        concept: 'Gasto',
+        reconciled: false,
+        lines: [
+          { accountCode: '628', accountName: 'Suministros', debit: 50, credit: 0 },
+          { accountCode: '400', accountName: 'Proveedores', debit: 0, credit: 50 },
+        ],
+      };
+      expect(getBankLineAmount(entry as never)).toBe(0);
     });
   });
 });
