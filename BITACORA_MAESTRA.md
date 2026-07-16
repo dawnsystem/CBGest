@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 01:10:00 UTC*
+*Última actualización: 2026-07-16 07:21:00 UTC*
 
 ---
 
@@ -8,10 +8,11 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **PR-2 — IEET-002 + FIS-001** (#142) en rama `fix/pr2-ieet-fis-001`; merge con `Closes #142`.
+Estado actual: **BUG-RT-001 cerrado** — fix en `main` (PR #151) + tests de regresión (PR pendiente). Issue #139.
 
 ### ✅ Implementaciones Recientes
 *   **[2026-07-16] - `IEET-002` + `FIS-001` - Huéspedes IEET por reserva + IRPF simétrico base/total:** Extraída `calculateConsecutiveStayTaxUnits` (Σ noches_i×huéspedes_i con tope `maxNights` a nivel grupo). `TouristTaxPanel` la usa. `calculateTaxData`: `ALQUILER_EXENTO`→`totalAmount` simétrico; `GENERAL`→`baseAmount`. Dashboard chart alineado. Issue: #142. Tests focalizados PASS.
+*   **[2026-07-16] - `BUG-RT-001` - Tests de regresión cleanup realtime:** Añadidos `hooks/__tests__/asyncRealtimeCleanup.test.ts` (patrón ref + cleanup async de App.tsx) y `services/__tests__/realtimeService.test.ts` (cleanup de `subscribeToChanges`). Cierra issue #139 tras fix ya mergeado en PR #151. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (311 tests).
 *   **[2026-07-16] - `FIX-140` - Wiring App (recurrentes, settings Dashboard, supplierId):** Corregidos BUG-FY-001 (`fetchForYear` recarga `fetchRecurringExpenses`), BUG-WIRE-001 (Dashboard usa `handleUpdateSettings` en lugar de `setSettings`), BUG-INV-001 (`handleAddInvoice` persiste `supplierId` con `updateInvoice` tras enlazar proveedor). Issue: #140. Validado: lint 0 errores / 2 warnings, test:ci OK, build OK.
 *   **[2026-07-15] - `SEC-016` + `BUG-RT-001` - Auth temporal segura + fuga realtime:** `utils/temporaryPassword.ts` genera secretos ≥128 bits (base64url) y rechaza el patrón legacy `cambiarNNN`. `UserManagement` y `manage-users` validan la política; la function hace rollback (delete) si prefs/labels fallan post-create (BUG-026 parcial) y bloquea admins con `mustChangePassword`. `App.tsx`: no carga datos ni abre realtime mientras hay password temporal pendiente; `unsubscribe` guardado en `useRef` con cleanup real del `useEffect` (Strict Mode / logout). Issues #138/#139. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (307 tests).
 *   **[2026-07-15] - `IEET-001` - Filtro semestral IEET timezone-safe:** Extraídas `getSemesterDateBounds` e `isDateInSemester` en `utils/touristTaxUtils.ts`. `TouristTaxPanel` filtra check-ins y períodos del semestre comparando `YYYY-MM-DD` (sin `Date` local vs UTC). Corrige 1-jul en semestre 1 y 1-ene fuera de semestre. 8 tests unitarios nuevos. Issue #137. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (294 tests).
@@ -747,7 +748,7 @@ Estado actual: **PR-2 — IEET-002 + FIS-001** (#142) en rama `fix/pr2-ieet-fis-
 * **IEET-001:** Filtro semestral timezone UTC vs local. Severidad: **CRÍTICO**. Issue: #137. Estado: ✅ Resuelto (PR #150).
 * **SEC-016:** Password temporal ~900 valores + gate solo UI. Severidad: **CRÍTICO**. Issue: #138. Estado: ✅ Resuelto (PR #151).
 * **BUG-FY-001 / BUG-WIRE-001 / BUG-INV-001:** Wiring App (recurrentes, settings Dashboard, supplierId). Issue: #140. Estado: ✅ Resuelto (FIX-140, rama `fix/issue-140-wiring-bugs`).
-* **BUG-RT-001:** Fuga realtime unsubscribe. Issue: #139. Estado: ✅ Resuelto (PR #151).
+* **BUG-RT-001:** Fuga realtime unsubscribe. Issue: #139. Estado: ✅ Resuelto (PR #151 + tests regresión).
 * **CONC-001 / CTB-002:** Conciliación por signo + naturaleza deudora 470–474. Issue: #141. Estado: Pendiente.
 * **IEET-002:** Huéspedes IEET por reserva (`Math.max`×noches). Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
 * **FIS-001:** Asimetría IRPF base/total en `ALQUILER_EXENTO`. Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
