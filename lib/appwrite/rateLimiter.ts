@@ -122,49 +122,37 @@ class AppwriteRateLimiter {
   private async processQueue(): Promise<void> {
     if (this.isProcessing) return;
     this.isProcessing = true;
-
-    while (this.queue.length > 0) {
-      // Limpiar timestamps antiguos
-      const now = Date.now();
-      this.requestTimestamps = this.requestTimestamps.filter(
-        ts => now - ts < this.config.windowMs
-      );
-
-      // Verificar si podemos hacer más peticiones
-      if (this.requestTimestamps.length >= this.config.maxRequestsPerWindow) {
-        const oldestTimestamp = this.requestTimestamps[0];
-        const waitTime = this.config.windowMs - (now - oldestTimestamp) + 100;
-        console.warn(`[RateLimiter] Límite alcanzado. Esperando ${waitTime}ms...`);
-        await this.sleep(waitTime);
-        continue;
-      }
-
-      const request = this.queue.shift();
-      if (!request) continue;
-
-      try {
-        this.requestTimestamps.push(Date.now());
-        const result = await request.execute();
-        request.resolve(result);
-      } catch (error) {
-        if (this.isRateLimitError(error) && request.retries < this.config.maxRetries) {
-          // Reencolar con backoff exponencial
-          request.retries++;
-          const delay = Math.min(
-            this.config.baseRetryDelay * Math.pow(2, request.retries),
-            this.config.maxRetryDelay
-          );
-          console.warn(`[RateLimiter] Rate limit hit. Reintento ${request.retries}/${this.config.maxRetries} en ${delay}ms`);
-
-          await this.sleep(delay);
-          this.queue.unshift(request); // Reinsertar al principio
-        } else {
-          request.reject(error as Error);
+    try {
+      while (this.queue.length > 0) {
+        const now = Date.now();
+        this.requestTimestamps = this.requestTimestamps.filter(ts => now - ts < this.config.windowMs);
+        if (this.requestTimestamps.length >= this.config.maxRequestsPerWindow) {
+          const oldestTimestamp = this.requestTimestamps[0];
+          const waitTime = this.config.windowMs - (now - oldestTimestamp) + 100;
+          console.warn(`[RateLimiter] Límite alcanzado. Esperando ${waitTime}ms...`);
+          await this.sleep(waitTime);
+          continue;
+        }
+        const request = this.queue.shift();
+        if (!request) continue;
+        try {
+          this.requestTimestamps.push(Date.now());
+          request.resolve(await request.execute());
+        } catch (error) {
+          if (this.isRateLimitError(error) && request.retries < this.config.maxRetries) {
+            request.retries++;
+            const delay = Math.min(this.config.baseRetryDelay * Math.pow(2, request.retries), this.config.maxRetryDelay);
+            await this.sleep(delay);
+            this.queue.unshift(request);
+          } else {
+            request.reject(error as Error);
+          }
         }
       }
+    } finally {
+      this.isProcessing = false;
+      if (this.queue.length > 0) void this.processQueue();
     }
-
-    this.isProcessing = false;
   }
 
   /**
@@ -207,4 +195,5 @@ class AppwriteRateLimiter {
 }
 
 export const rateLimiter = new AppwriteRateLimiter();
+export { AppwriteRateLimiter };
 export type { RateLimiterConfig };
