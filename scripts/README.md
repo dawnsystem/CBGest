@@ -2,6 +2,21 @@
 
 Este directorio contiene scripts de utilidad para configurar y mantener el proyecto CBGest.
 
+## add-fiscal-year-id-attributes.cjs (urgente si fallan ejercicios)
+
+Si la app muestra datos vacíos en un ejercicio, o «Migrar datos sin ejercicio» falla con
+`attribute fiscalYearId does not exist`, el schema de Appwrite está incompleto.
+
+```bash
+export APPWRITE_API_KEY="tu-api-key"
+node scripts/add-fiscal-year-id-attributes.cjs
+```
+
+Añade `fiscalYearId` (string, optional) + índice `fiscalYearId_index` en:
+`invoices`, `entries`, `transactions`, `suppliers`, `apartments`, `reservations`, `recurring_expenses`.
+
+Scopes API Key: `databases.*`, `collections.*`, `attributes.*`, `indexes.*` (read+write).
+
 ## setup-appwrite-collections.js
 
 Script para crear automáticamente las colecciones de Appwrite necesarias para la aplicación.

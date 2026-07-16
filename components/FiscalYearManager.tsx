@@ -522,7 +522,10 @@ export const FiscalYearManager: React.FC = () => {
               )}
               {visibilityReport.hasQueryErrors && (
                 <p className="text-xs text-red-800 bg-red-50 border border-red-200 rounded-lg p-2">
-                  Algunas consultas fallaron (posible índice `fiscalYearId` ausente). Revisa el schema en Appwrite.
+                  Algunas consultas fallaron. Si el error menciona <code className="font-mono">fiscalYearId</code>,
+                  el atributo no existe aún en Appwrite: ejecuta{' '}
+                  <code className="font-mono">node scripts/add-fiscal-year-id-attributes.cjs</code>{' '}
+                  con una API Key con scopes de attributes/indexes, o créalo en la Consola.
                 </p>
               )}
               <div className="text-xs text-slate-600 divide-y divide-slate-100">
