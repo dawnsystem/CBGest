@@ -10,7 +10,7 @@ No siembra Appwrite automáticamente: tú introduces/importas los datos en la ap
 |-------|--------|
 | Empresa | **C.B. Mediterránea Costa Brava** |
 | CIF | `E45678901` |
-| Régimen | `GENERAL` (con IVA) |
+| Régimen | `ALQUILER_EXENTO` (arrendamiento, sin IVA repercutido) |
 | IBAN | `ES91 2100 0418 4502 0005 1332` |
 | Ejercicio 2027 | 01/01/2027 – 31/12/2027 (completo) |
 | Ejercicio 2028 | 01/01/2028 – **17/07/2028** (parcial) |
@@ -24,7 +24,7 @@ uat-kit/
 ├── master/                   ← datos maestros (empresa, comuneros, aptos…)
 ├── 2027/                     ← facturas PDF+JSON, extractos XLSX, reservas CSV
 ├── 2028/                     ← igual, truncado a 17/07/2028
-└── expected/                 ← saldos y resumen de generación
+└── expected/                 ← saldos bancarios + IRPF Dashboard + checklist
 ```
 
 ### Volúmenes

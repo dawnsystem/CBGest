@@ -14,7 +14,7 @@
     "bankMovements": 61,
     "hardCutoff": "2028-07-17"
   },
-  "generatedAt": "2026-07-16T22:14:30.839Z",
+  "generatedAt": "2026-07-16T22:52:00.160Z",
   "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
   "master": {
     "empresa": 1,
@@ -22,5 +22,7 @@
     "apartamentos": 6,
     "proveedores": 8,
     "gastosRecurrentes": 9
-  }
+  },
+  "fiscalRegime": "ALQUILER_EXENTO",
+  "vatObligation": false
 }
