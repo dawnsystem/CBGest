@@ -42,12 +42,12 @@ const databases = new Databases(client);
 
 /** Colecciones que deben tener fiscalYearId (alineado con setup-all-collections.cjs) */
 const TARGET_COLLECTIONS = [
-  { id: 'invoices', size: 100 },
-  { id: 'entries', size: 100 },
-  { id: 'transactions', size: 100 },
-  { id: 'suppliers', size: 100 },
-  { id: 'apartments', size: 100 },
-  { id: 'reservations', size: 100 },
+  { id: 'invoices', size: 36 },
+  { id: 'entries', size: 36 },
+  { id: 'transactions', size: 36 },
+  { id: 'suppliers', size: 36 },
+  { id: 'apartments', size: 36 },
+  { id: 'reservations', size: 36 },
   { id: 'recurring_expenses', size: 36 },
 ];
 

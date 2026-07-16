@@ -12,10 +12,22 @@ export APPWRITE_API_KEY="tu-api-key"
 node scripts/add-fiscal-year-id-attributes.cjs
 ```
 
-Añade `fiscalYearId` (string, optional) + índice `fiscalYearId_index` en:
+Añade `fiscalYearId` (string size **36**, optional) + índice `fiscalYearId_index` en:
 `invoices`, `entries`, `transactions`, `suppliers`, `apartments`, `reservations`, `recurring_expenses`.
 
 Scopes API Key: `databases.*`, `collections.*`, `attributes.*`, `indexes.*` (read+write).
+
+## setup-all-collections.cjs
+
+Crea/actualiza **todas** las colecciones CBGest. Incluye `fiscalYearId` (size 36) en las
+colecciones anteriores y un pase final `ensureFiscalYearIdSchema()` idempotente para
+instalaciones parciales (p.ej. cuando solo faltaba en `recurring_expenses`).
+
+```bash
+export APPWRITE_API_KEY="tu-api-key"
+node scripts/setup-all-collections.cjs
+node scripts/verify-appwrite-setup.cjs
+```
 
 ## setup-appwrite-collections.js
 

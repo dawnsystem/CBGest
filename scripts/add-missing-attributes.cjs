@@ -130,7 +130,7 @@ async function main() {
       { type: 'integer', key: 'number', required: false, min: 1, max: 999999999 },
       { type: 'string', key: 'createdBy', size: 100, required: false },
       { type: 'string', key: 'createdByName', size: 255, required: false },
-      { type: 'string', key: 'fiscalYearId', size: 100, required: false },
+      { type: 'string', key: 'fiscalYearId', size: 36, required: false },
     ];
 
     for (const attr of entriesAttributes) {
@@ -146,7 +146,7 @@ async function main() {
     const transactionsAttributes = [
       { type: 'string', key: 'createdBy', size: 100, required: false },
       { type: 'string', key: 'createdByName', size: 255, required: false },
-      { type: 'string', key: 'fiscalYearId', size: 100, required: false },
+      { type: 'string', key: 'fiscalYearId', size: 36, required: false },
     ];
 
     for (const attr of transactionsAttributes) {
@@ -160,10 +160,10 @@ async function main() {
     console.log('=== Adding fiscalYearId to remaining collections ===\n');
 
     const fiscalYearCollections = [
-      { id: 'invoices', size: 100 },
-      { id: 'suppliers', size: 100 },
-      { id: 'apartments', size: 100 },
-      { id: 'reservations', size: 100 },
+      { id: 'invoices', size: 36 },
+      { id: 'suppliers', size: 36 },
+      { id: 'apartments', size: 36 },
+      { id: 'reservations', size: 36 },
       { id: 'recurring_expenses', size: 36 },
     ];
 
