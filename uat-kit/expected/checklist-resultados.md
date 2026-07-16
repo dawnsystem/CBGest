@@ -5,8 +5,9 @@
 **Build / commit:** _________________________  
 **Entorno:** ☐ Appwrite  ☐ Archivo local  ☐ Otro: _________
 
-**Escenario:** CIF `E45678901` · Ejercicios 2027 completo + 2028 hasta 17/07/2028  
-**Guía:** [`../GUIA_UAT.md`](../GUIA_UAT.md)
+**Escenario:** CIF `E45678901` · Régimen **ALQUILER_EXENTO** · Ejercicios 2027 completo + 2028 hasta 17/07/2028  
+**Guía:** [`../GUIA_UAT.md`](../GUIA_UAT.md)  
+**IRPF:** [`irpf-2027.md`](./irpf-2027.md) (criterio `totalAmount`)
 
 ---
 
@@ -23,7 +24,7 @@
 | Paso | Descripción | PASS | FAIL | Notas / bug encontrado |
 |:----:|-------------|:----:|:----:|------------------------|
 | **0** | Precondiciones / reset (entorno limpio, app arrancada) | ☐ | ☐ | |
-| **1** | Configuración CB + 4 comuneros + taxInfo (perfiles distintos) | ☐ | ☐ | |
+| **1** | Configuración CB arrendamiento + 4 comuneros + taxInfo | ☐ | ☐ | |
 | **2** | Ejercicios 2027 y 2028 creados (2028 nota parcial 17/07) | ☐ | ☐ | |
 | **3** | 6 apartamentos (`CB-A1` … `CB-R2`) | ☐ | ☐ | |
 | **4** | 8 proveedores (`master/proveedores.json`) | ☐ | ☐ | |
@@ -32,7 +33,7 @@
 | **7** | 12 extractos 2027 + conciliación (flujos A–E) | ☐ | ☐ | |
 | **8** | 60 reservas 2027 (`reservas-2027.csv`) + edges reservas | ☐ | ☐ | |
 | **9** | Libro Diario / Mayor 400+572 / Balance cuadrado | ☐ | ☐ | |
-| **10** | IRPF 4 comuneros — cuotas estimadas distintas | ☐ | ☐ | |
+| **10** | IRPF 4 comuneros — cuotas vs `irpf-2027.md` (±2 €) | ☐ | ☐ | |
 | **11** | Bloque 2028 parcial + EDGE-09 + EDGE-11 | ☐ | ☐ | |
 | **12** | Matriz go/no-go global completada | ☐ | ☐ | |
 
@@ -47,6 +48,8 @@
 | Reservas 2027 | 60 | | ☐ | ☐ | |
 | Saldo 572 al 31/12/2027 | 43.607,51 € | | ☐ | ☐ | Ver `balances-2027.md` |
 | Saldo cuenta 400 (EDGE-01) | 242,00 € pendiente | | ☐ | ☐ | Factura `G-2027-058` |
+| Rendimiento neto CB 2027 (IRPF) | ver `irpf-2027.md` | | ☐ | ☐ | Régimen ALQUILER_EXENTO |
+| Cuotas IRPF 4 comuneros | ver `irpf-2027.md` (±2 €) | | ☐ | ☐ | Paso 10 |
 | Facturas 2028 (≤17/07) | 60 (40+20) | | ☐ | ☐ | |
 | Extractos 2028 | 7 | | ☐ | ☐ | `extracto-2028-01` … `07` |
 | Reservas 2028 | 30 | | ☐ | ☐ | |

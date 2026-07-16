@@ -1,6 +1,6 @@
 {
   "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
-  "description": "Escenario UAT completo: ejercicio 2027 + parcial 2028 hasta 17/07",
+  "description": "Escenario UAT arrendamiento (ALQUILER_EXENTO): ejercicio 2027 + parcial 2028 hasta 17/07",
   "fiscalYears": [
     {
       "id": "fy-2027",

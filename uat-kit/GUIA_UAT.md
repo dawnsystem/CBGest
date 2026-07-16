@@ -6,7 +6,7 @@
 |-------|-------|
 | Denominación | **C.B. Mediterránea Costa Brava** |
 | CIF / NIF | `E45678901` |
-| Régimen | `GENERAL` (con IVA) |
+| Régimen | `ALQUILER_EXENTO` — Arrendamiento de inmuebles (sin IVA repercutido) |
 | IBAN (referencia kit) | `ES91 2100 0418 4502 0005 1332` |
 | Ejercicio 2027 | 01/01/2027 – 31/12/2027 (completo) |
 | Ejercicio 2028 | 01/01/2028 – **17/07/2028** (parcial; solo importar datos del kit ≤ esa fecha) |
@@ -17,6 +17,7 @@
 - Casos borde 2027: [`2027/edges/edges-manifest.json`](./2027/edges/edges-manifest.json)
 - Casos borde 2028: [`2028/edges/edges-manifest.json`](./2028/edges/edges-manifest.json)
 - Saldos esperados: [`expected/balances-2027.md`](./expected/balances-2027.md), [`expected/balances-2028.md`](./expected/balances-2028.md)
+- IRPF esperado (Dashboard): [`expected/irpf-2027.md`](./expected/irpf-2027.md), [`expected/irpf-2028.md`](./expected/irpf-2028.md)
 - Plantilla de resultados: [`expected/checklist-resultados.md`](./expected/checklist-resultados.md)
 
 **Volúmenes objetivo (2027 / 2028 parcial):**
@@ -78,7 +79,8 @@
 1. `#/settings` → **Datos Fiscales** → **Guardar Cambios**:
    - Denominación: `C.B. Mediterránea Costa Brava`
    - NIF: `E45678901`
-   - Régimen: **General (IVA Trimestral)**
+   - Régimen: **Arrendamiento Inmuebles (Exento IVA)** (`ALQUILER_EXENTO`)
+   - No actives obligación de IVA trimestral (el escenario es sin IVA repercutido)
 2. Pestaña **Comuneros** → crear exactamente 4 filas (eliminar socios por defecto si los hay). Copiar de [`master/comuneros.json`](./master/comuneros.json):
 
    | Nombre | NIF | Participación % | Perfil (referencia) |
@@ -103,9 +105,9 @@
 
 **Datos exactos:** [`master/empresa.json`](./master/empresa.json), [`master/comuneros.json`](./master/comuneros.json).
 
-**Criterio PASS:** CB con CIF `E45678901` y régimen GENERAL; 4 comuneros con participaciones 35/30/20/15; los cuatro muestran datos fiscales en el Dashboard (no aparece «+ Añadir Datos»).
+**Criterio PASS:** CB con CIF `E45678901` y régimen **Arrendamiento Inmuebles (ALQUILER_EXENTO)**; 4 comuneros con participaciones 35/30/20/15; los cuatro muestran datos fiscales en el Dashboard (no aparece «+ Añadir Datos»).
 
-**Criterio FAIL:** Participaciones ≠ 100 %; perfiles fiscales idénticos o vacíos; régimen distinto de GENERAL.
+**Criterio FAIL:** Participaciones ≠ 100 %; perfiles fiscales idénticos o vacíos; régimen distinto de ALQUILER_EXENTO (p. ej. General con IVA).
 
 **Edges relevantes:** —
 
@@ -245,6 +247,8 @@
    - `uat-kit/2027/facturas/gasto/*.pdf` (72 archivos)
    - `uat-kit/2027/facturas/ingreso/*.pdf` (36 archivos)
 3. Por cada PDF en cola: revisar campos extraídos → **Confirmar**. Si OCR falla, abrir el `.json` del mismo nombre (ej. `G-2027-058.json`) y transcribir manualmente: número, fecha, emisor, NIF, base, IVA, total, tipo EXPENSE/INCOME, proveedor.
+   - **Ingresos de alquiler:** IVA 0 % (exento).
+   - **Gastos de proveedores:** pueden llevar IVA 10/21 % aunque la CB esté en arrendamiento exento (es correcto: te facturan con IVA; el IRPF usa `totalAmount`).
 4. **Verificación focal de edges** (buscar por número de factura en la lista):
 
    | Edge | Factura | Qué comprobar al cargar |
@@ -374,20 +378,22 @@
 
 ---
 
-## Paso 10 — Simulación IRPF 4 comuneros
+## Paso 10 — Simulación IRPF 4 comuneros (caso arrendamiento)
 
-**Objetivo:** Comprobar que la estimación IRPF del Dashboard refleja perfiles fiscales distintos.
+**Objetivo:** Comprobar que la estimación IRPF del Dashboard usa el criterio `ALQUILER_EXENTO` (`totalAmount`) y refleja perfiles fiscales distintos.
 
-**Dónde en la UI:** Sidebar → **Dashboard** (`#/`) — widget **Estimación IRPF (Renta)**.
+**Dónde en la UI:** Sidebar → **Dashboard** (`#/`) — widget **Estimación IRPF (Renta)**; opcional `#/taxes` (texto «Atribución de Rentas»).
 
 **Acciones concretas:**
 
 1. Con **ejercicio 2027** activo y pasos 6–9 completados (hay resultado neto CB).
-2. En `#/`, revisar las cuatro tarjetas de comuneros. Cada una debe mostrar:
+2. En `#/`, comprobar el resumen CB frente a [`expected/irpf-2027.md`](./expected/irpf-2027.md):
+   - Total ingresos / gastos / **rendimiento neto** (±2 €).
+3. Revisar las cuatro tarjetas de comuneros. Cada una debe mostrar:
    - **Rendimiento CB** (35 % / 30 % / 20 % / 15 % del resultado)
-   - **Cuota estimada** (~X €)
+   - **Cuota estimada** (~X €) alineada con `irpf-2027.md` (±2 €)
    - Mensaje de obligación de declarar
-3. Validar diferencias cualitativas esperadas (no hace falta coincidir al céntimo con AEAT):
+4. Validar diferencias cualitativas esperadas:
 
    | Comunero | Señal esperada distintiva |
    |----------|---------------------------|
@@ -396,13 +402,14 @@
    | Rosa | Mínimo personal >65 + ascendiente >75 → cuota menor que activos similares |
    | Jordi | Discapacidad 33–65 % + 2.º pagador >1.500 € → tratamiento distinto |
 
-4. Las **cuatro cuotas estimadas deben ser diferentes entre sí** (orden no prescrito).
+5. Las **cuatro cuotas estimadas deben ser diferentes entre sí** y coincidir con la tabla de `irpf-2027.md`.
+6. En `#/taxes`, subtítulo «Régimen de Atribución de Rentas (Alquileres)» (y pestaña IEET si hay aptos turísticos).
 
-**Datos exactos:** `taxInfo` en [`master/comuneros.json`](./master/comuneros.json).
+**Datos exactos:** `taxInfo` en [`master/comuneros.json`](./master/comuneros.json); cifras en [`expected/irpf-2027.md`](./expected/irpf-2027.md).
 
-**Criterio PASS:** 4 cuotas calculadas, todas distintas; mensajes de obligación coherentes con ingresos externos.
+**Criterio PASS:** Rendimiento neto CB y 4 cuotas dentro de tolerancia ±2 €; cuotas todas distintas; mensajes de obligación coherentes.
 
-**Criterio FAIL:** Algún comunero sin datos fiscales; cuotas idénticas; error de cálculo visible (NaN, 0 € con rendimiento positivo).
+**Criterio FAIL:** Régimen GENERAL (números no cuadran con `irpf-2027.md`); comunero sin datos fiscales; cuotas idénticas; NaN / 0 € con rendimiento positivo.
 
 **Edges relevantes:** —
 

@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 22:20:00 UTC*
+*Última actualización: 2026-07-16 22:50:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Kit UAT manual listo** (`uat-kit/`). Escenario ficticio C.B. Mediterránea Costa Brava — ejercicios 2027 completo + 2028 hasta 17/07. Pendiente ejecución humana de [`uat-kit/GUIA_UAT.md`](uat-kit/GUIA_UAT.md) para validar la app de punta a punta. Schema FY en Cloud sigue aplicado; datos productivos 2025/2026 no afectados por el kit (artefactos estáticos en repo).
+Estado actual: **Kit UAT en régimen arrendamiento (`ALQUILER_EXENTO`)** listo para verificación IRPF del caso real. Guía y `expected/irpf-2027.md` alineados con criterio FIS-001 (`totalAmount`). Pendiente ejecución humana del Paso 10 en [`uat-kit/GUIA_UAT.md`](uat-kit/GUIA_UAT.md).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `UAT-002` - Kit UAT → arrendamiento + IRPF verificable:** Maestro `empresa.json` pasa a `ALQUILER_EXENTO` / `vatObligation: false`. Guía, README y checklist actualizados (Paso 1 y Paso 10). Generador escribe `expected/irpf-2027.md` y `irpf-2028.md` (rendimiento CB + cuotas por comunero, tolerancia ±2 €). Facturas/PDF no regeneradas (importes idénticos; solo cambia interpretación fiscal).
 *   **[2026-07-16] - `UAT-001` - Kit UAT manual (2027 + 2028 parcial):** Carpeta `uat-kit/` con empresa ficticia, 4 comuneros (perfiles fiscales distintos), 6 apartamentos, 8 proveedores, 9 recurrentes; 72+36 facturas 2027 y 40+20 en 2028 (PDF + JSON); 19 extractos XLSX; 90 reservas CSV; edges EDGE-01…11; guía paso a paso `GUIA_UAT.md` + checklist PASS/FAIL. Generador `scripts/generate-uat-kit.mjs` (`npm run generate:uat-kit`); dep `write-excel-file`. NIFs/CIFs validados. No modifica lógica de negocio de la app.
 *   **[2026-07-16] - `OPS-FY-002` - setup-all-collections alineado con Cloud:** `fiscalYearId` unificado a size **36** + constantes compartidas; pase final `ensureFiscalYearIdSchema()`; paginación de `listAttributes`; scripts `add-*` alineados. Evita instalaciones parciales como la de `recurring_expenses`.
 *   **[2026-07-16] - `OPS-FY-001` - Schema + datos 2026 en Appwrite Cloud:** Con API Key de schema: creado `fiscalYearId` en `recurring_expenses` (era la colección que rompía la migración). Verificado atributo/índice en las 7 colecciones. Inventario: invoices=0, entries=0; apartments/reservations/transactions/suppliers todos con `fiscalYearId` del ejercicio **2025**. Copiados maestros a 2026 (`mrlspalb-66qm1lz`): 8 apartamentos + 1 proveedor. **Rotar la API Key** expuesta en chat.
@@ -104,6 +105,16 @@ Estado actual: **Kit UAT manual listo** (`uat-kit/`). Escenario ficticio C.B. Me
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 22:50:00 UTC]
+*   **Directiva del Director:** Adaptar el kit UAT a régimen arrendamiento (`ALQUILER_EXENTO`) para verificar el caso IRPF específico (no régimen general).
+*   **Log de Acciones:**
+    - `[22:45:00]` - **MOD:** `uat-kit/master/empresa.json` → `ALQUILER_EXENTO` / `vatObligation: false`; `escenario.json` descripción.
+    - `[22:46:00]` - **MOD:** `scripts/generate-uat-kit.mjs` — genera `expected/irpf-*.md` (espejo Dashboard IRPF).
+    - `[22:48:00]` - **DOC:** `GUIA_UAT.md` Pasos 1 y 10; README; checklist con controles IRPF.
+    - `[22:49:00]` - **GEN:** `expected/irpf-2027.md` / `irpf-2028.md` desde facturas existentes (sin regen PDF; importes invariantes).
+    - `[22:50:00]` - **DOC:** Registro `UAT-002` en bitácora.
+*   **Resultado:** UAT verificable contra Dashboard IRPF en arrendamiento. Cifras 2027: rendimiento neto **30.730,03 €**; 4 cuotas distintas documentadas.
+
 ### Sesión: [2026-07-16 22:20:00 UTC]
 *   **Directiva del Director:** Crear carpeta de prueba UAT con facturas, extractos, comuneros, reservas y guía paso a paso para simular el trabajo diario de un gestor (ejercicio 2027 completo + 2028 hasta 17/07; PDFs + fichas).
 *   **Log de Acciones:**
@@ -595,10 +606,10 @@ Estado actual: **Kit UAT manual listo** (`uat-kit/`). Escenario ficticio C.B. Me
 
 ### Kit UAT manual (`uat-kit/`)
 *   **Propósito:** Prueba de aceptación humana simulando el trabajo diario de un gestor (sin seed automático a Appwrite).
-*   **Escenario:** C.B. Mediterránea Costa Brava (`E45678901`) — FY 2027 completo + FY 2028 hasta 17/07/2028.
-*   **Artefactos:** PDFs/JSON de facturas, extractos XLSX (`Fecha|Concepto|Importe`), reservas CSV `;`, master JSON, edges EDGE-01…11.
+*   **Escenario:** C.B. Mediterránea Costa Brava (`E45678901`) — régimen **`ALQUILER_EXENTO`** — FY 2027 completo + FY 2028 hasta 17/07/2028.
+*   **Artefactos:** PDFs/JSON de facturas, extractos XLSX (`Fecha|Concepto|Importe`), reservas CSV `;`, master JSON, edges EDGE-01…11, **`expected/irpf-*.md`** (Dashboard IRPF).
 *   **Guía:** [`uat-kit/GUIA_UAT.md`](uat-kit/GUIA_UAT.md) + checklist [`uat-kit/expected/checklist-resultados.md`](uat-kit/expected/checklist-resultados.md).
-*   **Regeneración:** `npm run generate:uat-kit` → [`scripts/generate-uat-kit.mjs`](scripts/generate-uat-kit.mjs).
+*   **Regeneración:** `npm run generate:uat-kit` → [`scripts/generate-uat-kit.mjs`](scripts/generate-uat-kit.mjs) (incluye IRPF esperado).
 
 ### Stack Tecnológico de Testing
 *   **Test Runner:** Vitest 4.0.12 - Framework de testing compatible con Vite

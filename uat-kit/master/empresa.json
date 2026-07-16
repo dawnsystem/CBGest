@@ -2,8 +2,8 @@
   "cbName": "C.B. Mediterránea Costa Brava",
   "nif": "E45678901",
   "nifType": "CIF",
-  "fiscalRegime": "GENERAL",
-  "vatObligation": true,
+  "fiscalRegime": "ALQUILER_EXENTO",
+  "vatObligation": false,
   "address": "C/ Sant Jordi 18, 2º",
   "postalCode": "17200",
   "city": "Palafrugell",
@@ -18,5 +18,5 @@
     "maxNights": 7,
     "minAge": 17
   },
-  "notes": "Comunidad de Bienes ficticia para UAT. Régimen GENERAL con IVA."
+  "notes": "Comunidad de Bienes ficticia para UAT. Régimen ALQUILER_EXENTO (arrendamiento de inmuebles, sin IVA repercutido). Criterio IRPF: totalAmount en ingresos y gastos."
 }

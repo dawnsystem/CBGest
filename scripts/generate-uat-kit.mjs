@@ -923,6 +923,209 @@ function buildBalancesMarkdown(year, allMovements, openingBalance) {
 }
 
 // ---------------------------------------------------------------------------
+// IRPF esperado (ALQUILER_EXENTO = totalAmount; espejo Dashboard.tsx)
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {'NONE'|'LEVEL_33_65'|'LEVEL_65_PLUS'|'LEVEL_65_MOBILITY'} level
+ * @returns {number}
+ */
+function getDisabilityMinimum(level) {
+  switch (level) {
+    case 'LEVEL_33_65':
+      return 3000;
+    case 'LEVEL_65_PLUS':
+      return 9000;
+    case 'LEVEL_65_MOBILITY':
+      return 12000;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * @param {object} info
+ * @returns {number}
+ */
+function getChildrenMinimum(info) {
+  const totalChildren = (info.childrenUnder3 || 0) + (info.childrenFrom3To25 || 0);
+  if (totalChildren === 0) return 0;
+  const baseAmounts = [2400, 2700, 4000, 4500];
+  let minimum = 0;
+  for (let i = 0; i < totalChildren; i++) {
+    minimum += baseAmounts[Math.min(i, 3)];
+  }
+  minimum += (info.childrenUnder3 || 0) * 2800;
+  minimum += (info.childrenWithDisability || 0) * 3000;
+  return minimum;
+}
+
+/**
+ * @param {object} info
+ * @returns {number}
+ */
+function getAscendantsMinimum(info) {
+  let minimum = 0;
+  minimum += (info.ascendantsOver65 || 0) * 1150;
+  minimum += (info.ascendantsOver75 || 0) * 1400;
+  minimum += (info.ascendantsWithDisability || 0) * 3000;
+  return minimum;
+}
+
+/**
+ * Espejo de Dashboard.calculateEstimatedTax (tramos 2024).
+ * @param {object} partner
+ * @param {number} netResult
+ * @param {number} fiscalYear
+ * @returns {{ cbYield: number, estimatedTax: number, mandatory: boolean, reason: string }}
+ */
+function estimatePartnerIrpf(partner, netResult, fiscalYear) {
+  const info = partner.taxInfo;
+  if (!info) {
+    return { cbYield: 0, estimatedTax: 0, mandatory: false, reason: 'Sin datos fiscales' };
+  }
+
+  const cbYield = netResult * (partner.participation / 100);
+  const totalWorkIncome = (info.otherWorkIncome || 0) + cbYield;
+  const otherIncome = info.otherActivitiesIncome || 0;
+  const deductibleExpenses = info.deductibleExpenses || 0;
+  const pensionContributions = Math.min(info.pensionContributions || 0, 1500);
+
+  let workIncomeReduction = 0;
+  if (totalWorkIncome <= 14852) {
+    workIncomeReduction = 6498;
+  } else if (totalWorkIncome <= 17673.52) {
+    workIncomeReduction = 6498 - 1.14 * (totalWorkIncome - 14852);
+  } else if (totalWorkIncome <= 21000) {
+    workIncomeReduction = 3700;
+  }
+
+  const netWorkIncome = Math.max(
+    0,
+    totalWorkIncome - deductibleExpenses - pensionContributions - workIncomeReduction
+  );
+  const taxBase = netWorkIncome + otherIncome;
+
+  const applyBrackets = (base) => {
+    const brackets = [
+      { limit: 12450, rate: 0.19 },
+      { limit: 7750, rate: 0.24 },
+      { limit: 15000, rate: 0.3 },
+      { limit: 24800, rate: 0.37 },
+      { limit: Infinity, rate: 0.45 },
+    ];
+    let tax = 0;
+    let remaining = base;
+    for (const bracket of brackets) {
+      if (remaining <= 0) break;
+      const taxableAmount = Math.min(remaining, bracket.limit);
+      tax += taxableAmount * bracket.rate;
+      remaining -= taxableAmount;
+    }
+    return tax;
+  };
+
+  let estimatedTax = 0;
+  if (taxBase > 0) {
+    let personalMinimum = 5550;
+    const age = fiscalYear - (info.birthYear || 1980);
+    if (age >= 75) personalMinimum += 1400;
+    if (age >= 65) personalMinimum += 1150;
+    personalMinimum += getDisabilityMinimum(info.disabilityLevel || 'NONE');
+    if (info.jointDeclaration) personalMinimum += 3400;
+    const totalMinimum =
+      personalMinimum + getChildrenMinimum(info) + getAscendantsMinimum(info);
+    estimatedTax = Math.max(0, applyBrackets(taxBase) - applyBrackets(totalMinimum));
+  }
+
+  const hasMultiplePayers = (info.numberOfPayers || 1) >= 2;
+  const secondPayerOver1500 = (info.secondPayerAmount || 0) > 1500;
+  const limit = hasMultiplePayers && secondPayerOver1500 ? 15000 : 22000;
+  let mandatory = false;
+  let reason = 'Bajo límites de declaración';
+  if (totalWorkIncome > limit) {
+    mandatory = true;
+    reason =
+      hasMultiplePayers && secondPayerOver1500
+        ? `Ingresos > ${limit.toLocaleString('es-ES')}€ (2+ pagadores)`
+        : `Ingresos > ${limit.toLocaleString('es-ES')}€`;
+  } else if (cbYield > 1000) {
+    mandatory = true;
+    reason = 'Rendimientos CB > 1.000€';
+  }
+
+  return {
+    cbYield: roundCurrency(cbYield),
+    estimatedTax: roundCurrency(estimatedTax),
+    mandatory,
+    reason,
+  };
+}
+
+/**
+ * @param {number} year
+ * @param {object[]} expenses
+ * @param {object[]} incomes
+ * @returns {string}
+ */
+function buildIrpfExpectedMarkdown(year, expenses, incomes) {
+  const regime = empresa.fiscalRegime === 'ALQUILER_EXENTO' ? 'ALQUILER_EXENTO' : 'GENERAL';
+  const useTotal = regime === 'ALQUILER_EXENTO';
+  const amountOf = (inv) => (useTotal ? inv.totalAmount || 0 : inv.baseAmount || 0);
+
+  const valid = [...expenses, ...incomes].filter((inv) => inv.status !== 'PENDING');
+  const totalIngresos = roundCurrency(
+    valid.filter((i) => i.type === 'INCOME').reduce((acc, i) => acc + amountOf(i), 0)
+  );
+  const totalGastos = roundCurrency(
+    valid.filter((i) => i.type === 'EXPENSE').reduce((acc, i) => acc + amountOf(i), 0)
+  );
+  const rendimientoNeto = roundCurrency(totalIngresos - totalGastos);
+  const pendingExcluded = [...expenses, ...incomes].filter((i) => i.status === 'PENDING').length;
+
+  const lines = [
+    `# IRPF esperado — ${year} (régimen ${regime})`,
+    '',
+    `> Criterio FIS-001: **${useTotal ? 'totalAmount' : 'baseAmount'}** en ingresos y gastos.`,
+    `> Facturas \`PENDING\` excluidas del cálculo (${pendingExcluded}; p. ej. EDGE-01 \`G-2027-058\`).`,
+    `> Tolerancia UI: **±2,00 €** en cuotas (redondeos).`,
+    '',
+    '## Resultado CB (Dashboard)',
+    '',
+    '| Magnitud | Esperado |',
+    '|----------|--------:|',
+    `| Total ingresos | ${formatEsCurrency(totalIngresos)} € |`,
+    `| Total gastos | ${formatEsCurrency(totalGastos)} € |`,
+    `| **Rendimiento neto** | **${formatEsCurrency(rendimientoNeto)} €** |`,
+    '',
+    '## Atribución y cuota estimada por comunero',
+    '',
+    '| Comunero | % | Rendimiento CB | Cuota estimada | Declaración |',
+    '|----------|--:|---------------:|---------------:|-------------|',
+  ];
+
+  for (const partner of comuneros.partners) {
+    const est = estimatePartnerIrpf(partner, rendimientoNeto, year);
+    lines.push(
+      `| ${partner.name} | ${partner.participation} | ${formatEsCurrency(est.cbYield)} € | ${formatEsCurrency(est.estimatedTax)} € | ${est.mandatory ? `Obligatoria — ${est.reason}` : est.reason} |`
+    );
+  }
+
+  lines.push(
+    '',
+    '## Notas de verificación',
+    '',
+    '1. En `#/settings` el régimen debe ser **Arrendamiento Inmuebles (Exento IVA)**.',
+    '2. Completar `taxInfo` de los 4 comuneros desde `master/comuneros.json` antes del Paso 10.',
+    '3. Las **cuatro cuotas** deben ser distintas entre sí y coincidir con la tabla (±2 €).',
+    '4. En `#/taxes` debe verse «Régimen de Atribución de Rentas (Alquileres)» (y pestaña IEET si hay HUT).',
+    ''
+  );
+
+  return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
 // Year orchestration
 // ---------------------------------------------------------------------------
 
@@ -1033,6 +1236,17 @@ async function main() {
     prevMovements: result2027.allMovements,
   });
 
+  writeFileSync(
+    join(UAT_ROOT, 'expected', 'irpf-2027.md'),
+    buildIrpfExpectedMarkdown(2027, result2027.expenses, result2027.incomes),
+    'utf8'
+  );
+  writeFileSync(
+    join(UAT_ROOT, 'expected', 'irpf-2028.md'),
+    buildIrpfExpectedMarkdown(2028, result2028.expenses, result2028.incomes),
+    'utf8'
+  );
+
   // EDGE-11 validation: no dates > 2028-07-17 in 2028 kit
   const cutoff = '2028-07-17';
   const violations = [];
@@ -1053,6 +1267,8 @@ async function main() {
   const index = {
     generatedAt: new Date().toISOString(),
     scenarioId: escenario.scenarioId,
+    fiscalRegime: empresa.fiscalRegime,
+    vatObligation: empresa.vatObligation,
     master: {
       empresa: 1,
       comuneros: comuneros.partners.length,
