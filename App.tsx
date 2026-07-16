@@ -12,7 +12,9 @@ import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apart
 import { Eye, Trash, AlertTriangle, RefreshCw, XCircle, Check, Lock } from 'lucide-react';
 import { encryptData } from './utils/crypto';
 import { loadPersistedState } from './utils/stateStorage';
+import { settleListFetch, collectFetchErrors } from './utils/settleListFetch';
 import * as appwriteService from './services/appwriteService';
+import type { FiscalYearVisibilityReport } from './types';
 import { useAppSettings, useDataHandlers } from './hooks';
 
 import { ToastProvider, useToast } from './components/Toast';
@@ -125,6 +127,8 @@ const MainLayout: React.FC = () => {
   const [connectionChecked, setConnectionChecked] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true); // Track if initial data load is complete
+  /** Aviso cuando Appwrite responde pero el ejercicio activo no tiene docs (legacy sin FY / query rota) */
+  const [fiscalYearVisibilityWarning, setFiscalYearVisibilityWarning] = useState<string | null>(null);
 
   // Helper to show error to user with auto-clear
   const showError = useCallback((message: string, autoClearMs = 10000) => {
@@ -309,20 +313,28 @@ const MainLayout: React.FC = () => {
                 }
 
                 // Load all data in parallel for better performance
-                // Each fetch has its own catch handler to prevent partial failures from breaking the entire load
                 // Note: initial load is unfiltered — the fiscal-year-change effect will re-fetch filtered data
                 // once FiscalYearContext has loaded the active fiscal year from Appwrite.
-                const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses, remoteReservations] = await Promise.all([
-                    appwriteService.fetchInvoices().catch((e) => { console.warn('Failed to fetch invoices:', e); return []; }),
-                    appwriteService.fetchEntries().catch((e) => { console.warn('Failed to fetch entries:', e); return []; }),
-                    appwriteService.fetchTransactions().catch((e) => { console.warn('Failed to fetch transactions:', e); return []; }),
-                    appwriteService.fetchSuppliers().catch((e) => { console.warn('Failed to fetch suppliers:', e); return []; }),
-                    appwriteService.fetchApartments().catch((e) => { console.warn('Failed to fetch apartments:', e); return []; }),
-                    appwriteService.fetchRecurringExpenses().catch((e) => { console.warn('Failed to fetch recurring expenses:', e); return []; }),
-                    appwriteService.fetchReservations().catch((e) => { console.warn('Failed to fetch reservations:', e); return []; })
+                // BUG-FY-004: settleListFetch preserves errors (no silent empty arrays).
+                const [invR, entR, txR, supR, aptR, recR, resR] = await Promise.all([
+                    settleListFetch(appwriteService.fetchInvoices(), 'facturas'),
+                    settleListFetch(appwriteService.fetchEntries(), 'asientos'),
+                    settleListFetch(appwriteService.fetchTransactions(), 'transacciones'),
+                    settleListFetch(appwriteService.fetchSuppliers(), 'proveedores'),
+                    settleListFetch(appwriteService.fetchApartments(), 'apartamentos'),
+                    settleListFetch(appwriteService.fetchRecurringExpenses(), 'gastos recurrentes'),
+                    settleListFetch(appwriteService.fetchReservations(), 'reservas'),
                 ]);
 
                 if (cancelled) return;
+
+                const remoteInvoices = invR.data;
+                const remoteEntries = entR.data;
+                const remoteTransactions = txR.data;
+                const remoteSuppliers = supR.data;
+                const remoteApartments = aptR.data;
+                const remoteRecurringExpenses = recR.data;
+                const remoteReservations = resR.data;
 
                 // Update state with remote data
                 setInvoices(remoteInvoices);
@@ -333,8 +345,14 @@ const MainLayout: React.FC = () => {
                 setRecurringExpenses(remoteRecurringExpenses);
                 setReservations(remoteReservations);
 
+                const fetchErrors = collectFetchErrors([invR, entR, txR, supR, aptR, recR, resR]);
+                if (fetchErrors) {
+                  setConnectionError(fetchErrors);
+                } else {
+                  setConnectionError(null);
+                }
+
                 console.warn(`✅ Datos cargados: ${remoteInvoices.length} facturas, ${remoteEntries.length} asientos, ${remoteTransactions.length} transacciones, ${remoteSuppliers.length} proveedores, ${remoteApartments.length} apartamentos, ${remoteRecurringExpenses.length} gastos recurrentes, ${remoteReservations.length} reservas`);
-                setConnectionError(null);
               } catch (e: unknown) {
                   if (!cancelled) {
                     console.warn("Initial sync failed:", e);
@@ -470,31 +488,77 @@ const MainLayout: React.FC = () => {
     const fetchForYear = async () => {
       const fyId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
       setIsDataLoading(true);
+      setFiscalYearVisibilityWarning(null);
       try {
-        const [remoteInvoices, remoteEntries, remoteTransactions, remoteSuppliers, remoteApartments, remoteRecurringExpenses, remoteReservations] = await Promise.all([
-          appwriteService.fetchInvoices(fyId).catch((e) => { console.warn('Failed to fetch invoices on year change:', e); return []; }),
-          appwriteService.fetchEntries(fyId).catch((e) => { console.warn('Failed to fetch entries on year change:', e); return []; }),
-          appwriteService.fetchTransactions(fyId).catch((e) => { console.warn('Failed to fetch transactions on year change:', e); return []; }),
-          appwriteService.fetchSuppliers(fyId).catch((e) => { console.warn('Failed to fetch suppliers on year change:', e); return []; }),
-          appwriteService.fetchApartments(fyId).catch((e) => { console.warn('Failed to fetch apartments on year change:', e); return []; }),
-          appwriteService.fetchRecurringExpenses().catch((e) => { console.warn('Failed to fetch recurring expenses on year change:', e); return []; }),
-          appwriteService.fetchReservations(fyId).catch((e) => { console.warn('Failed to fetch reservations on year change:', e); return []; }),
+        // BUG-FY-004: no tragar errores como listas vacías (parece "datos desaparecidos").
+        // BUG-FY-003: recurrentes también filtrados por ejercicio.
+        const [invR, entR, txR, supR, aptR, recR, resR] = await Promise.all([
+          settleListFetch(appwriteService.fetchInvoices(fyId), 'facturas'),
+          settleListFetch(appwriteService.fetchEntries(fyId), 'asientos'),
+          settleListFetch(appwriteService.fetchTransactions(fyId), 'transacciones'),
+          settleListFetch(appwriteService.fetchSuppliers(fyId), 'proveedores'),
+          settleListFetch(appwriteService.fetchApartments(fyId), 'apartamentos'),
+          settleListFetch(appwriteService.fetchRecurringExpenses(fyId), 'gastos recurrentes'),
+          settleListFetch(appwriteService.fetchReservations(fyId), 'reservas'),
         ]);
 
         // Discard results if the exercise changed again while this fetch was in flight.
         if (cancelled) return;
 
-        setInvoices(remoteInvoices);
-        setAccountingEntries(remoteEntries);
-        setBankTransactions(remoteTransactions);
-        setSuppliers(remoteSuppliers);
-        setApartments(remoteApartments);
-        setRecurringExpenses(remoteRecurringExpenses);
-        setReservations(remoteReservations);
-        console.warn(`[App] Data reloaded for fiscal year: ${activeFiscalYear?.year ?? 'all'}`);
+        setInvoices(invR.data);
+        setAccountingEntries(entR.data);
+        setBankTransactions(txR.data);
+        setSuppliers(supR.data);
+        setApartments(aptR.data);
+        setRecurringExpenses(recR.data);
+        setReservations(resR.data);
+
+        const fetchErrors = collectFetchErrors([invR, entR, txR, supR, aptR, recR, resR]);
+        if (fetchErrors) {
+          setConnectionError(fetchErrors);
+          console.warn('[App] Filtered fiscal-year fetch errors:', fetchErrors);
+        }
+
+        const loadedCount =
+          invR.data.length + entR.data.length + txR.data.length +
+          supR.data.length + aptR.data.length + recR.data.length + resR.data.length;
+
+        // Si el ejercicio parece vacío pero Appwrite responde, diagnosticar legacy/null FY.
+        if (fyId && !fetchErrors && loadedCount === 0) {
+          try {
+            const report: FiscalYearVisibilityReport =
+              await appwriteService.diagnoseFiscalYearVisibility(fyId);
+            if (cancelled) return;
+            if (report.hasQueryErrors) {
+              const firstErr = Object.values(report.collections).find((c) => c.queryError)?.queryError;
+              setFiscalYearVisibilityWarning(
+                `La consulta filtrada por ejercicio falló (${firstErr ?? 'error desconocido'}). ` +
+                'Revisa índices fiscalYearId en Appwrite. No es una pérdida de conexión.'
+              );
+            } else if (report.unassignedTotal > 0) {
+              setFiscalYearVisibilityWarning(
+                `Appwrite responde correctamente, pero el ejercicio ${activeFiscalYear?.year ?? ''} ` +
+                `no tiene documentos asignados y hay ${report.unassignedTotal} sin ejercicio (fiscalYearId vacío). ` +
+                'Ve a Ejercicios → «Migrar datos sin ejercicio» con 2026 activo para recuperarlos.'
+              );
+            } else if (report.assignedTotal === 0 && report.collections.invoices.total + report.collections.apartments.total > 0) {
+              setFiscalYearVisibilityWarning(
+                `Hay datos en Appwrite, pero ninguno está enlazado al ejercicio ${activeFiscalYear?.year ?? ''} ` +
+                `(posible recreación del ejercicio con otro ID). Revisa en Consola Appwrite el campo fiscalYearId.`
+              );
+            }
+          } catch (diagErr) {
+            console.warn('[App] diagnoseFiscalYearVisibility failed:', diagErr);
+          }
+        }
+
+        console.warn(`[App] Data reloaded for fiscal year: ${activeFiscalYear?.year ?? 'all'} (${loadedCount} docs)`);
       } catch (e: unknown) {
         if (!cancelled) {
           console.warn('[App] Failed to reload data for fiscal year:', e);
+          setConnectionError(
+            `Error al cargar el ejercicio: ${e instanceof Error ? e.message : 'Error desconocido'}`
+          );
         }
       } finally {
         if (!cancelled) {
@@ -816,6 +880,30 @@ const MainLayout: React.FC = () => {
                   <button
                     onClick={() => setConnectionError(null)}
                     className="text-red-400 hover:text-red-600"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+            {fiscalYearVisibilityWarning && (
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mx-4 mt-4 rounded-r-lg animate-fade-in">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-amber-900">Datos del ejercicio no visibles</h4>
+                    <p className="text-amber-800 text-sm mt-1">{fiscalYearVisibilityWarning}</p>
+                    <a
+                      href="#/fiscal-years"
+                      className="inline-block mt-2 text-sm font-semibold text-amber-900 underline hover:text-amber-700"
+                    >
+                      Ir a Ejercicios Contables
+                    </a>
+                  </div>
+                  <button
+                    onClick={() => setFiscalYearVisibilityWarning(null)}
+                    className="text-amber-400 hover:text-amber-600"
+                    aria-label="Cerrar aviso"
                   >
                     <XCircle className="w-5 h-5" />
                   </button>

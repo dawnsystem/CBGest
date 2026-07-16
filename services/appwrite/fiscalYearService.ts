@@ -21,7 +21,13 @@ import {
 import { getSuppliers } from './supplierService';
 import { getApartments } from './apartmentService';
 import { getRecurringExpenses } from './recurringExpenseService';
-import type { FiscalYear, FiscalYearDependencies, TouristTaxPeriod } from '../../types';
+import type {
+  FiscalYear,
+  FiscalYearCollectionVisibility,
+  FiscalYearDependencies,
+  FiscalYearVisibilityReport,
+  TouristTaxPeriod,
+} from '../../types';
 import {
   parseTouristTaxPeriods,
   serializeTouristTaxPeriods,
@@ -475,6 +481,107 @@ export async function copyMasterDataToFiscalYear(
 // ============================================================================
 // ELIMINAR EJERCICIO
 // ============================================================================
+
+/**
+ * Diagnostica por qué un ejercicio puede aparecer "vacío" en la UI.
+ * Compara documentos con `fiscalYearId` del ejercicio, sin asignar (null)
+ * y el total de cada colección. No modifica datos.
+ *
+ * @param fiscalYearId - Document ID del ejercicio activo
+ * @returns Informe con conteos por colección y totales agregados
+ * @throws No lanza por fallos de colección individual (queda en queryError)
+ * @example
+ * const report = await diagnoseFiscalYearVisibility(activeFy.appwriteId);
+ * if (report.unassignedTotal > 0 && report.assignedTotal === 0) {
+ *   // Datos legacy sin migrar — usar migrateLegacyData
+ * }
+ */
+export async function diagnoseFiscalYearVisibility(
+  fiscalYearId: string
+): Promise<FiscalYearVisibilityReport> {
+  const countVisibility = async (
+    collectionId: string
+  ): Promise<FiscalYearCollectionVisibility> => {
+    try {
+      const [withFy, withoutFy, all] = await Promise.all([
+        withRetry(
+          () => databases.listDocuments(
+            config.databaseId,
+            collectionId,
+            [Query.equal('fiscalYearId', fiscalYearId), Query.limit(1)]
+          ),
+          `diagnoseFY_with_${collectionId}`
+        ),
+        withRetry(
+          () => databases.listDocuments(
+            config.databaseId,
+            collectionId,
+            [Query.isNull('fiscalYearId'), Query.limit(1)]
+          ),
+          `diagnoseFY_null_${collectionId}`
+        ),
+        withRetry(
+          () => databases.listDocuments(
+            config.databaseId,
+            collectionId,
+            [Query.limit(1)]
+          ),
+          `diagnoseFY_all_${collectionId}`
+        ),
+      ]);
+
+      return {
+        withFiscalYear: withFy.total,
+        withoutFiscalYear: withoutFy.total,
+        total: all.total,
+      };
+    } catch (error: unknown) {
+      return {
+        withFiscalYear: 0,
+        withoutFiscalYear: 0,
+        total: 0,
+        queryError: getErrorMessage(error),
+      };
+    }
+  };
+
+  const [
+    invoices,
+    entries,
+    transactions,
+    reservations,
+    suppliers,
+    apartments,
+    recurringExpenses,
+  ] = await Promise.all([
+    countVisibility(config.collections.invoices),
+    countVisibility(config.collections.entries),
+    countVisibility(config.collections.transactions),
+    countVisibility(config.collections.reservations),
+    countVisibility(config.collections.suppliers),
+    countVisibility(config.collections.apartments),
+    countVisibility(config.collections.recurringExpenses),
+  ]);
+
+  const collections = {
+    invoices,
+    entries,
+    transactions,
+    reservations,
+    suppliers,
+    apartments,
+    recurringExpenses,
+  };
+
+  const values = Object.values(collections);
+  return {
+    fiscalYearId,
+    collections,
+    assignedTotal: values.reduce((sum, c) => sum + c.withFiscalYear, 0),
+    unassignedTotal: values.reduce((sum, c) => sum + c.withoutFiscalYear, 0),
+    hasQueryErrors: values.some((c) => Boolean(c.queryError)),
+  };
+}
 
 /**
  * Devuelve el número de documentos asociados a un ejercicio en cada colección.

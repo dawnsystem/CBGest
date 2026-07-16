@@ -4,14 +4,14 @@
  *              Incluye herramienta de migración de datos legacy y borrado en cascada.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   CalendarDays, Lock, LockOpen, Plus, AlertTriangle,
   CheckCircle, RefreshCw, ChevronRight, Info, ArrowRight, Trash2, AlertCircle
 } from 'lucide-react';
 import { useFiscalYear } from '../context/FiscalYearContext';
 import { useToast } from './Toast';
-import { FiscalYear, FiscalYearDependencies } from '../types';
+import { FiscalYear, FiscalYearDependencies, FiscalYearVisibilityReport } from '../types';
 import * as appwriteService from '../services/appwriteService';
 
 // ============================================================================
@@ -179,6 +179,8 @@ export const FiscalYearManager: React.FC = () => {
   // Estado migración legacy
   const [migrating, setMigrating] = useState(false);
   const [migrateProgress, setMigrateProgress] = useState('');
+  const [visibilityReport, setVisibilityReport] = useState<FiscalYearVisibilityReport | null>(null);
+  const [diagnosing, setDiagnosing] = useState(false);
 
   // ── Estado modal Eliminar ──────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<FiscalYear | null>(null);
@@ -197,7 +199,33 @@ export const FiscalYearManager: React.FC = () => {
   const yearsExisting = new Set(fiscalYears.map(y => y.year));
 
   /** true mientras cualquier operación pesada está en curso */
-  const isBusy = creating || migrating || deleteDeleting;
+  const isBusy = creating || migrating || deleteDeleting || diagnosing;
+
+  const runVisibilityDiagnosis = useCallback(async () => {
+    const fyId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
+    if (!fyId) {
+      setVisibilityReport(null);
+      return;
+    }
+    setDiagnosing(true);
+    try {
+      const report = await appwriteService.diagnoseFiscalYearVisibility(fyId);
+      setVisibilityReport(report);
+    } catch (err) {
+      console.warn('[FiscalYearManager] diagnose failed:', err);
+      setVisibilityReport(null);
+      showToast(
+        `No se pudo diagnosticar el ejercicio: ${err instanceof Error ? err.message : 'error'}`,
+        'error'
+      );
+    } finally {
+      setDiagnosing(false);
+    }
+  }, [activeFiscalYear, showToast]);
+
+  useEffect(() => {
+    void runVisibilityDiagnosis();
+  }, [runVisibilityDiagnosis]);
 
   // ------------------------------------------------------------------
   // CREAR
@@ -364,6 +392,7 @@ export const FiscalYearManager: React.FC = () => {
       );
       setMigrateProgress('');
       await refreshFiscalYears();
+      await runVisibilityDiagnosis();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
       showToast(`Error en migración: ${msg}`, 'error');
@@ -444,6 +473,82 @@ export const FiscalYearManager: React.FC = () => {
               }
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Diagnóstico de visibilidad del ejercicio activo (BUG-FY-004) */}
+      {activeFiscalYear && (
+        <div className="mb-6 bg-white border border-slate-200 rounded-xl p-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">
+                  Diagnóstico Appwrite — Ejercicio {activeFiscalYear.year}
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Compara documentos enlazados a este ejercicio frente a los que aún no tienen fiscalYearId.
+                  Si ves muchos «sin ejercicio», la conexión está bien: falta migrar.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void runVisibilityDiagnosis()}
+              disabled={isBusy}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${diagnosing ? 'animate-spin' : ''}`} />
+              {diagnosing ? 'Analizando…' : 'Reanalizar'}
+            </button>
+          </div>
+          {visibilityReport && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <div className="bg-emerald-50 rounded-lg p-2">
+                  <p className="text-emerald-700 font-semibold">Con este ejercicio</p>
+                  <p className="text-lg font-bold text-emerald-900">{visibilityReport.assignedTotal}</p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-2">
+                  <p className="text-amber-700 font-semibold">Sin ejercicio</p>
+                  <p className="text-lg font-bold text-amber-900">{visibilityReport.unassignedTotal}</p>
+                </div>
+              </div>
+              {visibilityReport.unassignedTotal > 0 && visibilityReport.assignedTotal === 0 && (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                  Los datos existen en Appwrite pero no están asignados a ningún ejercicio.
+                  Usa «Migrar datos sin ejercicio» abajo con el ejercicio {activeFiscalYear.year} activo.
+                </p>
+              )}
+              {visibilityReport.hasQueryErrors && (
+                <p className="text-xs text-red-800 bg-red-50 border border-red-200 rounded-lg p-2">
+                  Algunas consultas fallaron (posible índice `fiscalYearId` ausente). Revisa el schema en Appwrite.
+                </p>
+              )}
+              <div className="text-xs text-slate-600 divide-y divide-slate-100">
+                {(
+                  [
+                    ['Facturas', visibilityReport.collections.invoices],
+                    ['Asientos', visibilityReport.collections.entries],
+                    ['Transacciones', visibilityReport.collections.transactions],
+                    ['Reservas', visibilityReport.collections.reservations],
+                    ['Proveedores', visibilityReport.collections.suppliers],
+                    ['Apartamentos', visibilityReport.collections.apartments],
+                    ['Recurrentes', visibilityReport.collections.recurringExpenses],
+                  ] as const
+                ).map(([label, counts]) => (
+                  <div key={label} className="flex justify-between py-1.5 gap-2">
+                    <span>{label}</span>
+                    <span className="font-mono text-right">
+                      {counts.queryError
+                        ? `error: ${counts.queryError}`
+                        : `${counts.withFiscalYear} FY / ${counts.withoutFiscalYear} null / ${counts.total} total`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

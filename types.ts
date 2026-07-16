@@ -36,6 +36,34 @@ export interface FiscalYearDependencies {
   total: number;
 }
 
+/** Conteos por colección para diagnosticar visibilidad de un ejercicio (BUG-FY-004) */
+export interface FiscalYearCollectionVisibility {
+  withFiscalYear: number;
+  withoutFiscalYear: number;
+  total: number;
+  queryError?: string;
+}
+
+/**
+ * Informe de visibilidad: distingue "sin datos" de "datos sin fiscalYearId"
+ * o fallos de query filtrada (p.ej. índice ausente).
+ */
+export interface FiscalYearVisibilityReport {
+  fiscalYearId: string;
+  collections: {
+    invoices: FiscalYearCollectionVisibility;
+    entries: FiscalYearCollectionVisibility;
+    transactions: FiscalYearCollectionVisibility;
+    reservations: FiscalYearCollectionVisibility;
+    suppliers: FiscalYearCollectionVisibility;
+    apartments: FiscalYearCollectionVisibility;
+    recurringExpenses: FiscalYearCollectionVisibility;
+  };
+  assignedTotal: number;
+  unassignedTotal: number;
+  hasQueryErrors: boolean;
+}
+
 // --- COMMON TYPES (used across multiple interfaces) ---
 // NifType includes all Spanish tax ID types plus VAT for EU intra-community operations
 export type NifType = 'NIF' | 'CIF' | 'NIE' | 'DNI' | 'PASAPORTE' | 'VAT' | 'PASSPORT' | 'OTHER';

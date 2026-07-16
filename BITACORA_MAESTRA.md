@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 10:50:00 UTC*
+*Última actualización: 2026-07-16 11:20:00 UTC*
 
 ---
 
@@ -8,10 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Lote residual #147 (fase final acotada)** en rama `fix/issue-147-residual-lote`; clasificación y fixes mínimos aplicados; issue #147 puede seguir abierto si se prefiere registrar el cierre por merge/PR.
+Estado actual: **Diagnóstico datos ejercicio 2026 (BUG-FY-004)** — conexión Appwrite OK; causa probable filtro `fiscalYearId` + errores de fetch silenciados. Herramientas de diagnóstico y surfacing de errores en rama `cursor/diagnose-fy-2026-data-7016`.
 
 ### ✅ Implementaciones Recientes
-*   **[2026-07-16] - `RESIDUAL-147-B` - SEC-018 / RO-001 / BUG-UI-001 / DEBT-019 / BUG-ARCH-001 / DEBT-020 / DEBT-021:** `authService.verifySession()` ya no devuelve `true` durante 401 post-login (el grace period inseguro se elimina también de `handleUnauthorizedError`). `BankReconciliation` ahora recibe `isReadOnly` y deshabilita `Crear Asiento`/`CASAR`; `App.tsx` bloquea cambio de estado y borrado de facturas en ejercicio cerrado. Se elimina código muerto confirmado: `components/AuthModal.tsx` y `hooks/useAppwriteData.ts` con su re-export. Clasificación final del lote: `DEBT-020` y `DEBT-021` no aplican ya en `main`; `BUG-ARCH-001` queda como deuda descartable/no reproducible tras eliminar la dualidad muerta. Validado con tests focalizados + lint + type-check + build.
+*   **[2026-07-16] - `BUG-FY-004` - Datos 2026 “desaparecidos” (filtro FY ≠ pérdida de conexión):** Verificado endpoint `fra.cloud.appwrite.io` (proyecto `cbgest` responde). Causa raíz probable: `Query.equal('fiscalYearId', fyId)` tras los fixes FY recientes + `.catch(() => [])` que convertía fallos de query en listas vacías. Añadidos `settleListFetch`/`collectFetchErrors`, `diagnoseFiscalYearVisibility`, banner ámbar en `App.tsx`, panel de diagnóstico en `FiscalYearManager`, y `fetchRecurringExpenses(fyId)` (BUG-FY-003). Acción usuario: si el diagnóstico muestra docs sin ejercicio → migrar con 2026 activo. Validado: lint + type-check + 364 tests + build OK.
 *   **[2026-07-16] - `MEDIOS-147` - Settings/drafts/toast/realtime/filtros FY:** Cerrados BUG-027/028/029/030, CTB-004/005/006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001. Settings: mapeo limpio + ID fijo `app_settings` + revert sync. Drafts: totales sin borradores, Debe/Haber mutuamente excluyentes, deudas alineadas, matching sin drafts, suma multi-línea 57x. Toast resuelve confirm previo. Realtime re-fetch a React state. Charts por `fiscalYearId`. Issue: #147 (parcial). Tests focalizados PASS.
 *   **[2026-07-16] - `SEC-017` + `BUG-024` + `BUG-025` + `BUG-026` - Auth functions + rateLimiter:** `manage-users`: guardas SEC-017 en `updateLabels` (no auto-degradación, ≥1 admin); paginación BUG-025 (`listAllUsers`); rollback BUG-026 en create. `rateLimiter`: relanzar `processQueue` en `finally` (BUG-024). Issue #143. Tests focalizados 5 PASS.
 *   **[2026-07-16] - `CONC-001` + `CTB-002` - Conciliación por signo + naturaleza deudora 470–474:** Matching via `findReconciliationMatches`/`isSignCompatibleMatch` (cargo↔400/6xx, abono↔430/7xx; excluye `isDraft`). `isDebitNatureAccount` amplía 460 y 470–474. Issue: #141. Tests 46 PASS.
@@ -100,6 +100,15 @@ Estado actual: **Lote residual #147 (fase final acotada)** en rama `fix/issue-14
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 11:20:00 UTC]
+*   **Directiva del Director:** Verificar por qué desaparecieron los datos del ejercicio 2026 (sospecha de pérdida de conexión Appwrite o regresión tras cambios recientes).
+*   **Log de Acciones:**
+    - `[11:13:00]` - **PROBE:** Endpoint Appwrite `fra.cloud.appwrite.io` + proyecto `cbgest` responden (`/locale` 200). API key inyectada `APPWRITE DEV` sin scopes de databases (401) → no se pudo inventariar docs en remoto desde el agente.
+    - `[11:16:00]` - **AUDIT:** Causa probable: filtro duro `fiscalYearId` en `fetchForYear` + `.catch(() => [])` que enmascara errores de query como listas vacías (mismo síntoma que “datos borrados”).
+    - `[11:18:00]` - **FIX:** `settleListFetch`, `diagnoseFiscalYearVisibility`, banner en `App`, panel diagnóstico en `FiscalYearManager`, `fetchRecurringExpenses(fyId)`.
+    - `[11:20:00]` - **DOC:** `BUG-FY-004` en bitácora.
+*   **Resultado:** Conexión Appwrite no perdida a nivel de config/red. Remediación de UX/diagnóstico lista; recuperación de datos legacy vía migración si `fiscalYearId` es null.
+
 ### Sesión: [2026-07-16 10:50:00 UTC]
 *   **Directiva del Director:** Cerrar el lote residual acotado de #147 (`SEC-018`, `RO-001`, `BUG-ARCH-001`, `BUG-UI-001`, `DEBT-019`, `DEBT-020`, `DEBT-021`) o clasificar con evidencia lo que no convenga tocar.
 *   **Log de Acciones:**
@@ -709,6 +718,7 @@ Estado actual: **Lote residual #147 (fase final acotada)** en rama `fix/issue-14
 
 * **BUG-021:** `App.tsx:359-389` — **Race condition en `fetchForYear` effect.** Al crear el ejercicio 2027, `setActiveFiscalYear(2027)` dispara un fetch asíncrono para 2027. Si el usuario cambia inmediatamente a 2026, se lanza un segundo fetch para 2026. Si el fetch de 2027 termina DESPUÉS del de 2026, sobreescribe el estado con datos de 2027 mientras la UI muestra 2026 — haciendo parecer que el selector no funciona y que los alojamientos de 2026 "desaparecen". Estado: ✅ Resuelto (FIX-043).
 * **BUG-023:** `App.tsx:195-196` — **Race condition en arranque: datos del ejercicio equivocado visibles al cargar la app.** `setIsDataLayerInitialized(true)` se llamaba síncronamente ANTES de que `initDataLayer()` completara su fetch inicial sin filtrar. El efecto `fetchForYear` (que filtra por ejercicio activo) podía dispararse concurrentemente con el fetch sin filtrar. Si el fetch sin filtrar resolvía el último, sobreescribía el estado con datos de todos los ejercicios (ej. 2025+2026) mientras el usuario tenía seleccionado 2026. Al cambiar de ejercicio y volver, se corregía porque entonces solo corría `fetchForYear`. Estado: ✅ Resuelto (FIX-049).
+* **BUG-FY-004:** Tras filtros duros `Query.equal('fiscalYearId', …)` + `.catch(() => [])` en `App.tsx`, un ejercicio (p.ej. 2026) puede parecer vacío aunque Appwrite responda: (a) docs con `fiscalYearId` null/legacy, (b) FY recreado con otro `$id`, o (c) error de query (índice) silenciado como `[]`. Severidad: **ALTO**. Estado: ✅ Mitigado (diagnóstico + surfacing de errores + banner; migración legacy sigue siendo la remediación de datos null).
 * **BUG-020:** `services/appwriteService.ts:1948-1979` — `ID.unique()` evaluado **dentro** del lambda de `withRetry` en `copyMasterDataToFiscalYear`. Un error de red post-creación (timeout, dropped response) provoca reintento con nuevo ID → alojamientos/proveedores duplicados en Appwrite al crear un nuevo ejercicio. Estado: ✅ Resuelto (FIX-042).
 * **SEC-006:** XSS entidades HTML. Estado: ✅ Resuelto (PR-6).
 * **SEC-007:** CSV sin sanitizar. Estado: ✅ Resuelto (PR-6).
