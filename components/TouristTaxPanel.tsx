@@ -7,6 +7,7 @@ import { Reservation, Apartment, AppSettings, TouristTaxPeriod } from '../types'
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
 import { useIsReadOnly, useFiscalYear } from '../context/FiscalYearContext';
 import {
+  calculateConsecutiveStayTaxUnits,
   getActivePeriodForDate,
   getPeriodsForFiscalYear,
   getSemesterDateBounds,
@@ -50,11 +51,11 @@ interface ConsecutiveStayGroup {
   reservations: Reservation[];
   totalNights: number;
   taxableNights: number; // Max 7 (or period maxNights)
-  totalGuests: number;        // Adults (≥minAge years) - subject to tourist tax
-  totalChildren: number;      // Children (<minAge years) - exempt from tourist tax
+  totalGuests: number;        // Pico de adultos en el grupo (informativo)
+  totalChildren: number;      // Pico de menores en el grupo (informativo)
   totalTax: number;
-  taxableUnits: number;       // Unidades sujetas a tasa: adults × taxableNights
-  exemptUnits: number;        // Unidades exentas: children × taxableNights
+  taxableUnits: number;       // IEET-002: Σ (noches_i × adultos_i) con tope maxNights
+  exemptUnits: number;        // IEET-002: Σ (noches_i × menores_i) con tope maxNights
   allCollected: boolean;
   /** Período de vigencia aplicado (según fecha de check-in del grupo) */
   appliedPeriod: TouristTaxPeriod;
@@ -171,26 +172,26 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
     const buildGroup = (groupReservations: Reservation[], guestDisplayName: string): ConsecutiveStayGroup => {
       const checkInDate = groupReservations[0].checkIn.substring(0, 10);
       const period = getActivePeriodForDate(taxPeriods, checkInDate) ?? defaultTaxConfig;
-      const totalNights = groupReservations.reduce((sum, r) => sum + (r.nights || 0), 0);
-      const taxableNights = Math.min(totalNights, period.maxNights);
-      const totalGuests = Math.max(...groupReservations.map(r => r.numberOfGuests || 1));
-      const totalChildren = Math.max(...groupReservations.map(r => r.numberOfChildren || 0));
-      const taxableUnits = taxableNights * totalGuests;
-      const exemptUnits = taxableNights * totalChildren;
-      const totalTax = period.enabled ? taxableUnits * period.rate : 0;
+      // IEET-002: noches_i × huéspedes_i por reserva; tope maxNights a nivel grupo
+      const breakdown = calculateConsecutiveStayTaxUnits(
+        groupReservations,
+        period.maxNights,
+        period.rate,
+        period.enabled
+      );
       const allCollected = groupReservations.every(r => r.touristTaxCollected);
 
       return {
         id: groupReservations.map(r => r.id).join('-'),
         guestName: guestDisplayName || 'Huésped',
         reservations: groupReservations,
-        totalNights,
-        taxableNights,
-        totalGuests,
-        totalChildren,
-        totalTax,
-        taxableUnits,
-        exemptUnits,
+        totalNights: breakdown.totalNights,
+        taxableNights: breakdown.taxableNights,
+        totalGuests: breakdown.peakGuests,
+        totalChildren: breakdown.peakChildren,
+        totalTax: breakdown.totalTax,
+        taxableUnits: breakdown.taxableUnits,
+        exemptUnits: breakdown.exemptUnits,
         allCollected,
         appliedPeriod: period,
       };
@@ -607,7 +608,10 @@ export const TouristTaxPanel: React.FC<TouristTaxPanelProps> = ({
                         )}
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {group.taxableNights} noches × ({group.totalGuests} ad.{group.totalChildren > 0 && ` + ${group.totalChildren} niños`})
+                        {group.taxableNights} noches gravadas
+                        {group.reservations.length > 1
+                          ? ` · pico ${group.totalGuests} ad.${group.totalChildren > 0 ? ` + ${group.totalChildren} niños` : ''}`
+                          : ` × ${group.totalGuests} ad.${group.totalChildren > 0 ? ` + ${group.totalChildren} niños` : ''}`}
                         {group.totalNights > group.taxableNights && (
                           <span className="text-amber-600 ml-1">
                             (máx. {group.appliedPeriod.maxNights})

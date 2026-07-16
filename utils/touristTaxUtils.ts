@@ -249,3 +249,97 @@ export function isDateInSemester(
   const { start, end } = getSemesterDateBounds(year, semester);
   return day >= start && day <= end;
 }
+
+// ============================================================================
+// CÁLCULO DE UNIDADES IEET EN ESTANCIAS CONSECUTIVAS (IEET-002)
+// ============================================================================
+
+/** Segmento mínimo de reserva para liquidar IEET en un grupo consecutivo. */
+export interface IeetStaySegment {
+  nights?: number;
+  numberOfGuests?: number;
+  numberOfChildren?: number;
+}
+
+/** Resultado del cálculo de unidades gravadas/exentas de un grupo de estancia. */
+export interface ConsecutiveStayTaxBreakdown {
+  /** Suma de noches de todas las reservas del grupo. */
+  totalNights: number;
+  /** Noches gravadas tras aplicar el tope `maxNights` a nivel de grupo. */
+  taxableNights: number;
+  /** Pico de adultos en el grupo (solo informativo / UI). */
+  peakGuests: number;
+  /** Pico de menores en el grupo (solo informativo / UI). */
+  peakChildren: number;
+  /** Σ (noches_i × adultos_i) sobre las noches dentro del tope. */
+  taxableUnits: number;
+  /** Σ (noches_i × menores_i) sobre las noches dentro del tope. */
+  exemptUnits: number;
+  /** Cuota = taxableUnits × rate (0 si el período está deshabilitado). */
+  totalTax: number;
+}
+
+/**
+ * Calcula unidades IEET de un grupo de estancias consecutivas.
+ *
+ * IEET-002: no se usa `Math.max(huéspedes) × noches_totales`. Se acumula
+ * `noches_i × huéspedes_i` por reserva en orden cronológico, aplicando el tope
+ * `maxNights` a nivel de grupo (solo las primeras N noches del grupo graván).
+ *
+ * @param segments - Reservas del grupo, en orden de check-in
+ * @param maxNights - Tope legal de noches gravadas por estancia
+ * @param rate - Tarifa €/unidad (adulto × noche)
+ * @param enabled - Si el período está activo; si no, `totalTax` = 0
+ * @returns Desglose de noches, unidades y cuota
+ *
+ * @example
+ * // 5 noches × 2 + 2 noches × 4 (máx. 7) = 18 uds.
+ * calculateConsecutiveStayTaxUnits(
+ *   [{ nights: 5, numberOfGuests: 2 }, { nights: 5, numberOfGuests: 4 }],
+ *   7, 1, true
+ * ).taxableUnits // 18
+ */
+export function calculateConsecutiveStayTaxUnits(
+  segments: IeetStaySegment[],
+  maxNights: number,
+  rate: number,
+  enabled: boolean
+): ConsecutiveStayTaxBreakdown {
+  const safeMax = Number.isFinite(maxNights) && maxNights > 0 ? maxNights : 0;
+  let remainingTaxableNights = safeMax;
+  let totalNights = 0;
+  let taxableUnits = 0;
+  let exemptUnits = 0;
+  let peakGuests = 0;
+  let peakChildren = 0;
+
+  for (const segment of segments) {
+    const nights = Math.max(0, segment.nights || 0);
+    const guests = Math.max(0, segment.numberOfGuests || 1);
+    const children = Math.max(0, segment.numberOfChildren || 0);
+
+    totalNights += nights;
+    peakGuests = Math.max(peakGuests, guests);
+    peakChildren = Math.max(peakChildren, children);
+
+    const taxableFromSegment = Math.min(nights, remainingTaxableNights);
+    if (taxableFromSegment > 0) {
+      taxableUnits += taxableFromSegment * guests;
+      exemptUnits += taxableFromSegment * children;
+      remainingTaxableNights -= taxableFromSegment;
+    }
+  }
+
+  const taxableNights = safeMax - remainingTaxableNights;
+  const totalTax = enabled ? taxableUnits * rate : 0;
+
+  return {
+    totalNights,
+    taxableNights,
+    peakGuests: peakGuests || (segments.length > 0 ? 1 : 0),
+    peakChildren,
+    taxableUnits,
+    exemptUnits,
+    totalTax,
+  };
+}
