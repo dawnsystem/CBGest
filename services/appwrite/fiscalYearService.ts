@@ -20,6 +20,7 @@ import {
 } from './infrastructure';
 import { getSuppliers } from './supplierService';
 import { getApartments } from './apartmentService';
+import { getRecurringExpenses } from './recurringExpenseService';
 import type { FiscalYear, FiscalYearDependencies, TouristTaxPeriod } from '../../types';
 import {
   parseTouristTaxPeriods,
@@ -186,14 +187,30 @@ export async function updateFiscalYearTouristTax(
 }
 
 /**
- * Asigna un ejercicio a todos los documentos transaccionales que no tienen fiscalYearId.
+ * Asigna un ejercicio a todos los documentos transaccionales/maestros que no tienen fiscalYearId.
  */
 export async function migrateLegacyData(
   fiscalYearId: string,
   onProgress?: (done: number, total: number) => void
-): Promise<{ invoices: number; entries: number; transactions: number; reservations: number; suppliers: number; apartments: number }> {
+): Promise<{
+  invoices: number;
+  entries: number;
+  transactions: number;
+  reservations: number;
+  suppliers: number;
+  apartments: number;
+  recurringExpenses: number;
+}> {
   const BATCH = 100;
-  const counts = { invoices: 0, entries: 0, transactions: 0, reservations: 0, suppliers: 0, apartments: 0 };
+  const counts = {
+    invoices: 0,
+    entries: 0,
+    transactions: 0,
+    reservations: 0,
+    suppliers: 0,
+    apartments: 0,
+    recurringExpenses: 0,
+  };
 
   const migrateCollection = async (
     collectionId: string,
@@ -228,7 +245,8 @@ export async function migrateLegacyData(
 
       counts[countKey] += response.documents.length;
       onProgress?.(
-        counts.invoices + counts.entries + counts.transactions + counts.reservations + counts.suppliers + counts.apartments,
+        counts.invoices + counts.entries + counts.transactions + counts.reservations
+          + counts.suppliers + counts.apartments + counts.recurringExpenses,
         -1
       );
 
@@ -246,21 +264,22 @@ export async function migrateLegacyData(
   await migrateCollection(config.collections.reservations, 'reservations');
   await migrateCollection(config.collections.suppliers, 'suppliers');
   await migrateCollection(config.collections.apartments, 'apartments');
+  await migrateCollection(config.collections.recurringExpenses, 'recurringExpenses');
 
   return counts;
 }
 
 /**
- * Copia los datos maestros (proveedores y apartamentos) desde un ejercicio anterior
- * al nuevo ejercicio recién creado.
+ * Copia datos maestros (proveedores, apartamentos y gastos recurrentes) desde un ejercicio
+ * anterior al nuevo. Remapea `apartmentId`/`supplierId` de recurrentes a los IDs destino (BUG-FY-002).
  */
 export async function copyMasterDataToFiscalYear(
   sourceFiscalYearId: string,
   targetFiscalYearId: string,
   onProgress?: (phase: string, done: number, total: number) => void
-): Promise<{ suppliers: number; apartments: number }> {
-  const counts = { suppliers: 0, apartments: 0 };
-  const [existingSupplierIds, existingApartmentIds] = await Promise.all([
+): Promise<{ suppliers: number; apartments: number; recurringExpenses: number }> {
+  const counts = { suppliers: 0, apartments: 0, recurringExpenses: 0 };
+  const [existingSupplierIds, existingApartmentIds, existingRecurringIds] = await Promise.all([
     listFiscalYearDocumentIds(
       config.collections.suppliers,
       targetFiscalYearId,
@@ -270,7 +289,12 @@ export async function copyMasterDataToFiscalYear(
       config.collections.apartments,
       targetFiscalYearId,
       'copyMasterData_existingApartments'
-    )
+    ),
+    listFiscalYearDocumentIds(
+      config.collections.recurringExpenses,
+      targetFiscalYearId,
+      'copyMasterData_existingRecurring'
+    ),
   ]);
 
   // --- Copiar Proveedores ---
@@ -371,6 +395,80 @@ export async function copyMasterDataToFiscalYear(
     }
   }
 
+  // --- Copiar Gastos Recurrentes (remap apartmentId / supplierId) ---
+  const sourceRecurring = await getRecurringExpenses(sourceFiscalYearId);
+  onProgress?.('Gastos recurrentes', 0, sourceRecurring.length);
+
+  for (const expense of sourceRecurring) {
+    const sourceId = getCopySourceDocumentId('recurringExpenses', expense);
+    const newDocId = await buildMasterDataCopyDocumentId(
+      'recurringExpenses',
+      targetFiscalYearId,
+      sourceId
+    );
+
+    if (existingRecurringIds.has(newDocId)) {
+      continue;
+    }
+
+    try {
+      const expenseData = omitFields(expense as AppwriteEntity<typeof expense>, [
+        'id',
+        'appwriteId',
+        'createdAt',
+        'updatedAt',
+        '$id',
+        '$createdAt',
+        '$updatedAt',
+        '$databaseId',
+        '$collectionId',
+        '$permissions',
+      ]);
+
+      let remappedApartmentId = expenseData.apartmentId;
+      if (expense.apartmentId) {
+        remappedApartmentId = await buildMasterDataCopyDocumentId(
+          'apartments',
+          targetFiscalYearId,
+          expense.apartmentId
+        );
+      }
+
+      let remappedSupplierId = expenseData.supplierId;
+      if (expense.supplierId) {
+        remappedSupplierId = await buildMasterDataCopyDocumentId(
+          'suppliers',
+          targetFiscalYearId,
+          expense.supplierId
+        );
+      }
+
+      await withRetry(
+        () => databases.createDocument(
+          config.databaseId,
+          config.collections.recurringExpenses,
+          newDocId,
+          {
+            ...expenseData,
+            fiscalYearId: targetFiscalYearId,
+            apartmentId: remappedApartmentId,
+            supplierId: remappedSupplierId,
+          }
+        ),
+        'copyRecurringExpenseToFiscalYear'
+      );
+      counts.recurringExpenses++;
+      onProgress?.('Gastos recurrentes', counts.recurringExpenses, sourceRecurring.length);
+    } catch (err) {
+      if (getErrorCode(err) === 409) {
+        counts.recurringExpenses++;
+        onProgress?.('Gastos recurrentes', counts.recurringExpenses, sourceRecurring.length);
+      } else {
+        dataLogger.debug(`[copyMasterData] Error copiando gasto recurrente ${expense.name}:`, err);
+      }
+    }
+  }
+
   return counts;
 }
 
@@ -395,13 +493,14 @@ export async function getFiscalYearDependencies(fiscalYearId: string): Promise<F
     return response.total;
   };
 
-  const [invoices, entries, transactions, reservations, suppliers, apartments] = await Promise.all([
+  const [invoices, entries, transactions, reservations, suppliers, apartments, recurringExpenses] = await Promise.all([
     countCollection(config.collections.invoices),
     countCollection(config.collections.entries),
     countCollection(config.collections.transactions),
     countCollection(config.collections.reservations),
     countCollection(config.collections.suppliers),
     countCollection(config.collections.apartments),
+    countCollection(config.collections.recurringExpenses),
   ]);
 
   return {
@@ -411,7 +510,8 @@ export async function getFiscalYearDependencies(fiscalYearId: string): Promise<F
     reservations,
     suppliers,
     apartments,
-    total: invoices + entries + transactions + reservations + suppliers + apartments,
+    recurringExpenses,
+    total: invoices + entries + transactions + reservations + suppliers + apartments + recurringExpenses,
   };
 }
 
@@ -499,6 +599,7 @@ export async function deleteFiscalYearCascade(
     await deleteAll(config.collections.reservations, 'Reservas');
     await deleteAll(config.collections.suppliers, 'Proveedores');
     await deleteAll(config.collections.apartments, 'Apartamentos');
+    await deleteAll(config.collections.recurringExpenses, 'Gastos recurrentes');
 
     // Por último, eliminar el propio ejercicio
     await withRetry(

@@ -174,7 +174,7 @@ export const createApartment = (apartment: Apartment) => databaseService.createA
 export const updateApartment = (apartment: Apartment) => databaseService.updateApartment(apartment);
 export const deleteApartment = (id: string) => databaseService.deleteApartment(id);
 
-export const fetchRecurringExpenses = () => databaseService.getRecurringExpenses();
+export const fetchRecurringExpenses = (fiscalYearId?: string) => databaseService.getRecurringExpenses(fiscalYearId);
 export const createRecurringExpense = (expense: RecurringExpense) => databaseService.createRecurringExpense(expense);
 export const updateRecurringExpense = (expense: RecurringExpense) => databaseService.updateRecurringExpense(expense);
 export const deleteRecurringExpense = (id: string) => databaseService.deleteRecurringExpense(id);

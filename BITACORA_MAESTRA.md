@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 01:20:00 UTC*
+*Última actualización: 2026-07-16 08:25:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **PR-5 — BUG-FN-001/002 + BUG-AI-001** (#145) en rama `fix/pr5-automations-ai-fn-ai`; cierre vía `Closes #145` al merge.
+Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `fix/pr4-fy-reservas-ctb003`; merge con `Closes #144`.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `FIX-144` - FY recurrentes + reservas parciales + límite 1000:** BUG-FY-002: `RecurringExpense.fiscalYearId`, filtro en `getRecurringExpenses`, `withFiscalYearId` al crear, copia/remap `apartmentId`/`supplierId` en `copyMasterDataToFiscalYear`, migrate/deps/cascade. BUG-RES-001: `createReservations` → `{created,failed}` + UI elimina fantasmas. CTB-003: cursor pagination en `getEntries`/`getTransactions` via `listAllDocumentsPaginated`. Issue: #144. Tests focalizados 23 PASS; type-check OK.
 *   **[2026-07-16] - `BUG-FN-001` + `BUG-FN-002` + `BUG-AI-001` - Automations enums + detect-recurring FY + vatRate confirm:** `cleanup-uploads` consulta `COMPLETED`/`ERROR`. `detect-recurring` filtra por ejercicio OPEN (`getActiveFiscalYear` + `fiscalYearId`) y hace skip si no hay FY. `useInvoiceReview` normaliza `vatRate` (0.21→21) en `startInvoiceReview` y `confirmInvoice`. Issue: #145. Tests focalizados 15 PASS.
 *   **[2026-07-16] - `IEET-002` + `FIS-001` - Huéspedes IEET por reserva + IRPF simétrico base/total:** Extraída `calculateConsecutiveStayTaxUnits` (Σ noches_i×huéspedes_i con tope `maxNights` a nivel grupo). `TouristTaxPanel` la usa. `calculateTaxData`: `ALQUILER_EXENTO`→`totalAmount` simétrico; `GENERAL`→`baseAmount`. Dashboard chart alineado. Issue: #142. Tests focalizados PASS.
 *   **[2026-07-16] - `FIX-140` - Wiring App (recurrentes, settings Dashboard, supplierId):** Corregidos BUG-FY-001 (`fetchForYear` recarga `fetchRecurringExpenses`), BUG-WIRE-001 (Dashboard usa `handleUpdateSettings` en lugar de `setSettings`), BUG-INV-001 (`handleAddInvoice` persiste `supplierId` con `updateInvoice` tras enlazar proveedor). Issue: #140. Validado: lint 0 errores / 2 warnings, test:ci OK, build OK.
@@ -95,6 +96,19 @@ Estado actual: **PR-5 — BUG-FN-001/002 + BUG-AI-001** (#145) en rama `fix/pr5-
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 08:20:00 UTC]
+*   **Directiva del Director:** PR-4 — `[BUG-FY-002][BUG-RES-001][CTB-003]` (#144). Commit/push/PR con `Closes #144`.
+*   **Plan de Acción:** (1) Aislar archivos en `fix/pr4-fy-reservas-ctb003`. (2) Commit + push + PR. (3) Auto-merge si posible.
+*   **Log de Acciones:**
+    - `[00:52:00]` - **FIX (BUG-FY-002):** `types`/`recurringExpenseService`/`useDataHandlers`/`fiscalYearService`/`App`/`FiscalYearContext`/`FiscalYearManager` + schema scripts (`fiscalYearId` + índice).
+    - `[00:55:00]` - **FIX (BUG-RES-001):** `createReservations` retorna `{created,failed}`; handler filtra IDs fallidos y reporta errores.
+    - `[00:58:00]` - **FIX (CTB-003):** `listAllDocumentsPaginated` en infrastructure; `getEntries`/`getTransactions` paginan con cursor.
+    - `[01:05:00]` - **TEST:** copyMasterData, deleteFY deps, createReservations, listPagination — 23 PASS; type-check OK.
+    - `[08:20:00]` - **GIT:** Rama `fix/pr4-fy-reservas-ctb003` desde `origin/main`; commit + PR `Closes #144`.
+    - `[08:25:00]` - **MERGE:** Rebase sobre `origin/main` (conflicto bitácora con PR-5 resuelto conservando ambas entradas).
+*   **Resultado:** BUG-FY-002, BUG-RES-001 y CTB-003 listos para merge (issue #144).
+*   **Observaciones:** Bloqueo operativo: crear atributo `fiscalYearId` (+ índice) en Appwrite `recurring_expenses` antes de usar en cloud.
+
 ### Sesión: [2026-07-16 01:15:00 UTC]
 *   **Directiva del Director:** PR-5 — `[BUG-FN-001][BUG-FN-002][BUG-AI-001]` (#145). Commit/push/PR con `Closes #145`.
 *   **Plan de Acción:** (1) Enums MAYÚSCULAS en cleanup-uploads. (2) Filtro FY OPEN en detect-recurring. (3) Normalizar vatRate en start/confirm. (4) Tests + bitácora solo estos tickets. (5) Rama aislada + PR.
@@ -766,7 +780,9 @@ Estado actual: **PR-5 — BUG-FN-001/002 + BUG-AI-001** (#145) en rama `fix/pr5-
 * **IEET-002:** Huéspedes IEET por reserva (`Math.max`×noches). Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
 * **FIS-001:** Asimetría IRPF base/total en `ALQUILER_EXENTO`. Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
 * **SEC-017 / BUG-024..026:** Altos auth. Issue: #143. Estado: Pendiente (BUG-026 parcial vía SEC-016).
-* **BUG-FY-002 / BUG-RES-001 / CTB-003:** Modelo datos / límites. Issue: #144. Estado: Pendiente.
+* **BUG-FY-002:** `RecurringExpense` sin `fiscalYearId`; no se copia en maestros; `handleAdd` sin `withFiscalYearId`. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
+* **BUG-RES-001:** `createReservations` tragaba errores por ítem; UI dejaba reservas fantasma. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
+* **CTB-003:** `getEntries`/`getTransactions` limit 1000 sin paginación → libros incompletos en silencio. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
 * **BUG-FN-001:** `cleanup-uploads` buscaba `completed`/`error` (minúsculas); la app escribe `COMPLETED`/`ERROR` → no limpiaba Storage. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **BUG-FN-002:** `detect-recurring` analizaba transacciones sin `fiscalYearId` → contaminaba sugerencias del ejercicio activo. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **BUG-AI-001:** `useInvoiceReview.confirmInvoice` podía persistir `vatRate` decimal crudo de Gemini (p. ej. `0.21`); la normalización BUG-014 solo estaba en edit. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).

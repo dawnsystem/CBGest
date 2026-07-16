@@ -431,7 +431,7 @@ const MainLayout: React.FC = () => {
           appwriteService.fetchTransactions(fyId).catch((e) => { console.warn('Failed to fetch transactions on year change:', e); return []; }),
           appwriteService.fetchSuppliers(fyId).catch((e) => { console.warn('Failed to fetch suppliers on year change:', e); return []; }),
           appwriteService.fetchApartments(fyId).catch((e) => { console.warn('Failed to fetch apartments on year change:', e); return []; }),
-          appwriteService.fetchRecurringExpenses().catch((e) => { console.warn('Failed to fetch recurring expenses on year change:', e); return []; }),
+          appwriteService.fetchRecurringExpenses(fyId).catch((e) => { console.warn('Failed to fetch recurring expenses on year change:', e); return []; }),
           appwriteService.fetchReservations(fyId).catch((e) => { console.warn('Failed to fetch reservations on year change:', e); return []; }),
         ]);
 

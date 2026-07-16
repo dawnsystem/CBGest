@@ -32,6 +32,7 @@ export interface FiscalYearDependencies {
   reservations: number;
   suppliers: number;
   apartments: number;
+  recurringExpenses: number;
   total: number;
 }
 
@@ -335,6 +336,8 @@ export interface RecurringExpense {
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** ID del ejercicio al que pertenece este gasto recurrente */
+  fiscalYearId?: string;
 
   // Cloud fields
   appwriteId?: string;
@@ -437,6 +440,14 @@ export interface Reservation {
 
   // Ejercicio contable
   fiscalYearId?: string; // ID del ejercicio al que pertenece esta reserva
+}
+
+/**
+ * Resultado de creación en lote de reservas (BUG-RES-001: no tragar fallos silenciosos).
+ */
+export interface CreateReservationsResult {
+  created: Reservation[];
+  failed: Array<{ id: string; reservationNumber?: string; error: string }>;
 }
 
 // Data Source Types

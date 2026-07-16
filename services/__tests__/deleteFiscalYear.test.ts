@@ -35,6 +35,7 @@ vi.mock('../../lib/appwrite/client', () => ({
       reservations: 'reservations-col',
       suppliers: 'suppliers-col',
       apartments: 'apartments-col',
+      recurringExpenses: 'recurring-col',
       fiscalYears: 'fiscal-years-col',
     },
   },
@@ -74,19 +75,20 @@ describe('getFiscalYearDependencies', () => {
     expect(deps.reservations).toBe(0);
     expect(deps.suppliers).toBe(0);
     expect(deps.apartments).toBe(0);
+    expect(deps.recurringExpenses).toBe(0);
     expect(deps.total).toBe(0);
   });
 
   it('acumula correctamente los conteos de todas las colecciones', async () => {
-    // 6 colecciones se consultan en paralelo; mockResolvedValueOnce sigue el orden de Promise.all:
-    // invoices, entries, transactions, reservations, suppliers, apartments
+    // 7 colecciones en paralelo: invoices, entries, transactions, reservations, suppliers, apartments, recurring
     mockListDocuments
       .mockResolvedValueOnce(emptyCollection(3))   // invoices
       .mockResolvedValueOnce(emptyCollection(5))   // entries
       .mockResolvedValueOnce(emptyCollection(7))   // transactions
       .mockResolvedValueOnce(emptyCollection(2))   // reservations
       .mockResolvedValueOnce(emptyCollection(4))   // suppliers
-      .mockResolvedValueOnce(emptyCollection(1));  // apartments
+      .mockResolvedValueOnce(emptyCollection(1))   // apartments
+      .mockResolvedValueOnce(emptyCollection(6));  // recurringExpenses
 
     const deps = await getFiscalYearDependencies('fy-001');
 
@@ -96,7 +98,8 @@ describe('getFiscalYearDependencies', () => {
     expect(deps.reservations).toBe(2);
     expect(deps.suppliers).toBe(4);
     expect(deps.apartments).toBe(1);
-    expect(deps.total).toBe(22);
+    expect(deps.recurringExpenses).toBe(6);
+    expect(deps.total).toBe(28);
   });
 
   it('propaga el error si falla una consulta', async () => {

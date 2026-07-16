@@ -69,6 +69,9 @@ export const getErrorCode = (error: unknown): number | undefined => {
 
 export const MASTER_DATA_COPY_BATCH_SIZE = 100;
 
+/** Tamaño de página para listados Appwrite con cursor (CTB-003). */
+export const APPWRITE_LIST_PAGE_SIZE = 1000;
+
 const hashMasterDataCopyKey = async (value: string): Promise<string> => {
   if (typeof crypto === 'undefined' || !crypto.subtle) {
     throw new Error('Web Crypto API is required to generate deterministic master-data copy IDs.');
@@ -78,18 +81,42 @@ const hashMasterDataCopyKey = async (value: string): Promise<string> => {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 };
 
+export type MasterDataCopyCollection = 'suppliers' | 'apartments' | 'recurringExpenses';
+
+const MASTER_DATA_COPY_PREFIX: Record<MasterDataCopyCollection, string> = {
+  suppliers: 'ms',
+  apartments: 'ma',
+  recurringExpenses: 'mr',
+};
+
+/**
+ * Genera un document ID determinista para la copia de un maestro a un ejercicio destino.
+ *
+ * @param collection - Colección maestra
+ * @param targetFiscalYearId - Ejercicio destino
+ * @param sourceDocumentId - ID del documento origen
+ * @returns ID de documento Appwrite (≤36 chars)
+ */
 export const buildMasterDataCopyDocumentId = async (
-  collection: 'suppliers' | 'apartments',
+  collection: MasterDataCopyCollection,
   targetFiscalYearId: string,
   sourceDocumentId: string
 ): Promise<string> => {
-  const prefix = collection === 'suppliers' ? 'ms' : 'ma';
+  const prefix = MASTER_DATA_COPY_PREFIX[collection];
   const hash = await hashMasterDataCopyKey(`${collection}:${targetFiscalYearId}:${sourceDocumentId}`);
   return `${prefix}-${hash.slice(0, 33)}`;
 };
 
+/**
+ * Extrae el ID fuente de un documento maestro a copiar.
+ *
+ * @param collection - Colección maestra
+ * @param doc - Documento con posibles IDs
+ * @returns ID fuente
+ * @throws Si el documento no tiene ID
+ */
 export const getCopySourceDocumentId = (
-  collection: 'suppliers' | 'apartments',
+  collection: MasterDataCopyCollection,
   doc: { appwriteId?: string; id?: string; $id?: string }
 ): string => {
   const sourceDocumentId = doc.appwriteId || doc.id || doc.$id;
@@ -131,6 +158,50 @@ export const listFiscalYearDocumentIds = async (
 
     offset += response.documents.length;
   }
+};
+
+/**
+ * Lista todos los documentos de una colección paginando con cursor (CTB-003).
+ * Evita truncar silenciosamente en el límite de una sola página.
+ *
+ * @param collectionId - ID de colección Appwrite
+ * @param baseQueries - Queries base (orden, filtros); NO incluir limit/cursor
+ * @param operation - Nombre para withRetry / logs
+ * @param pageSize - Tamaño de página (default APPWRITE_LIST_PAGE_SIZE)
+ * @returns Todos los documentos acumulados
+ */
+export const listAllDocumentsPaginated = async (
+  collectionId: string,
+  baseQueries: string[],
+  operation: string,
+  pageSize: number = APPWRITE_LIST_PAGE_SIZE
+): Promise<Array<Record<string, unknown> & { $id: string }>> => {
+  const all: Array<Record<string, unknown> & { $id: string }> = [];
+  let cursor: string | undefined;
+
+  for (;;) {
+    const queries = [...baseQueries, Query.limit(pageSize)];
+    if (cursor) {
+      queries.push(Query.cursorAfter(cursor));
+    }
+
+    const response = await withRetry(
+      () => databases.listDocuments(config.databaseId, collectionId, queries),
+      operation
+    );
+
+    for (const doc of response.documents) {
+      all.push(doc as Record<string, unknown> & { $id: string });
+    }
+
+    if (response.documents.length < pageSize) {
+      break;
+    }
+
+    cursor = response.documents[response.documents.length - 1].$id;
+  }
+
+  return all;
 };
 
 // ============================================================================

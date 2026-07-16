@@ -50,7 +50,7 @@ interface FiscalYearContextType {
   createFiscalYear: (
     year: number,
     notes?: string
-  ) => Promise<{ fiscalYear: FiscalYear; copiedSuppliers: number; copiedApartments: number }>;
+  ) => Promise<{ fiscalYear: FiscalYear; copiedSuppliers: number; copiedApartments: number; copiedRecurringExpenses: number }>;
   /** Cerrar un ejercicio (no se podrán editar sus datos) */
   closeFiscalYear: (id: string) => Promise<void>;
   /** Reabrir un ejercicio cerrado */
@@ -177,7 +177,7 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   const createFiscalYear = useCallback(async (
     year: number,
     notes?: string
-  ): Promise<{ fiscalYear: FiscalYear; copiedSuppliers: number; copiedApartments: number }> => {
+  ): Promise<{ fiscalYear: FiscalYear; copiedSuppliers: number; copiedApartments: number; copiedRecurringExpenses: number }> => {
     const now = new Date().toISOString();
 
     // Buscar ejercicio previo (el de año inmediatamente anterior)
@@ -235,6 +235,7 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
 
     let copiedSuppliers = 0;
     let copiedApartments = 0;
+    let copiedRecurringExpenses = 0;
 
     if (previousYear) {
       try {
@@ -244,6 +245,7 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
         );
         copiedSuppliers = result.suppliers;
         copiedApartments = result.apartments;
+        copiedRecurringExpenses = result.recurringExpenses;
       } catch (err) {
         console.error('[FiscalYearContext] Error copiando datos maestros:', err);
         // No bloqueamos la creación si falla la copia
@@ -257,7 +259,7 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
     localStorage.setItem(LS_KEY, saved.id);
     onFiscalYearChange?.(saved.id);
 
-    return { fiscalYear: saved, copiedSuppliers, copiedApartments };
+    return { fiscalYear: saved, copiedSuppliers, copiedApartments, copiedRecurringExpenses };
   }, [fiscalYears, onFiscalYearChange]);
 
   // ------------------------------------------------------------------

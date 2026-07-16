@@ -11,13 +11,10 @@
  */
 
 const { Client, Databases, Permission, Role, Query } = require('node-appwrite');
+const { getAppwriteConfig } = require('./load-appwrite-config.cjs');
 
-// Configuration from config/appwrite.ts
-const CONFIG = {
-  endpoint: 'https://fra.cloud.appwrite.io/v1',
-  projectId: 'cbgest',
-  databaseId: '691f288100019843d43e',
-};
+// Configuration from env (.env / .env.local) — SEC-008
+const CONFIG = getAppwriteConfig();
 
 // Get API key from environment variable
 const API_KEY = process.env.APPWRITE_API_KEY;
@@ -793,6 +790,7 @@ async function setupRecurringExpensesCollection() {
     { type: 'boolean', key: 'isDeductible', required: false, default: true },
     { type: 'boolean', key: 'isActive', required: false, default: true },
     { type: 'string', key: 'notes', size: 2000, required: false },
+    { type: 'string', key: 'fiscalYearId', size: 36, required: false },
     // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
@@ -810,6 +808,7 @@ async function setupRecurringExpensesCollection() {
     { key: 'frequency_index', type: 'key', attributes: ['frequency'], orders: ['ASC'] },
     { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
     { key: 'isActive_index', type: 'key', attributes: ['isActive'], orders: ['ASC'] },
+    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
