@@ -11,6 +11,7 @@
 Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `fix/pr4-fy-reservas-ctb003`; merge con `Closes #144`.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `SEC-017` + `BUG-024` + `BUG-025` + `BUG-026` - Auth functions + rateLimiter:** `manage-users`: guardas SEC-017 en `updateLabels` (no auto-degradación, ≥1 admin); paginación BUG-025 (`listAllUsers`); rollback BUG-026 en create. `rateLimiter`: relanzar `processQueue` en `finally` (BUG-024). Issue #143. Tests focalizados 5 PASS.
 *   **[2026-07-16] - `CONC-001` + `CTB-002` - Conciliación por signo + naturaleza deudora 470–474:** Matching via `findReconciliationMatches`/`isSignCompatibleMatch` (cargo↔400/6xx, abono↔430/7xx; excluye `isDraft`). `isDebitNatureAccount` amplía 460 y 470–474. Issue: #141. Tests 46 PASS.
 *   **[2026-07-16] - `FIX-144` - FY recurrentes + reservas parciales + límite 1000:** BUG-FY-002: `RecurringExpense.fiscalYearId`, filtro en `getRecurringExpenses`, `withFiscalYearId` al crear, copia/remap `apartmentId`/`supplierId` en `copyMasterDataToFiscalYear`, migrate/deps/cascade. BUG-RES-001: `createReservations` → `{created,failed}` + UI elimina fantasmas. CTB-003: cursor pagination en `getEntries`/`getTransactions` via `listAllDocumentsPaginated`. Issue: #144. Tests focalizados 23 PASS; type-check OK.
 *   **[2026-07-16] - `BUG-FN-001` + `BUG-FN-002` + `BUG-AI-001` - Automations enums + detect-recurring FY + vatRate confirm:** `cleanup-uploads` consulta `COMPLETED`/`ERROR`. `detect-recurring` filtra por ejercicio OPEN (`getActiveFiscalYear` + `fiscalYearId`) y hace skip si no hay FY. `useInvoiceReview` normaliza `vatRate` (0.21→21) en `startInvoiceReview` y `confirmInvoice`. Issue: #145. Tests focalizados 15 PASS.
@@ -755,7 +756,7 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 
 * **SEC-016:** Password temporal predecible (`cambiar` + 100–999, ~900 valores) + gate solo UI (`ForcePasswordChange`). Sesión Appwrite válida permitía API/data layer sin pasar el gate. Severidad: **CRÍTICO**. Estado: ✅ Resuelto — `utils/temporaryPassword.ts` (≥128 bits), validación en cliente + `manage-users`, 403 si admin con mustChangePassword, App no inicia data/realtime hasta cambiar password. Issue #138.
 * **BUG-RT-001:** `App.tsx` — `return () => unsubscribe()` dentro de `initDataLayer` async; el `useEffect` descartaba el cleanup → fugas de suscripción en Strict Mode / re-login. Severidad: **ALTO**. Estado: ✅ Resuelto — `realtimeUnsubscribeRef` + cleanup real del effect + flag `cancelled`. Issue #139.
-* **BUG-026:** (parcial, coordinado con SEC-016) Create user: si `updatePrefs`/`updateLabels` fallan tras create, rollback con `users.delete`. Resto de issue #143 pendiente.
+* **BUG-026:** Create user: si `updatePrefs`/`updateLabels` fallan tras create, rollback con `users.delete`. Estado: ✅ Resuelto (PR-3, issue #143).
 
 ### 🔵 MÓDULO TASA TURÍSTICA (IEET) — Auditoría 2026-07-16
 
@@ -786,7 +787,9 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 * **CTB-002:** `isDebitNatureAccount` sin 460/470–474. Issue: #141. Estado: ✅ Resuelto (PR-1).
 * **IEET-002:** Huéspedes IEET por reserva (`Math.max`×noches). Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
 * **FIS-001:** Asimetría IRPF base/total en `ALQUILER_EXENTO`. Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
-* **SEC-017 / BUG-024..026:** Altos auth. Issue: #143. Estado: Pendiente (BUG-026 parcial vía SEC-016).
+* **SEC-017:** `manage-users` `updateLabels` permitía quitar último admin / auto-degradarse. Severidad: **ALTO**. Estado: ✅ Resuelto — guardas server-side. Issue #143.
+* **BUG-024:** `rateLimiter` race en `processQueue` → peticiones huérfanas. Severidad: **ALTO**. Estado: ✅ Resuelto — `finally` relanza si cola no vacía. Issue #143.
+* **BUG-025:** `users.list()` sin paginación (default 25). Severidad: **ALTO**. Estado: ✅ Resuelto — `listAllUsers` paginado. Issue #143.
 * **BUG-FY-002:** `RecurringExpense` sin `fiscalYearId`; no se copia en maestros; `handleAdd` sin `withFiscalYearId`. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
 * **BUG-RES-001:** `createReservations` tragaba errores por ítem; UI dejaba reservas fantasma. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
 * **CTB-003:** `getEntries`/`getTransactions` limit 1000 sin paginación → libros incompletos en silencio. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
