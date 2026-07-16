@@ -534,8 +534,8 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         showToast?.('Ejercicio cerrado — no se pueden añadir gastos recurrentes', 'error');
         return Promise.resolve();
       }
-      return _expCrud.handleAdd(exp);
-    }, [isReadOnly, showToast, _expCrud]
+      return _expCrud.handleAdd(withFiscalYearId(exp));
+    }, [isReadOnly, showToast, withFiscalYearId, _expCrud]
   );
   const handleUpdateRecurringExpense = useCallback(
     (exp: RecurringExpense) => {
@@ -603,12 +603,22 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
 
       try {
         if (toCreate.length > 0) {
-          const savedReservations = await appwriteService.createReservations(toCreate);
+          const { created: savedReservations, failed: createFailures } = await appwriteService.createReservations(toCreate);
           createdCount = savedReservations.length;
-          setters.setReservations(prev => prev.map(r => {
-            const saved = savedReservations.find(s => s.id === r.id);
-            return saved || r;
-          }));
+
+          const failedIds = new Set(createFailures.map(f => f.id));
+          // BUG-RES-001: quitar fantasmas no persistidos y enriquecer los guardados
+          setters.setReservations(prev => prev
+            .filter(r => !failedIds.has(r.id))
+            .map(r => {
+              const saved = savedReservations.find(s => s.id === r.id);
+              return saved || r;
+            }));
+
+          for (const failure of createFailures) {
+            const label = failure.reservationNumber || failure.id;
+            errors.push(`Error creando ${label}: ${failure.error}`);
+          }
         }
 
         for (const res of toUpdate) {

@@ -11,6 +11,7 @@ import {
   notifyError,
   notifySuccess,
   setConnectionHealth,
+  listAllDocumentsPaginated,
 } from './infrastructure';
 import type { AccountingEntry, AccountingEntryLine } from '../../types';
 
@@ -101,21 +102,20 @@ export async function createEntry(entry: AccountingEntry): Promise<AccountingEnt
 
 export async function getEntries(fiscalYearId?: string): Promise<AccountingEntry[]> {
   try {
-    const queries: Parameters<typeof databases.listDocuments>[2] = [
-      Query.orderDesc('date'),
-      Query.limit(1000)
-    ];
+    const baseQueries: string[] = [Query.orderDesc('date')];
     if (fiscalYearId) {
-      queries.push(Query.equal('fiscalYearId', fiscalYearId));
+      baseQueries.push(Query.equal('fiscalYearId', fiscalYearId));
     }
-    const response = await withRetry(
-      () => databases.listDocuments(config.databaseId, config.collections.entries, queries),
+
+    const documents = await listAllDocumentsPaginated(
+      config.collections.entries,
+      baseQueries,
       'getEntries'
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc) => {
-      const entryDoc = doc as EntryDocument;
+    return documents.map((doc) => {
+      const entryDoc = doc as unknown as EntryDocument;
       return { ...entryDoc, id: entryDoc.$id, appwriteId: entryDoc.$id, lines: parseEntryLines(entryDoc) };
     }) as AccountingEntry[];
   } catch (error: unknown) {

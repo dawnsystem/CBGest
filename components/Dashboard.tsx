@@ -14,6 +14,7 @@ import { calculateTaxData } from '../services/taxCalculationService';
 import { sanitizeFileNameSegment } from '../utils/fileHelpers';
 import { useToast } from './Toast';
 import { useFiscalYear } from '../context/FiscalYearContext';
+import { matchesDashboardFiscalYear } from '../utils/fiscalPeriodFilter';
 
 // StatCard component moved OUTSIDE of Dashboard to prevent recreation on each render
 // This is critical for performance - components defined inside render functions lose their state on every render
@@ -87,14 +88,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
     });
   }, [invoices, settings, selectedFiscalYearId, selectedPeriod]);
 
-  // BUG-011 fix: apply the same amount selector to chart income and expenses so
-  // that chart totals are consistent within each fiscal regime.
-  //   ALQUILER_EXENTO: income is VAT-exempt so totalAmount == baseAmount, but
-  //     expenses include non-deductible VAT -> use totalAmount for expenses.
-  //   GENERAL: VAT is fully deductible; only the net base matters everywhere.
+  // FIS-001 / BUG-011: mismo criterio que calculateTaxData para ingresos y gastos.
+  //   ALQUILER_EXENTO: totalAmount en ambos (IRPF simplificado, alineado Modelo 184).
+  //   GENERAL: baseAmount en ambos (IVA fuera de la base).
   const invoiceAmount = useCallback(
     (inv: { type: string; baseAmount: number; totalAmount: number }) =>
-      isRental && inv.type === 'EXPENSE' ? inv.totalAmount : inv.baseAmount,
+      isRental ? inv.totalAmount : inv.baseAmount,
     [isRental]
   );
 
@@ -109,10 +108,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ invoices, settings, apartm
 
     invoices.forEach(inv => {
         if (inv.status === 'PENDING') return;
-        if (selectedFiscalYearId && inv.fiscalYearId !== selectedFiscalYearId) return;
+        if (!matchesDashboardFiscalYear(inv.fiscalYearId, inv.date, selectedFiscalYearId, selectedYear)) return;
         const date = new Date(inv.date);
         if (Number.isNaN(date.getTime())) return;
-        if (selectedYear && date.getFullYear() !== selectedYear) return;
         const monthIndex = date.getMonth();
         const amount = invoiceAmount(inv);
         

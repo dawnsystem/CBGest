@@ -12,7 +12,7 @@ import {
   setConnectionHealth,
   getErrorCode,
 } from './infrastructure';
-import type { Reservation } from '../../types';
+import type { Reservation, CreateReservationsResult } from '../../types';
 
 type ReservationDocument = AppwriteEntity<Reservation> & { $id: string };
 
@@ -88,19 +88,26 @@ export async function createReservation(reservation: Reservation): Promise<Reser
   }
 }
 
-export async function createReservations(reservations: Reservation[]): Promise<Reservation[]> {
-  const results: Reservation[] = [];
+export async function createReservations(reservations: Reservation[]): Promise<CreateReservationsResult> {
+  const created: Reservation[] = [];
+  const failed: CreateReservationsResult['failed'] = [];
 
   for (const reservation of reservations) {
     try {
       const saved = await createReservation(reservation);
-      results.push(saved);
+      created.push(saved);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Error creating reservation:', reservation.id, error);
+      failed.push({
+        id: reservation.id,
+        reservationNumber: reservation.reservationNumber,
+        error: message,
+      });
     }
   }
 
-  return results;
+  return { created, failed };
 }
 
 export async function updateReservation(reservation: Reservation): Promise<Reservation> {

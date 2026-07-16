@@ -16,6 +16,13 @@ import type { RecurringExpense } from '../../types';
 
 type RecurringExpenseDocument = AppwriteEntity<RecurringExpense> & { $id: string };
 
+/**
+ * Crea un gasto recurrente en Appwrite.
+ *
+ * @param expense - Gasto a persistir (incluye `fiscalYearId` si se inyectó en el handler)
+ * @returns Documento guardado con `id`/`appwriteId`
+ * @throws Si Appwrite rechaza la creación
+ */
 export async function createRecurringExpense(expense: RecurringExpense): Promise<RecurringExpense> {
   try {
     const { id } = expense;
@@ -51,13 +58,27 @@ export async function createRecurringExpense(expense: RecurringExpense): Promise
   }
 }
 
-export async function getRecurringExpenses(): Promise<RecurringExpense[]> {
+/**
+ * Lista gastos recurrentes, opcionalmente filtrados por ejercicio (BUG-FY-002).
+ *
+ * @param fiscalYearId - Si se indica, solo documentos de ese ejercicio
+ * @returns Lista de gastos recurrentes
+ * @throws Si la consulta falla (404 → lista vacía)
+ */
+export async function getRecurringExpenses(fiscalYearId?: string): Promise<RecurringExpense[]> {
   try {
+    const queries: Parameters<typeof databases.listDocuments>[2] = [
+      Query.orderAsc('name'),
+      Query.limit(500)
+    ];
+    if (fiscalYearId) {
+      queries.push(Query.equal('fiscalYearId', fiscalYearId));
+    }
     const response = await withRetry(
       () => databases.listDocuments(
         config.databaseId,
         config.collections.recurringExpenses,
-        [Query.orderAsc('name'), Query.limit(500)]
+        queries
       ),
       'getRecurringExpenses'
     );
@@ -79,6 +100,13 @@ export async function getRecurringExpenses(): Promise<RecurringExpense[]> {
   }
 }
 
+/**
+ * Actualiza un gasto recurrente existente.
+ *
+ * @param expense - Gasto con cambios
+ * @returns Documento actualizado
+ * @throws Si Appwrite rechaza la actualización
+ */
 export async function updateRecurringExpense(expense: RecurringExpense): Promise<RecurringExpense> {
   try {
     const { id, appwriteId } = expense;
@@ -115,6 +143,12 @@ export async function updateRecurringExpense(expense: RecurringExpense): Promise
   }
 }
 
+/**
+ * Elimina un gasto recurrente por ID.
+ *
+ * @param id - Document ID
+ * @throws Si Appwrite rechaza el borrado
+ */
 export async function deleteRecurringExpense(id: string): Promise<void> {
   try {
     await withRetry(

@@ -14,6 +14,9 @@ import { useState } from 'react';
 import { Invoice, QueueItem } from '../types';
 import { isValidNIF } from '../utils/validators';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
+import { createLogger } from '../services/logger';
+
+const invoiceReviewLogger = createLogger('InvoiceReview');
 
 export interface UseInvoiceReviewOptions {
   onInvoiceAdded: (invoice: Invoice) => void;
@@ -21,6 +24,45 @@ export interface UseInvoiceReviewOptions {
   showToast: (message: string, type: 'warning' | 'error' | 'success' | 'info') => void;
 }
 
+/**
+ * Normalises Gemini vatRate values: decimals like `0.21` become percent `21`.
+ * Values already in percent (or 0) are returned unchanged.
+ *
+ * @param rawRate - Rate from Gemini or the UI (0, 0.21, 4, 10, 21, …)
+ * @returns Percent form suitable for Invoice.vatRate (e.g. 21)
+ * @example
+ * normalizeVatRate(0.21); // 21
+ * normalizeVatRate(21);   // 21
+ */
+export function normalizeVatRate(rawRate: number): number {
+  const rate = Number(rawRate);
+  if (!Number.isFinite(rate)) return 0;
+  return rate > 0 && rate <= 1 ? rate * 100 : rate;
+}
+
+/**
+ * Recalculates vatAmount and totalAmount from base and rate (percent).
+ *
+ * @param baseAmount - Taxable base
+ * @param vatRatePercent - IVA in percent (e.g. 21)
+ * @returns Partial invoice fields with vatAmount and totalAmount
+ */
+function recalcAmounts(baseAmount: number, vatRatePercent: number): Pick<Invoice, 'vatRate' | 'vatAmount' | 'totalAmount'> {
+  const vatRate = normalizeVatRate(vatRatePercent);
+  const vatAmount = baseAmount * (vatRate / 100);
+  return {
+    vatRate,
+    vatAmount,
+    totalAmount: baseAmount + vatAmount,
+  };
+}
+
+/**
+ * Invoice review state machine for InvoiceUploader.
+ *
+ * @param options - Callbacks for persist, queue removal and toasts
+ * @returns Review state and handlers
+ */
 export function useInvoiceReview({
   onInvoiceAdded,
   removeFromQueue,
@@ -32,6 +74,12 @@ export function useInvoiceReview({
   const [forceAcceptNif, setForceAcceptNif] = useState(false);
   const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null);
 
+  /**
+   * Opens the review UI for a completed INVOICE queue item.
+   * Normalises vatRate immediately so the preview never shows Gemini decimals (BUG-AI-001).
+   *
+   * @param item - Queue item with Gemini result
+   */
   const startInvoiceReview = (item: QueueItem) => {
     if (item.uploadType !== 'INVOICE' || !item.result) return;
 
@@ -47,25 +95,35 @@ export function useInvoiceReview({
         : `${suggestedCode} - (Cuenta detectada)`;
     }
 
-    const initialPreview = { ...item.result, category };
+    const baseAmount = Number(item.result.baseAmount) || 0;
+    const amounts = recalcAmounts(baseAmount, Number(item.result.vatRate));
+    const initialPreview: Invoice = {
+      ...item.result,
+      category,
+      baseAmount,
+      ...amounts,
+    };
     setPreview(initialPreview);
     setNifError(initialPreview.issuerNif ? !isValidNIF(initialPreview.issuerNif) : false);
     setForceAcceptNif(false);
     setSelectedApartmentId(null);
   };
 
+  /**
+   * Updates a preview field; recalculates amounts when base or vatRate changes.
+   *
+   * @param field - Invoice field key
+   * @param value - New value
+   */
   const handleFieldChange = (field: keyof Invoice, value: string | number) => {
     if (!preview) return;
 
-    const updated = { ...preview, [field]: value };
+    const updated: Invoice = { ...preview, [field]: value };
 
     if (field === 'baseAmount' || field === 'vatRate') {
       const base = field === 'baseAmount' ? Number(value) : updated.baseAmount;
-      const rawRate = field === 'vatRate' ? Number(value) : updated.vatRate;
-      // BUG-014: normalise vatRate — Gemini may return decimal (0.21) instead of percent (21)
-      const rate = rawRate > 0 && rawRate <= 1 ? rawRate * 100 : rawRate;
-      updated.vatAmount = base * (rate / 100);
-      updated.totalAmount = base + updated.vatAmount;
+      const amounts = recalcAmounts(base, field === 'vatRate' ? Number(value) : updated.vatRate);
+      Object.assign(updated, amounts);
     }
 
     setPreview(updated);
@@ -77,6 +135,12 @@ export function useInvoiceReview({
     }
   };
 
+  /**
+   * Persists the reviewed invoice. Re-normalises vatRate so a raw Gemini
+   * decimal cannot slip through if the user never edited the field (BUG-AI-001).
+   *
+   * @param markAsProcessed - If true, status becomes PROCESSED; otherwise PENDING
+   */
   const confirmInvoice = (markAsProcessed: boolean) => {
     if (!preview || !reviewItem) return;
 
@@ -88,22 +152,39 @@ export function useInvoiceReview({
       return;
     }
 
+    const amounts = recalcAmounts(Number(preview.baseAmount) || 0, Number(preview.vatRate));
+    const historyEntries = [
+      ...preview.history,
+      {
+        date: new Date().toISOString(),
+        action: markAsProcessed
+          ? 'Factura procesada y asiento contable creado'
+          : 'Factura guardada como borrador (pendiente de revisión)',
+        user: 'Admin Gestor',
+      },
+    ];
+
+    // SEC-009: audit trail when NIF validation is forcibly bypassed
+    if (nifError && forceAcceptNif) {
+      const forcedNif = preview.issuerNif || '(vacío)';
+      invoiceReviewLogger.warn(
+        `SEC-009: NIF forzado sin validación — emisor="${preview.issuerName || '?'}" nif="${forcedNif}" file="${reviewItem.fileName}"`
+      );
+      historyEntries.push({
+        date: new Date().toISOString(),
+        action: `NIF inválido aceptado forzosamente: ${forcedNif}`,
+        user: 'Admin Gestor',
+      });
+    }
+
     const finalInvoice: Invoice = {
       ...preview,
+      ...amounts,
       apartmentId: selectedApartmentId || undefined,
       status: markAsProcessed ? 'PROCESSED' : 'PENDING',
       appwriteFileId: reviewItem.storageFileId,
       fileType: reviewItem.mimeType,
-      history: [
-        ...preview.history,
-        {
-          date: new Date().toISOString(),
-          action: markAsProcessed
-            ? 'Factura procesada y asiento contable creado'
-            : 'Factura guardada como borrador (pendiente de revisión)',
-          user: 'Admin Gestor',
-        },
-      ],
+      history: historyEntries,
     };
 
     onInvoiceAdded(finalInvoice);
