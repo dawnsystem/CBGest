@@ -2,23 +2,25 @@
 
 /**
  * Script to add missing attributes to existing Appwrite collections for CBGest
- * 
- * This script adds attributes that were added to types.ts but not to the Appwrite collections:
- * - transactionId (entries collection)
- * - number (entries collection)
- * - createdBy (entries, transactions collections)
- * - createdByName (entries, transactions collections)
+ *
+ * Incluye:
+ * - transactionId / number / createdBy* en entries
+ * - createdBy* en transactions
+ * - fiscalYearId (+ índice) en invoices, entries, transactions, suppliers,
+ *   apartments, reservations, recurring_expenses
  *
  * Usage:
  *   export APPWRITE_API_KEY="your-api-key"
  *   node scripts/add-missing-attributes.cjs
+ *
+ * Preferible para solo fiscalYearId:
+ *   node scripts/add-fiscal-year-id-attributes.cjs
  */
 
 const { Client, Databases } = require('node-appwrite');
 const { getAppwriteConfig } = require('./load-appwrite-config.cjs');
 const CONFIG = getAppwriteConfig();
 
-// Get API key from environment variable
 const API_KEY = process.env.APPWRITE_API_KEY;
 
 if (!API_KEY) {
@@ -26,10 +28,12 @@ if (!API_KEY) {
   console.error('');
   console.error('Please set it before running this script:');
   console.error('  export APPWRITE_API_KEY="your-api-key-here"');
+  console.error('');
+  console.error('O ejecuta el script dedicado:');
+  console.error('  node scripts/add-fiscal-year-id-attributes.cjs');
   process.exit(1);
 }
 
-// Initialize Appwrite client
 const client = new Client()
   .setEndpoint(CONFIG.endpoint)
   .setProject(CONFIG.projectId)
@@ -37,16 +41,10 @@ const client = new Client()
 
 const databases = new Databases(client);
 
-/**
- * Sleep helper
- */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * Create an attribute with retry logic
- */
 async function createAttribute(collectionId, attributeConfig) {
   const { type, key, ...config } = attributeConfig;
 
@@ -95,9 +93,27 @@ async function createAttribute(collectionId, attributeConfig) {
   }
 }
 
-/**
- * Main execution
- */
+async function createKeyIndex(collectionId, indexKey, attributes) {
+  try {
+    console.log(`  - Creating index: ${indexKey}...`);
+    await databases.createIndex(
+      CONFIG.databaseId,
+      collectionId,
+      indexKey,
+      'key',
+      attributes,
+      attributes.map(() => 'ASC')
+    );
+    console.log(`    ✓ Index '${indexKey}' created`);
+  } catch (error) {
+    if (error.code === 409) {
+      console.log(`    ⚠️  Index '${indexKey}' already exists, skipping`);
+      return;
+    }
+    throw error;
+  }
+}
+
 async function main() {
   console.log('🚀 Adding missing attributes to Appwrite collections...');
   console.log('');
@@ -107,49 +123,72 @@ async function main() {
   console.log('');
 
   try {
-    // ==========================================
-    // ENTRIES COLLECTION
-    // ==========================================
     console.log('=== Adding attributes to ENTRIES collection ===\n');
 
     const entriesAttributes = [
-      // Link to bank transaction (for entries created from bank movements)
       { type: 'string', key: 'transactionId', size: 100, required: false },
-      // Sequential entry number
       { type: 'integer', key: 'number', required: false, min: 1, max: 999999999 },
-      // Audit fields
       { type: 'string', key: 'createdBy', size: 100, required: false },
       { type: 'string', key: 'createdByName', size: 255, required: false },
+      { type: 'string', key: 'fiscalYearId', size: 36, required: false },
     ];
 
     for (const attr of entriesAttributes) {
       await createAttribute('entries', attr);
       await sleep(500);
     }
+    await sleep(3000);
+    await createKeyIndex('entries', 'fiscalYearId_index', ['fiscalYearId']);
 
     console.log('');
-
-    // ==========================================
-    // TRANSACTIONS COLLECTION
-    // ==========================================
     console.log('=== Adding attributes to TRANSACTIONS collection ===\n');
 
     const transactionsAttributes = [
-      // Audit fields
       { type: 'string', key: 'createdBy', size: 100, required: false },
       { type: 'string', key: 'createdByName', size: 255, required: false },
+      { type: 'string', key: 'fiscalYearId', size: 36, required: false },
     ];
 
     for (const attr of transactionsAttributes) {
       await createAttribute('transactions', attr);
       await sleep(500);
     }
+    await sleep(3000);
+    await createKeyIndex('transactions', 'fiscalYearId_index', ['fiscalYearId']);
+
+    console.log('');
+    console.log('=== Adding fiscalYearId to remaining collections ===\n');
+
+    const fiscalYearCollections = [
+      { id: 'invoices', size: 36 },
+      { id: 'suppliers', size: 36 },
+      { id: 'apartments', size: 36 },
+      { id: 'reservations', size: 36 },
+      { id: 'recurring_expenses', size: 36 },
+    ];
+
+    for (const col of fiscalYearCollections) {
+      await createAttribute(col.id, {
+        type: 'string',
+        key: 'fiscalYearId',
+        size: col.size,
+        required: false,
+      });
+      await sleep(500);
+    }
+
+    console.log('\n⏳ Waiting for attributes to become available...');
+    await sleep(5000);
+
+    for (const col of fiscalYearCollections) {
+      await createKeyIndex(col.id, 'fiscalYearId_index', ['fiscalYearId']);
+      await sleep(500);
+    }
 
     console.log('');
     console.log('🎉 Missing attributes have been added successfully!');
     console.log('');
-    console.log('Note: It may take a few seconds for the attributes to become available.');
-    console.log('You can now retry creating accounting entries from bank movements.');
+    console.log('Next: reload the app and run «Migrar datos sin ejercicio» with 2026 active.');
     console.log('');
   } catch (error) {
     console.error('');
@@ -162,5 +201,4 @@ async function main() {
   }
 }
 
-// Run the script
 main();

@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 11:20:00 UTC*
+*Última actualización: 2026-07-16 13:10:00 UTC*
 
 ---
 
@@ -8,9 +8,12 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Diagnóstico datos ejercicio 2026 (BUG-FY-004)** — conexión Appwrite OK; causa probable filtro `fiscalYearId` + errores de fetch silenciados. Herramientas de diagnóstico y surfacing de errores en rama `cursor/diagnose-fy-2026-data-7016`.
+Estado actual: **Schema fiscalYearId aplicado en Appwrite Cloud.** `recurring_expenses.fiscalYearId` creado + índice. Maestros 2025→2026 copiados (8 apartamentos, 1 proveedor). Facturas/asientos en DB = 0 (no recuperables desde Appwrite). Datos transaccionales existentes siguen en ejercicio 2025.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `OPS-FY-002` - setup-all-collections alineado con Cloud:** `fiscalYearId` unificado a size **36** + constantes compartidas; pase final `ensureFiscalYearIdSchema()`; paginación de `listAttributes`; scripts `add-*` alineados. Evita instalaciones parciales como la de `recurring_expenses`.
+*   **[2026-07-16] - `OPS-FY-001` - Schema + datos 2026 en Appwrite Cloud:** Con API Key de schema: creado `fiscalYearId` en `recurring_expenses` (era la colección que rompía la migración). Verificado atributo/índice en las 7 colecciones. Inventario: invoices=0, entries=0; apartments/reservations/transactions/suppliers todos con `fiscalYearId` del ejercicio **2025**. Copiados maestros a 2026 (`mrlspalb-66qm1lz`): 8 apartamentos + 1 proveedor. **Rotar la API Key** expuesta en chat.
+*   **[2026-07-16] - `BUG-FY-004b` - Schema: atributo fiscalYearId ausente:** Confirmado por error de migración («attribute fiscalYearId does not exist»). Añadido `scripts/add-fiscal-year-id-attributes.cjs`, actualizado `add-missing-attributes.cjs` + README, y mensajes de migración/diagnóstico con instrucción exacta. Sin este atributo el filtro por ejercicio vacía la UI y la migración no puede asignar 2026.
 *   **[2026-07-16] - `BUG-FY-004` - Datos 2026 “desaparecidos” (filtro FY ≠ pérdida de conexión):** Verificado endpoint `fra.cloud.appwrite.io` (proyecto `cbgest` responde). Causa raíz probable: `Query.equal('fiscalYearId', fyId)` tras los fixes FY recientes + `.catch(() => [])` que convertía fallos de query en listas vacías. Añadidos `settleListFetch`/`collectFetchErrors`, `diagnoseFiscalYearVisibility`, banner ámbar en `App.tsx`, panel de diagnóstico en `FiscalYearManager`, y `fetchRecurringExpenses(fyId)` (BUG-FY-003). Acción usuario: si el diagnóstico muestra docs sin ejercicio → migrar con 2026 activo. Validado: lint + type-check + 364 tests + build OK.
 *   **[2026-07-16] - `MEDIOS-147` - Settings/drafts/toast/realtime/filtros FY:** Cerrados BUG-027/028/029/030, CTB-004/005/006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001. Settings: mapeo limpio + ID fijo `app_settings` + revert sync. Drafts: totales sin borradores, Debe/Haber mutuamente excluyentes, deudas alineadas, matching sin drafts, suma multi-línea 57x. Toast resuelve confirm previo. Realtime re-fetch a React state. Charts por `fiscalYearId`. Issue: #147 (parcial). Tests focalizados PASS.
 *   **[2026-07-16] - `SEC-017` + `BUG-024` + `BUG-025` + `BUG-026` - Auth functions + rateLimiter:** `manage-users`: guardas SEC-017 en `updateLabels` (no auto-degradación, ≥1 admin); paginación BUG-025 (`listAllUsers`); rollback BUG-026 en create. `rateLimiter`: relanzar `processQueue` en `finally` (BUG-024). Issue #143. Tests focalizados 5 PASS.
@@ -100,6 +103,15 @@ Estado actual: **Diagnóstico datos ejercicio 2026 (BUG-FY-004)** — conexión 
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 13:00:00 UTC]
+*   **Directiva del Director:** Al migrar registros sin año al 2026, Appwrite responde que no existe el atributo `fiscalYearId`.
+*   **Log de Acciones:**
+    - `[12:57:00]` - **ROOT CAUSE:** Schema incompleto en colecciones (código ya filtra/escribe `fiscalYearId`, pero el atributo no se creó en Cloud).
+    - `[12:58:00]` - **CREATE:** `scripts/add-fiscal-year-id-attributes.cjs` (+ actualización `add-missing-attributes.cjs` / README).
+    - `[12:59:00]` - **FIX:** `migrateLegacyData` lanza mensaje accionable si falta el atributo.
+    - `[13:00:00]` - **BLOCKER:** API key del entorno cloud sigue en 401 `user_unauthorized` → el Director debe ejecutar el script con una key con scopes attributes/indexes, o crear el atributo en Consola.
+*   **Resultado:** Remediación documentada y automatizada; pendiente aplicación del schema en Appwrite Cloud.
+
 ### Sesión: [2026-07-16 11:20:00 UTC]
 *   **Directiva del Director:** Verificar por qué desaparecieron los datos del ejercicio 2026 (sospecha de pérdida de conexión Appwrite o regresión tras cambios recientes).
 *   **Log de Acciones:**

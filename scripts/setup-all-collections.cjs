@@ -4,10 +4,14 @@
  * Script to automatically create ALL Appwrite collections for CBGest
  *
  * This script creates/updates ALL collections with all required attributes.
+ * Incluye `fiscalYearId` (size 36) + índice en colecciones transaccionales/maestras.
  *
  * Usage:
  *   export APPWRITE_API_KEY="your-api-key"
- *   node scripts/setup-all-collections.js
+ *   node scripts/setup-all-collections.cjs
+ *
+ * Si solo falta fiscalYearId en un proyecto ya existente:
+ *   node scripts/add-fiscal-year-id-attributes.cjs
  */
 
 const { Client, Databases, Permission, Role, Query } = require('node-appwrite');
@@ -36,10 +40,88 @@ const client = new Client()
 const databases = new Databases(client);
 
 /**
+ * Atributo de enlace a ejercicio contable.
+ * size=36: IDs de documento Appwrite (máx. 36). Alineado con Cloud CBGest.
+ */
+const FISCAL_YEAR_ID_ATTRIBUTE = {
+  type: 'string',
+  key: 'fiscalYearId',
+  size: 36,
+  required: false,
+};
+
+const FISCAL_YEAR_ID_INDEX = {
+  key: 'fiscalYearId_index',
+  type: 'key',
+  attributes: ['fiscalYearId'],
+  orders: ['ASC'],
+};
+
+/** Colecciones que DEBEN tener fiscalYearId (+ índice). */
+const FISCAL_YEAR_SCOPED_COLLECTIONS = [
+  'invoices',
+  'entries',
+  'transactions',
+  'suppliers',
+  'apartments',
+  'reservations',
+  'recurring_expenses',
+];
+
+/**
  * Sleep helper
  */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Lista atributos con paginación (default Appwrite = 25; reservations tiene 29+).
+ * @param {string} collectionId
+ * @returns {Promise<Array<{ key: string, status?: string }>>}
+ */
+async function listAllAttributes(collectionId) {
+  const byKey = new Map();
+  let offset = 0;
+  const pageSize = 100;
+
+  for (;;) {
+    const page = await databases.listAttributes(
+      CONFIG.databaseId,
+      collectionId,
+      [Query.limit(pageSize), Query.offset(offset)]
+    );
+    for (const attr of page.attributes || []) {
+      byKey.set(attr.key, attr);
+    }
+    offset += (page.attributes || []).length;
+    if (!page.attributes?.length || offset >= (page.total || 0) || byKey.size >= (page.total || 0)) {
+      break;
+    }
+  }
+
+  return [...byKey.values()];
+}
+
+/**
+ * Espera a que un atributo esté `available` (necesario antes de crear su índice).
+ * @param {string} collectionId
+ * @param {string} key
+ * @param {number} maxWaitMs
+ * @returns {Promise<boolean>}
+ */
+async function waitForAttributeAvailable(collectionId, key, maxWaitMs = 60000) {
+  const started = Date.now();
+  while (Date.now() - started < maxWaitMs) {
+    const attrs = await listAllAttributes(collectionId);
+    const found = attrs.find((a) => a.key === key);
+    if (found?.status === 'available') return true;
+    if (found?.status === 'failed') {
+      throw new Error(`Atributo ${collectionId}.${key} en estado failed: ${found.error || ''}`);
+    }
+    await sleep(2000);
+  }
+  return false;
 }
 
 /**
@@ -342,8 +424,8 @@ async function setupInvoicesCollection() {
     // Apartment tracking (NEW - for per-property expense tracking)
     { type: 'string', key: 'apartmentId', size: 100, required: false },
 
-    // Ejercicio contable (NEW - links this invoice to a FiscalYear document)
-    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
+    // Ejercicio contable (links this invoice to a FiscalYear document)
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
   ];
 
   for (const attr of attributes) {
@@ -361,7 +443,7 @@ async function setupInvoicesCollection() {
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
     { key: 'type_index', type: 'key', attributes: ['type'], orders: ['ASC'] },
     { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
-    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
+    { ...FISCAL_YEAR_ID_INDEX },
   ];
 
   for (const index of indexes) {
@@ -412,7 +494,7 @@ async function setupEntriesCollection() {
     // Draft flag: entry saved without validating that debit === credit ("Guardar borrador")
     { type: 'boolean', key: 'isDraft', required: false, default: false },
     // Ejercicio contable (NEW - links this entry to a FiscalYear document)
-    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
   ];
 
   for (const attr of attributes) {
@@ -431,7 +513,7 @@ async function setupEntriesCollection() {
     { key: 'invoiceId_index', type: 'key', attributes: ['invoiceId'], orders: ['ASC'] },
     { key: 'supplierId_index', type: 'key', attributes: ['supplierId'], orders: ['ASC'] },
     { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
-    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
+    { ...FISCAL_YEAR_ID_INDEX },
   ];
 
   for (const index of indexes) {
@@ -476,7 +558,7 @@ async function setupTransactionsCollection() {
     { type: 'string', key: 'createdByName', size: 255, required: false },
 
     // Ejercicio contable (NEW - links this transaction to a FiscalYear document)
-    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
   ];
 
   for (const attr of attributes) {
@@ -493,7 +575,7 @@ async function setupTransactionsCollection() {
     { key: 'date_index', type: 'key', attributes: ['date'], orders: ['DESC'] },
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
     { key: 'platformDetected_index', type: 'key', attributes: ['platformDetected'], orders: ['ASC'] },
-    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
+    { ...FISCAL_YEAR_ID_INDEX },
   ];
 
   for (const index of indexes) {
@@ -559,7 +641,7 @@ async function setupSuppliersCollection() {
     { type: 'string', key: 'category', size: 200, required: false },
     { type: 'string', key: 'notes', size: 2000, required: false },
     // Ejercicio contable (NEW - se copia de un ejercicio al siguiente)
-    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
     // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
@@ -582,7 +664,7 @@ async function setupSuppliersCollection() {
     // supplier after the first fiscal year — and that 409 is currently swallowed by
     // the caller as "already copied", so the failure would be silent.
     { key: 'nif_index', type: 'key', attributes: ['nif'], orders: ['ASC'] },
-    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
+    { ...FISCAL_YEAR_ID_INDEX },
   ];
 
   for (const index of indexes) {
@@ -736,7 +818,7 @@ async function setupApartmentsCollection() {
     { type: 'string', key: 'notes', size: 2000, required: false },
     { type: 'boolean', key: 'isActive', required: false, default: true },
     // Ejercicio contable (NEW - se copia de un ejercicio al siguiente)
-    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
     // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
@@ -753,7 +835,7 @@ async function setupApartmentsCollection() {
   const indexes = [
     { key: 'name_index', type: 'key', attributes: ['name'], orders: ['ASC'] },
     { key: 'isActive_index', type: 'key', attributes: ['isActive'], orders: ['ASC'] },
-    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
+    { ...FISCAL_YEAR_ID_INDEX },
   ];
 
   for (const index of indexes) {
@@ -790,7 +872,7 @@ async function setupRecurringExpensesCollection() {
     { type: 'boolean', key: 'isDeductible', required: false, default: true },
     { type: 'boolean', key: 'isActive', required: false, default: true },
     { type: 'string', key: 'notes', size: 2000, required: false },
-    { type: 'string', key: 'fiscalYearId', size: 36, required: false },
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
     // NOTA: id, createdAt, updatedAt son gestionados automáticamente por Appwrite ($id, $createdAt, $updatedAt)
   ];
 
@@ -808,7 +890,7 @@ async function setupRecurringExpensesCollection() {
     { key: 'frequency_index', type: 'key', attributes: ['frequency'], orders: ['ASC'] },
     { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
     { key: 'isActive_index', type: 'key', attributes: ['isActive'], orders: ['ASC'] },
-    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
+    { ...FISCAL_YEAR_ID_INDEX },
   ];
 
   for (const index of indexes) {
@@ -934,7 +1016,7 @@ async function setupReservationsCollection() {
     { type: 'string', key: 'notes', size: 2000, required: false },
 
     // Ejercicio contable (NEW - links this reservation to a FiscalYear document)
-    { type: 'string', key: 'fiscalYearId', size: 100, required: false },
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
   ];
 
   for (const attr of attributes) {
@@ -954,7 +1036,7 @@ async function setupReservationsCollection() {
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
     { key: 'touristTaxCollected_index', type: 'key', attributes: ['touristTaxCollected'], orders: ['ASC'] },
     { key: 'guestName_index', type: 'key', attributes: ['guestName'], orders: ['ASC'] },
-    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
+    { ...FISCAL_YEAR_ID_INDEX },
   ];
 
   for (const index of indexes) {
@@ -1021,6 +1103,48 @@ async function setupFiscalYearsCollection() {
 }
 
 /**
+ * Pase defensivo: garantiza fiscalYearId + índice en colecciones ya existentes.
+ * Evita el fallo real visto en Cloud (recurring_expenses sin atributo mientras
+ * el resto sí lo tenía), que rompía filtros y «Migrar datos sin ejercicio».
+ */
+async function ensureFiscalYearIdSchema() {
+  console.log('\n=== Ensuring fiscalYearId on scoped collections ===\n');
+
+  for (const collectionId of FISCAL_YEAR_SCOPED_COLLECTIONS) {
+    console.log(`📦 ${collectionId}`);
+    try {
+      const attrs = await listAllAttributes(collectionId);
+      const existing = attrs.find((a) => a.key === 'fiscalYearId');
+
+      if (!existing) {
+        await createAttribute(collectionId, { ...FISCAL_YEAR_ID_ATTRIBUTE });
+        const ready = await waitForAttributeAvailable(collectionId, 'fiscalYearId');
+        if (!ready) {
+          console.warn(`  ⚠️  fiscalYearId creado pero aún no available en ${collectionId}`);
+        }
+      } else if (existing.status === 'available') {
+        console.log(`  ✓ fiscalYearId already available`);
+      } else if (existing.status === 'processing') {
+        console.log(`  ⏳ fiscalYearId processing…`);
+        await waitForAttributeAvailable(collectionId, 'fiscalYearId');
+      } else {
+        console.warn(`  ⚠️  fiscalYearId status=${existing.status} error=${existing.error || ''}`);
+      }
+
+      await createIndex(collectionId, { ...FISCAL_YEAR_ID_INDEX });
+    } catch (error) {
+      if (error.code === 404) {
+        console.warn(`  ⚠️  Colección ${collectionId} no existe aún (se crea en el setup principal)`);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  console.log('\n✅ fiscalYearId schema ensure complete!\n');
+}
+
+/**
  * Main execution
  */
 async function main() {
@@ -1047,27 +1171,30 @@ async function main() {
     await setupReservationsCollection();
     await setupFiscalYearsCollection();
 
+    // Defensive pass: attribute may be missing on older Cloud installs
+    await ensureFiscalYearIdSchema();
+
     console.log('');
     console.log('🎉 ALL collections have been set up successfully!');
     console.log('');
     console.log('Collections configured:');
-    console.log('  ✅ invoices (+ apartmentId, fiscalYearId fields)');
-    console.log('  ✅ entries (+ isDraft, fiscalYearId fields)');
-    console.log('  ✅ transactions (+ platformDetected, grossAmount, aiMatchSuggestion, fiscalYearId fields)');
+    console.log('  ✅ invoices (+ apartmentId, fiscalYearId size=36 + index)');
+    console.log('  ✅ entries (+ isDraft, fiscalYearId size=36 + index)');
+    console.log('  ✅ transactions (+ platformDetected, grossAmount, aiMatchSuggestion, fiscalYearId)');
     console.log('  ✅ settings (+ touristTaxConfig field)');
-    console.log('  ✅ suppliers (+ fiscalYearId field)');
+    console.log('  ✅ suppliers (+ fiscalYearId size=36 + index)');
     console.log('  ✅ notifications');
     console.log('  ✅ uploads');
-    console.log('  ✅ apartments (+ apartmentType field: TOURIST/RESIDENTIAL, + fiscalYearId)');
-    console.log('  ✅ recurring_expenses');
+    console.log('  ✅ apartments (+ apartmentType TOURIST/RESIDENTIAL, + fiscalYearId)');
+    console.log('  ✅ recurring_expenses (+ fiscalYearId size=36 + index)');
     console.log('  ✅ ai_match_history');
     console.log('  ✅ reservations (+ tourist tax and deposit fields, + fiscalYearId)');
     console.log('  ✅ fiscal_years (year, status, openedAt, closedAt, notes, touristTaxPeriods)');
     console.log('');
     console.log('Next steps:');
-    console.log('  1. Verify the collections in Appwrite Console');
-    console.log('  2. Update config/appwrite.ts with new collection IDs');
-    console.log('  3. Run your application - data should now be saved correctly');
+    console.log('  1. Verify: node scripts/verify-appwrite-setup.cjs');
+    console.log('  2. If migrating legacy docs: node scripts/add-fiscal-year-id-attributes.cjs (idempotent)');
+    console.log('  3. Run the app — ejercicios filtran por fiscalYearId');
     console.log('');
   } catch (error) {
     console.error('');
