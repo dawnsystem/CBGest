@@ -1,0 +1,140 @@
+{
+  "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+  "year": 2027,
+  "generatedAt": "2026-07-16T22:14:30.789Z",
+  "edges": [
+    {
+      "id": "EDGE-01",
+      "title": "Factura pendiente sin pagar",
+      "description": "Neteja 15/11/2027 total 242€ (200+IVA21%). Sin movimiento bancario.",
+      "references": {
+        "invoices": [
+          "G-2027-058"
+        ],
+        "bankOnly": [],
+        "reservations": []
+      }
+    },
+    {
+      "id": "EDGE-02",
+      "title": "Pago diferido 30 días",
+      "description": "Gestoría factura 10/06/2027; cargo banco 10/07/2027",
+      "references": {
+        "invoices": [
+          "G-2027-032"
+        ],
+        "bankOnly": [],
+        "reservations": []
+      }
+    },
+    {
+      "id": "EDGE-03",
+      "title": "Comisión bancaria",
+      "description": "Movimiento 28/03/2027 COMISION MANTENIMIENTO CUENTA -6.50€ sin factura",
+      "references": {
+        "invoices": [],
+        "bankOnly": [
+          {
+            "id": "EDGE-03",
+            "year": 2027,
+            "date": "2027-03-28",
+            "concept": "COMISION MANTENIMIENTO CUENTA",
+            "amount": -6.5
+          }
+        ],
+        "reservations": []
+      }
+    },
+    {
+      "id": "EDGE-04",
+      "title": "Ingreso Airbnb",
+      "description": "Liquidación I-2027-019 12/08/2027 neto 1842.35€ + mov AIRBNB PAYMENTS",
+      "references": {
+        "invoices": [
+          "I-2027-024"
+        ],
+        "bankOnly": [],
+        "reservations": []
+      }
+    },
+    {
+      "id": "EDGE-05",
+      "title": "Gasto sin factura",
+      "description": "Bizum ferretería 03/05/2027 -38.20€",
+      "references": {
+        "invoices": [],
+        "bankOnly": [
+          {
+            "id": "EDGE-05",
+            "year": 2027,
+            "date": "2027-05-03",
+            "concept": "BIZUM FERRETERIA LOCAL",
+            "amount": -38.2
+          }
+        ],
+        "reservations": []
+      }
+    },
+    {
+      "id": "EDGE-06",
+      "title": "IVA 21% vs 10%",
+      "description": "Endesa IVA 21% y Aigües IVA 10% en el mismo trimestre",
+      "references": {
+        "invoices": [
+          "G-2027-022",
+          "G-2027-023"
+        ],
+        "bankOnly": [],
+        "reservations": []
+      }
+    },
+    {
+      "id": "EDGE-07",
+      "title": "Reserva cancelada",
+      "description": "BK-2027-CANCEL-01 CB-A1 sept 2027 Cancelled paidAmount=0",
+      "references": {
+        "invoices": [],
+        "bankOnly": [],
+        "reservations": [
+          "CB-A1;2027-09-10;2027-09-17;;7;95,00;665,00;0,00;Cancel Test Guest;2;cancel.uat@test.local;+34600000001;;Booking;BK-2027-CANCEL-01;Cancelled"
+        ]
+      }
+    },
+    {
+      "id": "EDGE-08",
+      "title": "IEET tasa turística",
+      "description": "Reserva Airbnb CB-A2 4 adultos 5 noches julio 2027",
+      "references": {
+        "invoices": [],
+        "bankOnly": [],
+        "reservations": [
+          "CB-A2;2027-07-08;2027-07-13;;5;140,00;700,00;700,00;IEET Test Family;4;ieet.uat@test.local;+34600000008;;Airbnb;BK-2027-IEET-08;Confirmed"
+        ]
+      }
+    },
+    {
+      "id": "EDGE-09",
+      "title": "Factura 2027 pagada en 2028",
+      "description": "Factura gasto dic-2027 pagada en extracto ene-2028",
+      "references": {
+        "invoices": [
+          "G-2027-063"
+        ],
+        "bankOnly": [],
+        "reservations": []
+      }
+    },
+    {
+      "id": "EDGE-10",
+      "title": "Reserva con niños",
+      "description": "Reserva con adults+children; IEET solo adultos",
+      "references": {
+        "invoices": [],
+        "bankOnly": [],
+        "reservations": [
+          "CB-B1;2027-08-20;2027-08-27;;7;110,00;770,00;770,00;Familia Con Niños UAT;2;ninos.uat@test.local;+34600000010;;Airbnb;BK-2027-CHILD-10;Confirmed"
+        ]
+      }
+    }
+  ]
+}

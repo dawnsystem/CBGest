@@ -1,0 +1,33 @@
+{
+  "uatMeta": {
+    "kitVersion": "1.0.0",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "fictitious": true,
+    "edgeIds": [],
+    "skipBank": false,
+    "expectedBankDate": null,
+    "bankConcept": "PAGO MANTENIMIENTO ASCENSOR"
+  },
+  "id": "inv-g-2027-069",
+  "number": "G-2027-069",
+  "date": "2027-05-18",
+  "issuerName": "Mantenimiento ascensor",
+  "issuerNif": "B12345674",
+  "issuerNifType": "CIF",
+  "supplierId": null,
+  "apartmentId": null,
+  "baseAmount": 120,
+  "vatRate": 21,
+  "vatAmount": 25.2,
+  "totalAmount": 145.2,
+  "type": "EXPENSE",
+  "status": "PAID",
+  "category": "622",
+  "history": [
+    {
+      "date": "2027-05-18",
+      "action": "GENERATED_UAT",
+      "user": "generate-uat-kit"
+    }
+  ]
+}

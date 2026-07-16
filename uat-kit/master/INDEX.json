@@ -1,0 +1,26 @@
+{
+  "2027": {
+    "expenseInvoices": 72,
+    "incomeInvoices": 36,
+    "bankStatements": 12,
+    "reservations": 60,
+    "bankMovements": 108
+  },
+  "2028": {
+    "expenseInvoices": 40,
+    "incomeInvoices": 20,
+    "bankStatements": 7,
+    "reservations": 30,
+    "bankMovements": 61,
+    "hardCutoff": "2028-07-17"
+  },
+  "generatedAt": "2026-07-16T22:14:30.839Z",
+  "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+  "master": {
+    "empresa": 1,
+    "comuneros": 4,
+    "apartamentos": 6,
+    "proveedores": 8,
+    "gastosRecurrentes": 9
+  }
+}

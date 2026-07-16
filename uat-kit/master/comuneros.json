@@ -1,0 +1,108 @@
+{
+  "partners": [
+    {
+      "id": "partner-laura",
+      "name": "Laura Vives Soler",
+      "nif": "48172639J",
+      "participation": 35,
+      "profileLabel": "Soltera, 1 pagador, sin hijos, sin discapacidad",
+      "taxInfo": {
+        "birthYear": 1989,
+        "disabilityLevel": "NONE",
+        "otherWorkIncome": 28500,
+        "otherActivitiesIncome": 0,
+        "numberOfPayers": 1,
+        "secondPayerAmount": 0,
+        "taxResidency": "CATALUÑA",
+        "maritalStatus": "SINGLE",
+        "jointDeclaration": false,
+        "childrenUnder3": 0,
+        "childrenFrom3To25": 0,
+        "childrenWithDisability": 0,
+        "ascendantsOver65": 0,
+        "ascendantsOver75": 0,
+        "ascendantsWithDisability": 0,
+        "deductibleExpenses": 200,
+        "pensionContributions": 600
+      }
+    },
+    {
+      "id": "partner-marc",
+      "name": "Marc Puig Ferrer",
+      "nif": "52918407F",
+      "participation": 30,
+      "profileLabel": "Casado, declaración conjunta, 1 hijo <3 y 1 hijo 3-25",
+      "taxInfo": {
+        "birthYear": 1984,
+        "disabilityLevel": "NONE",
+        "otherWorkIncome": 42000,
+        "otherActivitiesIncome": 1500,
+        "numberOfPayers": 1,
+        "secondPayerAmount": 0,
+        "taxResidency": "CATALUÑA",
+        "maritalStatus": "MARRIED",
+        "jointDeclaration": true,
+        "childrenUnder3": 1,
+        "childrenFrom3To25": 1,
+        "childrenWithDisability": 0,
+        "ascendantsOver65": 0,
+        "ascendantsOver75": 0,
+        "ascendantsWithDisability": 0,
+        "deductibleExpenses": 450,
+        "pensionContributions": 1500
+      }
+    },
+    {
+      "id": "partner-rosa",
+      "name": "Rosa Martí Capdevila",
+      "nif": "73456128Q",
+      "participation": 20,
+      "profileLabel": ">65 años (nace 1958), 1 ascendiente >75 a cargo",
+      "taxInfo": {
+        "birthYear": 1958,
+        "disabilityLevel": "NONE",
+        "otherWorkIncome": 0,
+        "otherActivitiesIncome": 8200,
+        "numberOfPayers": 1,
+        "secondPayerAmount": 0,
+        "taxResidency": "CATALUÑA",
+        "maritalStatus": "SINGLE",
+        "jointDeclaration": false,
+        "childrenUnder3": 0,
+        "childrenFrom3To25": 0,
+        "childrenWithDisability": 0,
+        "ascendantsOver65": 0,
+        "ascendantsOver75": 1,
+        "ascendantsWithDisability": 0,
+        "deductibleExpenses": 100,
+        "pensionContributions": 0
+      }
+    },
+    {
+      "id": "partner-jordi",
+      "name": "Jordi Serra Roca",
+      "nif": "39284715W",
+      "participation": 15,
+      "profileLabel": "Discapacidad 33-65%, 2 pagadores (2º >1500€)",
+      "taxInfo": {
+        "birthYear": 1976,
+        "disabilityLevel": "LEVEL_33_65",
+        "otherWorkIncome": 31800,
+        "otherActivitiesIncome": 0,
+        "numberOfPayers": 2,
+        "secondPayerAmount": 2400,
+        "taxResidency": "CATALUÑA",
+        "maritalStatus": "SINGLE",
+        "jointDeclaration": false,
+        "childrenUnder3": 0,
+        "childrenFrom3To25": 0,
+        "childrenWithDisability": 0,
+        "ascendantsOver65": 0,
+        "ascendantsOver75": 0,
+        "ascendantsWithDisability": 0,
+        "deductibleExpenses": 350,
+        "pensionContributions": 900
+      }
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "apartments": [
+    {
+      "id": "apt-cb-a1",
+      "code": "CB-A1",
+      "name": "Apartamento Aiguablava 1",
+      "address": "Carrer de la Platja 4, Begur",
+      "cadastralRef": "17089A001000120001XW",
+      "surfaceArea": 68,
+      "maxOccupancy": 4,
+      "licenseNumber": "HUTG-012345",
+      "apartmentType": "TOURIST",
+      "isActive": true,
+      "notes": "Playa Aiguablava. IEET aplica."
+    },
+    {
+      "id": "apt-cb-a2",
+      "code": "CB-A2",
+      "name": "Apartamento Aiguablava 2",
+      "address": "Carrer de la Platja 6, Begur",
+      "cadastralRef": "17089A001000120002XW",
+      "surfaceArea": 92,
+      "maxOccupancy": 6,
+      "licenseNumber": "HUTG-012346",
+      "apartmentType": "TOURIST",
+      "isActive": true,
+      "notes": "Playa Aiguablava. IEET aplica."
+    },
+    {
+      "id": "apt-cb-b1",
+      "code": "CB-B1",
+      "name": "Ático Begur Casc Antic",
+      "address": "Plaça de l'Església 3, Begur",
+      "cadastralRef": "17016A002000450001XW",
+      "surfaceArea": 75,
+      "maxOccupancy": 4,
+      "licenseNumber": "HUTG-078901",
+      "apartmentType": "TOURIST",
+      "isActive": true,
+      "notes": "Centro histórico. IEET aplica."
+    },
+    {
+      "id": "apt-cb-c1",
+      "code": "CB-C1",
+      "name": "Estudio Llafranc Port",
+      "address": "Passeig de Cipsela 12, Llafranc",
+      "cadastralRef": "17089A003000880001XW",
+      "surfaceArea": 42,
+      "maxOccupancy": 2,
+      "licenseNumber": "HUTG-055512",
+      "apartmentType": "TOURIST",
+      "isActive": true,
+      "notes": "Puerto. IEET aplica."
+    },
+    {
+      "id": "apt-cb-r1",
+      "code": "CB-R1",
+      "name": "Vivienda Palafrugell Centro",
+      "address": "Carrer Sant Sebastià 22, Palafrugell",
+      "cadastralRef": "17117A004001100001XW",
+      "surfaceArea": 80,
+      "maxOccupancy": 3,
+      "licenseNumber": "",
+      "apartmentType": "RESIDENTIAL",
+      "isActive": true,
+      "notes": "Alquiler larga estancia. Sin IEET."
+    },
+    {
+      "id": "apt-cb-r2",
+      "code": "CB-R2",
+      "name": "Vivienda Calella de Palafrugell",
+      "address": "Carrer de les Voltes 8, Calella de Palafrugell",
+      "cadastralRef": "17117A005002200001XW",
+      "surfaceArea": 95,
+      "maxOccupancy": 4,
+      "licenseNumber": "",
+      "apartmentType": "RESIDENTIAL",
+      "isActive": true,
+      "notes": "Alquiler anual. Sin IEET."
+    }
+  ]
+}

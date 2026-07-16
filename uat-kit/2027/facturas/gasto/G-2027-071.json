@@ -1,0 +1,33 @@
+{
+  "uatMeta": {
+    "kitVersion": "1.0.0",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "fictitious": true,
+    "edgeIds": [],
+    "skipBank": false,
+    "expectedBankDate": null,
+    "bankConcept": "PAGO REPARACIÓN PERSIANA CB-B1"
+  },
+  "id": "inv-g-2027-071",
+  "number": "G-2027-071",
+  "date": "2027-09-14",
+  "issuerName": "Reparación persiana CB-B1",
+  "issuerNif": "B12345674",
+  "issuerNifType": "CIF",
+  "supplierId": null,
+  "apartmentId": null,
+  "baseAmount": 95,
+  "vatRate": 21,
+  "vatAmount": 19.95,
+  "totalAmount": 114.95,
+  "type": "EXPENSE",
+  "status": "PAID",
+  "category": "622",
+  "history": [
+    {
+      "date": "2027-09-14",
+      "action": "GENERATED_UAT",
+      "user": "generate-uat-kit"
+    }
+  ]
+}

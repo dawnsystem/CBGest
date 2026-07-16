@@ -1,0 +1,33 @@
+{
+  "uatMeta": {
+    "kitVersion": "1.0.0",
+    "scenarioId": "UAT-MEDITERRANEA-CB-2027-2028",
+    "fictitious": true,
+    "edgeIds": [],
+    "skipBank": false,
+    "expectedBankDate": null,
+    "bankConcept": "COBRO ALQUILER CB-R1"
+  },
+  "id": "inv-i-2028-004",
+  "number": "I-2028-004",
+  "date": "2028-02-01",
+  "issuerName": "Inquilino CB-R1 UAT",
+  "issuerNif": "87654321X",
+  "issuerNifType": "DNI",
+  "supplierId": null,
+  "apartmentId": "apt-cb-r1",
+  "baseAmount": 850,
+  "vatRate": 0,
+  "vatAmount": 0,
+  "totalAmount": 850,
+  "type": "INCOME",
+  "status": "PAID",
+  "category": "705",
+  "history": [
+    {
+      "date": "2028-02-01",
+      "action": "GENERATED_UAT",
+      "user": "generate-uat-kit"
+    }
+  ]
+}
