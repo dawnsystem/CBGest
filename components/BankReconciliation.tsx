@@ -3,6 +3,7 @@ import { BankTransaction, AccountingEntry, Invoice, Supplier, RecurringExpense, 
 import { ArrowRightLeft, Check, AlertCircle, Plus, BookOpen, Building2, Sparkles, Zap, FileText, RefreshCw } from 'lucide-react';
 import { generateMatchSuggestions } from '../utils/aiMatching';
 import { entryHasBankLine, getBankLineAmount, getBankAccountCode } from '../utils/accountingPlan';
+import { findReconciliationMatches } from '../utils/reconciliationUtils';
 
 // Union type for bank movements (imported or from accounting entries)
 interface BankMovement {
@@ -62,9 +63,10 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
 
   // Convert accounting entries with bank accounts to movements
   // An entry with a bank account line (572, 573, etc.) represents a bank movement
+  // CONC-003: excluir borradores de movimientos 57x
   const accountingMovements: BankMovement[] = useMemo(() =>
     entries
-      .filter(e => !e.reconciled && entryHasBankLine(e))
+      .filter(e => !e.reconciled && !e.isDraft && entryHasBankLine(e))
       .map(entry => {
         // Get amount from the bank line
         const amount = getBankLineAmount(entry);
@@ -91,8 +93,9 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
   );
 
   // Get entries that do NOT have bank account lines (for matching panel)
+  // CONC-001/CONC-003: excluir borradores del matching
   const nonBankEntries = useMemo(() =>
-    entries.filter(e => !e.reconciled && !entryHasBankLine(e)),
+    entries.filter(e => !e.reconciled && !e.isDraft && !entryHasBankLine(e)),
     [entries]
   );
 
@@ -107,14 +110,9 @@ export const BankReconciliation: React.FC<BankReconciliationProps> = ({
     return map;
   }, [nonBankEntries]);
 
-  // Find potential matches - entries without bank accounts with matching total amount
-  const getMatches = (movement: BankMovement) => {
-    const movementAmountAbs = Math.abs(movement.amount);
-    return nonBankEntries.filter(entry => {
-      const entryAmount = nonBankEntryAmounts.get(entry.id) ?? 0;
-      return Math.abs(movementAmountAbs - entryAmount) < 0.05; // 5 cent tolerance
-    });
-  };
+  // Find potential matches by absolute amount AND sign (CONC-001)
+  const getMatches = (movement: BankMovement) =>
+    findReconciliationMatches(movement.amount, nonBankEntries, nonBankEntryAmounts);
 
   // Get AI suggestions for a movement
   const getAISuggestions = (movement: BankMovement): AIMatchSuggestion[] => {
