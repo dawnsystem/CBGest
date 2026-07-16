@@ -63,13 +63,54 @@ function sleep(ms) {
 }
 
 /**
- * Lista atributos de una colección.
+ * Lista atributos de una colección (con paginación; Appwrite puede truncar a 25).
  * @param {string} collectionId
  * @returns {Promise<Array<{ key: string, status?: string }>>}
  */
 async function listAttributes(collectionId) {
-  const result = await databases.listAttributes(CONFIG.databaseId, collectionId);
-  return result.attributes || [];
+  const byKey = new Map();
+  let offset = 0;
+  const pageSize = 100;
+
+  for (;;) {
+    let page;
+    try {
+      page = await databases.listAttributes(
+        CONFIG.databaseId,
+        collectionId,
+        // Query helpers no importados aquí: usar offset vía SDK si está disponible
+      );
+    } catch {
+      page = await databases.listAttributes(CONFIG.databaseId, collectionId);
+    }
+
+    for (const attr of page.attributes || []) {
+      byKey.set(attr.key, attr);
+    }
+
+    // Si el total es mayor que lo devuelto, pedir más con offset (SDK node-appwrite v1)
+    if ((page.total || 0) <= byKey.size) break;
+    offset += (page.attributes || []).length;
+    if (offset <= 0 || offset >= page.total) break;
+
+    try {
+      const { Query } = require('node-appwrite');
+      page = await databases.listAttributes(
+        CONFIG.databaseId,
+        collectionId,
+        [Query.limit(pageSize), Query.offset(offset)]
+      );
+      const before = byKey.size;
+      for (const attr of page.attributes || []) {
+        byKey.set(attr.key, attr);
+      }
+      if (byKey.size === before) break;
+    } catch {
+      break;
+    }
+  }
+
+  return [...byKey.values()];
 }
 
 /**
@@ -107,13 +148,21 @@ async function ensureFiscalYearIdAttribute(collectionId, size) {
   }
 
   console.log(`  + Creando ${collectionId}.${ATTR_KEY} (string, size=${size}, required=false)...`);
-  await databases.createStringAttribute(
-    CONFIG.databaseId,
-    collectionId,
-    ATTR_KEY,
-    size,
-    false // required
-  );
+  try {
+    await databases.createStringAttribute(
+      CONFIG.databaseId,
+      collectionId,
+      ATTR_KEY,
+      size,
+      false // required
+    );
+  } catch (error) {
+    if (error.code === 409) {
+      console.log(`  ✓ ${collectionId}.${ATTR_KEY} ya existe (409)`);
+      return 'exists';
+    }
+    throw error;
+  }
   const ready = await waitForAttribute(collectionId, ATTR_KEY);
   if (!ready) {
     console.warn(`  ⚠️  ${collectionId}.${ATTR_KEY} creado pero aún no "available" (sigue en processing)`);

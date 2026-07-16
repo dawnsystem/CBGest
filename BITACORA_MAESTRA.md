@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 13:00:00 UTC*
+*Última actualización: 2026-07-16 13:10:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **BUG-FY-004 confirmado en producción** — falta atributo `fiscalYearId` en colecciones Appwrite; migración legacy falla. Script `scripts/add-fiscal-year-id-attributes.cjs` listo; requiere API Key con scopes de attributes (la del entorno cloud no autoriza).
+Estado actual: **Schema fiscalYearId aplicado en Appwrite Cloud.** `recurring_expenses.fiscalYearId` creado + índice. Maestros 2025→2026 copiados (8 apartamentos, 1 proveedor). Facturas/asientos en DB = 0 (no recuperables desde Appwrite). Datos transaccionales existentes siguen en ejercicio 2025.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `OPS-FY-001` - Schema + datos 2026 en Appwrite Cloud:** Con API Key de schema: creado `fiscalYearId` en `recurring_expenses` (era la colección que rompía la migración). Verificado atributo/índice en las 7 colecciones. Inventario: invoices=0, entries=0; apartments/reservations/transactions/suppliers todos con `fiscalYearId` del ejercicio **2025**. Copiados maestros a 2026 (`mrlspalb-66qm1lz`): 8 apartamentos + 1 proveedor. **Rotar la API Key** expuesta en chat.
 *   **[2026-07-16] - `BUG-FY-004b` - Schema: atributo fiscalYearId ausente:** Confirmado por error de migración («attribute fiscalYearId does not exist»). Añadido `scripts/add-fiscal-year-id-attributes.cjs`, actualizado `add-missing-attributes.cjs` + README, y mensajes de migración/diagnóstico con instrucción exacta. Sin este atributo el filtro por ejercicio vacía la UI y la migración no puede asignar 2026.
 *   **[2026-07-16] - `BUG-FY-004` - Datos 2026 “desaparecidos” (filtro FY ≠ pérdida de conexión):** Verificado endpoint `fra.cloud.appwrite.io` (proyecto `cbgest` responde). Causa raíz probable: `Query.equal('fiscalYearId', fyId)` tras los fixes FY recientes + `.catch(() => [])` que convertía fallos de query en listas vacías. Añadidos `settleListFetch`/`collectFetchErrors`, `diagnoseFiscalYearVisibility`, banner ámbar en `App.tsx`, panel de diagnóstico en `FiscalYearManager`, y `fetchRecurringExpenses(fyId)` (BUG-FY-003). Acción usuario: si el diagnóstico muestra docs sin ejercicio → migrar con 2026 activo. Validado: lint + type-check + 364 tests + build OK.
 *   **[2026-07-16] - `MEDIOS-147` - Settings/drafts/toast/realtime/filtros FY:** Cerrados BUG-027/028/029/030, CTB-004/005/006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001. Settings: mapeo limpio + ID fijo `app_settings` + revert sync. Drafts: totales sin borradores, Debe/Haber mutuamente excluyentes, deudas alineadas, matching sin drafts, suma multi-línea 57x. Toast resuelve confirm previo. Realtime re-fetch a React state. Charts por `fiscalYearId`. Issue: #147 (parcial). Tests focalizados PASS.
