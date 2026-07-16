@@ -194,6 +194,13 @@ export async function updateFiscalYearTouristTax(
 
 /**
  * Asigna un ejercicio a todos los documentos transaccionales/maestros que no tienen fiscalYearId.
+ *
+ * @param fiscalYearId - Document ID del ejercicio destino
+ * @param onProgress - Callback opcional con documentos migrados
+ * @returns Conteos por colección
+ * @throws Si falta el atributo `fiscalYearId` en Appwrite (schema incompleto)
+ * @example
+ * await migrateLegacyData(activeFiscalYear.appwriteId);
  */
 export async function migrateLegacyData(
   fiscalYearId: string,
@@ -218,6 +225,18 @@ export async function migrateLegacyData(
     recurringExpenses: 0,
   };
 
+  const isMissingFiscalYearAttribute = (error: unknown): boolean => {
+    const message = getErrorMessage(error).toLowerCase();
+    return (
+      message.includes('fiscalyearid') &&
+      (message.includes('not found') ||
+        message.includes('unknown attribute') ||
+        message.includes('does not exist') ||
+        message.includes('invalid document structure') ||
+        message.includes('attribute'))
+    );
+  };
+
   const migrateCollection = async (
     collectionId: string,
     countKey: keyof typeof counts
@@ -232,10 +251,22 @@ export async function migrateLegacyData(
       ];
       if (cursor) queries.push(Query.cursorAfter(cursor));
 
-      const response = await withRetry(
-        () => databases.listDocuments(config.databaseId, collectionId, queries),
-        `migrateLegacyData_${collectionId}`
-      );
+      let response;
+      try {
+        response = await withRetry(
+          () => databases.listDocuments(config.databaseId, collectionId, queries),
+          `migrateLegacyData_${collectionId}`
+        );
+      } catch (error: unknown) {
+        if (isMissingFiscalYearAttribute(error)) {
+          throw new Error(
+            `La colección "${collectionId}" no tiene el atributo fiscalYearId en Appwrite. ` +
+            `Ejecuta: export APPWRITE_API_KEY="..." && node scripts/add-fiscal-year-id-attributes.cjs ` +
+            `(o créalo en Consola Appwrite → Databases → ${collectionId} → Attributes → string fiscalYearId size 100, required=false + índice fiscalYearId_index).`
+          );
+        }
+        throw error;
+      }
 
       if (response.documents.length === 0) {
         hasMore = false;
@@ -243,10 +274,20 @@ export async function migrateLegacyData(
       }
 
       for (const doc of response.documents) {
-        await withRetry(
-          () => databases.updateDocument(config.databaseId, collectionId, doc.$id, { fiscalYearId }),
-          `migrateLegacyData_update_${collectionId}`
-        );
+        try {
+          await withRetry(
+            () => databases.updateDocument(config.databaseId, collectionId, doc.$id, { fiscalYearId }),
+            `migrateLegacyData_update_${collectionId}`
+          );
+        } catch (error: unknown) {
+          if (isMissingFiscalYearAttribute(error)) {
+            throw new Error(
+              `La colección "${collectionId}" no tiene el atributo fiscalYearId en Appwrite. ` +
+              `Ejecuta: export APPWRITE_API_KEY="..." && node scripts/add-fiscal-year-id-attributes.cjs`
+            );
+          }
+          throw error;
+        }
       }
 
       counts[countKey] += response.documents.length;
