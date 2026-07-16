@@ -173,7 +173,7 @@ export const FiscalYearManager: React.FC = () => {
   const [newNotes, setNewNotes] = useState('');
   const [creating, setCreating] = useState(false);
   const [createResult, setCreateResult] = useState<{
-    copiedSuppliers: number; copiedApartments: number
+    copiedSuppliers: number; copiedApartments: number; copiedRecurringExpenses: number
   } | null>(null);
 
   // Estado migración legacy
@@ -221,8 +221,8 @@ export const FiscalYearManager: React.FC = () => {
 
     setCreating(true);
     try {
-      const { copiedSuppliers, copiedApartments } = await createFiscalYear(newYear, newNotes);
-      setCreateResult({ copiedSuppliers, copiedApartments });
+      const { copiedSuppliers, copiedApartments, copiedRecurringExpenses } = await createFiscalYear(newYear, newNotes);
+      setCreateResult({ copiedSuppliers, copiedApartments, copiedRecurringExpenses });
       showToast(`Ejercicio ${newYear} creado correctamente`, 'success');
       setShowCreateModal(false);
       setNewNotes('');
@@ -359,7 +359,7 @@ export const FiscalYearManager: React.FC = () => {
       );
       const total = Object.values(result).reduce((a, b) => a + b, 0);
       showToast(
-        `Migración completada: ${total} documentos asignados al Ejercicio ${activeFiscalYear.year} (${result.invoices} facturas, ${result.entries} asientos, ${result.transactions} transacciones, ${result.reservations} reservas, ${result.suppliers} proveedores, ${result.apartments} apartamentos)`,
+        `Migración completada: ${total} documentos asignados al Ejercicio ${activeFiscalYear.year} (${result.invoices} facturas, ${result.entries} asientos, ${result.transactions} transacciones, ${result.reservations} reservas, ${result.suppliers} proveedores, ${result.apartments} apartamentos, ${result.recurringExpenses} gastos recurrentes)`,
         'success'
       );
       setMigrateProgress('');
@@ -410,8 +410,9 @@ export const FiscalYearManager: React.FC = () => {
           <div>
             <p className="text-sm font-semibold text-emerald-800">Ejercicio creado correctamente</p>
             <p className="text-xs text-emerald-700 mt-1">
-              Se copiaron <strong>{createResult.copiedSuppliers}</strong> proveedores
-              y <strong>{createResult.copiedApartments}</strong> apartamentos del ejercicio anterior.
+              Se copiaron <strong>{createResult.copiedSuppliers}</strong> proveedores,
+              <strong> {createResult.copiedApartments}</strong> apartamentos
+              y <strong>{createResult.copiedRecurringExpenses}</strong> gastos recurrentes del ejercicio anterior.
             </p>
           </div>
         </div>
@@ -649,6 +650,7 @@ export const FiscalYearManager: React.FC = () => {
                       <DepRow label="Reservas" count={deleteDeps.reservations} />
                       <DepRow label="Proveedores" count={deleteDeps.suppliers} />
                       <DepRow label="Apartamentos" count={deleteDeps.apartments} />
+                      <DepRow label="Gastos recurrentes" count={deleteDeps.recurringExpenses} />
                     </div>
                     <p className="text-xs text-red-600 mt-3">
                       Total: <strong>{deleteDeps.total.toLocaleString('es-ES')} documentos</strong> que serán eliminados permanentemente.

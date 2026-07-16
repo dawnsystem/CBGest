@@ -23,14 +23,10 @@
  */
 
 const { Client, Databases, Storage, Query } = require('node-appwrite');
+const { getAppwriteConfig } = require('./load-appwrite-config.cjs');
 
-// Configuration from config/appwrite.ts
-const CONFIG = {
-  endpoint: 'https://fra.cloud.appwrite.io/v1',
-  projectId: 'cbgest',
-  databaseId: '691f288100019843d43e',
-  storageBucketId: '691f31c9000fc8c83ab1',
-};
+// Configuration from env (.env / .env.local) — SEC-008
+const CONFIG = getAppwriteConfig();
 
 // Get API key from environment variable
 const API_KEY = process.env.APPWRITE_API_KEY;
@@ -231,8 +227,9 @@ const EXPECTED_COLLECTIONS = {
       { key: 'isDeductible', type: 'boolean' },
       { key: 'isActive', type: 'boolean' },
       { key: 'notes', type: 'string' },
+      { key: 'fiscalYearId', type: 'string' },
     ],
-    indexes: ['frequency_index', 'apartmentId_index', 'isActive_index'],
+    indexes: ['frequency_index', 'apartmentId_index', 'isActive_index', 'fiscalYearId_index'],
   },
   ai_match_history: {
     name: 'AI Match History',

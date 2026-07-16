@@ -10,6 +10,7 @@ import {
   withRetry,
   notifyError,
   setConnectionHealth,
+  listAllDocumentsPaginated,
 } from './infrastructure';
 import type { BankTransaction } from '../../types';
 
@@ -52,21 +53,20 @@ export async function createTransaction(transaction: BankTransaction): Promise<B
 
 export async function getTransactions(fiscalYearId?: string): Promise<BankTransaction[]> {
   try {
-    const queries: Parameters<typeof databases.listDocuments>[2] = [
-      Query.orderDesc('date'),
-      Query.limit(1000)
-    ];
+    const baseQueries: string[] = [Query.orderDesc('date')];
     if (fiscalYearId) {
-      queries.push(Query.equal('fiscalYearId', fiscalYearId));
+      baseQueries.push(Query.equal('fiscalYearId', fiscalYearId));
     }
-    const response = await withRetry(
-      () => databases.listDocuments(config.databaseId, config.collections.transactions, queries),
+
+    const documents = await listAllDocumentsPaginated(
+      config.collections.transactions,
+      baseQueries,
       'getTransactions'
     );
 
     setConnectionHealth(true);
-    return response.documents.map((doc) => {
-      const transactionDoc = doc as BankTransactionDocument;
+    return documents.map((doc) => {
+      const transactionDoc = doc as unknown as BankTransactionDocument;
       return {
         ...transactionDoc,
         id: transactionDoc.$id,
