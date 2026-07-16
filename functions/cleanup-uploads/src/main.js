@@ -18,14 +18,14 @@ export default async ({ req, res, log, error }) => {
   try {
     const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
 
-    // Find old completed/error uploads
+    // Find old COMPLETED/ERROR uploads (enums must match UploadStatus in types.ts)
     const oldUploads = await databases.listDocuments(
       databaseId,
       uploadsCollection,
       [
         Query.or([
-          Query.equal('status', 'completed'),
-          Query.equal('status', 'error')
+          Query.equal('status', 'COMPLETED'),
+          Query.equal('status', 'ERROR')
         ]),
         Query.lessThan('timestamp', sevenDaysAgo),
         Query.limit(100)

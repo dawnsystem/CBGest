@@ -1,9 +1,13 @@
 import { Client, Databases, Query, ID } from 'node-appwrite';
+import { getActiveFiscalYear } from '../../_shared/fiscal.js';
 
 /**
  * Detect Recurring Expenses Function
  * Analyzes bank transactions to detect recurring expense patterns
  * Schedule: 0 2 1 * * (1st of each month at 2 AM)
+ *
+ * Scoped to the active OPEN fiscal year so suggestions do not mix
+ * transactions from other exercises (BUG-FN-002).
  */
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -15,9 +19,19 @@ export default async ({ req, res, log, error }) => {
   const databaseId = process.env.DATABASE_ID || '691f288100019843d43e';
 
   try {
-    log('Analyzing transactions for recurring patterns...');
+    const activeFiscalYear = await getActiveFiscalYear(databases, databaseId, log);
+    if (!activeFiscalYear?.id) {
+      log('No active fiscal year found, skipping detect-recurring');
+      return res.json({
+        success: true,
+        skipped: true,
+        reason: 'no-active-fiscal-year',
+      });
+    }
 
-    // Get last 6 months of transactions
+    log(`Analyzing transactions for recurring patterns (FY ${activeFiscalYear.year || 'unknown'}, ${activeFiscalYear.id})...`);
+
+    // Get last 6 months of transactions for the active fiscal year only
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -25,6 +39,7 @@ export default async ({ req, res, log, error }) => {
       databaseId,
       'transactions',
       [
+        Query.equal('fiscalYearId', activeFiscalYear.id),
         Query.greaterThan('date', sixMonthsAgo.toISOString().split('T')[0]),
         Query.lessThan('amount', 0), // Only expenses
         Query.orderAsc('date'),
@@ -149,7 +164,7 @@ export default async ({ req, res, log, error }) => {
               supplierId: pattern.supplierId || null,
               isDeductible: true,
               isActive: false, // Inactive until user confirms
-              notes: `Detectado el ${new Date().toISOString().split('T')[0]}. Concepto original: ${pattern.concept}`
+              notes: `Detectado el ${new Date().toISOString().split('T')[0]}. Concepto original: ${pattern.concept}. FY: ${activeFiscalYear.id}`
             }
           );
           created++;
@@ -162,6 +177,7 @@ export default async ({ req, res, log, error }) => {
 
     return res.json({
       success: true,
+      fiscalYearId: activeFiscalYear.id,
       analyzed: transactions.documents.length,
       patternsFound: recurringPatterns.length,
       suggestionsCreated: created,

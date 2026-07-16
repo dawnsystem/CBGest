@@ -44,6 +44,7 @@ vi.mock('node-appwrite', () => ({
     offset: (value: number) => ({ op: 'offset', value }),
     orderAsc: (field: string) => ({ op: 'orderAsc', field }),
     orderDesc: (field: string) => ({ op: 'orderDesc', field }),
+    or: (queries: unknown[]) => ({ op: 'or', queries }),
   },
   ID: {
     unique: () => mockState.idUnique(),
@@ -341,7 +342,41 @@ describe('Appwrite automation functions', () => {
     }));
   });
 
-  it('detect-recurring reads the real "transactions" collection and creates valid recurring_expenses documents', async () => {
+  it('cleanup-uploads queries COMPLETED/ERROR enums (not lowercase legacy values)', async () => {
+    mockState.listDocuments.mockResolvedValueOnce({
+      documents: [{ $id: 'up-1' }, { $id: 'up-2' }],
+    });
+
+    const { default: cleanupUploads } = await import('../cleanup-uploads/src/main.js');
+    const res = makeRes();
+
+    await cleanupUploads({ req: {}, res, log: vi.fn(), error: vi.fn() });
+
+    expect(mockState.listDocuments).toHaveBeenCalledWith(
+      expect.any(String),
+      'uploads',
+      expect.arrayContaining([
+        expect.objectContaining({
+          // Query.or wraps equal(COMPLETED) + equal(ERROR)
+        }),
+      ])
+    );
+
+    const queries = mockState.listDocuments.mock.calls[0][2] as unknown[];
+    const serialized = JSON.stringify(queries);
+    expect(serialized).toContain('COMPLETED');
+    expect(serialized).toContain('ERROR');
+    expect(serialized).not.toContain('"completed"');
+    expect(serialized).not.toContain('"error"');
+    expect(mockState.deleteDocument).toHaveBeenCalledTimes(2);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      found: 2,
+      deleted: 2,
+    }));
+  });
+
+  it('detect-recurring filters transactions by active OPEN fiscal year and creates valid recurring_expenses documents', async () => {
     const baseDate = new Date('2026-01-05');
     const monthlyDates = [0, 1, 2, 3].map(i => {
       const d = new Date(baseDate);
@@ -350,12 +385,14 @@ describe('Appwrite automation functions', () => {
     });
 
     mockState.listDocuments
+      .mockResolvedValueOnce({ documents: [{ $id: 'fy-2026', year: 2026, status: 'OPEN' }] })
       .mockResolvedValueOnce({
         documents: monthlyDates.map(date => ({
           $id: `tx-${date}`,
           date,
           amount: '-45.00',
           concept: 'Cuota Comunidad Propietarios 123',
+          fiscalYearId: 'fy-2026',
         })),
       })
       .mockResolvedValueOnce({ documents: [] }); // existing recurring_expenses
@@ -368,8 +405,18 @@ describe('Appwrite automation functions', () => {
     expect(mockState.listDocuments).toHaveBeenNthCalledWith(
       1,
       expect.any(String),
+      'fiscal_years',
+      expect.arrayContaining([
+        expect.objectContaining({ op: 'equal', field: 'status', value: 'OPEN' }),
+      ])
+    );
+    expect(mockState.listDocuments).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
       'transactions',
-      expect.anything()
+      expect.arrayContaining([
+        expect.objectContaining({ op: 'equal', field: 'fiscalYearId', value: 'fy-2026' }),
+      ])
     );
     expect(mockState.createDocument).toHaveBeenCalledTimes(1);
     const [, collectionId, , payload] = mockState.createDocument.mock.calls[0];
@@ -380,6 +427,26 @@ describe('Appwrite automation functions', () => {
     expect(payload).not.toHaveProperty('createdAt');
     // `frequency` must match the enum defined on the collection.
     expect(['MONTHLY', 'BIMONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL']).toContain(payload.frequency);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      fiscalYearId: 'fy-2026',
+    }));
+  });
+
+  it('detect-recurring skips when there is no OPEN fiscal year', async () => {
+    mockState.listDocuments.mockResolvedValueOnce({ documents: [] });
+
+    const { default: detectRecurring } = await import('../detect-recurring/src/main.js');
+    const res = makeRes();
+
+    await detectRecurring({ req: {}, res, log: vi.fn(), error: vi.fn() });
+
+    expect(mockState.createDocument).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      skipped: true,
+      reason: 'no-active-fiscal-year',
+    }));
   });
 
   it('backup-data backs up the real "entries"/"transactions" collections, not legacy ids', async () => {

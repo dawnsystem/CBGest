@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-15 23:05:00 UTC*
+*Última actualización: 2026-07-16 01:15:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora resueltos). Pendiente push y merge del PR.
+Estado actual: **PR-5 — BUG-FN-001/002 + BUG-AI-001** (#145) en rama `fix/pr5-automations-ai-fn-ai`; cierre vía `Closes #145` al merge.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `BUG-FN-001` + `BUG-FN-002` + `BUG-AI-001` - Automations enums + detect-recurring FY + vatRate confirm:** `cleanup-uploads` consulta `COMPLETED`/`ERROR`. `detect-recurring` filtra por ejercicio OPEN (`getActiveFiscalYear` + `fiscalYearId`) y hace skip si no hay FY. `useInvoiceReview` normaliza `vatRate` (0.21→21) en `startInvoiceReview` y `confirmInvoice`. Issue: #145. Tests focalizados 15 PASS.
 *   **[2026-07-16] - `FIX-140` - Wiring App (recurrentes, settings Dashboard, supplierId):** Corregidos BUG-FY-001 (`fetchForYear` recarga `fetchRecurringExpenses`), BUG-WIRE-001 (Dashboard usa `handleUpdateSettings` en lugar de `setSettings`), BUG-INV-001 (`handleAddInvoice` persiste `supplierId` con `updateInvoice` tras enlazar proveedor). Issue: #140. Validado: lint 0 errores / 2 warnings, test:ci OK, build OK.
 *   **[2026-07-15] - `SEC-016` + `BUG-RT-001` - Auth temporal segura + fuga realtime:** `utils/temporaryPassword.ts` genera secretos ≥128 bits (base64url) y rechaza el patrón legacy `cambiarNNN`. `UserManagement` y `manage-users` validan la política; la function hace rollback (delete) si prefs/labels fallan post-create (BUG-026 parcial) y bloquea admins con `mustChangePassword`. `App.tsx`: no carga datos ni abre realtime mientras hay password temporal pendiente; `unsubscribe` guardado en `useRef` con cleanup real del `useEffect` (Strict Mode / logout). Issues #138/#139. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (307 tests).
 *   **[2026-07-15] - `IEET-001` - Filtro semestral IEET timezone-safe:** Extraídas `getSemesterDateBounds` e `isDateInSemester` en `utils/touristTaxUtils.ts`. `TouristTaxPanel` filtra check-ins y períodos del semestre comparando `YYYY-MM-DD` (sin `Date` local vs UTC). Corrige 1-jul en semestre 1 y 1-ene fuera de semestre. 8 tests unitarios nuevos. Issue #137. Validado: `npm run type-check && npm run lint && npm run test:ci && npm run build` — PASS (294 tests).
@@ -93,6 +94,18 @@ Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora r
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 01:15:00 UTC]
+*   **Directiva del Director:** PR-5 — `[BUG-FN-001][BUG-FN-002][BUG-AI-001]` (#145). Commit/push/PR con `Closes #145`.
+*   **Plan de Acción:** (1) Enums MAYÚSCULAS en cleanup-uploads. (2) Filtro FY OPEN en detect-recurring. (3) Normalizar vatRate en start/confirm. (4) Tests + bitácora solo estos tickets. (5) Rama aislada + PR.
+*   **Log de Acciones:**
+    - `[00:52:00]` - **FIX (BUG-FN-001):** `functions/cleanup-uploads/src/main.js` — `COMPLETED`/`ERROR`.
+    - `[00:53:00]` - **FIX (BUG-FN-002):** `functions/detect-recurring/src/main.js` — `getActiveFiscalYear` + filtro `fiscalYearId`; skip sin FY.
+    - `[00:54:00]` - **FIX (BUG-AI-001):** `hooks/useInvoiceReview.ts` — `normalizeVatRate` en start + confirm + edit.
+    - `[00:55:00]` - **TEST:** `appwrite-automations.test.ts` + `useInvoiceReview.test.ts` — 15 PASS.
+    - `[01:15:00]` - **GIT:** rama `fix/pr5-automations-ai-fn-ai` aislada desde `origin/main`; PR con `Closes #145`.
+*   **Resultado:** Tres medios del #145 corregidos y listos para merge.
+*   **Observaciones:** Working tree del repo principal tenía mezclas de otras PRs; se aisló vía worktree.
+
 ### Sesión: [2026-07-16 00:49:00 UTC]
 *   **Directiva del Director:** `[BUG-FY-001][BUG-WIRE-001][BUG-INV-001] #140`
 *   **Plan de Acción:** (1) Incluir `fetchRecurringExpenses` en `fetchForYear`. (2) Pasar `handleUpdateSettings` al Dashboard. (3) Persistir `supplierId` con `updateInvoice`. (4) Validar lint/test/build y registrar en bitácora.
@@ -734,7 +747,9 @@ Estado actual: **FIX #140 rebased/merged con `main`** (conflictos de bitácora r
 * **BUG-RT-001:** Fuga realtime unsubscribe. Issue: #139. Estado: ✅ Resuelto (PR #151).
 * **CONC-001 / CTB-002 / IEET-002 / FIS-001 / SEC-017 / BUG-024..026:** Altos de wiring, contabilidad, auth. Issues: #141–#143. Estado: Pendiente (BUG-026 parcial vía SEC-016).
 * **BUG-FY-002 / BUG-RES-001 / CTB-003:** Modelo datos / límites. Issue: #144. Estado: Pendiente.
-* **BUG-FN-001 / BUG-FN-002 / BUG-AI-001:** Automations + IVA. Issue: #145. Estado: Pendiente.
+* **BUG-FN-001:** `cleanup-uploads` buscaba `completed`/`error` (minúsculas); la app escribe `COMPLETED`/`ERROR` → no limpiaba Storage. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
+* **BUG-FN-002:** `detect-recurring` analizaba transacciones sin `fiscalYearId` → contaminaba sugerencias del ejercicio activo. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
+* **BUG-AI-001:** `useInvoiceReview.confirmInvoice` podía persistir `vatRate` decimal crudo de Gemini (p. ej. `0.21`); la normalización BUG-014 solo estaba en edit. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **SEC-PEND:** SEC-005..015 (excepto SEC-001 aceptado). Issue: #146. Estado: Pendiente.
 * **MEDIOS residuales:** settings TOCTOU, drafts, toast, realtime, filtros FY. Issue: #147. Estado: Pendiente.
 
