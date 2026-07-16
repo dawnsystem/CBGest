@@ -321,7 +321,7 @@ export const entryHasBankLine = (entry: AccountingEntry): boolean => {
  * @param entry - Asiento contable
  * @returns Importe neto de tesorería
  * @example
- * getBankLineAmount(entryWithTwoBankLines); // debit572 - credit573
+ * getBankLineAmount(entryWithTwoBankLines); // suma netos 572+573…
  */
 export const getBankLineAmount = (entry: AccountingEntry): number => {
   const lines = getEntryLines(entry);

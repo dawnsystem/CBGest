@@ -176,4 +176,43 @@ describe('Toast System', () => {
     const alerts = screen.getAllByRole('alert');
     expect(alerts.length).toBe(5);
   });
+
+  it('BUG-TOAST-001: nuevo showConfirm resuelve false el confirm previo', async () => {
+    let toastApi: ReturnType<typeof useToast>;
+    let firstResult: boolean | undefined;
+    let secondResult: boolean | undefined;
+
+    render(
+      <ToastProvider>
+        <TestConsumer onMount={(api) => { toastApi = api; }} />
+      </ToastProvider>
+    );
+
+    let firstPromise!: Promise<boolean>;
+    act(() => {
+      firstPromise = toastApi!.showConfirm('Primero');
+      void firstPromise.then(r => { firstResult = r; });
+    });
+
+    let secondPromise!: Promise<boolean>;
+    act(() => {
+      secondPromise = toastApi!.showConfirm('Segundo');
+      void secondPromise.then(r => { secondResult = r; });
+    });
+
+    await act(async () => {
+      await firstPromise;
+    });
+
+    expect(firstResult).toBe(false);
+    expect(screen.getByText('Segundo')).toBeInTheDocument();
+    expect(screen.queryByText('Primero')).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Confirmar'));
+      await secondPromise;
+    });
+
+    expect(secondResult).toBe(true);
+  });
 });

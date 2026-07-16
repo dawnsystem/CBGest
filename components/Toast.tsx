@@ -174,9 +174,21 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     []
   );
 
+  /**
+   * Muestra un diálogo de confirmación.
+   * Si ya hay uno abierto, resuelve el anterior en `false` antes de sustituirlo (BUG-TOAST-001).
+   *
+   * @param message - Texto del diálogo
+   * @returns Promise que resuelve true/false según la acción del usuario
+   */
   const showConfirm = useCallback((message: string): Promise<boolean> => {
     return new Promise(resolve => {
-      setConfirm({ message, resolve });
+      setConfirm(prev => {
+        if (prev) {
+          prev.resolve(false);
+        }
+        return { message, resolve };
+      });
     });
   }, []);
 

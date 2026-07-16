@@ -167,6 +167,13 @@ const MainLayout: React.FC = () => {
   const [isDataLayerInitialized, setIsDataLayerInitialized] = useState(false);
   // BUG-RT-001: store realtime unsubscribe so the useEffect cleanup can actually call it.
   const realtimeUnsubscribeRef = useRef<(() => void) | null>(null);
+  // BUG-RT-002: fiscal year id for filtered re-fetch after realtime cache invalidate.
+  const activeFiscalYearIdRef = useRef<string | undefined>(
+    activeFiscalYear?.appwriteId || activeFiscalYear?.id
+  );
+  useEffect(() => {
+    activeFiscalYearIdRef.current = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
+  }, [activeFiscalYear]);
 
   // --- DATA LAYER INITIALIZATION & REALTIME ---
   // NOTE: This effect depends on `user`, `sessionReady` and `mustChangePassword` to ensure:
@@ -346,30 +353,69 @@ const MainLayout: React.FC = () => {
 
               if (cancelled) return;
 
-              // 2. REALTIME SUBSCRIPTION - OPTIMIZED
-              // Instead of fetching all data on every change (which causes rate limiting),
-              // we invalidate the cache and let the next user action trigger a fresh fetch.
+              // 2. REALTIME SUBSCRIPTION (BUG-RT-002)
+              // Invalidate cache AND re-fetch filtered data into React state so multi-tab/UI stays fresh.
               // BUG-RT-001: keep unsubscribe in a ref; cleanup belongs to the useEffect return.
               const unsubscribe = appwriteService.subscribeToChanges((payload) => {
-                  if (payload.events.some((e:string) => e.includes('.create') || e.includes('.update') || e.includes('.delete'))) {
-                      // Import cache dynamically to avoid circular deps
-                      import('./lib/appwrite/cache').then(({ cache }) => {
-                          console.warn('[Realtime] Change detected, invalidating cache...');
-                          // Invalidate relevant collections based on event
-                          if (payload.events.some((e:string) => e.includes('invoices'))) {
-                              cache.invalidateCollection('invoices');
-                          }
-                          if (payload.events.some((e:string) => e.includes('entries'))) {
-                              cache.invalidateCollection('entries');
-                          }
-                          if (payload.events.some((e:string) => e.includes('transactions'))) {
-                              cache.invalidateCollection('transactions');
-                          }
-                          if (payload.events.some((e:string) => e.includes('suppliers'))) {
-                              cache.invalidateCollection('suppliers');
-                          }
-                      });
+                  if (!payload.events.some((e: string) => e.includes('.create') || e.includes('.update') || e.includes('.delete'))) {
+                      return;
                   }
+                  const fyId = activeFiscalYearIdRef.current;
+                  void import('./lib/appwrite/cache').then(async ({ cache }) => {
+                      console.warn('[Realtime] Change detected, invalidating cache + refreshing state...');
+                      const events = payload.events as string[];
+                      const tasks: Promise<void>[] = [];
+
+                      if (events.some((e: string) => e.includes('invoices'))) {
+                          cache.invalidateCollection('invoices');
+                          tasks.push(
+                            appwriteService.fetchInvoices(fyId)
+                              .then((data) => { if (!cancelled) setInvoices(data); })
+                              .catch((err) => console.warn('[Realtime] invoices refresh failed:', err))
+                          );
+                      }
+                      if (events.some((e: string) => e.includes('entries'))) {
+                          cache.invalidateCollection('entries');
+                          tasks.push(
+                            appwriteService.fetchEntries(fyId)
+                              .then((data) => { if (!cancelled) setAccountingEntries(data); })
+                              .catch((err) => console.warn('[Realtime] entries refresh failed:', err))
+                          );
+                      }
+                      if (events.some((e: string) => e.includes('transactions'))) {
+                          cache.invalidateCollection('transactions');
+                          tasks.push(
+                            appwriteService.fetchTransactions(fyId)
+                              .then((data) => { if (!cancelled) setBankTransactions(data); })
+                              .catch((err) => console.warn('[Realtime] transactions refresh failed:', err))
+                          );
+                      }
+                      if (events.some((e: string) => e.includes('suppliers'))) {
+                          cache.invalidateCollection('suppliers');
+                          tasks.push(
+                            appwriteService.fetchSuppliers(fyId)
+                              .then((data) => { if (!cancelled) setSuppliers(data); })
+                              .catch((err) => console.warn('[Realtime] suppliers refresh failed:', err))
+                          );
+                      }
+                      if (events.some((e: string) => e.includes('apartments'))) {
+                          cache.invalidateCollection('apartments');
+                          tasks.push(
+                            appwriteService.fetchApartments(fyId)
+                              .then((data) => { if (!cancelled) setApartments(data); })
+                              .catch((err) => console.warn('[Realtime] apartments refresh failed:', err))
+                          );
+                      }
+                      if (events.some((e: string) => e.includes('reservations'))) {
+                          cache.invalidateCollection('reservations');
+                          tasks.push(
+                            appwriteService.fetchReservations(fyId)
+                              .then((data) => { if (!cancelled) setReservations(data); })
+                              .catch((err) => console.warn('[Realtime] reservations refresh failed:', err))
+                          );
+                      }
+                      await Promise.all(tasks);
+                  });
               });
 
               if (cancelled) {
@@ -431,7 +477,7 @@ const MainLayout: React.FC = () => {
           appwriteService.fetchTransactions(fyId).catch((e) => { console.warn('Failed to fetch transactions on year change:', e); return []; }),
           appwriteService.fetchSuppliers(fyId).catch((e) => { console.warn('Failed to fetch suppliers on year change:', e); return []; }),
           appwriteService.fetchApartments(fyId).catch((e) => { console.warn('Failed to fetch apartments on year change:', e); return []; }),
-          appwriteService.fetchRecurringExpenses(fyId).catch((e) => { console.warn('Failed to fetch recurring expenses on year change:', e); return []; }),
+          appwriteService.fetchRecurringExpenses().catch((e) => { console.warn('Failed to fetch recurring expenses on year change:', e); return []; }),
           appwriteService.fetchReservations(fyId).catch((e) => { console.warn('Failed to fetch reservations on year change:', e); return []; }),
         ]);
 
