@@ -9,6 +9,7 @@ import {
   sortPeriodsByDate,
   getSemesterDateBounds,
   isDateInSemester,
+  calculateConsecutiveStayTaxUnits,
 } from '../touristTaxUtils';
 import type { FiscalYear, TouristTaxConfig, TouristTaxPeriod } from '../../types';
 
@@ -361,5 +362,101 @@ describe('isDateInSemester (IEET-001 timezone-safe)', () => {
     expect(isDateInSemester(null, 2026, 1)).toBe(false);
     expect(isDateInSemester('', 2026, 1)).toBe(false);
     expect(isDateInSemester('not-a-date', 2026, 1)).toBe(false);
+  });
+});
+
+// ============================================================================
+// calculateConsecutiveStayTaxUnits (IEET-002)
+// ============================================================================
+
+describe('calculateConsecutiveStayTaxUnits (IEET-002 huéspedes por reserva)', () => {
+  it('sums nights_i × guests_i when occupancy increases across consecutive stays', () => {
+    // Old bug: Math.max(2,4) × min(10,7) = 28
+    // Correct: 5×2 + 2×4 = 18 (only 7 nights taxable)
+    const result = calculateConsecutiveStayTaxUnits(
+      [
+        { nights: 5, numberOfGuests: 2 },
+        { nights: 5, numberOfGuests: 4 },
+      ],
+      7,
+      1,
+      true
+    );
+    expect(result.totalNights).toBe(10);
+    expect(result.taxableNights).toBe(7);
+    expect(result.taxableUnits).toBe(18);
+    expect(result.peakGuests).toBe(4);
+    expect(result.totalTax).toBe(18);
+  });
+
+  it('sums nights_i × guests_i when occupancy decreases', () => {
+    // Old bug: Math.max(4,2) × 7 = 28
+    // Correct: 5×4 + 2×2 = 24
+    const result = calculateConsecutiveStayTaxUnits(
+      [
+        { nights: 5, numberOfGuests: 4 },
+        { nights: 5, numberOfGuests: 2 },
+      ],
+      7,
+      1,
+      true
+    );
+    expect(result.taxableUnits).toBe(24);
+    expect(result.totalTax).toBe(24);
+  });
+
+  it('matches nights × guests for a single reservation', () => {
+    const result = calculateConsecutiveStayTaxUnits(
+      [{ nights: 3, numberOfGuests: 2, numberOfChildren: 1 }],
+      7,
+      2.5,
+      true
+    );
+    expect(result.taxableNights).toBe(3);
+    expect(result.taxableUnits).toBe(6);
+    expect(result.exemptUnits).toBe(3);
+    expect(result.totalTax).toBe(15);
+  });
+
+  it('caps at maxNights within a single long stay', () => {
+    const result = calculateConsecutiveStayTaxUnits(
+      [{ nights: 14, numberOfGuests: 2 }],
+      7,
+      1,
+      true
+    );
+    expect(result.taxableNights).toBe(7);
+    expect(result.taxableUnits).toBe(14);
+  });
+
+  it('returns zero tax when period is disabled', () => {
+    const result = calculateConsecutiveStayTaxUnits(
+      [{ nights: 3, numberOfGuests: 2 }],
+      7,
+      1,
+      false
+    );
+    expect(result.taxableUnits).toBe(6);
+    expect(result.totalTax).toBe(0);
+  });
+
+  it('handles empty segments', () => {
+    const result = calculateConsecutiveStayTaxUnits([], 7, 1, true);
+    expect(result).toEqual({
+      totalNights: 0,
+      taxableNights: 0,
+      peakGuests: 0,
+      peakChildren: 0,
+      taxableUnits: 0,
+      exemptUnits: 0,
+      totalTax: 0,
+    });
+  });
+
+  it('defaults missing guests to 1 and children to 0', () => {
+    const result = calculateConsecutiveStayTaxUnits([{ nights: 2 }], 7, 1, true);
+    expect(result.taxableUnits).toBe(2);
+    expect(result.peakGuests).toBe(1);
+    expect(result.exemptUnits).toBe(0);
   });
 });
