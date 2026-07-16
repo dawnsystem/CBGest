@@ -23,6 +23,10 @@ function parseIsoDate(dateValue: string): Date | null {
 
 /**
  * Calcula los datos fiscales IRPF a partir de las facturas del ejercicio y periodo activo.
+ *
+ * FIS-001 — Criterio de importe por régimen (simétrico ingresos/gastos):
+ * - `ALQUILER_EXENTO`: `totalAmount` (modelo IRPF simplificado; alineado con asientos y Modelo 184).
+ * - `GENERAL`: `baseAmount` (IVA fuera de la base).
  */
 export function calculateTaxData(
   invoices: Invoice[],
@@ -51,18 +55,21 @@ export function calculateTaxData(
     return invoiceDate >= start && invoiceDate <= end;
   });
 
+  // FIS-001: unificar criterio ingresos/gastos por régimen.
+  // - ALQUILER_EXENTO (IRPF simplificado, sin IVA deducible): `totalAmount` en ambos
+  //   (alineado con asientos, Modelo 184 y calculate-profitability).
+  // - GENERAL: `baseAmount` en ambos (IVA fuera de la base IRPF).
+  const useTotalAmount = settings.fiscalRegime === 'ALQUILER_EXENTO';
+  const amountOf = (invoice: Invoice): number =>
+    useTotalAmount ? (invoice.totalAmount || 0) : (invoice.baseAmount || 0);
+
   const totalIngresos = validInvoices
     .filter(i => i.type === 'INCOME')
-    .reduce((acc, curr) => acc + (curr.baseAmount || 0), 0);
+    .reduce((acc, curr) => acc + amountOf(curr), 0);
 
   const totalGastos = validInvoices
     .filter(i => i.type === 'EXPENSE')
-    .reduce((acc, curr) => {
-      if (settings.fiscalRegime === 'ALQUILER_EXENTO') {
-        return acc + (curr.totalAmount || 0);
-      }
-      return acc + (curr.baseAmount || 0);
-    }, 0);
+    .reduce((acc, curr) => acc + amountOf(curr), 0);
 
   const rendimientoNeto = totalIngresos - totalGastos;
 
