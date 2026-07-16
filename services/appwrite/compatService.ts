@@ -97,6 +97,7 @@ export const databaseService = {
   updateFiscalYearTouristTax: fiscalYearSvc.updateFiscalYearTouristTax,
   migrateLegacyData: fiscalYearSvc.migrateLegacyData,
   copyMasterDataToFiscalYear: fiscalYearSvc.copyMasterDataToFiscalYear,
+  diagnoseFiscalYearVisibility: fiscalYearSvc.diagnoseFiscalYearVisibility,
   getFiscalYearDependencies: fiscalYearSvc.getFiscalYearDependencies,
   deleteFiscalYear: fiscalYearSvc.deleteFiscalYear,
   deleteFiscalYearCascade: fiscalYearSvc.deleteFiscalYearCascade,
@@ -204,6 +205,8 @@ export const deleteFiscalYearCascade = (
 ) => databaseService.deleteFiscalYearCascade(fiscalYearId, onProgress);
 export const migrateLegacyData = (fiscalYearId: string, onProgress?: (done: number, total: number) => void) =>
   databaseService.migrateLegacyData(fiscalYearId, onProgress);
+export const diagnoseFiscalYearVisibility = (fiscalYearId: string) =>
+  databaseService.diagnoseFiscalYearVisibility(fiscalYearId);
 export const copyMasterDataToFiscalYear = (
   sourceFiscalYearId: string,
   targetFiscalYearId: string,
