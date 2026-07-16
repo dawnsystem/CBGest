@@ -1,7 +1,43 @@
 import { describe, it, expect } from 'vitest';
-import { ACCOUNT_PLAN } from '../accountingPlan';
+import { ACCOUNT_PLAN, isDebitNatureAccount, getBankLineAmount } from '../accountingPlan';
 
 describe('accountingPlan', () => {
+  describe('isDebitNatureAccount (CTB-002)', () => {
+    it('treats groups 1,2,3,5,6 as debit nature', () => {
+      expect(isDebitNatureAccount('100')).toBe(true);
+      expect(isDebitNatureAccount('200')).toBe(true);
+      expect(isDebitNatureAccount('300')).toBe(true);
+      expect(isDebitNatureAccount('572')).toBe(true);
+      expect(isDebitNatureAccount('628')).toBe(true);
+    });
+
+    it('treats 43x/44x clients and debtors as debit nature', () => {
+      expect(isDebitNatureAccount('430')).toBe(true);
+      expect(isDebitNatureAccount('440')).toBe(true);
+    });
+
+    it('treats 460 and 470–474 as debit nature', () => {
+      expect(isDebitNatureAccount('460')).toBe(true);
+      expect(isDebitNatureAccount('470')).toBe(true);
+      expect(isDebitNatureAccount('4700')).toBe(true);
+      expect(isDebitNatureAccount('471')).toBe(true);
+      expect(isDebitNatureAccount('472')).toBe(true);
+      expect(isDebitNatureAccount('4720')).toBe(true);
+      expect(isDebitNatureAccount('473')).toBe(true);
+      expect(isDebitNatureAccount('474')).toBe(true);
+    });
+
+    it('keeps supplier and tax payable accounts as credit nature', () => {
+      expect(isDebitNatureAccount('400')).toBe(false);
+      expect(isDebitNatureAccount('410')).toBe(false);
+      expect(isDebitNatureAccount('465')).toBe(false);
+      expect(isDebitNatureAccount('475')).toBe(false);
+      expect(isDebitNatureAccount('476')).toBe(false);
+      expect(isDebitNatureAccount('477')).toBe(false);
+      expect(isDebitNatureAccount('705')).toBe(false);
+    });
+  });
+
   describe('ACCOUNT_PLAN structure', () => {
     it('should be an array', () => {
       expect(Array.isArray(ACCOUNT_PLAN)).toBe(true);

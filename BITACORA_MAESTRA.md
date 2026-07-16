@@ -11,6 +11,7 @@
 Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `fix/pr4-fy-reservas-ctb003`; merge con `Closes #144`.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `CONC-001` + `CTB-002` - Conciliación por signo + naturaleza deudora 470–474:** Matching via `findReconciliationMatches`/`isSignCompatibleMatch` (cargo↔400/6xx, abono↔430/7xx; excluye `isDraft`). `isDebitNatureAccount` amplía 460 y 470–474. Issue: #141. Tests 46 PASS.
 *   **[2026-07-16] - `FIX-144` - FY recurrentes + reservas parciales + límite 1000:** BUG-FY-002: `RecurringExpense.fiscalYearId`, filtro en `getRecurringExpenses`, `withFiscalYearId` al crear, copia/remap `apartmentId`/`supplierId` en `copyMasterDataToFiscalYear`, migrate/deps/cascade. BUG-RES-001: `createReservations` → `{created,failed}` + UI elimina fantasmas. CTB-003: cursor pagination en `getEntries`/`getTransactions` via `listAllDocumentsPaginated`. Issue: #144. Tests focalizados 23 PASS; type-check OK.
 *   **[2026-07-16] - `BUG-FN-001` + `BUG-FN-002` + `BUG-AI-001` - Automations enums + detect-recurring FY + vatRate confirm:** `cleanup-uploads` consulta `COMPLETED`/`ERROR`. `detect-recurring` filtra por ejercicio OPEN (`getActiveFiscalYear` + `fiscalYearId`) y hace skip si no hay FY. `useInvoiceReview` normaliza `vatRate` (0.21→21) en `startInvoiceReview` y `confirmInvoice`. Issue: #145. Tests focalizados 15 PASS.
 *   **[2026-07-16] - `IEET-002` + `FIS-001` - Huéspedes IEET por reserva + IRPF simétrico base/total:** Extraída `calculateConsecutiveStayTaxUnits` (Σ noches_i×huéspedes_i con tope `maxNights` a nivel grupo). `TouristTaxPanel` la usa. `calculateTaxData`: `ALQUILER_EXENTO`→`totalAmount` simétrico; `GENERAL`→`baseAmount`. Dashboard chart alineado. Issue: #142. Tests focalizados PASS.
@@ -96,6 +97,10 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 10:40:00 UTC]
+*   **Directiva:** PR-1 `[CONC-001][CTB-002]` (#141). Rama `fix/pr1-conc-ctb002`.
+*   **Resultado:** Worktree aislado desde origin/main; `Closes #141`.
+
 ### Sesión: [2026-07-16 08:20:00 UTC]
 *   **Directiva del Director:** PR-4 — `[BUG-FY-002][BUG-RES-001][CTB-003]` (#144). Commit/push/PR con `Closes #144`.
 *   **Plan de Acción:** (1) Aislar archivos en `fix/pr4-fy-reservas-ctb003`. (2) Commit + push + PR. (3) Auto-merge si posible.
@@ -776,7 +781,8 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 * **SEC-016:** Password temporal ~900 valores + gate solo UI. Severidad: **CRÍTICO**. Issue: #138. Estado: ✅ Resuelto (PR #151).
 * **BUG-FY-001 / BUG-WIRE-001 / BUG-INV-001:** Wiring App (recurrentes, settings Dashboard, supplierId). Issue: #140. Estado: ✅ Resuelto (FIX-140, rama `fix/issue-140-wiring-bugs`).
 * **BUG-RT-001:** Fuga realtime unsubscribe. Issue: #139. Estado: ✅ Resuelto (PR #151).
-* **CONC-001 / CTB-002:** Conciliación por signo + naturaleza deudora 470–474. Issue: #141. Estado: Pendiente.
+* **CONC-001:** Matching por valor absoluto (cargo/abono invertidos). Issue: #141. Estado: ✅ Resuelto (PR-1).
+* **CTB-002:** `isDebitNatureAccount` sin 460/470–474. Issue: #141. Estado: ✅ Resuelto (PR-1).
 * **IEET-002:** Huéspedes IEET por reserva (`Math.max`×noches). Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
 * **FIS-001:** Asimetría IRPF base/total en `ALQUILER_EXENTO`. Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
 * **SEC-017 / BUG-024..026:** Altos auth. Issue: #143. Estado: Pendiente (BUG-026 parcial vía SEC-016).
