@@ -247,4 +247,36 @@ describe('accountingPlan', () => {
       });
     });
   });
+
+  describe('getBankLineAmount (CONC-002)', () => {
+    it('sums all treasury lines, not only the first', () => {
+      const entry = {
+        id: 'e1',
+        date: '2026-01-01',
+        concept: 'Traspaso',
+        reconciled: false,
+        lines: [
+          { accountCode: '572', accountName: 'Banco A', debit: 100, credit: 0 },
+          { accountCode: '573', accountName: 'Banco B', debit: 0, credit: 40 },
+          { accountCode: '572', accountName: 'Banco A', debit: 10, credit: 0 },
+        ],
+      };
+      expect(getBankLineAmount(entry as never)).toBe(70);
+    });
+
+    it('returns 0 when there is no treasury line', () => {
+      const entry = {
+        id: 'e2',
+        date: '2026-01-01',
+        concept: 'Gasto',
+        reconciled: false,
+        lines: [
+          { accountCode: '628', accountName: 'Suministros', debit: 50, credit: 0 },
+          { accountCode: '400', accountName: 'Proveedores', debit: 0, credit: 50 },
+        ],
+      };
+      expect(getBankLineAmount(entry as never)).toBe(0);
+    });
+  });
+
 });

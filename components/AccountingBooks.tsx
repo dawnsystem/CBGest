@@ -83,11 +83,12 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
     return matchStartDate && matchEndDate && matchAccount;
   });
 
-  // Calculate totals
+  // Calculate totals — CTB-004: excluir borradores del Debe/Haber del diario
   const totals = useMemo(() => {
     let totalDebit = 0;
     let totalCredit = 0;
     filteredEntries.forEach(entry => {
+      if (entry.isDraft) return;
       const entryTotals = calculateEntryTotals(entry);
       totalDebit += entryTotals.totalDebit;
       totalCredit += entryTotals.totalCredit;
@@ -152,6 +153,19 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
           [field]: strValue
         };
       }
+    } else if (field === 'debit') {
+      // CTB-005: una línea no puede tener Debe y Haber a la vez
+      newLines[index] = {
+        ...newLines[index],
+        debit: Number(value) || 0,
+        credit: 0,
+      };
+    } else if (field === 'credit') {
+      newLines[index] = {
+        ...newLines[index],
+        credit: Number(value) || 0,
+        debit: 0,
+      };
     } else {
       newLines[index] = {
         ...newLines[index],
@@ -194,6 +208,12 @@ export const AccountingBooks: React.FC<AccountingBooksProps> = ({
 
     if (validLines.length < 2) {
       showToast('El asiento necesita al menos 2 líneas con cuenta e importe.', 'warning');
+      return;
+    }
+
+    // CTB-005: rechazar líneas con Debe y Haber simultáneos
+    if (validLines.some(l => l.debit > 0 && l.credit > 0)) {
+      showToast('Una línea no puede tener importe en Debe y Haber a la vez.', 'warning');
       return;
     }
 

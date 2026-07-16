@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, Award, ArrowUpRight, ArrowDownRight, Minus } 
 import { Invoice, Apartment, RecurringExpense, Reservation } from '../types';
 import { ChartWrapper } from './ChartWrapper';
 import { useFiscalYear } from '../context/FiscalYearContext';
+import { matchesActiveFiscalPeriod, type PeriodFilter } from '../utils/fiscalPeriodFilter';
 
 interface ProfitabilityByApartmentProps {
   invoices: Invoice[];
@@ -11,8 +12,6 @@ interface ProfitabilityByApartmentProps {
   recurringExpenses: RecurringExpense[];
   reservations?: Reservation[]; // Optional - for accurate income per apartment
 }
-
-type PeriodFilter = 'month' | 'quarter' | 'year' | 'all';
 
 interface ApartmentMetrics {
   apartment: Apartment | null; // null for common/unassigned
@@ -53,71 +52,37 @@ export const ProfitabilityByApartment: React.FC<ProfitabilityByApartmentProps> =
 
   // Active fiscal year number; fall back to real current year
   const activeYear = activeFiscalYear?.year ?? new Date().getFullYear();
+  const activeFiscalYearId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
 
-  // Filter reservations by period
+  // Filter reservations by period (BUG-FILT-001: prefer fiscalYearId)
   const filteredReservations = useMemo(() => {
     if (!reservations || reservations.length === 0) return [];
 
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth();
-    const currentQuarter = Math.floor(currentMonth / 3);
-
     return reservations.filter(res => {
-      // Exclude cancelled reservations
       if (res.status === 'Cancelled') return false;
-
-      const resDate = new Date(res.checkIn);
-      // Skip reservations with invalid dates
-      if (isNaN(resDate.getTime())) return false;
-
-      const resYear = resDate.getFullYear();
-      const resMonth = resDate.getMonth();
-      const resQuarter = Math.floor(resMonth / 3);
-
-      switch (periodFilter) {
-        case 'month':
-          return resYear === activeYear && resMonth === currentMonth;
-        case 'quarter':
-          return resYear === activeYear && resQuarter === currentQuarter;
-        case 'year':
-          return resYear === activeYear;
-        case 'all':
-        default:
-          return true;
-      }
+      return matchesActiveFiscalPeriod({
+        fiscalYearId: res.fiscalYearId,
+        dateStr: res.checkIn,
+        activeFiscalYearId,
+        activeYear,
+        periodFilter,
+      });
     });
-  }, [reservations, periodFilter, activeYear]);
+  }, [reservations, periodFilter, activeYear, activeFiscalYearId]);
 
-  // Filter invoices by period
+  // Filter invoices by period (BUG-FILT-001: prefer fiscalYearId)
   const filteredInvoices = useMemo(() => {
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth();
-    const currentQuarter = Math.floor(currentMonth / 3);
-
     return invoices.filter(inv => {
       if (inv.status === 'PENDING') return false;
-
-      const invDate = new Date(inv.date);
-      // Skip invoices with invalid dates
-      if (isNaN(invDate.getTime())) return false;
-
-      const invYear = invDate.getFullYear();
-      const invMonth = invDate.getMonth();
-      const invQuarter = Math.floor(invMonth / 3);
-
-      switch (periodFilter) {
-        case 'month':
-          return invYear === activeYear && invMonth === currentMonth;
-        case 'quarter':
-          return invYear === activeYear && invQuarter === currentQuarter;
-        case 'year':
-          return invYear === activeYear;
-        case 'all':
-        default:
-          return true;
-      }
+      return matchesActiveFiscalPeriod({
+        fiscalYearId: inv.fiscalYearId,
+        dateStr: inv.date,
+        activeFiscalYearId,
+        activeYear,
+        periodFilter,
+      });
     });
-  }, [invoices, periodFilter, activeYear]);
+  }, [invoices, periodFilter, activeYear, activeFiscalYearId]);
 
   // Calculate metrics by apartment
   const apartmentMetrics = useMemo(() => {

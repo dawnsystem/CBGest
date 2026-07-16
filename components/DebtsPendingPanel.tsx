@@ -67,10 +67,9 @@ export const DebtsPendingPanel: React.FC<DebtsPendingPanelProps> = ({ entries })
             ? (line.debit - line.credit)
             : (line.credit - line.debit);
 
-          totalBalance += lineBalance;
-
-          // Only show entries not yet reconciled
+          // CTB-006: total y lista usan el mismo criterio (solo no conciliados)
           if (!entry.reconciled && lineBalance !== 0) {
+            totalBalance += lineBalance;
             items.push({
               entryId: entry.id,
               date: entry.date,

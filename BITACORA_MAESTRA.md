@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 08:25:00 UTC*
+*Última actualización: 2026-07-16 10:30:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `fix/pr4-fy-reservas-ctb003`; merge con `Closes #144`.
+Estado actual: **PR-7 — MEDIOS residuales #147** en rama `fix/pr7-medios-residual`; issue #147 permanece abierto (cierre parcial).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-16] - `MEDIOS-147` - Settings/drafts/toast/realtime/filtros FY:** Cerrados BUG-027/028/029/030, CTB-004/005/006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001. Settings: mapeo limpio + ID fijo `app_settings` + revert sync. Drafts: totales sin borradores, Debe/Haber mutuamente excluyentes, deudas alineadas, matching sin drafts, suma multi-línea 57x. Toast resuelve confirm previo. Realtime re-fetch a React state. Charts por `fiscalYearId`. Issue: #147 (parcial). Tests focalizados PASS.
 *   **[2026-07-16] - `SEC-017` + `BUG-024` + `BUG-025` + `BUG-026` - Auth functions + rateLimiter:** `manage-users`: guardas SEC-017 en `updateLabels` (no auto-degradación, ≥1 admin); paginación BUG-025 (`listAllUsers`); rollback BUG-026 en create. `rateLimiter`: relanzar `processQueue` en `finally` (BUG-024). Issue #143. Tests focalizados 5 PASS.
 *   **[2026-07-16] - `CONC-001` + `CTB-002` - Conciliación por signo + naturaleza deudora 470–474:** Matching via `findReconciliationMatches`/`isSignCompatibleMatch` (cargo↔400/6xx, abono↔430/7xx; excluye `isDraft`). `isDebitNatureAccount` amplía 460 y 470–474. Issue: #141. Tests 46 PASS.
 *   **[2026-07-16] - `FIX-144` - FY recurrentes + reservas parciales + límite 1000:** BUG-FY-002: `RecurringExpense.fiscalYearId`, filtro en `getRecurringExpenses`, `withFiscalYearId` al crear, copia/remap `apartmentId`/`supplierId` en `copyMasterDataToFiscalYear`, migrate/deps/cascade. BUG-RES-001: `createReservations` → `{created,failed}` + UI elimina fantasmas. CTB-003: cursor pagination en `getEntries`/`getTransactions` via `listAllDocumentsPaginated`. Issue: #144. Tests focalizados 23 PASS; type-check OK.
@@ -98,9 +99,18 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-16 10:30:00 UTC]
+*   **Directiva del Director:** PR-7 — commit/push/PR deuda MEDIOS (#147). Sin `Closes #147`.
+*   **Log de Acciones:**
+    - `[10:28:00]` - **GIT:** Rama `fix/pr7-medios-residual` desde `origin/main` con diff aislado PR-7.
+    - `[10:29:00]` - **TEST:** settingsService, fiscalPeriodFilter, Toast, accountingPlan CONC-002 — PASS.
+    - `[10:30:00]` - **DOC:** Bitácora MEDIOS #147; PR + comentario en issue #147.
+*   **Resultado:** PR-7 lista para merge. #147 parcial (quedan SEC-018, RO-001, BUG-ARCH-001, BUG-UI-001, DEBT-019..021).
+
 ### Sesión: [2026-07-16 10:40:00 UTC]
 *   **Directiva:** PR-1 `[CONC-001][CTB-002]` (#141). Rama `fix/pr1-conc-ctb002`.
 *   **Resultado:** Worktree aislado desde origin/main; `Closes #141`.
+
 
 ### Sesión: [2026-07-16 08:20:00 UTC]
 *   **Directiva del Director:** PR-4 — `[BUG-FY-002][BUG-RES-001][CTB-003]` (#144). Commit/push/PR con `Closes #144`.
@@ -773,6 +783,21 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 
 * **BUG-CTB-002:** `AccountLedger.tsx:97` — Cálculo de saldo corriente incorrecto para cuenta 430 (Clientes). La condición `isDebitNature` incluye grupos 1,2,3,5,6 pero no el grupo 43 (Clientes), que es de naturaleza DEUDORA. Las cuentas 430 se calculan con la rama "acreedora" por defecto (rama else), mostrando el saldo acumulado invertido. Severidad: **MEDIO**. Estado: ✅ Resuelto (TSK-048).
 
+### 🟡 MEDIOS residuales AUDIT-013 — Issue #147 (2026-07-16)
+
+* **BUG-027:** `getSettings`/`saveSettings` spread de metadatos Appwrite. Severidad: **MEDIO**. Estado: ✅ Resuelto — `mapSettingsDocument` + `buildSettingsPayload`.
+* **BUG-028:** TOCTOU doble documento settings. Severidad: **MEDIO**. Estado: ✅ Resuelto — ID fijo `app_settings` + manejo 409.
+* **BUG-029:** `useAppSettings` descartaba fix de partners si `dataConfig` igual. Severidad: **MEDIO**. Estado: ✅ Resuelto.
+* **BUG-030:** save settings sin revert ni error UI. Severidad: **MEDIO**. Estado: ✅ Resuelto — revert + throw + toast en Settings.
+* **CTB-004:** Totales Libro Diario incluían drafts. Severidad: **MEDIO**. Estado: ✅ Resuelto.
+* **CTB-005:** Línea con Debe y Haber simultáneos. Severidad: **MEDIO**. Estado: ✅ Resuelto.
+* **CTB-006:** Deudas: total vs lista criterios distintos. Severidad: **MEDIO**. Estado: ✅ Resuelto — solo no conciliados.
+* **CONC-002:** `getBankLineAmount` solo primera línea 57x. Severidad: **MEDIO**. Estado: ✅ Resuelto — suma todas.
+* **CONC-003:** Matching/movimientos con drafts. Severidad: **MEDIO**. Estado: ✅ Resuelto — filtro `!isDraft` en movimientos 57x.
+* **BUG-TOAST-001:** `showConfirm` sustituye sin resolve previo. Severidad: **MEDIO**. Estado: ✅ Resuelto.
+* **BUG-RT-002:** Realtime solo invalidaba caché. Severidad: **MEDIO**. Estado: ✅ Resuelto — re-fetch filtrado a state.
+* **BUG-FILT-001:** Charts por año calendario vs `fiscalYearId`. Severidad: **MEDIO**. Estado: ✅ Resuelto — `utils/fiscalPeriodFilter.ts`.
+
 ### 🟣 AUDITORÍA 2026-07-16 (AUDIT-013) — Nuevos hallazgos abiertos
 
 > Orden de corrección: Fase 0 → 5. Issues: [#135–#147](https://github.com/dawnsystem/CBGest/issues?q=label%3Aaudit-2026-07).
@@ -787,8 +812,8 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 * **CTB-002:** `isDebitNatureAccount` sin 460/470–474. Issue: #141. Estado: ✅ Resuelto (PR-1).
 * **IEET-002:** Huéspedes IEET por reserva (`Math.max`×noches). Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
 * **FIS-001:** Asimetría IRPF base/total en `ALQUILER_EXENTO`. Severidad: **ALTO**. Issue: #142. Estado: ✅ Resuelto (PR-2; `Closes #142`).
-* **SEC-017:** `manage-users` `updateLabels` permitía quitar último admin / auto-degradarse. Severidad: **ALTO**. Estado: ✅ Resuelto — guardas server-side. Issue #143.
-* **BUG-024:** `rateLimiter` race en `processQueue` → peticiones huérfanas. Severidad: **ALTO**. Estado: ✅ Resuelto — `finally` relanza si cola no vacía. Issue #143.
+* **SEC-017:** `manage-users` `updateLabels` permitía quitar último admin / auto-degradarse. Severidad: **ALTO**. Estado: ✅ Resuelto — guardas server-side (no self-demote, ≥1 admin). Issue #143.
+* **BUG-024:** `rateLimiter` race en `processQueue` → peticiones huérfanas. Severidad: **ALTO**. Estado: ✅ Resuelto — `finally` relanza si `queue.length > 0`. Issue #143.
 * **BUG-025:** `users.list()` sin paginación (default 25). Severidad: **ALTO**. Estado: ✅ Resuelto — `listAllUsers` paginado. Issue #143.
 * **BUG-FY-002:** `RecurringExpense` sin `fiscalYearId`; no se copia en maestros; `handleAdd` sin `withFiscalYearId`. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
 * **BUG-RES-001:** `createReservations` tragaba errores por ítem; UI dejaba reservas fantasma. Severidad: **ALTO**. Issue: #144. Estado: ✅ Resuelto (PR-4; cierre al merge con `Closes #144`).
@@ -797,5 +822,5 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 * **BUG-FN-002:** `detect-recurring` analizaba transacciones sin `fiscalYearId` → contaminaba sugerencias del ejercicio activo. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **BUG-AI-001:** `useInvoiceReview.confirmInvoice` podía persistir `vatRate` decimal crudo de Gemini (p. ej. `0.21`); la normalización BUG-014 solo estaba en edit. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **SEC-PEND:** SEC-005..015. Issue #146. Estado: ✅ Resuelto (PR-6).
-* **MEDIOS residuales:** settings TOCTOU, drafts, toast, realtime, filtros FY. Issue: #147. Estado: Pendiente.
+* **MEDIOS residuales (#147):** settings/drafts/toast/realtime/filtros FY → **parcialmente resuelto** (BUG-027..030, CTB-004..006, CONC-002/003, BUG-TOAST-001, BUG-RT-002, BUG-FILT-001). Pendientes fuera de alcance PR-7: SEC-018, RO-001, BUG-ARCH-001, BUG-UI-001, DEBT-019..021.
 

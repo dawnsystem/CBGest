@@ -4,13 +4,12 @@ import { Home, TrendingDown, Filter } from 'lucide-react';
 import { Invoice, Apartment } from '../types';
 import { ChartWrapper } from './ChartWrapper';
 import { useFiscalYear } from '../context/FiscalYearContext';
+import { matchesActiveFiscalPeriod, type PeriodFilter } from '../utils/fiscalPeriodFilter';
 
 interface ExpensesByApartmentProps {
   invoices: Invoice[];
   apartments: Apartment[];
 }
-
-type PeriodFilter = 'month' | 'quarter' | 'year' | 'all';
 
 const COLORS = [
   '#3b82f6', // blue
@@ -56,35 +55,21 @@ export const ExpensesByApartment: React.FC<ExpensesByApartmentProps> = ({ invoic
 
   // Active fiscal year number; fall back to real current year
   const activeYear = activeFiscalYear?.year ?? new Date().getFullYear();
+  const activeFiscalYearId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
 
-  // Filter invoices by period
+  // Filter invoices by period (BUG-FILT-001: prefer fiscalYearId)
   const filteredInvoices = useMemo(() => {
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth();
-    const currentQuarter = Math.floor(currentMonth / 3);
-
     return invoices.filter(inv => {
-      // Only expenses that are processed
       if (inv.type !== 'EXPENSE' || inv.status === 'PENDING') return false;
-
-      const invDate = new Date(inv.date);
-      const invYear = invDate.getFullYear();
-      const invMonth = invDate.getMonth();
-      const invQuarter = Math.floor(invMonth / 3);
-
-      switch (periodFilter) {
-        case 'month':
-          return invYear === activeYear && invMonth === currentMonth;
-        case 'quarter':
-          return invYear === activeYear && invQuarter === currentQuarter;
-        case 'year':
-          return invYear === activeYear;
-        case 'all':
-        default:
-          return true;
-      }
+      return matchesActiveFiscalPeriod({
+        fiscalYearId: inv.fiscalYearId,
+        dateStr: inv.date,
+        activeFiscalYearId,
+        activeYear,
+        periodFilter,
+      });
     });
-  }, [invoices, periodFilter, activeYear]);
+  }, [invoices, periodFilter, activeYear, activeFiscalYearId]);
 
   // Calculate expenses by apartment
   const expensesByApartment = useMemo(() => {
