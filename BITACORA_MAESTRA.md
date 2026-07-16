@@ -674,7 +674,7 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 * **SEC-002:** `geminiService.ts:12` — GoogleGenAI se inicializa a nivel de módulo con `process.env.API_KEY || ''`, creando instancia con clave vacía si la variable falta. Estado: ✅ Resuelto (IMPL-007). Inicialización movida a función `getAiClient()` (lazy init).
 * **SEC-003:** `validators.ts:80` — Comparación con `==` en lugar de `===` en validación de CIF. Estado: ✅ Resuelto (IMPL-007).
 * **SEC-004:** `security.yml:50` — CI/CD permite hasta 3 vulnerabilidades HIGH en `npm audit`. Demasiado permisivo para una app financiera. Estado: ✅ Resuelto (IMPL-006).
-* **SEC-005:** `ReservationManager.tsx:32-40` — `parseSpanishNumber()` sin validación de límites. Input extremo causa Infinity via `parseFloat`. Estado: Pendiente.
+* **SEC-005:** `parseSpanishNumber()` sin límites. Estado: ✅ Resuelto (PR-6).
 * **BUG-001:** `TouristTaxPanel.tsx:123-124` — **Cálculo incorrecto de huéspedes para tasa turística.** Usa `Math.max()` en vez de `SUM` para contar huéspedes. Grupo con 3 reservas de 2 huéspedes calcula impuesto para 2 en vez de 6. Impacto fiscal directo. Estado: ✅ Resuelto (IMPL-001).
 * **BUG-002:** `ExpenseProjections.tsx:28` — Lógica bimensual rota. `targetMonth % 2 === 0 ? 1 : 0` no tiene referencia a la fecha de inicio del gasto. Gastos bimensuales que empiezan en febrero nunca se disparan. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-003:** `TouristTaxPanel.tsx:30-35` — `areDatesConsecutive()` usa `setHours(0,0,0,0)` que asume medianoche local. En UTC+2, "2024-12-31 22:00 UTC" se convierte en día siguiente. Rompe agrupación de estancias consecutivas. Estado: ✅ Resuelto (IMPL-001).
@@ -690,13 +690,13 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 * **BUG-021:** `App.tsx:359-389` — **Race condition en `fetchForYear` effect.** Al crear el ejercicio 2027, `setActiveFiscalYear(2027)` dispara un fetch asíncrono para 2027. Si el usuario cambia inmediatamente a 2026, se lanza un segundo fetch para 2026. Si el fetch de 2027 termina DESPUÉS del de 2026, sobreescribe el estado con datos de 2027 mientras la UI muestra 2026 — haciendo parecer que el selector no funciona y que los alojamientos de 2026 "desaparecen". Estado: ✅ Resuelto (FIX-043).
 * **BUG-023:** `App.tsx:195-196` — **Race condition en arranque: datos del ejercicio equivocado visibles al cargar la app.** `setIsDataLayerInitialized(true)` se llamaba síncronamente ANTES de que `initDataLayer()` completara su fetch inicial sin filtrar. El efecto `fetchForYear` (que filtra por ejercicio activo) podía dispararse concurrentemente con el fetch sin filtrar. Si el fetch sin filtrar resolvía el último, sobreescribía el estado con datos de todos los ejercicios (ej. 2025+2026) mientras el usuario tenía seleccionado 2026. Al cambiar de ejercicio y volver, se corregía porque entonces solo corría `fetchForYear`. Estado: ✅ Resuelto (FIX-049).
 * **BUG-020:** `services/appwriteService.ts:1948-1979` — `ID.unique()` evaluado **dentro** del lambda de `withRetry` en `copyMasterDataToFiscalYear`. Un error de red post-creación (timeout, dropped response) provoca reintento con nuevo ID → alojamientos/proveedores duplicados en Appwrite al crear un nuevo ejercicio. Estado: ✅ Resuelto (FIX-042).
-* **SEC-006:** `validators.ts:220-242` — `isSafeString()` y `sanitizeString()` no detectan XSS con entidades HTML codificadas (`&#60;script&#62;`). Estado: Pendiente.
-* **SEC-007:** `ReservationManager.tsx:76-94` — CSV parsing no escapa HTML en campos. Guest name con `<img onerror=...>` se renderiza sin sanitizar. Estado: Pendiente.
-* **SEC-008:** `scripts/add-missing-attributes.cjs:21-23`, `scripts/migrate-uploads-collection.cjs:22-24`, `scripts/setup-all-collections.cjs:17-19`, `scripts/setup-appwrite-collections.js:23-25`, `scripts/verify-appwrite-fetch.cjs:8-10`, `scripts/verify-appwrite-setup.cjs:22-24` — Credenciales de Appwrite (endpoint, projectId, databaseId) hardcodeadas en scripts operativos. Deberían cargarse de `.env`. Estado: Pendiente.
-* **SEC-009:** `InvoiceUploader.tsx:201` — Bypass de validación NIF vía checkbox "Forzar aceptación" sin registro de auditoría. Estado: Pendiente.
+* **SEC-006:** XSS entidades HTML. Estado: ✅ Resuelto (PR-6).
+* **SEC-007:** CSV sin sanitizar. Estado: ✅ Resuelto (PR-6).
+* **SEC-008:** Scripts hardcodeados. Estado: ✅ Resuelto (PR-6). `load-appwrite-config.cjs`.
+* **SEC-009:** Bypass NIF sin auditoría. Estado: ✅ Resuelto (PR-6, `useInvoiceReview`).
 * **SEC-010:** `aiMatching.ts:195-204` — Match de NIF case-insensitive con `includes()` permite coincidencias parciales peligrosas. Estado: ✅ Resuelto (IMPL-007). Cambiado a regex con lookbehind/lookahead `(?<![A-Z0-9])NIF(?![A-Z0-9])` para match exacto de palabra.
-* **SEC-014:** `authService.ts:361-364` y `authService.ts:496-500` — `recoverPassword()` y `sendEmailVerification()` aceptan URLs arbitrarias sin validación de origen/allowlist. Riesgo de enlaces de recuperación/verificación enviados a dominios maliciosos (phishing / token leakage). Estado: Pendiente.
-* **SEC-015:** `App.tsx:275-276`, `App.tsx:393-395`, `App.tsx:436` — Persistencia en `localStorage` de `gestcb_settings` en claro (incluye NIF y datos fiscales de partícipes). Exposición ante XSS/extensiones maliciosas/equipos compartidos. Estado: Pendiente.
+* **SEC-014:** URLs auth arbitrarias. Estado: ✅ Resuelto (PR-6).
+* **SEC-015:** Settings LS en claro. Estado: ✅ Resuelto (PR-6).
 * **BUG-010:** `TrialBalance.tsx:105-106` — Error de precisión floating-point. `difference < 0.01` falla cuando difference es exactamente 0.009999999. Debe usar redondeo explícito. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-011:** `Dashboard.tsx:76` — Inconsistencia IVA: régimen alquiler usa `totalAmount` (base+IVA) pero régimen general usa `baseAmount`. Crea diferencias inexplicables en totales. Estado: ✅ Resuelto (IMPL-001).
 * **BUG-012:** `ProfitabilityByApartment.tsx:65-71` — `incomeFromReservations` declarado pero nunca populado. Siempre muestra 0€ para ingresos de reservas en todos los apartamentos. Estado: ✅ Resuelto (IMPL-002).
@@ -716,7 +716,8 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 
 ### 🟡 MEDIOS (17 hallazgos) — Inconsistencias, deuda técnica acumulada o mejoras de robustez
 
-* **SEC-011:** `context/UploadQueueContext.tsx:412` — mimeType del archivo confiado sin validación server-side antes de enviar a Gemini. Estado: Pendiente.
+* **SEC-011:** mimeType sin validación Gemini. Estado: ✅ Resuelto (PR-6).
+* **SEC-012:** No aplica. * **SEC-013:** No aplica.
 * **BUG-017:** `context/AuthContext.tsx:259-275` — Refresh de sesión solo se activa si `user && sessionReady` son truthy, pero sessionReady puede retrasarse. Sesión puede expirar antes del primer refresh. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-018:** `stateStorage.ts:30-42` — Fallo silencioso de JSON.parse en localStorage corrupto. Retorna defaults sin notificar al usuario, causando pérdida de datos invisible. Estado: ✅ Resuelto (IMPL-002).
 * **BUG-019:** `Header.tsx:96-107` — `formatTimestamp()` usa `Date.now()` sin considerar timezone del usuario. Tiempos relativos ("Hace 5h") pueden ser imprecisos. Estado: ✅ Resuelto (IMPL-002).
@@ -786,6 +787,6 @@ Estado actual: **PR-4 — BUG-FY-002 + BUG-RES-001 + CTB-003** (#144) en rama `f
 * **BUG-FN-001:** `cleanup-uploads` buscaba `completed`/`error` (minúsculas); la app escribe `COMPLETED`/`ERROR` → no limpiaba Storage. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **BUG-FN-002:** `detect-recurring` analizaba transacciones sin `fiscalYearId` → contaminaba sugerencias del ejercicio activo. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
 * **BUG-AI-001:** `useInvoiceReview.confirmInvoice` podía persistir `vatRate` decimal crudo de Gemini (p. ej. `0.21`); la normalización BUG-014 solo estaba en edit. Severidad: **MEDIO**. Issue: #145. Estado: ✅ Resuelto (PR-5; cierre al merge con `Closes #145`).
-* **SEC-PEND:** SEC-005..015 (excepto SEC-001 aceptado). Issue: #146. Estado: Pendiente.
+* **SEC-PEND:** SEC-005..015. Issue #146. Estado: ✅ Resuelto (PR-6).
 * **MEDIOS residuales:** settings TOCTOU, drafts, toast, realtime, filtros FY. Issue: #147. Estado: Pendiente.
 

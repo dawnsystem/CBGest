@@ -7,6 +7,7 @@ import {
 import { Reservation, ReservationChannel, ReservationStatus, Apartment } from '../types';
 import { useToast } from './Toast';
 import { useIsReadOnly } from '../context/FiscalYearContext';
+import { sanitizeString } from '../utils/validators';
 
 interface ReservationManagerProps {
   reservations: Reservation[];
@@ -21,14 +22,14 @@ type SortField = 'checkIn' | 'checkOut' | 'totalAmount' | 'nights' | 'apartmentN
 type SortOrder = 'asc' | 'desc';
 
 // Parse Spanish number format (1.234,56 -> 1234.56)
-const parseSpanishNumber = (value: string): number => {
+const MAX_PARSEABLE_AMOUNT = 1_000_000_000;
+
+export const parseSpanishNumber = (value: string): number => {
   if (!value || value.trim() === '') return 0;
-  // Remove thousands separator (.) and replace decimal comma with dot
-  const normalized = value.trim()
-    .replace(/\./g, '')  // Remove thousands separators
-    .replace(',', '.');   // Replace decimal comma
+  const normalized = value.trim().replace(/\./g, '').replace(',', '.');
   const num = parseFloat(normalized);
-  return isNaN(num) ? 0 : num;
+  if (!Number.isFinite(num) || Math.abs(num) > MAX_PARSEABLE_AMOUNT) return 0;
+  return num;
 };
 
 // Extract initials from full name (GDPR compliant)
@@ -170,16 +171,16 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
           continue;
         }
 
-        const apartmentName = fields[0] || '';
+        const apartmentName = sanitizeString(fields[0] || '');
         const checkIn = fields[1] || '';
         const checkOut = fields[2] || '';
         const nights = parseInt(fields[4]) || 0;
         const pricePerNight = parseSpanishNumber(fields[5]);
         const totalAmount = parseSpanishNumber(fields[6]);
         const paidAmount = parseSpanishNumber(fields[7]);
-        const guestName = fields[8] || '';
-        const channel = fields[13] || '';
-        const reservationNumber = fields[14] || '';
+        const guestName = sanitizeString(fields[8] || '');
+        const channel = sanitizeString(fields[13] || '');
+        const reservationNumber = sanitizeString(fields[14] || '');
         const status = fields[15] || 'New';
 
         // Validate required fields

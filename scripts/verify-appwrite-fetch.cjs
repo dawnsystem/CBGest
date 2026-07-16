@@ -4,12 +4,9 @@
  * Script to verify Appwrite setup using direct fetch calls
  */
 
-const CONFIG = {
-  endpoint: 'https://fra.cloud.appwrite.io/v1',
-  projectId: 'cbgest',
-  databaseId: '691f288100019843d43e',
-  storageBucketId: '691f31c9000fc8c83ab1',
-};
+const { getAppwriteConfig } = require('./load-appwrite-config.cjs');
+
+const CONFIG = getAppwriteConfig();
 
 const API_KEY = process.env.APPWRITE_API_KEY;
 

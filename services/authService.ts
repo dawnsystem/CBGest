@@ -12,6 +12,7 @@ import { AppwriteException } from 'appwrite';
 import { account } from '../lib/appwrite/client';
 import type { AppUser } from '../types';
 import { authLogger } from './logger';
+import { isAllowedAuthRedirectUrl } from '../utils/authRedirect';
 
 // ============================================================================
 // TIPOS
@@ -342,6 +343,10 @@ export const authService = {
    * @returns true si se envió correctamente
    */
   async recoverPassword(email: string, resetUrl: string): Promise<boolean> {
+    if (!isAllowedAuthRedirectUrl(resetUrl)) {
+      authLogger.error(`RecoverPassword blocked: redirect URL not allowlisted — ${resetUrl}`);
+      return false;
+    }
     try {
       await account.createRecovery(email, resetUrl);
       return true;
@@ -477,6 +482,10 @@ export const authService = {
    * await authService.sendEmailVerification('https://miapp.com/verify-email');
    */
   async sendEmailVerification(verificationUrl: string): Promise<boolean> {
+    if (!isAllowedAuthRedirectUrl(verificationUrl)) {
+      authLogger.error(`SendEmailVerification blocked: redirect URL not allowlisted — ${verificationUrl}`);
+      return false;
+    }
     try {
       authLogger.info('Enviando email de verificación...');
       await account.createVerification(verificationUrl);

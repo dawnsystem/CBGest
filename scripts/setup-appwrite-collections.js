@@ -31,12 +31,12 @@
  */
 
 const { Client, Databases, Functions, Permission, Role } = require('node-appwrite');
-
-// Configuration from config/appwrite.ts
+const { getAppwriteConfig } = require('./load-appwrite-config.cjs');
+const baseConfig = getAppwriteConfig();
 const CONFIG = {
-  endpoint: 'https://fra.cloud.appwrite.io/v1',
-  projectId: 'cbgest',
-  databaseId: '691f288100019843d43e',
+  endpoint: baseConfig.endpoint,
+  projectId: baseConfig.projectId,
+  databaseId: baseConfig.databaseId,
   // Collection IDs (existing collections)
   // NOTE: real collection IDs are `entries` and `transactions` — NOT
   // `accountingEntries`/`bankTransactions`. Kept as named keys below for
