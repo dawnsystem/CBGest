@@ -4,9 +4,17 @@ import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiSer
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
 import { storageService } from '../services/appwriteService';
 import { useAuth } from './AuthContext';
+import { useFiscalYear } from './FiscalYearContext';
 import { generateId } from '../utils/defaults';
 import { uploadLogger } from '../services/logger';
 import { isAllowedGeminiMimeType, normalizeMimeType } from '../utils/mimeAllowlist';
+import {
+  buildContentFingerprint,
+  computeFileSha256,
+  findDuplicateByContentFingerprint,
+  findDuplicateByFileHash,
+  toDuplicateMatch,
+} from '../utils/invoiceDedup';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
 
@@ -35,10 +43,16 @@ const PROGRESS_UPDATE_INTERVAL = 1000;
 interface UploadQueueProviderProps {
   children: ReactNode;
   suppliers?: Supplier[];
+  invoices?: Invoice[];
 }
 
-export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ children, suppliers = [] }) => {
+export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
+  children,
+  suppliers = [],
+  invoices = [],
+}) => {
   const { user } = useAuth();
+  const { activeFiscalYear } = useFiscalYear();
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -46,6 +60,16 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   // Ref para tracking de uploads en progreso (para el pool de workers)
   const uploadingCountRef = useRef(0);
   const uploadQueueRef = useRef<QueueItem[]>([]);
+  const invoicesRef = useRef(invoices);
+  const activeFiscalYearRef = useRef(activeFiscalYear);
+
+  useEffect(() => {
+    invoicesRef.current = invoices;
+  }, [invoices]);
+
+  useEffect(() => {
+    activeFiscalYearRef.current = activeFiscalYear;
+  }, [activeFiscalYear]);
 
   // ============================================================================
   // LOAD QUEUE FROM APPWRITE
@@ -156,12 +180,52 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     }
 
     try {
+      let workingItem = item;
+      let fileHash = item.fileHash;
+
+      // Capa 1: hash de archivo antes de subir (evita Storage + Gemini)
+      if (item.uploadType === 'INVOICE' && !item.forceProcess) {
+        if (!fileHash) {
+          fileHash = await computeFileSha256(file);
+        }
+
+        const fiscalYearId = resolveFiscalYearId(activeFiscalYearRef.current);
+        const existingByHash = await resolveExistingByFileHash(
+          invoicesRef.current,
+          fileHash,
+          fiscalYearId
+        );
+
+        if (existingByHash) {
+          const duplicateMatch = toDuplicateMatch(existingByHash, 'FILE');
+          const completedItem: QueueItem = {
+            ...item,
+            fileHash,
+            localFile: file,
+            status: 'COMPLETED',
+            progress: 100,
+            result: cloneInvoicePreviewFromExisting(existingByHash, fileHash),
+            duplicateMatch,
+            notificationDismissed: false,
+          };
+
+          setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
+          uploadLogger.info(
+            `[UploadQueue] Duplicado de archivo detectado para ${item.fileName}, IA omitida`
+          );
+          return;
+        }
+
+        workingItem = { ...item, fileHash };
+        setQueue(prev => prev.map(i => i.id === item.id ? workingItem : i));
+      }
+
       // Actualizar estado a UPLOADING
       setQueue(prev => prev.map(i => 
-        i.id === item.id ? { ...i, status: 'UPLOADING' as const, progress: 5 } : i
+        i.id === workingItem.id ? { ...i, status: 'UPLOADING' as const, progress: 5 } : i
       ));
 
-      uploadLogger.debug(`[UploadQueue] Subiendo ${item.fileName} a Storage...`);
+      uploadLogger.debug(`[UploadQueue] Subiendo ${workingItem.fileName} a Storage...`);
       
       // Generar un fileId válido para Appwrite (máx 36 chars, solo a-z, A-Z, 0-9, ., -, _)
       // Usamos un formato corto: timestamp en base36 + sufijo aleatorio
@@ -172,11 +236,11 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       // Subir archivo a Storage
       const storageFileId = await storageService.uploadFile(file, fileId);
       
-      uploadLogger.debug(`[UploadQueue] ${item.fileName} subido, storageFileId: ${storageFileId}`);
+      uploadLogger.debug(`[UploadQueue] ${workingItem.fileName} subido, storageFileId: ${storageFileId}`);
 
       // Crear documento en la colección uploads
       const itemForAppwrite: QueueItem = {
-        ...item,
+        ...workingItem,
         storageFileId,
         status: 'QUEUED',
         progress: 0,
@@ -185,14 +249,14 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
       const savedItem = await protectedDatabase.createUploadItem(itemForAppwrite);
 
-      uploadLogger.info(`[UploadQueue] ${item.fileName} en cola (appwriteId: ${savedItem.appwriteId})`);
+      uploadLogger.info(`[UploadQueue] ${workingItem.fileName} en cola (appwriteId: ${savedItem.appwriteId})`);
 
       // Actualizar estado local con los IDs de Appwrite
       setQueue(prev => prev.map(i => 
-        i.id === item.id 
+        i.id === workingItem.id 
           ? { 
               ...savedItem, 
-              id: item.id, // Mantener el ID original para consistencia
+              id: workingItem.id, // Mantener el ID original para consistencia
               localFile: undefined // Ya no necesitamos el archivo local
             } 
           : i
@@ -281,6 +345,48 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
         setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
       } catch (error) {
         uploadLogger.error(`[UploadQueue] Error reintentando ${id}:`, error);
+      }
+    }
+  }, [queue, processUploadQueue]);
+
+  const forceReprocessItem = useCallback(async (id: string) => {
+    const item = queue.find(i => i.id === id);
+    if (!item) return;
+
+    if (item.localFile) {
+      const updated: QueueItem = {
+        ...item,
+        forceProcess: true,
+        duplicateMatch: undefined,
+        status: 'PENDING_UPLOAD',
+        progress: 0,
+        error: undefined,
+        result: undefined,
+        notificationDismissed: false,
+      };
+      setQueue(prev => prev.map(i => i.id === id ? updated : i));
+      uploadQueueRef.current.push(updated);
+      processUploadQueue();
+      return;
+    }
+
+    if (item.appwriteId && item.storageFileId) {
+      const updated: QueueItem = {
+        ...item,
+        forceProcess: true,
+        duplicateMatch: undefined,
+        status: 'QUEUED',
+        progress: 0,
+        error: undefined,
+        result: undefined,
+        notificationDismissed: false,
+      };
+
+      try {
+        await protectedDatabase.updateUploadItem(updated);
+        setQueue(prev => prev.map(i => i.id === id ? updated : i));
+      } catch (error) {
+        uploadLogger.error(`[UploadQueue] Error forzando reproceso de ${id}:`, error);
       }
     }
   }, [queue, processUploadQueue]);
@@ -446,8 +552,25 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           ...data,
           supplierId: matchedSupplierId,
           status: 'PENDING',
+          fileHash: item.fileHash,
+          contentFingerprint: buildContentFingerprint({
+            issuerNif: data.issuerNif,
+            number: data.number,
+            date: data.date,
+            totalAmount: data.totalAmount,
+          }),
           history: [{ date: new Date().toISOString(), action: 'Analyzed via Gemini', user: 'System' }]
         };
+
+        const fiscalYearId = resolveFiscalYearId(activeFiscalYearRef.current);
+        const existingByContent = await resolveExistingByContentFingerprint(
+          invoicesRef.current,
+          resultInvoice.contentFingerprint!,
+          fiscalYearId
+        );
+        const duplicateMatch = existingByContent
+          ? toDuplicateMatch(existingByContent, 'CONTENT')
+          : item.duplicateMatch;
 
         clearInterval(progressInterval);
 
@@ -456,6 +579,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           status: 'COMPLETED',
           progress: 100,
           result: resultInvoice,
+          duplicateMatch,
           notificationDismissed: false
         };
 
@@ -576,7 +700,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       queue, 
       addToQueue, 
       removeFromQueue, 
-      retryItem, 
+      retryItem,
+      forceReprocessItem,
       clearCompleted, 
       dismissNotifications,
       isUploading,
@@ -590,6 +715,47 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+const resolveFiscalYearId = (
+  activeFiscalYear: { id: string; appwriteId?: string } | null
+): string | undefined => activeFiscalYear?.appwriteId || activeFiscalYear?.id;
+
+const cloneInvoicePreviewFromExisting = (existing: Invoice, fileHash: string): Invoice => ({
+  ...existing,
+  id: generateId(),
+  appwriteId: undefined,
+  appwriteFileId: undefined,
+  status: 'PENDING',
+  fileHash,
+  contentFingerprint: existing.contentFingerprint || buildContentFingerprint(existing),
+  history: [{
+    date: new Date().toISOString(),
+    action: 'Archivo duplicado detectado (hash)',
+    user: 'System',
+  }],
+});
+
+async function resolveExistingByFileHash(
+  invoices: Invoice[],
+  fileHash: string,
+  fiscalYearId?: string
+): Promise<Invoice | undefined> {
+  const inMemory = findDuplicateByFileHash(invoices, fileHash, fiscalYearId);
+  if (inMemory) return inMemory;
+  const remote = await protectedDatabase.findInvoiceByFileHash(fileHash, fiscalYearId);
+  return remote ?? undefined;
+}
+
+async function resolveExistingByContentFingerprint(
+  invoices: Invoice[],
+  fingerprint: string,
+  fiscalYearId?: string
+): Promise<Invoice | undefined> {
+  const inMemory = findDuplicateByContentFingerprint(invoices, fingerprint, fiscalYearId);
+  if (inMemory) return inMemory;
+  const remote = await protectedDatabase.findInvoiceByContentFingerprint(fingerprint, fiscalYearId);
+  return remote ?? undefined;
+}
 
 /**
  * Convierte un Blob a base64 string

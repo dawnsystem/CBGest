@@ -54,6 +54,8 @@
 | `status` | Enum | - | ✅ | ❌ | PENDING |
 | `category` | String | 256 | ❌ | ❌ | null |
 | `appwriteFileId` | String | 128 | ❌ | ❌ | null |
+| `fileHash` | String | 64 | ❌ | ❌ | null |
+| `contentFingerprint` | String | 128 | ❌ | ❌ | null |
 
 **Enum Values**:
 - `type`: `EXPENSE`, `INCOME`

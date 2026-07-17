@@ -6,6 +6,7 @@
  *   - Review item and preview state
  *   - Field editing with amount recalculation
  *   - NIF validation and user override
+ *   - Duplicate detection override
  *   - Apartment assignment
  *   - Confirmation and cancellation
  */
@@ -15,6 +16,12 @@ import { Invoice, QueueItem } from '../types';
 import { isValidNIF } from '../utils/validators';
 import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 import { createLogger } from '../services/logger';
+import { storageService } from '../services/appwriteService';
+import {
+  buildContentFingerprint,
+  computeFileSha256,
+  formatDuplicateConfirmMessage,
+} from '../utils/invoiceDedup';
 
 const invoiceReviewLogger = createLogger('InvoiceReview');
 
@@ -22,6 +29,7 @@ export interface UseInvoiceReviewOptions {
   onInvoiceAdded: (invoice: Invoice) => void;
   removeFromQueue: (id: string) => void;
   showToast: (message: string, type: 'warning' | 'error' | 'success' | 'info') => void;
+  showConfirm: (message: string) => Promise<boolean>;
 }
 
 /**
@@ -67,12 +75,14 @@ export function useInvoiceReview({
   onInvoiceAdded,
   removeFromQueue,
   showToast,
+  showConfirm,
 }: UseInvoiceReviewOptions) {
   const [reviewItem, setReviewItem] = useState<QueueItem | null>(null);
   const [preview, setPreview] = useState<Invoice | null>(null);
   const [nifError, setNifError] = useState(false);
   const [forceAcceptNif, setForceAcceptNif] = useState(false);
   const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   /**
    * Opens the review UI for a completed INVOICE queue item.
@@ -141,8 +151,8 @@ export function useInvoiceReview({
    *
    * @param markAsProcessed - If true, status becomes PROCESSED; otherwise PENDING
    */
-  const confirmInvoice = (markAsProcessed: boolean) => {
-    if (!preview || !reviewItem) return;
+  const confirmInvoice = async (markAsProcessed: boolean) => {
+    if (!preview || !reviewItem || isConfirming) return;
 
     if (nifError && !forceAcceptNif) {
       showToast(
@@ -177,20 +187,65 @@ export function useInvoiceReview({
       });
     }
 
-    const finalInvoice: Invoice = {
-      ...preview,
-      ...amounts,
-      apartmentId: selectedApartmentId || undefined,
-      status: markAsProcessed ? 'PROCESSED' : 'PENDING',
-      appwriteFileId: reviewItem.storageFileId,
-      fileType: reviewItem.mimeType,
-      history: historyEntries,
-    };
+    if (reviewItem.duplicateMatch) {
+      const confirmed = await showConfirm(formatDuplicateConfirmMessage(reviewItem.duplicateMatch));
+      if (!confirmed) return;
 
-    onInvoiceAdded(finalInvoice);
-    removeFromQueue(reviewItem.id);
-    setReviewItem(null);
-    setPreview(null);
+      const { summary, kind } = reviewItem.duplicateMatch;
+      historyEntries.push({
+        date: new Date().toISOString(),
+        action: `Duplicado aceptado (${kind}): ${summary.issuerName} nº ${summary.number} (${summary.date})`,
+        user: 'Admin Gestor',
+      });
+      invoiceReviewLogger.warn(
+        `DEDUP-OVERRIDE: kind=${kind} existing=${reviewItem.duplicateMatch.existingInvoiceId} file="${reviewItem.fileName}"`
+      );
+    }
+
+    setIsConfirming(true);
+    try {
+      let storageFileId = reviewItem.storageFileId;
+      if (!storageFileId && reviewItem.localFile) {
+        const shortTimestamp = Date.now().toString(36).slice(-8);
+        const randomPart = Math.random().toString(36).substring(2, 10);
+        const fileId = `inv_${shortTimestamp}_${randomPart}`;
+        storageFileId = await storageService.uploadFile(reviewItem.localFile, fileId);
+      }
+
+      let fileHash = reviewItem.fileHash || preview.fileHash;
+      if (!fileHash && reviewItem.localFile) {
+        fileHash = await computeFileSha256(reviewItem.localFile);
+      }
+
+      const contentFingerprint = buildContentFingerprint({
+        issuerNif: preview.issuerNif,
+        number: preview.number,
+        date: preview.date,
+        totalAmount: amounts.totalAmount,
+      });
+
+      const finalInvoice: Invoice = {
+        ...preview,
+        ...amounts,
+        apartmentId: selectedApartmentId || undefined,
+        status: markAsProcessed ? 'PROCESSED' : 'PENDING',
+        appwriteFileId: storageFileId,
+        fileType: reviewItem.mimeType,
+        fileHash,
+        contentFingerprint,
+        history: historyEntries,
+      };
+
+      onInvoiceAdded(finalInvoice);
+      removeFromQueue(reviewItem.id);
+      setReviewItem(null);
+      setPreview(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      showToast(`Error al guardar factura: ${message}`, 'error');
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   const cancelReview = () => {
@@ -206,6 +261,7 @@ export function useInvoiceReview({
     setForceAcceptNif,
     selectedApartmentId,
     setSelectedApartmentId,
+    isConfirming,
     startInvoiceReview,
     handleFieldChange,
     confirmInvoice,

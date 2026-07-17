@@ -141,6 +141,21 @@ class ProtectedDatabaseService {
     cache.invalidateCollection('invoices');
   }
 
+  async findInvoiceByFileHash(fileHash: string, fiscalYearId?: string): Promise<Invoice | null> {
+    return rateLimiter.enqueue(async () => {
+      return await databaseService.findInvoiceByFileHash(fileHash, fiscalYearId);
+    }, 'high');
+  }
+
+  async findInvoiceByContentFingerprint(
+    contentFingerprint: string,
+    fiscalYearId?: string
+  ): Promise<Invoice | null> {
+    return rateLimiter.enqueue(async () => {
+      return await databaseService.findInvoiceByContentFingerprint(contentFingerprint, fiscalYearId);
+    }, 'high');
+  }
+
   // ============================================================================
   // ACCOUNTING ENTRIES
   // ============================================================================
