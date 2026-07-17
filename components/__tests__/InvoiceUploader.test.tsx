@@ -14,6 +14,7 @@ vi.mock('../../context/UploadQueueContext', () => ({
     queue: [],
     addToQueue: mockAddToQueue,
     removeFromQueue: mockRemoveFromQueue,
+    forceReprocessItem: vi.fn(),
   }),
 }));
 
@@ -30,6 +31,7 @@ vi.mock('../../hooks/useInvoiceReview', () => ({
     handleFieldChange: vi.fn(),
     confirmInvoice: vi.fn(),
     cancelReview: vi.fn(),
+    isConfirming: false,
   }),
 }));
 

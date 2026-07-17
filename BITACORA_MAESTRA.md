@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 22:50:00 UTC*
+*Última actualización: 2026-07-17 22:25:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Kit UAT en régimen arrendamiento (`ALQUILER_EXENTO`)** listo para verificación IRPF del caso real. Guía y `expected/irpf-2027.md` alineados con criterio FIS-001 (`totalAmount`). Pendiente ejecución humana del Paso 10 en [`uat-kit/GUIA_UAT.md`](uat-kit/GUIA_UAT.md).
+Estado actual: **Deduplicación de facturas (2 capas)** implementada en rama `cursor/invoice-dedup-f4f2`. Pendiente merge + ejecutar script schema Appwrite (`fileHash`, `contentFingerprint` en `invoices`; `fileHash`/`duplicateMatch`/`forceProcess` en `uploads`).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-17] - `FEAT-DEDUP-001` - Deduplicación rápida de facturas (hash + huella fiscal):** Capa 1: SHA-256 del archivo antes de Storage/Gemini (skip IA si match). Capa 2: huella fiscal `NIF|número|fecha|total(céntimos)` tras análisis Gemini. Índices Appwrite no-unique (`fileHash`, `contentFingerprint`). UX: banner ámbar + badge DUP en cola; `showConfirm` con override auditado en `history`. `forceReprocessItem` para reprocesar con IA. Módulo `utils/invoiceDedup.ts`. Validado: lint + type-check + 373 tests + build OK.
 *   **[2026-07-16] - `UAT-002` - Kit UAT → arrendamiento + IRPF verificable:** Maestro `empresa.json` pasa a `ALQUILER_EXENTO` / `vatObligation: false`. Guía, README y checklist actualizados (Paso 1 y Paso 10). Generador escribe `expected/irpf-2027.md` y `irpf-2028.md` (rendimiento CB + cuotas por comunero, tolerancia ±2 €). Facturas/PDF no regeneradas (importes idénticos; solo cambia interpretación fiscal).
 *   **[2026-07-16] - `UAT-001` - Kit UAT manual (2027 + 2028 parcial):** Carpeta `uat-kit/` con empresa ficticia, 4 comuneros (perfiles fiscales distintos), 6 apartamentos, 8 proveedores, 9 recurrentes; 72+36 facturas 2027 y 40+20 en 2028 (PDF + JSON); 19 extractos XLSX; 90 reservas CSV; edges EDGE-01…11; guía paso a paso `GUIA_UAT.md` + checklist PASS/FAIL. Generador `scripts/generate-uat-kit.mjs` (`npm run generate:uat-kit`); dep `write-excel-file`. NIFs/CIFs validados. No modifica lógica de negocio de la app.
 *   **[2026-07-16] - `OPS-FY-002` - setup-all-collections alineado con Cloud:** `fiscalYearId` unificado a size **36** + constantes compartidas; pase final `ensureFiscalYearIdSchema()`; paginación de `listAttributes`; scripts `add-*` alineados. Evita instalaciones parciales como la de `recurring_expenses`.
@@ -105,6 +106,17 @@ Estado actual: **Kit UAT en régimen arrendamiento (`ALQUILER_EXENTO`)** listo p
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-17 22:25:00 UTC]
+*   **Directiva del Director:** Evitar facturas duplicadas en ingesta IA con detección rápida (hash + contenido) y override explícito.
+*   **Log de Acciones:**
+    - `[22:10:00]` - **CREATE:** `utils/invoiceDedup.ts` + tests (SHA-256, fingerprint, búsqueda en memoria).
+    - `[22:14:00]` - **MOD:** `UploadQueueContext` — capa 1 pre-upload (skip Gemini), capa 2 post-Gemini; `forceReprocessItem`.
+    - `[22:17:00]` - **MOD:** `useInvoiceReview` + `InvoiceUploader` — banner DUP, confirm override auditado, subida lazy si duplicado FILE.
+    - `[22:19:00]` - **MOD:** Schema scripts/docs — `fileHash`, `contentFingerprint` (invoices); índices + queries Appwrite.
+    - `[22:23:00]` - **TEST:** lint + type-check + 373 tests + build PASS.
+    - `[22:25:00]` - **DOC:** Registro `FEAT-DEDUP-001` en bitácora.
+*   **Resultado:** Cola detecta duplicados antes de IA cuando el archivo ya existe; avisa con override sin bloqueo duro.
+
 ### Sesión: [2026-07-16 22:50:00 UTC]
 *   **Directiva del Director:** Adaptar el kit UAT a régimen arrendamiento (`ALQUILER_EXENTO`) para verificar el caso IRPF específico (no régimen general).
 *   **Log de Acciones:**

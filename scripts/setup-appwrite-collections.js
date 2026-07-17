@@ -341,6 +341,8 @@ async function setupInvoicesIndexes() {
     { key: 'type_asc', type: 'key', attributes: ['type'], orders: ['ASC'] },
     { key: 'supplierId_asc', type: 'key', attributes: ['supplierId'], orders: ['ASC'] },
     { key: 'apartmentId_asc', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
+    { key: 'fileHash_asc', type: 'key', attributes: ['fileHash'], orders: ['ASC'] },
+    { key: 'contentFingerprint_asc', type: 'key', attributes: ['contentFingerprint'], orders: ['ASC'] },
     // Compound index for common queries
     { key: 'type_status', type: 'key', attributes: ['type', 'status'], orders: ['ASC', 'ASC'] },
   ];

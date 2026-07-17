@@ -78,8 +78,10 @@ const EXPECTED_COLLECTIONS = {
       { key: 'appwriteFileId', type: 'string' },
       { key: 'apartmentId', type: 'string' },
       { key: 'fiscalYearId', type: 'string' },
+      { key: 'fileHash', type: 'string' },
+      { key: 'contentFingerprint', type: 'string' },
     ],
-    indexes: ['date_index', 'status_index', 'type_index', 'apartmentId_index', 'fiscalYearId_index'],
+    indexes: ['date_index', 'status_index', 'type_index', 'apartmentId_index', 'fiscalYearId_index', 'fileHash_index', 'contentFingerprint_index'],
   },
   entries: {
     name: 'Accounting Entries',

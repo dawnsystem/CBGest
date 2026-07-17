@@ -426,6 +426,10 @@ async function setupInvoicesCollection() {
 
     // Ejercicio contable (links this invoice to a FiscalYear document)
     { ...FISCAL_YEAR_ID_ATTRIBUTE },
+
+    // Deduplicación
+    { type: 'string', key: 'fileHash', size: 64, required: false },
+    { type: 'string', key: 'contentFingerprint', size: 128, required: false },
   ];
 
   for (const attr of attributes) {
@@ -444,6 +448,8 @@ async function setupInvoicesCollection() {
     { key: 'type_index', type: 'key', attributes: ['type'], orders: ['ASC'] },
     { key: 'apartmentId_index', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
     { ...FISCAL_YEAR_ID_INDEX },
+    { key: 'fileHash_index', type: 'key', attributes: ['fileHash'], orders: ['ASC'] },
+    { key: 'contentFingerprint_index', type: 'key', attributes: ['contentFingerprint'], orders: ['ASC'] },
   ];
 
   for (const index of indexes) {
@@ -766,6 +772,11 @@ async function setupUploadsCollection() {
     // Results (JSON strings)
     { type: 'string', key: 'result', size: 50000, required: false },
     { type: 'string', key: 'bankResult', size: 100000, required: false },
+
+    // Deduplicación
+    { type: 'string', key: 'fileHash', size: 64, required: false },
+    { type: 'string', key: 'duplicateMatch', size: 2000, required: false },
+    { type: 'boolean', key: 'forceProcess', required: false, default: false },
   ];
 
   for (const attr of attributes) {

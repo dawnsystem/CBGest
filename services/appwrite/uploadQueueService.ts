@@ -40,7 +40,8 @@ export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
       progress: Math.round(itemData.progress || 0),
       fileSize: itemData.fileSize || 0,
       result: result ? JSON.stringify(result) : undefined,
-      bankResult: bankResult ? JSON.stringify(bankResult) : undefined
+      bankResult: bankResult ? JSON.stringify(bankResult) : undefined,
+      duplicateMatch: item.duplicateMatch ? JSON.stringify(item.duplicateMatch) : undefined,
     };
 
     const doc = await withRetry(
@@ -104,6 +105,11 @@ export async function getUploadQueue(): Promise<QueueItem[]> {
         bankResult: uploadDoc.bankResult && typeof uploadDoc.bankResult === 'string'
           ? safeJsonParse<BankTransaction[]>(uploadDoc.bankResult, 'bankResult')
           : uploadDoc.bankResult,
+        fileHash: uploadDoc.fileHash,
+        forceProcess: uploadDoc.forceProcess,
+        duplicateMatch: uploadDoc.duplicateMatch && typeof uploadDoc.duplicateMatch === 'string'
+          ? safeJsonParse<QueueItem['duplicateMatch']>(uploadDoc.duplicateMatch, 'duplicateMatch')
+          : uploadDoc.duplicateMatch,
       };
     }) as QueueItem[];
   } catch (error: unknown) {
@@ -127,7 +133,8 @@ export async function updateUploadItem(item: QueueItem): Promise<QueueItem> {
       ...itemData,
       progress: Math.round(itemData.progress || 0),
       result: result ? JSON.stringify(result) : undefined,
-      bankResult: bankResult ? JSON.stringify(bankResult) : undefined
+      bankResult: bankResult ? JSON.stringify(bankResult) : undefined,
+      duplicateMatch: item.duplicateMatch ? JSON.stringify(item.duplicateMatch) : undefined,
     };
 
     const doc = await withRetry(
