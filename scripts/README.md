@@ -17,6 +17,18 @@ Añade `fiscalYearId` (string size **36**, optional) + índice `fiscalYearId_ind
 
 Scopes API Key: `databases.*`, `collections.*`, `attributes.*`, `indexes.*` (read+write).
 
+## add-invoice-dedup-attributes.cjs (FEAT-DEDUP-001)
+
+Añade solo los campos de deduplicación de facturas (más rápido que `setup-all-collections.cjs`):
+
+```bash
+export APPWRITE_API_KEY="tu-api-key"
+node scripts/add-invoice-dedup-attributes.cjs
+node scripts/verify-appwrite-setup.cjs
+```
+
+Campos: `invoices.fileHash`, `invoices.contentFingerprint` (+ índices); `uploads.fileHash`, `uploads.duplicateMatch`, `uploads.forceProcess`.
+
 ## setup-all-collections.cjs
 
 Crea/actualiza **todas** las colecciones CBGest. Incluye `fiscalYearId` (size 36) en las
