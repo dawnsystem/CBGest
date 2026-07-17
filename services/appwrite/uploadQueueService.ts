@@ -27,8 +27,15 @@ function safeJsonParse<T>(raw: string, field: string): T | undefined {
   }
 }
 
-/** Fields added for bank-statement dedup; may be absent on older Cloud schemas. */
-const DEDUP_UPLOAD_FIELDS = ['fileSha256', 'isDuplicate', 'fiscalYearId'] as const;
+/** Optional dedup fields that may be absent on older Cloud schemas. */
+const DEDUP_UPLOAD_FIELDS = [
+  'fileSha256',
+  'isDuplicate',
+  'fiscalYearId',
+  'fileHash',
+  'duplicateMatch',
+  'forceProcess',
+] as const;
 
 function buildUploadPayload(
   item: QueueItem,
@@ -56,13 +63,21 @@ function buildUploadPayload(
     omitList
   );
 
-  return {
+  const payload: Record<string, unknown> = {
     ...itemData,
     progress: Math.round(item.progress || 0),
     fileSize: item.fileSize || 0,
     result: result ? JSON.stringify(result) : undefined,
     bankResult: bankResult ? JSON.stringify(bankResult) : undefined,
   };
+
+  if (options.includeDedupFields) {
+    payload.duplicateMatch = item.duplicateMatch
+      ? JSON.stringify(item.duplicateMatch)
+      : undefined;
+  }
+
+  return payload;
 }
 
 function isUnknownAttributeError(error: unknown): boolean {
@@ -71,7 +86,10 @@ function isUnknownAttributeError(error: unknown): boolean {
     message.includes('unknown attribute') ||
     message.includes('invalid document structure') ||
     message.includes('filesha256') ||
-    message.includes('isduplicate')
+    message.includes('isduplicate') ||
+    message.includes('filehash') ||
+    message.includes('duplicatematch') ||
+    message.includes('forceprocess')
   );
 }
 
@@ -95,7 +113,7 @@ export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
     } catch (error: unknown) {
       if (!isUnknownAttributeError(error)) throw error;
       dataLogger.warn(
-        '[createUploadItem] Schema sin campos dedup; reintentando sin fileSha256/isDuplicate/fiscalYearId'
+        '[createUploadItem] Schema sin campos dedup; reintentando sin attrs opcionales'
       );
       dataToSave = buildUploadPayload(item, { includeDedupFields: false });
       doc = await withRetry(
@@ -120,6 +138,9 @@ export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
       fileSha256: item.fileSha256,
       isDuplicate: item.isDuplicate,
       fiscalYearId: item.fiscalYearId,
+      fileHash: item.fileHash,
+      forceProcess: item.forceProcess,
+      duplicateMatch: item.duplicateMatch,
     } as unknown as QueueItem;
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'createUploadItem');
@@ -167,6 +188,11 @@ export async function getUploadQueue(): Promise<QueueItem[]> {
         bankResult: uploadDoc.bankResult && typeof uploadDoc.bankResult === 'string'
           ? safeJsonParse<BankTransaction[]>(uploadDoc.bankResult, 'bankResult')
           : uploadDoc.bankResult,
+        fileHash: uploadDoc.fileHash,
+        forceProcess: uploadDoc.forceProcess,
+        duplicateMatch: uploadDoc.duplicateMatch && typeof uploadDoc.duplicateMatch === 'string'
+          ? safeJsonParse<QueueItem['duplicateMatch']>(uploadDoc.duplicateMatch, 'duplicateMatch')
+          : uploadDoc.duplicateMatch,
       };
     }) as QueueItem[];
   } catch (error: unknown) {
@@ -198,7 +224,7 @@ export async function updateUploadItem(item: QueueItem): Promise<QueueItem> {
     } catch (error: unknown) {
       if (!isUnknownAttributeError(error)) throw error;
       dataLogger.warn(
-        '[updateUploadItem] Schema sin campos dedup; reintentando sin fileSha256/isDuplicate/fiscalYearId'
+        '[updateUploadItem] Schema sin campos dedup; reintentando sin attrs opcionales'
       );
       dataToSave = buildUploadPayload(item, { includeDedupFields: false });
       doc = await withRetry(
@@ -223,6 +249,9 @@ export async function updateUploadItem(item: QueueItem): Promise<QueueItem> {
       fileSha256: item.fileSha256,
       isDuplicate: item.isDuplicate,
       fiscalYearId: item.fiscalYearId,
+      fileHash: item.fileHash,
+      forceProcess: item.forceProcess,
+      duplicateMatch: item.duplicateMatch,
     } as unknown as QueueItem;
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'updateUploadItem');

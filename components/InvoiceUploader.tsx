@@ -25,7 +25,7 @@ const READ_ONLY_ATTACH_MESSAGE = 'Ejercicio cerrado: no se pueden adjuntar docum
 const READ_ONLY_DISABLED_BUTTON_CLASSES = 'bg-slate-100 text-slate-400 cursor-not-allowed';
 
 export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, onBankTransactionsAdded, settings: _settings, apartments }) => {
-  const { queue, addToQueue, removeFromQueue } = useUploadQueue();
+  const { queue, addToQueue, removeFromQueue, forceReprocessItem } = useUploadQueue();
   const isReadOnly = useIsReadOnly();
   const [isDragging, setIsDragging] = useState(false);
   const [uploadType, setUploadType] = useState<UploadType>('INVOICE');
@@ -48,7 +48,8 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
     handleFieldChange,
     confirmInvoice,
     cancelReview,
-  } = useInvoiceReview({ onInvoiceAdded, removeFromQueue, showToast });
+    isConfirming,
+  } = useInvoiceReview({ onInvoiceAdded, removeFromQueue, showToast, showConfirm });
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -148,7 +149,19 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
   };
 
   const inboxItems = queue.filter(i => i.id !== reviewItem?.id);
-  const isConfirmDisabled = isReadOnly || (nifError && !forceAcceptNif);
+  const isConfirmDisabled = isReadOnly || (nifError && !forceAcceptNif) || isConfirming;
+
+  const handleDiscardDuplicate = () => {
+    if (!reviewItem) return;
+    removeFromQueue(reviewItem.id);
+    cancelReview();
+  };
+
+  const handleForceReprocess = () => {
+    if (!reviewItem) return;
+    forceReprocessItem(reviewItem.id);
+    cancelReview();
+  };
 
   // --- REVIEW UI (Invoice) ---
   if (preview && reviewItem) {
@@ -163,6 +176,40 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                 <X className="w-5 h-5" />
             </button>
           </div>
+
+          {reviewItem.duplicateMatch && (
+            <div className="mx-4 md:mx-6 mt-4 p-4 rounded-lg border border-amber-200 bg-amber-50">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-900">
+                    Posible duplicado ({reviewItem.duplicateMatch.kind === 'FILE' ? 'mismo archivo' : 'mismos datos fiscales'})
+                  </p>
+                  <p className="text-xs text-amber-800 mt-1">
+                    Ya existe: {reviewItem.duplicateMatch.summary.issuerName} — nº {reviewItem.duplicateMatch.summary.number} — {reviewItem.duplicateMatch.summary.date} — {reviewItem.duplicateMatch.summary.totalAmount.toFixed(2)} €
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={handleDiscardDuplicate}
+                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-white border border-amber-300 text-amber-800 hover:bg-amber-100"
+                    >
+                      Descartar
+                    </button>
+                    {reviewItem.duplicateMatch.kind === 'FILE' && (
+                      <button
+                        type="button"
+                        onClick={handleForceReprocess}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700"
+                      >
+                        Procesar con IA
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-h-[60vh] overflow-y-auto">
             <div>
@@ -310,8 +357,8 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                 Cancelar
              </button>
              <button
-                onClick={() => confirmInvoice(false)}
-               disabled={isReadOnly}
+                onClick={() => { void confirmInvoice(false); }}
+               disabled={isReadOnly || isConfirming}
                className={`order-2 px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                  isReadOnly
                    ? READ_ONLY_DISABLED_BUTTON_CLASSES + ' border border-slate-200'
@@ -322,7 +369,7 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                 <CheckCircle className="w-4 h-4" /> <span className="hidden xs:inline">Guardar</span> Borrador
              </button>
              <button
-                onClick={() => confirmInvoice(true)}
+                onClick={() => { void confirmInvoice(true); }}
                 disabled={isConfirmDisabled}
                 className={`order-1 sm:order-3 px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 shadow-md transition-all ${
                    isConfirmDisabled
@@ -444,6 +491,11 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                             <span className={`text-[10px] px-1.5 rounded border ${item.uploadType === 'INVOICE' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-indigo-200 bg-indigo-50 text-indigo-700'}`}>
                                 {item.uploadType === 'INVOICE' ? 'FRA' : 'BNC'}
                             </span>
+                            {item.duplicateMatch && (
+                              <span className="text-[10px] px-1.5 rounded border border-amber-200 bg-amber-50 text-amber-700">
+                                DUP
+                              </span>
+                            )}
                             <p className="font-medium text-slate-900 truncate">{item.fileName}</p>
                         </div>
                         <p className="text-xs text-slate-500">
@@ -462,7 +514,9 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                               item.isDuplicate
                                 ? (item.error || 'Extracto duplicado (mismo archivo).')
                                 : item.uploadType === 'INVOICE'
-                                ? 'Listo para revision.'
+                                ? item.duplicateMatch
+                                  ? 'Posible duplicado. Revisa antes de guardar.'
+                                  : 'Listo para revision.'
                                 : item.needsMapping
                                   ? 'Excel cargado. Mapea las columnas.'
                                   : 'Movimientos detectados.'

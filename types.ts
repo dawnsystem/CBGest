@@ -82,6 +82,21 @@ export interface InvoiceHistoryEvent {
   user: string;
 }
 
+/** Resumen de factura existente para avisos de duplicado */
+export interface InvoiceDuplicateSummary {
+  number: string;
+  issuerName: string;
+  date: string;
+  totalAmount: number;
+}
+
+/** Coincidencia de duplicado detectada en ingesta */
+export interface DuplicateMatch {
+  kind: 'FILE' | 'CONTENT';
+  existingInvoiceId: string;
+  summary: InvoiceDuplicateSummary;
+}
+
 export interface Invoice {
   id: string;
   number: string;
@@ -120,6 +135,10 @@ export interface Invoice {
 
   // Ejercicio contable
   fiscalYearId?: string; // ID del ejercicio al que pertenece esta factura
+
+  // Deduplicación
+  fileHash?: string; // SHA-256 del archivo adjunto
+  contentFingerprint?: string; // Huella fiscal canónica (NIF+número+fecha+total)
 }
 
 export interface AccountingEntryLine {
@@ -696,6 +715,11 @@ export interface QueueItem {
   // UI State
   notificationDismissed?: boolean;
   needsMapping?: boolean; // XLSX files need manual column mapping
+
+  // Deduplicación
+  fileHash?: string;
+  duplicateMatch?: DuplicateMatch;
+  forceProcess?: boolean; // Saltar capa 1 (hash) y reprocesar con IA
 }
 
 export interface UploadQueueContextType {
@@ -703,6 +727,7 @@ export interface UploadQueueContextType {
   addToQueue: (files: File[], type: UploadType) => void;
   removeFromQueue: (id: string) => void;
   retryItem: (id: string) => void;
+  forceReprocessItem: (id: string) => void;
   clearCompleted: () => void;
   dismissNotifications: () => void;
   /** Indica si hay subidas en progreso */

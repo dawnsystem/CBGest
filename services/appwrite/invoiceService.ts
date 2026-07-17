@@ -227,6 +227,94 @@ export async function deleteInvoice(id: string): Promise<void> {
   }
 }
 
+/**
+ * Busca una factura por hash SHA-256 del archivo adjunto.
+ *
+ * @param fileHash - Hash hexadecimal del archivo
+ * @param fiscalYearId - Ejercicio contable activo (opcional)
+ * @returns Primera coincidencia o null
+ */
+export async function findInvoiceByFileHash(
+  fileHash: string,
+  fiscalYearId?: string
+): Promise<Invoice | null> {
+  if (!fileHash) return null;
+
+  try {
+    const queries: Parameters<typeof databases.listDocuments>[2] = [
+      Query.equal('fileHash', fileHash),
+      Query.limit(1),
+    ];
+    if (fiscalYearId) {
+      queries.push(Query.equal('fiscalYearId', fiscalYearId));
+    }
+
+    const response = await withRetry(
+      () => databases.listDocuments(config.databaseId, config.collections.invoices, queries),
+      'findInvoiceByFileHash'
+    );
+
+    setConnectionHealth(true);
+    const doc = response.documents[0] as InvoiceDocument | undefined;
+    if (!doc) return null;
+
+    return {
+      ...doc,
+      id: doc.$id,
+      appwriteId: doc.$id,
+      history: parseInvoiceHistory(doc.history),
+    } as Invoice;
+  } catch (error: unknown) {
+    dataLogger.warn('[findInvoiceByFileHash] Query failed, returning null', error);
+    setConnectionHealth(false);
+    return null;
+  }
+}
+
+/**
+ * Busca una factura por huella fiscal canónica.
+ *
+ * @param contentFingerprint - Huella `nif|number|date|cents`
+ * @param fiscalYearId - Ejercicio contable activo (opcional)
+ * @returns Primera coincidencia o null
+ */
+export async function findInvoiceByContentFingerprint(
+  contentFingerprint: string,
+  fiscalYearId?: string
+): Promise<Invoice | null> {
+  if (!contentFingerprint) return null;
+
+  try {
+    const queries: Parameters<typeof databases.listDocuments>[2] = [
+      Query.equal('contentFingerprint', contentFingerprint),
+      Query.limit(1),
+    ];
+    if (fiscalYearId) {
+      queries.push(Query.equal('fiscalYearId', fiscalYearId));
+    }
+
+    const response = await withRetry(
+      () => databases.listDocuments(config.databaseId, config.collections.invoices, queries),
+      'findInvoiceByContentFingerprint'
+    );
+
+    setConnectionHealth(true);
+    const doc = response.documents[0] as InvoiceDocument | undefined;
+    if (!doc) return null;
+
+    return {
+      ...doc,
+      id: doc.$id,
+      appwriteId: doc.$id,
+      history: parseInvoiceHistory(doc.history),
+    } as Invoice;
+  } catch (error: unknown) {
+    dataLogger.warn('[findInvoiceByContentFingerprint] Query failed, returning null', error);
+    setConnectionHealth(false);
+    return null;
+  }
+}
+
 // ============================================================================
 // CONVENIENCE FUNCTIONS (with file upload support)
 // ============================================================================

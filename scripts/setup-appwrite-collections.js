@@ -341,6 +341,8 @@ async function setupInvoicesIndexes() {
     { key: 'type_asc', type: 'key', attributes: ['type'], orders: ['ASC'] },
     { key: 'supplierId_asc', type: 'key', attributes: ['supplierId'], orders: ['ASC'] },
     { key: 'apartmentId_asc', type: 'key', attributes: ['apartmentId'], orders: ['ASC'] },
+    { key: 'fileHash_asc', type: 'key', attributes: ['fileHash'], orders: ['ASC'] },
+    { key: 'contentFingerprint_asc', type: 'key', attributes: ['contentFingerprint'], orders: ['ASC'] },
     // Compound index for common queries
     { key: 'type_status', type: 'key', attributes: ['type', 'status'], orders: ['ASC', 'ASC'] },
   ];
@@ -524,8 +526,10 @@ async function setupUploadsCollection() {
     { type: 'string', key: 'error', size: 1000, required: false },
     { type: 'integer', key: 'timestamp', required: true, min: 0, max: 9999999999999 },
     { type: 'boolean', key: 'notificationDismissed', required: false, default: false },
-    { type: 'string', key: 'result', size: 10000, required: false },
-    { type: 'string', key: 'bankResult', size: 50000, required: false },
+    // Deduplicación (FEAT-DEDUP-001)
+    { type: 'string', key: 'fileHash', size: 64, required: false },
+    { type: 'string', key: 'duplicateMatch', size: 2000, required: false },
+    { type: 'boolean', key: 'forceProcess', required: false, default: false },
   ];
 
   for (const attr of attributes) {

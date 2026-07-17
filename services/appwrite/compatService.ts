@@ -41,6 +41,8 @@ export const databaseService = {
   getInvoices: invoiceSvc.getInvoices,
   updateInvoice: invoiceSvc.updateInvoice,
   deleteInvoice: invoiceSvc.deleteInvoice,
+  findInvoiceByFileHash: invoiceSvc.findInvoiceByFileHash,
+  findInvoiceByContentFingerprint: invoiceSvc.findInvoiceByContentFingerprint,
   // ENTRIES
   createEntry: entrySvc.createEntry,
   getEntries: entrySvc.getEntries,
