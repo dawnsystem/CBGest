@@ -28,7 +28,7 @@
 | **2** | Ejercicios 2027 y 2028 creados (2028 nota parcial 17/07) | ☐ | ☐ | |
 | **3** | 6 apartamentos (`CB-A1` … `CB-R2`) | ☐ | ☐ | |
 | **4** | 8 proveedores (`master/proveedores.json`) | ☐ | ☐ | |
-| **5** | 9 gastos recurrentes (`master/gastos-recurrentes.json`) | ☐ | ☐ | |
+| **5** | 7 gastos recurrentes (`master/gastos-recurrentes.json`) | ☐ | ☐ | |
 | **6** | 108 facturas 2027 cargadas (72 gasto + 36 ingreso) | ☐ | ☐ | |
 | **7** | 12 extractos 2027 + conciliación (flujos A–E) | ☐ | ☐ | |
 | **8** | 60 reservas 2027 (`reservas-2027.csv`) + edges reservas | ☐ | ☐ | |

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus, Landmark, ShieldAlert, FileSpreadsheet } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, X, Play, Trash2, BookPlus, Landmark, ShieldAlert, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import { useUploadQueue } from '../context/UploadQueueContext';
 import { Invoice, AppSettings, QueueItem, UploadType, BankTransaction, Apartment } from '../types';
 import { generateId } from '../utils/defaults';
@@ -22,7 +22,7 @@ const READ_ONLY_ATTACH_MESSAGE = 'Ejercicio cerrado: no se pueden adjuntar docum
 const READ_ONLY_DISABLED_BUTTON_CLASSES = 'bg-slate-100 text-slate-400 cursor-not-allowed';
 
 export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded, onBankTransactionsAdded, settings: _settings, apartments }) => {
-  const { queue, addToQueue, removeFromQueue } = useUploadQueue();
+  const { queue, addToQueue, removeFromQueue, retryItem, retryFailedItems } = useUploadQueue();
   const isReadOnly = useIsReadOnly();
   const [isDragging, setIsDragging] = useState(false);
   const [uploadType, setUploadType] = useState<UploadType>('INVOICE');
@@ -410,7 +410,27 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
       {inboxItems.length > 0 && (
         <div className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Bandeja de Entrada</h3>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Bandeja de Entrada</h3>
+              {inboxItems.some((i) => i.status === 'ERROR' && i.storageFileId) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    retryFailedItems();
+                    showToast('Reintentando análisis de facturas fallidas…', 'info');
+                  }}
+                  disabled={isReadOnly}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1.5 border ${
+                    isReadOnly
+                      ? READ_ONLY_DISABLED_BUTTON_CLASSES
+                      : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                  }`}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Reintentar fallidos
+                </button>
+              )}
+            </div>
             {inboxItems.map(item => (
                 <div key={item.id} className="bg-white border border-slate-200 rounded-lg p-4 flex items-center gap-4 shadow-sm animate-fade-in">
                     <div className="shrink-0">
@@ -450,6 +470,24 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                         {item.status === 'ANALYZING' && <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${item.progress}%` }}></div></div>}
                     </div>
                     <div className="shrink-0 flex items-center gap-2">
+                        {item.status === 'ERROR' && item.storageFileId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                retryItem(item.id);
+                                showToast(`Reintentando: ${item.fileName}`, 'info');
+                              }}
+                              disabled={isReadOnly}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${
+                                isReadOnly
+                                  ? READ_ONLY_DISABLED_BUTTON_CLASSES
+                                  : 'bg-amber-600 text-white hover:bg-amber-700'
+                              }`}
+                              title="Reanalizar con Gemini sin volver a subir"
+                            >
+                              <RotateCcw className="w-4 h-4" /> Reintentar
+                            </button>
+                        )}
                         {item.status === 'COMPLETED' && (
                             <button
                               onClick={() => startReview(item)}

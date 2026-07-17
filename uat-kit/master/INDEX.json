@@ -21,7 +21,7 @@
     "comuneros": 4,
     "apartamentos": 6,
     "proveedores": 8,
-    "gastosRecurrentes": 9
+    "gastosRecurrentes": 7
   },
   "fiscalRegime": "ALQUILER_EXENTO",
   "vatObligation": false

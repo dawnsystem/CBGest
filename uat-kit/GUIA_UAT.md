@@ -202,7 +202,7 @@
 
 ## Paso 5 — Alta gastos recurrentes
 
-**Objetivo:** Registrar los 9 gastos/ingresos recurrentes del escenario.
+**Objetivo:** Registrar los **7 gastos recurrentes** del escenario (solo gastos; los alquileres CB-R1/R2 van como facturas de ingreso en el Paso 6).
 
 **Dónde en la UI:** Sidebar → **Gastos Fijos** (`#/recurring`).
 
@@ -219,16 +219,15 @@
    | Gestoría Empordà | MONTHLY | 95 | 623 | Gestoría |
    | Fibra Telefónica | MONTHLY | 49,9 | 626 | Telefónica |
    | Cuota comunidad Sant Jordi | MONTHLY | 180 | 622 | Comunidad |
-   | Ingreso alquiler CB-R1 | MONTHLY | 850 | 705 | (sin proveedor; apto CB-R1) |
-   | Ingreso alquiler CB-R2 | MONTHLY | 1100 | 705 | (sin proveedor; apto CB-R2) |
 
 2. Día del mes según `dayOfMonth` en el JSON.
+3. **No** dar de alta «Ingreso alquiler CB-R*» aquí: inflarían el total de gastos. Esos importes llegan con las facturas `I-2027-*` / `I-2028-*`.
 
 **Datos exactos:** [`master/gastos-recurrentes.json`](./master/gastos-recurrentes.json).
 
-**Criterio PASS:** 9 gastos recurrentes activos; frecuencias e importes coinciden con el maestro.
+**Criterio PASS:** 7 gastos recurrentes activos; frecuencias e importes coinciden con el maestro.
 
-**Criterio FAIL:** Menos de 9; frecuencia incorrecta en seguro anual o alquileres residenciales.
+**Criterio FAIL:** Más/menos de 7; ingresos 705 en la lista de gastos; frecuencia incorrecta en el seguro anual.
 
 **Edges relevantes:** —
 
@@ -246,6 +245,7 @@
 2. Subir PDFs por lotes desde:
    - `uat-kit/2027/facturas/gasto/*.pdf` (72 archivos)
    - `uat-kit/2027/facturas/ingreso/*.pdf` (36 archivos)
+   - **Consejo:** lotes de ~10–15 PDFs. Si Gemini responde «cuota excedida», usa **Reintentar** / **Reintentar fallidos** en la bandeja (no hace falta volver a subir el archivo). Espera ~1 min entre oleadas si el límite por minuto es bajo.
 3. Por cada PDF en cola: revisar campos extraídos → **Confirmar**. Si OCR falla, abrir el `.json` del mismo nombre (ej. `G-2027-058.json`) y transcribir manualmente: número, fecha, emisor, NIF, base, IVA, total, tipo EXPENSE/INCOME, proveedor.
    - **Ingresos de alquiler:** IVA 0 % (exento).
    - **Gastos de proveedores:** pueden llevar IVA 10/21 % aunque la CB esté en arrendamiento exento (es correcto: te facturan con IVA; el IRPF usa `totalAmount`).

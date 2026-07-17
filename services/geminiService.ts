@@ -164,8 +164,11 @@ export const analyzeInvoiceImage = async (
     if (message?.includes('API key')) {
       throw new Error("Error de autenticación: API Key inválida o no encontrada.");
     }
-    if (status === 429 || message?.includes('quota')) {
-      throw new Error("Cuota excedida: Has superado el límite de uso de la API de Gemini.");
+    if (status === 429 || message?.includes('quota') || message?.includes('RESOURCE_EXHAUSTED')) {
+      throw new Error(
+        'Cuota excedida: límite temporal de la API de Gemini (peticiones/minuto). ' +
+          'Espera unos segundos y pulsa Reintentar; no hace falta volver a subir el archivo.'
+      );
     }
     if (status === 404 || message?.includes('not found')) {
       throw new Error(`Modelo no encontrado: Asegúrate de tener acceso al modelo gemini-2.5-flash.`);
@@ -240,8 +243,11 @@ export const analyzeBankStatement = async (base64Data: string, mimeType: string)
     if (message?.includes('API key')) {
       throw new Error("Error de autenticación: API Key inválida o no encontrada.");
     }
-    if (status === 429 || message?.includes('quota')) {
-      throw new Error("Cuota excedida: Has superado el límite de uso de la API de Gemini.");
+    if (status === 429 || message?.includes('quota') || message?.includes('RESOURCE_EXHAUSTED')) {
+      throw new Error(
+        'Cuota excedida: límite temporal de la API de Gemini (peticiones/minuto). ' +
+          'Espera unos segundos y pulsa Reintentar; no hace falta volver a subir el archivo.'
+      );
     }
 
     throw error;

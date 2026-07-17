@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 22:50:00 UTC*
+*Última actualización: 2026-07-17 12:00:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Kit UAT en régimen arrendamiento (`ALQUILER_EXENTO`)** listo para verificación IRPF del caso real. Guía y `expected/irpf-2027.md` alineados con criterio FIS-001 (`totalAmount`). Pendiente ejecución humana del Paso 10 en [`uat-kit/GUIA_UAT.md`](uat-kit/GUIA_UAT.md).
+Estado actual: **UAT arrendamiento + fix cola Gemini.** Gastos recurrentes UAT sin ingresos 705; bandeja de facturas con Reintentar / Reintentar fallidos ante cuota Gemini.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-17] - `UAT-003` + `FIX-UPLOAD-001` - Recurrentes solo gastos + reintento Gemini:** Eliminados «Ingreso alquiler CB-R1/R2» de `gastos-recurrentes.json` (7 ítems; no inflan proyecciones). UI bandeja: botones **Reintentar** y **Reintentar fallidos** (reusa `storageFileId`). Pausa 1,5 s entre análisis Gemini; mensajes de cuota orientan a reintentar sin re-subir.
 *   **[2026-07-16] - `UAT-002` - Kit UAT → arrendamiento + IRPF verificable:** Maestro `empresa.json` pasa a `ALQUILER_EXENTO` / `vatObligation: false`. Guía, README y checklist actualizados (Paso 1 y Paso 10). Generador escribe `expected/irpf-2027.md` y `irpf-2028.md` (rendimiento CB + cuotas por comunero, tolerancia ±2 €). Facturas/PDF no regeneradas (importes idénticos; solo cambia interpretación fiscal).
 *   **[2026-07-16] - `UAT-001` - Kit UAT manual (2027 + 2028 parcial):** Carpeta `uat-kit/` con empresa ficticia, 4 comuneros (perfiles fiscales distintos), 6 apartamentos, 8 proveedores, 9 recurrentes; 72+36 facturas 2027 y 40+20 en 2028 (PDF + JSON); 19 extractos XLSX; 90 reservas CSV; edges EDGE-01…11; guía paso a paso `GUIA_UAT.md` + checklist PASS/FAIL. Generador `scripts/generate-uat-kit.mjs` (`npm run generate:uat-kit`); dep `write-excel-file`. NIFs/CIFs validados. No modifica lógica de negocio de la app.
 *   **[2026-07-16] - `OPS-FY-002` - setup-all-collections alineado con Cloud:** `fiscalYearId` unificado a size **36** + constantes compartidas; pase final `ensureFiscalYearIdSchema()`; paginación de `listAttributes`; scripts `add-*` alineados. Evita instalaciones parciales como la de `recurring_expenses`.
@@ -105,6 +106,14 @@ Estado actual: **Kit UAT en régimen arrendamiento (`ALQUILER_EXENTO`)** listo p
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-17 12:00:00 UTC]
+*   **Directiva del Director:** (1) Ingresos alquiler en gastos recurrentes se suman al total de gastos. (2) Cuota Gemini al subir muchas facturas — falta botón reintentar sin re-subir.
+*   **Log de Acciones:**
+    - `[11:55:00]` - **FIX:** `gastos-recurrentes.json` → solo 7 gastos; guía/checklist Paso 5.
+    - `[11:57:00]` - **FEAT:** `retryFailedItems` + botones Reintentar en `InvoiceUploader`; delay Gemini 1,5 s; mensajes cuota.
+    - `[12:00:00]` - **DOC:** Bitácora `UAT-003` / `FIX-UPLOAD-001`.
+*   **Resultado:** Proyecciones de gastos coherentes; cola OCR recuperable tras 429.
+
 ### Sesión: [2026-07-16 22:50:00 UTC]
 *   **Directiva del Director:** Adaptar el kit UAT a régimen arrendamiento (`ALQUILER_EXENTO`) para verificar el caso IRPF específico (no régimen general).
 *   **Log de Acciones:**

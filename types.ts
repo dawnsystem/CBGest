@@ -667,6 +667,8 @@ export interface UploadQueueContextType {
   addToQueue: (files: File[], type: UploadType) => void;
   removeFromQueue: (id: string) => void;
   retryItem: (id: string) => void;
+  /** Reencola todos los ítems en ERROR que ya están en Storage (sin re-subir). */
+  retryFailedItems: () => void;
   clearCompleted: () => void;
   dismissNotifications: () => void;
   /** Indica si hay subidas en progreso */

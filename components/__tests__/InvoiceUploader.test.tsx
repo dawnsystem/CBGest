@@ -14,6 +14,8 @@ vi.mock('../../context/UploadQueueContext', () => ({
     queue: [],
     addToQueue: mockAddToQueue,
     removeFromQueue: mockRemoveFromQueue,
+    retryItem: vi.fn(),
+    retryFailedItems: vi.fn(),
   }),
 }));
 

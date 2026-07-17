@@ -28,6 +28,34 @@ const MAX_CONCURRENT_UPLOADS = 5;
 /** Intervalo para actualizar progreso visual (ms) — PERF-006: increased to 1 s to reduce re-renders with concurrent uploads */
 const PROGRESS_UPDATE_INTERVAL = 1000;
 
+/** Pausa entre análisis Gemini para reducir 429 / cuota por minuto */
+const GEMINI_INTER_REQUEST_DELAY_MS = 1500;
+
+/**
+ * @param ms - Milisegundos a esperar
+ * @returns Promise que resuelve tras el delay
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Detecta errores de cuota / rate-limit de Gemini.
+ * @param message - Mensaje de error
+ * @returns true si conviene reintentar más tarde
+ */
+function isGeminiQuotaError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('cuota') ||
+    lower.includes('quota') ||
+    lower.includes('rate') ||
+    lower.includes('429') ||
+    lower.includes('resource_exhausted') ||
+    lower.includes('too many requests')
+  );
+}
+
 // ============================================================================
 // PROVIDER
 // ============================================================================
@@ -261,13 +289,13 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           ? { ...i, status: 'PENDING_UPLOAD' as const, progress: 0, error: undefined } 
           : i
       ));
-      uploadQueueRef.current.push(item);
+      uploadQueueRef.current.push({ ...item, status: 'PENDING_UPLOAD', progress: 0, error: undefined });
       processUploadQueue();
       return;
     }
 
     // Si está en Appwrite y tiene storageFileId, reintentar procesamiento Gemini
-    if (item.appwriteId && item.storageFileId) {
+    if (item.appwriteId && item.storageFileId && item.status === 'ERROR') {
       const updatedItem: QueueItem = {
         ...item,
         status: 'QUEUED',
@@ -279,11 +307,43 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       try {
         await protectedDatabase.updateUploadItem(updatedItem);
         setQueue(prev => prev.map(i => i.id === id ? updatedItem : i));
+        uploadLogger.info(`[UploadQueue] Reintento Gemini encolado: ${item.fileName}`);
       } catch (error) {
         uploadLogger.error(`[UploadQueue] Error reintentando ${id}:`, error);
       }
     }
   }, [queue, processUploadQueue]);
+
+  /**
+   * Reencola todos los ítems en ERROR que ya tienen archivo en Storage.
+   */
+  const retryFailedItems = useCallback(async () => {
+    const failed = queue.filter(
+      (item) => item.status === 'ERROR' && item.appwriteId && item.storageFileId
+    );
+    if (failed.length === 0) {
+      uploadLogger.info('[UploadQueue] No hay ítems fallidos reintentables');
+      return;
+    }
+
+    uploadLogger.info(`[UploadQueue] Reintentando ${failed.length} ítems fallidos`);
+
+    for (const item of failed) {
+      const updatedItem: QueueItem = {
+        ...item,
+        status: 'QUEUED',
+        progress: 0,
+        error: undefined,
+        notificationDismissed: false,
+      };
+      setQueue((prev) => prev.map((i) => (i.id === item.id ? updatedItem : i)));
+      try {
+        await protectedDatabase.updateUploadItem(updatedItem);
+      } catch (error) {
+        uploadLogger.error(`[UploadQueue] Error reencolando ${item.fileName}:`, error);
+      }
+    }
+  }, [queue]);
 
   // ============================================================================
   // CLEAR COMPLETED
@@ -509,7 +569,10 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       clearInterval(progressInterval);
       uploadLogger.error('[UploadQueue] Error procesando con Gemini:', err);
 
-      const errorMessage = err instanceof Error ? err.message : 'Error en análisis IA.';
+      const rawMessage = err instanceof Error ? err.message : 'Error en análisis IA.';
+      const errorMessage = isGeminiQuotaError(rawMessage)
+        ? `${rawMessage} Usa «Reintentar» en unos segundos (límite por minuto). El archivo ya está subido.`
+        : rawMessage;
       const errorItem: QueueItem = {
         ...item,
         status: 'ERROR',
@@ -527,7 +590,14 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
           uploadLogger.error('[UploadQueue] Error guardando estado de error:', saveError);
         });
       }
+
+      // Tras cuota, esperar un poco antes de liberar el slot (siguiente ítem)
+      if (isGeminiQuotaError(rawMessage)) {
+        await delay(GEMINI_INTER_REQUEST_DELAY_MS * 2);
+      }
     } finally {
+      // Espacio entre peticiones Gemini (éxito o fallo) para mitigar rate-limit
+      await delay(GEMINI_INTER_REQUEST_DELAY_MS);
       setProcessingId(null);
     }
   }, [suppliers]);
@@ -576,7 +646,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
       queue, 
       addToQueue, 
       removeFromQueue, 
-      retryItem, 
+      retryItem,
+      retryFailedItems,
       clearCompleted, 
       dismissNotifications,
       isUploading,

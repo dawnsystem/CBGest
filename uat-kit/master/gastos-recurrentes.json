@@ -91,34 +91,7 @@
       "dayOfMonth": 1,
       "isDeductible": true,
       "isActive": true
-    },
-    {
-      "id": "rec-alquiler-r1",
-      "name": "Ingreso alquiler CB-R1",
-      "description": "Alquiler residencial Palafrugell Centro (ingreso estimado)",
-      "estimatedAmount": 850,
-      "frequency": "MONTHLY",
-      "category": "705",
-      "apartmentId": "apt-cb-r1",
-      "supplierId": null,
-      "dayOfMonth": 1,
-      "isDeductible": false,
-      "isActive": true,
-      "notes": "Es un ingreso recurrente; registrar como factura INCOME o asiento 705."
-    },
-    {
-      "id": "rec-alquiler-r2",
-      "name": "Ingreso alquiler CB-R2",
-      "description": "Alquiler residencial Calella (ingreso estimado)",
-      "estimatedAmount": 1100,
-      "frequency": "MONTHLY",
-      "category": "705",
-      "apartmentId": "apt-cb-r2",
-      "supplierId": null,
-      "dayOfMonth": 1,
-      "isDeductible": false,
-      "isActive": true,
-      "notes": "Es un ingreso recurrente; registrar como factura INCOME o asiento 705."
     }
-  ]
+  ],
+  "notes": "Solo gastos. Los alquileres CB-R1/CB-R2 se registran como facturas INCOME (I-2027-*), no como gastos recurrentes."
 }
