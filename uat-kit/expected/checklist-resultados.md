@@ -23,7 +23,7 @@
 | Paso | Descripción | PASS | FAIL | Notas / bug encontrado |
 |:----:|-------------|:----:|:----:|------------------------|
 | **0** | Precondiciones / reset (entorno limpio, app arrancada) | ☐ | ☐ | |
-| **1** | Configuración CB + 4 comuneros + taxInfo (perfiles distintos) | ☐ | ☐ | |
+| **1** | Configuración CB + 4 comuneros + taxInfo (`ALQUILER_EXENTO`) | ☐ | ☐ | |
 | **2** | Ejercicios 2027 y 2028 creados (2028 nota parcial 17/07) | ☐ | ☐ | |
 | **3** | 6 apartamentos (`CB-A1` … `CB-R2`) | ☐ | ☐ | |
 | **4** | 8 proveedores (`master/proveedores.json`) | ☐ | ☐ | |

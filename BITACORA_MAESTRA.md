@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 22:20:00 UTC*
+*Última actualización: 2026-07-17 18:50:00 UTC*
 
 ---
 
@@ -11,6 +11,7 @@
 Estado actual: **Kit UAT manual listo** (`uat-kit/`). Escenario ficticio C.B. Mediterránea Costa Brava — ejercicios 2027 completo + 2028 hasta 17/07. Pendiente ejecución humana de [`uat-kit/GUIA_UAT.md`](uat-kit/GUIA_UAT.md) para validar la app de punta a punta. Schema FY en Cloud sigue aplicado; datos productivos 2025/2026 no afectados por el kit (artefactos estáticos en repo).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-17] - `UAT-002` + `BUG-FY-005` - Kit UAT a ALQUILER_EXENTO + falso positivo FY vacío:** Régimen del escenario UAT cambiado de `GENERAL` a `ALQUILER_EXENTO` (docs/guía/empresa.json). Facturas gasto de proveedores mantienen IVA (coste real); IRPF usa `totalAmount`. Eliminado en `App.tsx` el banner «posible recreación del ejercicio» cuando el ejercicio activo está vacío pero hay datos en **otros** ejercicios (falso positivo al crear 2027 con datos 2025/2026).
 *   **[2026-07-16] - `UAT-001` - Kit UAT manual (2027 + 2028 parcial):** Carpeta `uat-kit/` con empresa ficticia, 4 comuneros (perfiles fiscales distintos), 6 apartamentos, 8 proveedores, 9 recurrentes; 72+36 facturas 2027 y 40+20 en 2028 (PDF + JSON); 19 extractos XLSX; 90 reservas CSV; edges EDGE-01…11; guía paso a paso `GUIA_UAT.md` + checklist PASS/FAIL. Generador `scripts/generate-uat-kit.mjs` (`npm run generate:uat-kit`); dep `write-excel-file`. NIFs/CIFs validados. No modifica lógica de negocio de la app.
 *   **[2026-07-16] - `OPS-FY-002` - setup-all-collections alineado con Cloud:** `fiscalYearId` unificado a size **36** + constantes compartidas; pase final `ensureFiscalYearIdSchema()`; paginación de `listAttributes`; scripts `add-*` alineados. Evita instalaciones parciales como la de `recurring_expenses`.
 *   **[2026-07-16] - `OPS-FY-001` - Schema + datos 2026 en Appwrite Cloud:** Con API Key de schema: creado `fiscalYearId` en `recurring_expenses` (era la colección que rompía la migración). Verificado atributo/índice en las 7 colecciones. Inventario: invoices=0, entries=0; apartments/reservations/transactions/suppliers todos con `fiscalYearId` del ejercicio **2025**. Copiados maestros a 2026 (`mrlspalb-66qm1lz`): 8 apartamentos + 1 proveedor. **Rotar la API Key** expuesta en chat.
@@ -104,6 +105,14 @@ Estado actual: **Kit UAT manual listo** (`uat-kit/`). Escenario ficticio C.B. Me
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-17 18:50:00 UTC]
+*   **Directiva del Director:** (1) Cambiar kit UAT de régimen GENERAL a arrendamiento de inmuebles. (2) Aviso «Datos del ejercicio no visibles» al crear ejercicio 2027.
+*   **Log de Acciones:**
+    - `[18:40:00]` - **DOC/DATA:** `empresa.json` → `ALQUILER_EXENTO` / `vatObligation: false`; guía y README actualizados. Facturas proveedor con IVA se mantienen (no regenerar).
+    - `[18:45:00]` - **FIX BUG-FY-005:** `App.tsx` — no mostrar warning de «recreación» cuando `assignedTotal=0` y existen docs en otros ejercicios (ejercicio nuevo vacío).
+    - `[18:50:00]` - **DOC:** FAQ en `GUIA_UAT.md` + bitácora.
+*   **Resultado:** Kit alineado a arrendamiento; banner falso positivo eliminado.
+
 ### Sesión: [2026-07-16 22:20:00 UTC]
 *   **Directiva del Director:** Crear carpeta de prueba UAT con facturas, extractos, comuneros, reservas y guía paso a paso para simular el trabajo diario de un gestor (ejercicio 2027 completo + 2028 hasta 17/07; PDFs + fichas).
 *   **Log de Acciones:**

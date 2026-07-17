@@ -6,7 +6,7 @@
 |-------|-------|
 | Denominación | **C.B. Mediterránea Costa Brava** |
 | CIF / NIF | `E45678901` |
-| Régimen | `GENERAL` (con IVA) |
+| Régimen | `ALQUILER_EXENTO` (arrendamiento de inmuebles, exento IVA) |
 | IBAN (referencia kit) | `ES91 2100 0418 4502 0005 1332` |
 | Ejercicio 2027 | 01/01/2027 – 31/12/2027 (completo) |
 | Ejercicio 2028 | 01/01/2028 – **17/07/2028** (parcial; solo importar datos del kit ≤ esa fecha) |
@@ -78,7 +78,8 @@
 1. `#/settings` → **Datos Fiscales** → **Guardar Cambios**:
    - Denominación: `C.B. Mediterránea Costa Brava`
    - NIF: `E45678901`
-   - Régimen: **General (IVA Trimestral)**
+   - Régimen: **Arrendamiento Inmuebles (Exento IVA)** → valor interno `ALQUILER_EXENTO`
+   - No actives régimen General: este kit simula alquiler turístico/residencial sin IVA repercutido.
 2. Pestaña **Comuneros** → crear exactamente 4 filas (eliminar socios por defecto si los hay). Copiar de [`master/comuneros.json`](./master/comuneros.json):
 
    | Nombre | NIF | Participación % | Perfil (referencia) |
@@ -103,9 +104,9 @@
 
 **Datos exactos:** [`master/empresa.json`](./master/empresa.json), [`master/comuneros.json`](./master/comuneros.json).
 
-**Criterio PASS:** CB con CIF `E45678901` y régimen GENERAL; 4 comuneros con participaciones 35/30/20/15; los cuatro muestran datos fiscales en el Dashboard (no aparece «+ Añadir Datos»).
+**Criterio PASS:** CB con CIF `E45678901` y régimen **Arrendamiento Inmuebles (Exento IVA)** / `ALQUILER_EXENTO`; 4 comuneros con participaciones 35/30/20/15; los cuatro muestran datos fiscales en el Dashboard (no aparece «+ Añadir Datos»).
 
-**Criterio FAIL:** Participaciones ≠ 100 %; perfiles fiscales idénticos o vacíos; régimen distinto de GENERAL.
+**Criterio FAIL:** Participaciones ≠ 100 %; perfiles fiscales idénticos o vacíos; régimen distinto de `ALQUILER_EXENTO` (p. ej. General).
 
 **Edges relevantes:** —
 
@@ -124,9 +125,11 @@
 3. Clic **Crear Ejercicio** → año **2028** → notas: `UAT parcial — datos solo hasta 17/07/2028` → confirmar. El sistema copiará proveedores y apartamentos del 2027.
 4. Volver a seleccionar **2027** antes del paso 3 del UAT.
 
+**Sobre el aviso ámbar «Datos del ejercicio no visibles»:** si acabas de crear el 2027 y aún no has dado de alta apartamentos/proveedores/facturas, es **normal** que el ejercicio esté vacío. Si en Appwrite ya hay datos de otros años (2025/2026), el aviso antiguo podía confundirse con un error; con la corrección `BUG-FY-005` ese falso positivo no debería aparecer. Si el aviso habla de documentos **sin ejercicio** (`fiscalYearId` vacío), entonces sí usa «Migrar datos sin ejercicio» en `#/fiscal-years`.
+
 **Datos exactos:** [`master/escenario.json`](./master/escenario.json) → `fiscalYears`.
 
-**Criterio PASS:** Existen ejercicios 2027 y 2028, ambos abiertos; 2027 está activo para los pasos 3–10.
+**Criterio PASS:** Existen ejercicios 2027 y 2028, ambos abiertos; 2027 está activo para los pasos 3–10. No hay banner alarmista solo por tener un ejercicio nuevo vacío.
 
 **Criterio FAIL:** Falta algún ejercicio; no se puede cambiar el ejercicio activo.
 
@@ -251,7 +254,7 @@
    |------|---------|-------------------------|
    | **EDGE-01** | `G-2027-058` | Fecha 15/11/2027, Neteja, total **242,00 €** (200+21 %), estado pendiente; **no** debe existir movimiento bancario asociado aún |
    | **EDGE-02** | `G-2027-032` | Gestoría, fecha factura **10/06/2027**, total **114,95 €**; pago bancario será en julio |
-   | **EDGE-06** | `G-2027-022`, `G-2027-023` | Endesa **IVA 21 %** (total 122,66 €); Aigües **IVA 10 %** (total 57,15 €) |
+   | **EDGE-06** | `G-2027-022`, `G-2027-023` | Endesa **IVA 21 %** y Aigües **IVA 10 %** en la factura del proveedor (el IVA se paga como coste; en régimen alquiler la CB no lo repercute ni lo deduce en IRPF vía `baseAmount`) |
    | **EDGE-04** | `I-2027-024` | Airbnb ingreso **12/08/2027**, neto **1842,35 €**, cuenta 705 |
    | **EDGE-09** | `G-2027-063` | Neteja **05/12/2027**, total **422,18 €** (se pagará en extracto ene-2028) |
 
@@ -512,6 +515,20 @@
 | Modelos Fiscales | `#/taxes` |
 | Ejercicios | `#/fiscal-years` |
 | Configuración | `#/settings` |
+
+---
+
+## FAQ rápido
+
+### ¿Basta con cambiar el régimen a «Arrendamiento de inmuebles»?
+En Configuración, sí: elige **Arrendamiento Inmuebles (Exento IVA)** (`ALQUILER_EXENTO`) y guarda. Eso cambia el cálculo IRPF (usa `totalAmount` de facturas, no la base sin IVA).
+
+No hace falta regenerar el kit entero. Las facturas de **gasto** de proveedores siguen mostrando IVA (Endesa, limpieza, etc.): en la vida real el proveedor te cobra IVA aunque tú no lo repercutas. Las de **ingreso** (alquileres / Airbnb) ya van a IVA 0 %, coherente con arrendamiento.
+
+Sí debes actualizar mentalmente / en checklist: no esperes flujo de Modelo 303 trimestral como en régimen General; el foco es IRPF / Modelo 184 y contabilidad simplificada.
+
+### Acabo de crear el ejercicio 2027 y salió el aviso ámbar
+Si el ejercicio está vacío (aún no has cargado maestros ni facturas) y en Appwrite hay datos de **otros** ejercicios, el aviso de «posible recreación del ejercicio» era un **falso positivo** (corregido en `BUG-FY-005`). Puedes cerrarlo y seguir con el alta de apartamentos/proveedores. Solo actúa si el diagnóstico indica documentos **sin** `fiscalYearId` (migración legacy).
 
 ---
 

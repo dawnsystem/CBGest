@@ -539,14 +539,12 @@ const MainLayout: React.FC = () => {
               setFiscalYearVisibilityWarning(
                 `Appwrite responde correctamente, pero el ejercicio ${activeFiscalYear?.year ?? ''} ` +
                 `no tiene documentos asignados y hay ${report.unassignedTotal} sin ejercicio (fiscalYearId vacío). ` +
-                'Ve a Ejercicios → «Migrar datos sin ejercicio» con 2026 activo para recuperarlos.'
-              );
-            } else if (report.assignedTotal === 0 && report.collections.invoices.total + report.collections.apartments.total > 0) {
-              setFiscalYearVisibilityWarning(
-                `Hay datos en Appwrite, pero ninguno está enlazado al ejercicio ${activeFiscalYear?.year ?? ''} ` +
-                `(posible recreación del ejercicio con otro ID). Revisa en Consola Appwrite el campo fiscalYearId.`
+                'Ve a Ejercicios → «Migrar datos sin ejercicio» con el ejercicio destino activo para recuperarlos.'
               );
             }
+            // BUG-FY-005: un ejercicio NUEVO vacío con datos en OTROS años no es error.
+            // Antes se mostraba «posible recreación…» cuando apartments/invoices.total > 0
+            // aunque esos docs pertenecieran a 2025/2026. No advertir en ese caso.
           } catch (diagErr) {
             console.warn('[App] diagnoseFiscalYearVisibility failed:', diagErr);
           }
