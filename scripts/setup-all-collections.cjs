@@ -575,6 +575,10 @@ async function setupTransactionsCollection() {
     // AI matching suggestions (NEW - for intelligent reconciliation)
     { type: 'string', key: 'aiMatchSuggestion', size: 5000, required: false },
     { type: 'string', key: 'reconciledWithInvoiceId', size: 100, required: false },
+
+    // Dedup fingerprints (SHA-256 hex)
+    { type: 'string', key: 'contentFingerprint', size: 64, required: false },
+    { type: 'string', key: 'importBatchId', size: 36, required: false },
     
     // Audit fields
     { type: 'string', key: 'createdBy', size: 100, required: false },
@@ -598,6 +602,8 @@ async function setupTransactionsCollection() {
     { key: 'date_index', type: 'key', attributes: ['date'], orders: ['DESC'] },
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
     { key: 'platformDetected_index', type: 'key', attributes: ['platformDetected'], orders: ['ASC'] },
+    { key: 'contentFingerprint_index', type: 'key', attributes: ['contentFingerprint'], orders: ['ASC'] },
+    { key: 'importBatchId_index', type: 'key', attributes: ['importBatchId'], orders: ['ASC'] },
     { ...FISCAL_YEAR_ID_INDEX },
   ];
 
@@ -785,6 +791,11 @@ async function setupUploadsCollection() {
     // UI state
     { type: 'boolean', key: 'notificationDismissed', required: false, default: false },
     { type: 'boolean', key: 'needsMapping', required: false, default: false },
+    { type: 'boolean', key: 'isDuplicate', required: false, default: false },
+
+    // Dedup: exact file hash + fiscal year scope
+    { type: 'string', key: 'fileSha256', size: 64, required: false },
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
     
     // Results (JSON strings)
     { type: 'string', key: 'result', size: 50000, required: false },
@@ -810,6 +821,8 @@ async function setupUploadsCollection() {
     { key: 'timestamp_index', type: 'key', attributes: ['timestamp'], orders: ['DESC'] },
     { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
     { key: 'storageFileId_index', type: 'key', attributes: ['storageFileId'], orders: ['ASC'] },
+    { key: 'fileSha256_index', type: 'key', attributes: ['fileSha256'], orders: ['ASC'] },
+    { ...FISCAL_YEAR_ID_INDEX },
   ];
 
   for (const index of indexes) {
@@ -1131,6 +1144,52 @@ async function setupFiscalYearsCollection() {
 }
 
 /**
+ * BANK_STATEMENT_IMPORTS — registro de extractos para deduplicación rápida.
+ */
+async function setupBankStatementImportsCollection() {
+  console.log('\n=== Setting up BANK_STATEMENT_IMPORTS collection ===\n');
+  const collectionId = 'bank_statement_imports';
+
+  await createCollection(collectionId, 'Bank Statement Imports');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { type: 'string', key: 'fileSha256', size: 64, required: false },
+    { type: 'string', key: 'contentFingerprint', size: 64, required: true },
+    { type: 'string', key: 'fileName', size: 255, required: false },
+    { type: 'integer', key: 'transactionCount', required: true, min: 0, max: 999999 },
+    { type: 'string', key: 'importedAt', size: 40, required: true },
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'fileSha256_index', type: 'key', attributes: ['fileSha256'], orders: ['ASC'] },
+    { key: 'contentFingerprint_index', type: 'key', attributes: ['contentFingerprint'], orders: ['ASC'] },
+    { key: 'importedAt_index', type: 'key', attributes: ['importedAt'], orders: ['DESC'] },
+    { ...FISCAL_YEAR_ID_INDEX },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Bank Statement Imports collection setup complete!\n');
+}
+
+/**
  * Pase defensivo: garantiza fiscalYearId + índice en colecciones ya existentes.
  * Evita el fallo real visto en Cloud (recurring_expenses sin atributo mientras
  * el resto sí lo tenía), que rompía filtros y «Migrar datos sin ejercicio».
@@ -1245,6 +1304,7 @@ async function main() {
     await setupAiMatchHistoryCollection();
     await setupReservationsCollection();
     await setupFiscalYearsCollection();
+    await setupBankStatementImportsCollection();
 
     // Defensive pass: attribute may be missing on older Cloud installs
     await ensureFiscalYearIdSchema();
@@ -1256,22 +1316,24 @@ async function main() {
     console.log('Collections configured:');
     console.log('  ✅ invoices (+ apartmentId, fiscalYearId, fileHash, contentFingerprint + indexes)');
     console.log('  ✅ entries (+ isDraft, fiscalYearId size=36 + index)');
-    console.log('  ✅ transactions (+ platformDetected, grossAmount, aiMatchSuggestion, fiscalYearId)');
+    console.log('  ✅ transactions (+ contentFingerprint, importBatchId, fiscalYearId)');
     console.log('  ✅ settings (+ touristTaxConfig field)');
     console.log('  ✅ suppliers (+ fiscalYearId size=36 + index)');
     console.log('  ✅ notifications');
-    console.log('  ✅ uploads (+ fileHash, duplicateMatch, forceProcess)');
+    console.log('  ✅ uploads (+ fileSha256/isDuplicate/fiscalYearId + fileHash/duplicateMatch/forceProcess)');
     console.log('  ✅ apartments (+ apartmentType TOURIST/RESIDENTIAL, + fiscalYearId)');
     console.log('  ✅ recurring_expenses (+ fiscalYearId size=36 + index)');
     console.log('  ✅ ai_match_history');
     console.log('  ✅ reservations (+ tourist tax and deposit fields, + fiscalYearId)');
     console.log('  ✅ fiscal_years (year, status, openedAt, closedAt, notes, touristTaxPeriods)');
+    console.log('  ✅ bank_statement_imports (fileSha256, contentFingerprint, fiscalYearId)');
     console.log('');
     console.log('Next steps:');
     console.log('  1. Verify: node scripts/verify-appwrite-setup.cjs');
     console.log('  2. If migrating legacy docs: node scripts/add-fiscal-year-id-attributes.cjs (idempotent)');
-    console.log('  3. Dedup only (idempotent): node scripts/add-invoice-dedup-attributes.cjs');
-    console.log('  4. Run the app — ejercicios filtran por fiscalYearId');
+    console.log('  3. Dedup facturas (idempotent): node scripts/add-invoice-dedup-attributes.cjs');
+    console.log('  4. Dedup extractos (idempotent): node scripts/add-bank-statement-dedup-schema.cjs');
+    console.log('  5. Run the app — ejercicios filtran por fiscalYearId');
     console.log('');
   } catch (error) {
     console.error('');

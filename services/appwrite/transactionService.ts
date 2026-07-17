@@ -16,10 +16,20 @@ import type { BankTransaction } from '../../types';
 
 type BankTransactionDocument = AppwriteEntity<BankTransaction> & { $id: string };
 
+function isUnknownAttributeError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    message.includes('unknown attribute') ||
+    message.includes('invalid document structure') ||
+    message.includes('contentfingerprint') ||
+    message.includes('importbatchid')
+  );
+}
+
 export async function createTransaction(transaction: BankTransaction): Promise<BankTransaction> {
   try {
     const { id } = transaction;
-    const transactionData = omitFields(transaction as AppwriteEntity<BankTransaction>, [
+    const baseOmit = [
       'id',
       'appwriteId',
       'createdAt',
@@ -30,20 +40,50 @@ export async function createTransaction(transaction: BankTransaction): Promise<B
       '$databaseId',
       '$collectionId',
       '$permissions',
-    ]);
+    ] as const;
 
-    const doc = await withRetry(
-      () => databases.createDocument(
-        config.databaseId,
-        config.collections.transactions,
-        id || ID.unique(),
-        transactionData
-      ),
-      'createTransaction'
-    );
+    let transactionData = omitFields(transaction as AppwriteEntity<BankTransaction>, [...baseOmit]);
+
+    let doc;
+    try {
+      doc = await withRetry(
+        () =>
+          databases.createDocument(
+            config.databaseId,
+            config.collections.transactions,
+            id || ID.unique(),
+            transactionData
+          ),
+        'createTransaction'
+      );
+    } catch (error: unknown) {
+      if (!isUnknownAttributeError(error)) throw error;
+      // Older Cloud schemas may lack dedup attrs — persist movement without them.
+      transactionData = omitFields(transaction as AppwriteEntity<BankTransaction>, [
+        ...baseOmit,
+        'contentFingerprint',
+        'importBatchId',
+      ]);
+      doc = await withRetry(
+        () =>
+          databases.createDocument(
+            config.databaseId,
+            config.collections.transactions,
+            id || ID.unique(),
+            transactionData
+          ),
+        'createTransactionFallback'
+      );
+    }
 
     setConnectionHealth(true);
-    return { ...doc, id: doc.$id, appwriteId: doc.$id } as unknown as BankTransaction;
+    return {
+      ...doc,
+      id: doc.$id,
+      appwriteId: doc.$id,
+      contentFingerprint: transaction.contentFingerprint,
+      importBatchId: transaction.importBatchId,
+    } as unknown as BankTransaction;
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'createTransaction');
     setConnectionHealth(false);

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier } from '../types';
 import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
-import { storageService } from '../services/appwriteService';
+import { storageService, findImportByFileSha256 } from '../services/appwriteService';
 import { useAuth } from './AuthContext';
 import { useFiscalYear } from './FiscalYearContext';
 import { generateId } from '../utils/defaults';
@@ -122,20 +122,36 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
 
   const addToQueue = useCallback(async (files: File[], type: UploadType) => {
     uploadLogger.info(`[UploadQueue] Añadiendo ${files.length} archivos a la cola`);
-    
+    const fiscalYearId = resolveFiscalYearId(activeFiscalYearRef.current);
+
     // Crear items locales inmediatamente (UI instantánea)
-    const newItems: QueueItem[] = files.map((file) => ({
-      id: generateId(),
-      localFile: file,
-      uploadType: type,
-      fileName: file.name,
-      mimeType: file.type || 'application/octet-stream',
-      fileSize: file.size,
-      status: 'PENDING_UPLOAD' as const,
-      progress: 0,
-      timestamp: Date.now(),
-      notificationDismissed: false
-    }));
+    const newItems: QueueItem[] = await Promise.all(
+      files.map(async (file) => {
+        let fileSha256: string | undefined;
+        if (type === 'BANK_STATEMENT') {
+          try {
+            fileSha256 = await computeFileSha256(file);
+          } catch (error) {
+            uploadLogger.warn(`[UploadQueue] No se pudo calcular SHA-256 de ${file.name}:`, error);
+          }
+        }
+
+        return {
+          id: generateId(),
+          localFile: file,
+          uploadType: type,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          fileSize: file.size,
+          fileSha256,
+          fiscalYearId,
+          status: 'PENDING_UPLOAD' as const,
+          progress: 0,
+          timestamp: Date.now(),
+          notificationDismissed: false,
+        };
+      })
+    );
 
     // Añadir a la cola local inmediatamente
     setQueue(prev => [...prev, ...newItems]);
@@ -181,9 +197,43 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
 
     try {
       let workingItem = item;
+
+      // Fast-path extractos: SHA-256 — no subir ni analizar
+      if (item.uploadType === 'BANK_STATEMENT' && item.fileSha256) {
+        const fiscalYearId = item.fiscalYearId || resolveFiscalYearId(activeFiscalYearRef.current);
+        const existing = await findImportByFileSha256(item.fileSha256, fiscalYearId);
+        if (existing) {
+          const duplicateItem: QueueItem = {
+            ...item,
+            status: 'COMPLETED',
+            progress: 100,
+            isDuplicate: true,
+            error: 'Extracto duplicado (mismo archivo).',
+            localFile: undefined,
+            notificationDismissed: false,
+          };
+          setQueue((prev) => prev.map((i) => (i.id === item.id ? duplicateItem : i)));
+          uploadLogger.info(
+            `[UploadQueue] Extracto duplicado por SHA ${item.fileName} (import ${existing.id})`
+          );
+          try {
+            await protectedDatabase.createUploadItem({
+              ...duplicateItem,
+              localFile: undefined,
+            });
+          } catch (persistError) {
+            uploadLogger.warn(
+              '[UploadQueue] No se pudo persistir item duplicado en uploads:',
+              persistError
+            );
+          }
+          return;
+        }
+      }
+
       let fileHash = item.fileHash;
 
-      // Capa 1: hash de archivo antes de subir (evita Storage + Gemini)
+      // Capa 1 facturas: hash de archivo antes de subir (evita Storage + Gemini)
       if (item.uploadType === 'INVOICE' && !item.forceProcess) {
         if (!fileHash) {
           fileHash = await computeFileSha256(file);

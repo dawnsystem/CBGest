@@ -24,7 +24,9 @@ export const APPWRITE_CONFIG = {
     aiMatchHistory: 'ai_match_history',
     reservations: 'reservations',
     // Ejercicios contables
-    fiscalYears: 'fiscal_years'
+    fiscalYears: 'fiscal_years',
+    // Registro de extractos importados (dedup por SHA / fingerprint)
+    bankStatementImports: 'bank_statement_imports',
   },
 
   // Appwrite Function IDs

@@ -4,10 +4,17 @@
  */
 
 import { useState, useCallback, Dispatch, SetStateAction } from 'react';
-import { BankTransaction, AccountingEntry, AppSettings } from '../types';
+import { BankTransaction, AccountingEntry, AppSettings, BankStatementImport } from '../types';
 import * as appwriteService from '../services/appwriteService';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { generateId } from '../utils/defaults';
+import {
+  collectExistingLineFingerprints,
+  prepareBankImport,
+  type BankImportMeta,
+  type BankImportResult,
+} from '../utils/bankStatementDedup';
 
 interface UseBankTransactionsOptions {
   settings: AppSettings;
@@ -15,12 +22,16 @@ interface UseBankTransactionsOptions {
   onAddEntry: (entry: AccountingEntry) => void;
   onUpdateEntry: (entry: AccountingEntry) => Promise<void>;
   getAccountingEntries: () => AccountingEntry[];
+  activeFiscalYearId?: string;
 }
 
 interface UseBankTransactionsReturn {
   bankTransactions: BankTransaction[];
   setBankTransactions: Dispatch<SetStateAction<BankTransaction[]>>;
-  handleAddBankTransactions: (txs: BankTransaction[]) => Promise<void>;
+  handleAddBankTransactions: (
+    txs: BankTransaction[],
+    meta?: BankImportMeta
+  ) => Promise<BankImportResult | void>;
   handleUpdateBankTransaction: (transaction: BankTransaction) => Promise<void>;
   handleCreateEntryFromTransaction: (tx: BankTransaction) => void;
   handleReconcileTransaction: (
@@ -31,19 +42,65 @@ interface UseBankTransactionsReturn {
 }
 
 export function useBankTransactions(options: UseBankTransactionsOptions): UseBankTransactionsReturn {
-  const { settings, showError, onAddEntry, onUpdateEntry, getAccountingEntries } = options;
+  const { settings, showError, onAddEntry, onUpdateEntry, getAccountingEntries, activeFiscalYearId } = options;
   const { user } = useAuth();
   const { addNotification } = useNotifications();
 
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
 
-  const handleAddBankTransactions = useCallback(async (txs: BankTransaction[]) => {
-    const txsWithAudit: BankTransaction[] = txs.map(tx => ({
-      ...tx,
-      createdBy: user?.$id,
-      createdByName: user?.name,
-      createdAt: new Date().toISOString()
-    }));
+  const handleAddBankTransactions = useCallback(async (
+    txs: BankTransaction[],
+    meta?: BankImportMeta
+  ): Promise<BankImportResult<BankTransaction>> => {
+    const importBatchId = generateId();
+    const [existingLines, priorImports] = await Promise.all([
+      collectExistingLineFingerprints(bankTransactions),
+      appwriteService.getBankStatementImports(activeFiscalYearId).catch(() => []),
+    ]);
+    const existingStatements = new Set(
+      priorImports
+        .map((row: BankStatementImport) => row.contentFingerprint)
+        .filter(Boolean)
+    );
+
+    if (meta?.fileSha256) {
+      const byFile = await appwriteService.findImportByFileSha256(meta.fileSha256, activeFiscalYearId);
+      if (byFile) {
+        return {
+          toImport: [],
+          skippedDuplicates: txs.length,
+          isDuplicateStatement: true,
+          contentFingerprint: byFile.contentFingerprint,
+          message: 'Este extracto ya fue importado (mismo archivo).',
+        };
+      }
+    }
+
+    const prepared = await prepareBankImport(
+      txs,
+      existingLines,
+      existingStatements,
+      importBatchId
+    );
+
+    if (prepared.isDuplicateStatement || prepared.toImport.length === 0) {
+      return prepared;
+    }
+
+    const txsWithAudit: BankTransaction[] = prepared.toImport.map((tx) => {
+      const source = tx as BankTransaction & { contentFingerprint: string };
+      return {
+        ...source,
+        id: source.id || generateId(),
+        status: source.status || 'PENDING',
+        fiscalYearId: source.fiscalYearId || activeFiscalYearId,
+        contentFingerprint: source.contentFingerprint,
+        importBatchId,
+        createdBy: user?.$id,
+        createdByName: user?.name,
+        createdAt: new Date().toISOString(),
+      };
+    });
     const txIds = txsWithAudit.map(tx => tx.id);
 
     setBankTransactions(prev => [...prev, ...txsWithAudit]);
@@ -59,15 +116,48 @@ export function useBankTransactions(options: UseBankTransactionsOptions): UseBan
             return saved || t;
           })
         );
+        await appwriteService.createBankStatementImport({
+          id: importBatchId,
+          fileSha256: meta?.fileSha256,
+          contentFingerprint: prepared.contentFingerprint,
+          fiscalYearId: activeFiscalYearId,
+          fileName: meta?.fileName,
+          transactionCount: txsWithAudit.length,
+          importedAt: new Date().toISOString(),
+        });
         console.warn(`✅ ${savedTransactions.length} transacciones guardadas en Appwrite`);
       } catch (error: unknown) {
         setBankTransactions(prev => prev.filter(t => !txIds.includes(t.id)));
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         showError(`Error al guardar transacciones bancarias: ${errorMessage}. Los cambios no se han guardado.`);
         console.error('Error saving transactions to Appwrite:', error);
+        return {
+          ...prepared,
+          toImport: [],
+          message: `Error al guardar transacciones bancarias: ${errorMessage}`,
+        };
       }
+    } else {
+      await appwriteService.createBankStatementImport({
+        id: importBatchId,
+        fileSha256: meta?.fileSha256,
+        contentFingerprint: prepared.contentFingerprint,
+        fiscalYearId: activeFiscalYearId,
+        fileName: meta?.fileName,
+        transactionCount: txsWithAudit.length,
+        importedAt: new Date().toISOString(),
+      }).catch(() => undefined);
     }
-  }, [user, settings, showError]);
+
+    return {
+      ...prepared,
+      toImport: txsWithAudit.map((tx) => ({
+        ...tx,
+        contentFingerprint: tx.contentFingerprint as string,
+      })),
+      importBatchId,
+    };
+  }, [user, settings, showError, bankTransactions, activeFiscalYearId]);
 
   const handleUpdateBankTransaction = useCallback(async (transaction: BankTransaction) => {
     setBankTransactions(prev => prev.map(t => t.id === transaction.id ? transaction : t));
