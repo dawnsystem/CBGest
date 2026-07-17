@@ -526,8 +526,10 @@ async function setupUploadsCollection() {
     { type: 'string', key: 'error', size: 1000, required: false },
     { type: 'integer', key: 'timestamp', required: true, min: 0, max: 9999999999999 },
     { type: 'boolean', key: 'notificationDismissed', required: false, default: false },
-    { type: 'string', key: 'result', size: 10000, required: false },
-    { type: 'string', key: 'bankResult', size: 50000, required: false },
+    // Deduplicación (FEAT-DEDUP-001)
+    { type: 'string', key: 'fileHash', size: 64, required: false },
+    { type: 'string', key: 'duplicateMatch', size: 2000, required: false },
+    { type: 'boolean', key: 'forceProcess', required: false, default: false },
   ];
 
   for (const attr of attributes) {

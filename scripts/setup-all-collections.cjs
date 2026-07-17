@@ -68,6 +68,23 @@ const FISCAL_YEAR_SCOPED_COLLECTIONS = [
   'recurring_expenses',
 ];
 
+/** Atributos e índices de deduplicación de facturas (FEAT-DEDUP-001). */
+const INVOICE_DEDUP_ATTRIBUTES = [
+  { type: 'string', key: 'fileHash', size: 64, required: false },
+  { type: 'string', key: 'contentFingerprint', size: 128, required: false },
+];
+
+const INVOICE_DEDUP_INDEXES = [
+  { key: 'fileHash_index', type: 'key', attributes: ['fileHash'], orders: ['ASC'] },
+  { key: 'contentFingerprint_index', type: 'key', attributes: ['contentFingerprint'], orders: ['ASC'] },
+];
+
+const UPLOADS_DEDUP_ATTRIBUTES = [
+  { type: 'string', key: 'fileHash', size: 64, required: false },
+  { type: 'string', key: 'duplicateMatch', size: 2000, required: false },
+  { type: 'boolean', key: 'forceProcess', required: false, default: false },
+];
+
 /**
  * Sleep helper
  */
@@ -1156,6 +1173,53 @@ async function ensureFiscalYearIdSchema() {
 }
 
 /**
+ * Pase defensivo: garantiza atributos/índices de deduplicación en instalaciones parciales.
+ */
+async function ensureInvoiceDedupSchema() {
+  console.log('\n=== Ensuring invoice dedup schema (FEAT-DEDUP-001) ===\n');
+
+  const ensureAttributes = async (collectionId, attributes) => {
+    console.log(`📦 ${collectionId}`);
+    try {
+      const existingAttrs = await listAllAttributes(collectionId);
+      for (const attrConfig of attributes) {
+        const existing = existingAttrs.find((a) => a.key === attrConfig.key);
+        if (!existing) {
+          await createAttribute(collectionId, attrConfig);
+          const ready = await waitForAttributeAvailable(collectionId, attrConfig.key);
+          if (!ready) {
+            console.warn(`  ⚠️  ${attrConfig.key} creado pero aún no available en ${collectionId}`);
+          }
+        } else if (existing.status === 'available') {
+          console.log(`  ✓ ${attrConfig.key} already available`);
+        } else if (existing.status === 'processing') {
+          console.log(`  ⏳ ${attrConfig.key} processing…`);
+          await waitForAttributeAvailable(collectionId, attrConfig.key);
+        } else {
+          console.warn(`  ⚠️  ${attrConfig.key} status=${existing.status} error=${existing.error || ''}`);
+        }
+      }
+    } catch (error) {
+      if (error.code === 404) {
+        console.warn(`  ⚠️  Colección ${collectionId} no existe aún (se crea en el setup principal)`);
+        return;
+      }
+      throw error;
+    }
+  };
+
+  await ensureAttributes('invoices', INVOICE_DEDUP_ATTRIBUTES);
+  for (const index of INVOICE_DEDUP_INDEXES) {
+    await createIndex('invoices', index);
+    await sleep(500);
+  }
+
+  await ensureAttributes('uploads', UPLOADS_DEDUP_ATTRIBUTES);
+
+  console.log('\n✅ Invoice dedup schema ensure complete!\n');
+}
+
+/**
  * Main execution
  */
 async function main() {
@@ -1184,18 +1248,19 @@ async function main() {
 
     // Defensive pass: attribute may be missing on older Cloud installs
     await ensureFiscalYearIdSchema();
+    await ensureInvoiceDedupSchema();
 
     console.log('');
     console.log('🎉 ALL collections have been set up successfully!');
     console.log('');
     console.log('Collections configured:');
-    console.log('  ✅ invoices (+ apartmentId, fiscalYearId size=36 + index)');
+    console.log('  ✅ invoices (+ apartmentId, fiscalYearId, fileHash, contentFingerprint + indexes)');
     console.log('  ✅ entries (+ isDraft, fiscalYearId size=36 + index)');
     console.log('  ✅ transactions (+ platformDetected, grossAmount, aiMatchSuggestion, fiscalYearId)');
     console.log('  ✅ settings (+ touristTaxConfig field)');
     console.log('  ✅ suppliers (+ fiscalYearId size=36 + index)');
     console.log('  ✅ notifications');
-    console.log('  ✅ uploads');
+    console.log('  ✅ uploads (+ fileHash, duplicateMatch, forceProcess)');
     console.log('  ✅ apartments (+ apartmentType TOURIST/RESIDENTIAL, + fiscalYearId)');
     console.log('  ✅ recurring_expenses (+ fiscalYearId size=36 + index)');
     console.log('  ✅ ai_match_history');
@@ -1205,7 +1270,8 @@ async function main() {
     console.log('Next steps:');
     console.log('  1. Verify: node scripts/verify-appwrite-setup.cjs');
     console.log('  2. If migrating legacy docs: node scripts/add-fiscal-year-id-attributes.cjs (idempotent)');
-    console.log('  3. Run the app — ejercicios filtran por fiscalYearId');
+    console.log('  3. Dedup only (idempotent): node scripts/add-invoice-dedup-attributes.cjs');
+    console.log('  4. Run the app — ejercicios filtran por fiscalYearId');
     console.log('');
   } catch (error) {
     console.error('');

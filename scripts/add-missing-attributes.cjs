@@ -8,6 +8,7 @@
  * - createdBy* en transactions
  * - fiscalYearId (+ índice) en invoices, entries, transactions, suppliers,
  *   apartments, reservations, recurring_expenses
+ * - fileHash/contentFingerprint (+ índices) en invoices; fileHash/duplicateMatch/forceProcess en uploads
  *
  * Usage:
  *   export APPWRITE_API_KEY="your-api-key"
@@ -73,6 +74,17 @@ async function createAttribute(collectionId, attributeConfig) {
           config.required,
           config.min,
           config.max,
+          config.default,
+          config.array || false
+        );
+        break;
+
+      case 'boolean':
+        result = await databases.createBooleanAttribute(
+          CONFIG.databaseId,
+          collectionId,
+          key,
+          config.required,
           config.default,
           config.array || false
         );
@@ -184,6 +196,25 @@ async function main() {
       await createKeyIndex(col.id, 'fiscalYearId_index', ['fiscalYearId']);
       await sleep(500);
     }
+
+    console.log('');
+    console.log('=== Adding invoice dedup attributes (FEAT-DEDUP-001) ===\n');
+
+    for (const { id: collectionId, ...attrConfig } of [
+      { id: 'invoices', type: 'string', key: 'fileHash', size: 64, required: false },
+      { id: 'invoices', type: 'string', key: 'contentFingerprint', size: 128, required: false },
+      { id: 'uploads', type: 'string', key: 'fileHash', size: 64, required: false },
+      { id: 'uploads', type: 'string', key: 'duplicateMatch', size: 2000, required: false },
+      { id: 'uploads', type: 'boolean', key: 'forceProcess', required: false, default: false },
+    ]) {
+      await createAttribute(collectionId, attrConfig);
+      await sleep(500);
+    }
+
+    await sleep(3000);
+    await createKeyIndex('invoices', 'fileHash_index', ['fileHash']);
+    await sleep(500);
+    await createKeyIndex('invoices', 'contentFingerprint_index', ['contentFingerprint']);
 
     console.log('');
     console.log('🎉 Missing attributes have been added successfully!');

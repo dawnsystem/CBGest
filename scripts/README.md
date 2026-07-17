@@ -15,6 +15,8 @@ node scripts/add-fiscal-year-id-attributes.cjs
 Añade `fiscalYearId` (string size **36**, optional) + índice `fiscalYearId_index` en:
 `invoices`, `entries`, `transactions`, `suppliers`, `apartments`, `reservations`, `recurring_expenses`.
 
+También incluye atributos de deduplicación de facturas (`fileHash`, `contentFingerprint`, `duplicateMatch`, `forceProcess`).
+
 Scopes API Key: `databases.*`, `collections.*`, `attributes.*`, `indexes.*` (read+write).
 
 ## add-invoice-dedup-attributes.cjs (FEAT-DEDUP-001)

@@ -64,6 +64,9 @@ Esta colección almacena la cola de archivos pendientes de procesar (facturas y 
 | `notificationDismissed` | Boolean | - | ❌ | ❌ | Si el usuario descartó la notificación |
 | `result` | String | 10000 | ❌ | ❌ | Resultado del análisis (JSON) |
 | `bankResult` | String | 50000 | ❌ | ❌ | Transacciones bancarias (JSON array) |
+| `fileHash` | String | 64 | ❌ | ❌ | SHA-256 del archivo (deduplicación) |
+| `duplicateMatch` | String | 2000 | ❌ | ❌ | Coincidencia de duplicado (JSON) |
+| `forceProcess` | Boolean | - | ❌ | ❌ | Saltar capa hash y reprocesar con IA |
 
 ### Índices recomendados:
 - `timestamp` (DESC) - Para ordenar por fecha
