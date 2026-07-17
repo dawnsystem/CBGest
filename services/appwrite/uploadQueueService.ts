@@ -27,31 +27,88 @@ function safeJsonParse<T>(raw: string, field: string): T | undefined {
   }
 }
 
+/** Fields added for bank-statement dedup; may be absent on older Cloud schemas. */
+const DEDUP_UPLOAD_FIELDS = ['fileSha256', 'isDuplicate', 'fiscalYearId'] as const;
+
+function buildUploadPayload(
+  item: QueueItem,
+  options: { includeDedupFields: boolean }
+): Record<string, unknown> {
+  const { result, bankResult } = item;
+  const omitList: Array<keyof QueueItem | 'appwriteId' | 'createdAt' | 'updatedAt' | keyof AppwriteEntity<QueueItem>> = [
+    'id',
+    'appwriteId',
+    'createdAt',
+    'updatedAt',
+    'localFile',
+    '$id',
+    '$createdAt',
+    '$updatedAt',
+    '$databaseId',
+    '$collectionId',
+    '$permissions',
+  ];
+  if (!options.includeDedupFields) {
+    omitList.push(...DEDUP_UPLOAD_FIELDS);
+  }
+  const itemData = omitFields(
+    item as AppwriteEntity<QueueItem> & { localFile?: File },
+    omitList
+  );
+
+  return {
+    ...itemData,
+    progress: Math.round(item.progress || 0),
+    fileSize: item.fileSize || 0,
+    result: result ? JSON.stringify(result) : undefined,
+    bankResult: bankResult ? JSON.stringify(bankResult) : undefined,
+  };
+}
+
+function isUnknownAttributeError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes('unknown attribute') ||
+    message.includes('invalid document structure') ||
+    message.includes('filesha256') ||
+    message.includes('isduplicate')
+  );
+}
+
 export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
   try {
     const { result, bankResult, id } = item;
-    const itemData = omitFields(
-      item as AppwriteEntity<QueueItem> & { localFile?: File },
-      ['id', 'appwriteId', 'createdAt', 'updatedAt', 'localFile', '$id', '$createdAt', '$updatedAt', '$databaseId', '$collectionId', '$permissions']
-    );
+    let dataToSave = buildUploadPayload(item, { includeDedupFields: true });
 
-    const dataToSave = {
-      ...itemData,
-      progress: Math.round(itemData.progress || 0),
-      fileSize: itemData.fileSize || 0,
-      result: result ? JSON.stringify(result) : undefined,
-      bankResult: bankResult ? JSON.stringify(bankResult) : undefined
-    };
-
-    const doc = await withRetry(
-      () => databases.createDocument(
-        config.databaseId,
-        config.collections.uploads,
-        id || ID.unique(),
-        dataToSave
-      ),
-      'createUploadItem'
-    );
+    let doc;
+    try {
+      doc = await withRetry(
+        () =>
+          databases.createDocument(
+            config.databaseId,
+            config.collections.uploads,
+            id || ID.unique(),
+            dataToSave
+          ),
+        'createUploadItem'
+      );
+    } catch (error: unknown) {
+      if (!isUnknownAttributeError(error)) throw error;
+      dataLogger.warn(
+        '[createUploadItem] Schema sin campos dedup; reintentando sin fileSha256/isDuplicate/fiscalYearId'
+      );
+      dataToSave = buildUploadPayload(item, { includeDedupFields: false });
+      doc = await withRetry(
+        () =>
+          databases.createDocument(
+            config.databaseId,
+            config.collections.uploads,
+            id || ID.unique(),
+            dataToSave
+          ),
+        'createUploadItemFallback'
+      );
+    }
 
     setConnectionHealth(true);
     return {
@@ -60,6 +117,9 @@ export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
       appwriteId: doc.$id,
       result,
       bankResult,
+      fileSha256: item.fileSha256,
+      isDuplicate: item.isDuplicate,
+      fiscalYearId: item.fiscalYearId,
     } as unknown as QueueItem;
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'createUploadItem');
@@ -98,6 +158,9 @@ export async function getUploadQueue(): Promise<QueueItem[]> {
         timestamp: uploadDoc.timestamp,
         notificationDismissed: uploadDoc.notificationDismissed,
         needsMapping: uploadDoc.needsMapping,
+        fileSha256: uploadDoc.fileSha256,
+        fiscalYearId: uploadDoc.fiscalYearId,
+        isDuplicate: uploadDoc.isDuplicate,
         result: uploadDoc.result && typeof uploadDoc.result === 'string'
           ? safeJsonParse<QueueItem['result']>(uploadDoc.result, 'result')
           : uploadDoc.result,
@@ -117,28 +180,38 @@ export async function getUploadQueue(): Promise<QueueItem[]> {
 export async function updateUploadItem(item: QueueItem): Promise<QueueItem> {
   try {
     const { result, bankResult, id, appwriteId } = item;
-    const itemData = omitFields(
-      item as AppwriteEntity<QueueItem> & { localFile?: File },
-      ['id', 'appwriteId', 'createdAt', 'updatedAt', 'localFile', '$id', '$createdAt', '$updatedAt', '$databaseId', '$collectionId', '$permissions']
-    );
     const docId = appwriteId || id;
+    let dataToSave = buildUploadPayload(item, { includeDedupFields: true });
 
-    const dataToSave = {
-      ...itemData,
-      progress: Math.round(itemData.progress || 0),
-      result: result ? JSON.stringify(result) : undefined,
-      bankResult: bankResult ? JSON.stringify(bankResult) : undefined
-    };
-
-    const doc = await withRetry(
-      () => databases.updateDocument(
-        config.databaseId,
-        config.collections.uploads,
-        docId,
-        dataToSave
-      ),
-      'updateUploadItem'
-    );
+    let doc;
+    try {
+      doc = await withRetry(
+        () =>
+          databases.updateDocument(
+            config.databaseId,
+            config.collections.uploads,
+            docId,
+            dataToSave
+          ),
+        'updateUploadItem'
+      );
+    } catch (error: unknown) {
+      if (!isUnknownAttributeError(error)) throw error;
+      dataLogger.warn(
+        '[updateUploadItem] Schema sin campos dedup; reintentando sin fileSha256/isDuplicate/fiscalYearId'
+      );
+      dataToSave = buildUploadPayload(item, { includeDedupFields: false });
+      doc = await withRetry(
+        () =>
+          databases.updateDocument(
+            config.databaseId,
+            config.collections.uploads,
+            docId,
+            dataToSave
+          ),
+        'updateUploadItemFallback'
+      );
+    }
 
     setConnectionHealth(true);
     return {
@@ -146,7 +219,10 @@ export async function updateUploadItem(item: QueueItem): Promise<QueueItem> {
       id: doc.$id,
       appwriteId: doc.$id,
       result,
-      bankResult
+      bankResult,
+      fileSha256: item.fileSha256,
+      isDuplicate: item.isDuplicate,
+      fiscalYearId: item.fiscalYearId,
     } as unknown as QueueItem;
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'updateUploadItem');

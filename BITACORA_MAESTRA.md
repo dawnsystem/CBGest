@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-16 22:50:00 UTC*
+*Última actualización: 2026-07-17 22:50:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Kit UAT en régimen arrendamiento (`ALQUILER_EXENTO`)** listo para verificación IRPF del caso real. Guía y `expected/irpf-2027.md` alineados con criterio FIS-001 (`totalAmount`). Pendiente ejecución humana del Paso 10 en [`uat-kit/GUIA_UAT.md`](uat-kit/GUIA_UAT.md).
+Estado actual: **Deduplicación de extractos bancarios** implementada en código (SHA-256 + fingerprint de contenido). Pendiente aplicar schema en Appwrite Cloud con `node scripts/add-bank-statement-dedup-schema.cjs` y verificación UAT del kit arrendamiento (Paso 10).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-17] - `DEDUP-001` - Deduplicación rápida de extractos bancarios:** SHA-256 del fichero en cola (rechazo antes de Storage/Gemini); fingerprint de contenido del extracto + por movimiento (`date|amount|concept` normalizado). Colección `bank_statement_imports`, attrs en `transactions`/`uploads`. Mapeo XLSX reutilizado; tras primer mapeo el camino feliz es casi instantáneo. Solapes (p.ej. últimos 90 días) importan solo líneas nuevas. Script `add-bank-statement-dedup-schema.cjs`. Fallback localStorage si falta schema Cloud.
 *   **[2026-07-16] - `UAT-002` - Kit UAT → arrendamiento + IRPF verificable:** Maestro `empresa.json` pasa a `ALQUILER_EXENTO` / `vatObligation: false`. Guía, README y checklist actualizados (Paso 1 y Paso 10). Generador escribe `expected/irpf-2027.md` y `irpf-2028.md` (rendimiento CB + cuotas por comunero, tolerancia ±2 €). Facturas/PDF no regeneradas (importes idénticos; solo cambia interpretación fiscal).
 *   **[2026-07-16] - `UAT-001` - Kit UAT manual (2027 + 2028 parcial):** Carpeta `uat-kit/` con empresa ficticia, 4 comuneros (perfiles fiscales distintos), 6 apartamentos, 8 proveedores, 9 recurrentes; 72+36 facturas 2027 y 40+20 en 2028 (PDF + JSON); 19 extractos XLSX; 90 reservas CSV; edges EDGE-01…11; guía paso a paso `GUIA_UAT.md` + checklist PASS/FAIL. Generador `scripts/generate-uat-kit.mjs` (`npm run generate:uat-kit`); dep `write-excel-file`. NIFs/CIFs validados. No modifica lógica de negocio de la app.
 *   **[2026-07-16] - `OPS-FY-002` - setup-all-collections alineado con Cloud:** `fiscalYearId` unificado a size **36** + constantes compartidas; pase final `ensureFiscalYearIdSchema()`; paginación de `listAttributes`; scripts `add-*` alineados. Evita instalaciones parciales como la de `recurring_expenses`.
@@ -105,6 +106,18 @@ Estado actual: **Kit UAT en régimen arrendamiento (`ALQUILER_EXENTO`)** listo p
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-17 22:50:00 UTC]
+*   **Directiva del Director:** Impedir extractos bancarios duplicados con verificación por contenido lo más rápida posible (salvo el primer mapeo de columnas).
+*   **Plan de Acción:** SHA-256 en cola + fingerprint de extracto/línea + registro `bank_statement_imports`; reutilizar mapeo XLSX existente.
+*   **Log de Acciones:**
+    - `[22:30:00]` - **CREATE:** `utils/bankStatementFingerprint.ts` + `utils/bankStatementDedup.ts` + tests (14 PASS).
+    - `[22:35:00]` - **CREATE:** `services/appwrite/bankStatementImportService.ts`; colección/attrs en `setup-all-collections.cjs` + `add-bank-statement-dedup-schema.cjs`.
+    - `[22:40:00]` - **MOD:** `UploadQueueContext` fast-path por `fileSha256`; `useDataHandlers`/`useBankTransactions` filtran solapes; UI bandeja + `GlobalUploadWidget`.
+    - `[22:48:00]` - **MOD:** Fallbacks schema legacy en `uploadQueueService`/`transactionService` (retry sin attrs dedup).
+    - `[22:50:00]` - **DOC:** Registro `DEDUP-001` en bitácora.
+*   **Resultado:** Duplicados exactos bloqueados antes de Storage/Gemini; solapes importan solo líneas nuevas; toast/cola informan del resultado.
+*   **Ops pendiente:** `export APPWRITE_API_KEY=... && node scripts/add-bank-statement-dedup-schema.cjs` en Cloud.
+
 ### Sesión: [2026-07-16 22:50:00 UTC]
 *   **Directiva del Director:** Adaptar el kit UAT a régimen arrendamiento (`ALQUILER_EXENTO`) para verificar el caso IRPF específico (no régimen general).
 *   **Log de Acciones:**
@@ -712,6 +725,7 @@ Estado actual: **Kit UAT en régimen arrendamiento (`ALQUILER_EXENTO`)** listo p
 ### 🔴 Pendientes que requieren acceso manual al servidor
 - [ ] Verificar permisos de colección `suppliers` en Appwrite Console (Panel → Database → Collection → Settings → Permissions)
 - [ ] Configurar Dependency Graph en GitHub (Settings → Code security → Enable)
+- [ ] Aplicar schema dedup extractos: `node scripts/add-bank-statement-dedup-schema.cjs` (colección `bank_statement_imports` + attrs en `transactions`/`uploads`)
 
 ### 🟡 Mejoras funcionales (cuando se necesiten)
 - [ ] Generación real de PDFs fiscales (Modelo 303, 184, certificados IRPF)

@@ -93,6 +93,8 @@ export const GlobalUploadWidget: React.FC = () => {
                 <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
                   <span className="text-xs font-bold text-blue-600">{Math.round(item.progress)}%</span>
                 </div>
+              ) : item.status === 'COMPLETED' && item.isDuplicate ? (
+                <AlertCircle className="w-8 h-8 text-amber-500" />
               ) : item.status === 'COMPLETED' ? (
                 <CheckCircle className="w-8 h-8 text-emerald-500" />
               ) : (
@@ -102,8 +104,13 @@ export const GlobalUploadWidget: React.FC = () => {
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-slate-900 truncate">{item.fileName}</p>
               <p className="text-[10px] text-slate-500 uppercase">
-                {item.status === 'PENDING_UPLOAD' ? 'ESPERANDO' : 
-                 item.status === 'UPLOADING' ? 'SUBIENDO' : item.status}
+                {item.isDuplicate
+                  ? 'DUPLICADO'
+                  : item.status === 'PENDING_UPLOAD'
+                    ? 'ESPERANDO'
+                    : item.status === 'UPLOADING'
+                      ? 'SUBIENDO'
+                      : item.status}
               </p>
             </div>
             {(item.status === 'ANALYZING' || item.status === 'UPLOADING') && (

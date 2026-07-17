@@ -13,7 +13,10 @@ import { useIsReadOnly } from '../context/FiscalYearContext';
 
 interface InvoiceUploaderProps {
   onInvoiceAdded: (invoice: Invoice) => void;
-  onBankTransactionsAdded: (transactions: BankTransaction[]) => void;
+  onBankTransactionsAdded: (
+    transactions: BankTransaction[],
+    meta?: { fileSha256?: string; fileName?: string }
+  ) => void | Promise<unknown>;
   settings: AppSettings;
   apartments: Apartment[];
 }
@@ -92,13 +95,21 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
     if (item.uploadType === 'INVOICE' && item.result) {
       startInvoiceReview(item);
     } else if (item.uploadType === 'BANK_STATEMENT') {
+      if (item.isDuplicate) {
+        showToast(item.error || 'Extracto duplicado (mismo contenido).', 'warning');
+        await removeFromQueue(item.id);
+        return;
+      }
       // Check if XLSX needs mapping
       if (item.needsMapping && item.storageFileId) {
         setMappingItem(item);
       } else if (item.bankResult) {
         // PDF was processed by AI
         if (await showConfirm(`Se han detectado ${item.bankResult.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
-          onBankTransactionsAdded(item.bankResult);
+          await onBankTransactionsAdded(item.bankResult, {
+            fileSha256: item.fileSha256,
+            fileName: item.fileName,
+          });
           removeFromQueue(item.id);
         }
       }
@@ -122,7 +133,10 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
 
     // Confirm import
     if (await showConfirm(`Se han mapeado ${enrichedTransactions.length} movimientos bancarios. ¿Importar a Conciliacion?`)) {
-      onBankTransactionsAdded(enrichedTransactions);
+      await onBankTransactionsAdded(enrichedTransactions, {
+        fileSha256: mappingItem.fileSha256,
+        fileName: mappingItem.fileName,
+      });
       removeFromQueue(mappingItem.id);
     }
 
@@ -421,7 +435,8 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                                  <span className="absolute text-[10px] font-bold text-blue-600">{Math.round(item.progress)}%</span>
                              </div>
                          )}
-                         {item.status === 'COMPLETED' && <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><CheckCircle className="w-6 h-6" /></div>}
+                         {item.status === 'COMPLETED' && item.isDuplicate && <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><AlertTriangle className="w-6 h-6" /></div>}
+                         {item.status === 'COMPLETED' && !item.isDuplicate && <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><CheckCircle className="w-6 h-6" /></div>}
                          {item.status === 'ERROR' && <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600"><AlertTriangle className="w-6 h-6" /></div>}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -432,6 +447,11 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                             <p className="font-medium text-slate-900 truncate">{item.fileName}</p>
                         </div>
                         <p className="text-xs text-slate-500">
+                            {(item.status === 'PENDING_UPLOAD' || item.status === 'UPLOADING') && (
+                              item.uploadType === 'BANK_STATEMENT' && item.fileSha256
+                                ? 'Comprobando duplicados...'
+                                : 'Subiendo archivo...'
+                            )}
                             {item.status === 'ANALYZING' && (item.uploadType === 'INVOICE'
                               ? 'Analizando y asignando cuenta contable...'
                               : item.fileName.toLowerCase().match(/\.xlsx?$/)
@@ -439,7 +459,9 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                                 : 'Analizando con IA...'
                             )}
                             {item.status === 'COMPLETED' && (
-                              item.uploadType === 'INVOICE'
+                              item.isDuplicate
+                                ? (item.error || 'Extracto duplicado (mismo archivo).')
+                                : item.uploadType === 'INVOICE'
                                 ? 'Listo para revision.'
                                 : item.needsMapping
                                   ? 'Excel cargado. Mapea las columnas.'
@@ -450,7 +472,15 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                         {item.status === 'ANALYZING' && <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${item.progress}%` }}></div></div>}
                     </div>
                     <div className="shrink-0 flex items-center gap-2">
-                        {item.status === 'COMPLETED' && (
+                        {item.status === 'COMPLETED' && item.isDuplicate && (
+                            <button
+                              onClick={() => startReview(item)}
+                              className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-amber-100 text-amber-800 hover:bg-amber-200"
+                            >
+                              Descartar duplicado
+                            </button>
+                        )}
+                        {item.status === 'COMPLETED' && !item.isDuplicate && (
                             <button
                               onClick={() => startReview(item)}
                               disabled={isReadOnly}

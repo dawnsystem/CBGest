@@ -7,7 +7,7 @@
 import { useCallback, useMemo, Dispatch, SetStateAction } from 'react';
 import {
   Invoice, AccountingEntry, BankTransaction, Supplier,
-  Apartment, RecurringExpense, Reservation, AppSettings
+  Apartment, RecurringExpense, Reservation, AppSettings, BankStatementImport
 } from '../types';
 import * as appwriteService from '../services/appwriteService';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +16,12 @@ import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
 import { buildEntryFromInvoice } from '../utils/invoiceUtils';
 import { buildEntryFromUnmatchedTransaction, buildInvoiceSettlementEntry } from '../utils/reconciliationUtils';
+import {
+  collectExistingLineFingerprints,
+  prepareBankImport,
+  type BankImportMeta,
+  type BankImportResult,
+} from '../utils/bankStatementDedup';
 
 // ============================================================================
 // DEBT-006: Generic optimistic-CRUD factory
@@ -422,37 +428,155 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   }, [isReadOnly, showToast, data.invoices, data.entries, data.settings, setters, showError, handleDeleteEntry]);
 
   // ============ BANK TRANSACTION HANDLERS ============
-  const handleAddBankTransactions = useCallback(async (txs: BankTransaction[]) => {
+  /**
+   * Imports bank movements with content/file deduplication.
+   *
+   * @param txs - Parsed movements (may already include ids)
+   * @param meta - Optional file SHA / name from the upload queue
+   * @returns Dedup summary for UI toasts
+   */
+  const handleAddBankTransactions = useCallback(async (
+    txs: BankTransaction[],
+    meta?: BankImportMeta
+  ): Promise<BankImportResult<BankTransaction>> => {
     if (isReadOnly) {
       showToast?.('Ejercicio cerrado — no se pueden añadir transacciones', 'error');
-      return;
+      return {
+        toImport: [],
+        skippedDuplicates: txs.length,
+        isDuplicateStatement: true,
+        contentFingerprint: '',
+        message: 'Ejercicio cerrado — no se pueden añadir transacciones',
+      };
     }
-    const txsWithAudit = txs.map(tx => ({
-      ...withFiscalYearId(tx),
-      createdBy: user?.$id,
-      createdByName: user?.name,
-      createdAt: new Date().toISOString()
-    }));
 
-    setters.setTransactions(prev => [...prev, ...txsWithAudit]);
+    const fiscalYearId = activeFiscalYearId;
+    const importBatchId = generateId();
+
+    const [existingLines, priorImports] = await Promise.all([
+      collectExistingLineFingerprints(data.transactions),
+      appwriteService.getBankStatementImports(fiscalYearId).catch(() => []),
+    ]);
+
+    const existingStatements = new Set(
+      priorImports
+        .map((row: BankStatementImport) => row.contentFingerprint)
+        .filter(Boolean)
+    );
+
+    // Fast path: exact same file already imported
+    if (meta?.fileSha256) {
+      const byFile = await appwriteService.findImportByFileSha256(meta.fileSha256, fiscalYearId);
+      if (byFile) {
+        const result: BankImportResult<BankTransaction> = {
+          toImport: [],
+          skippedDuplicates: txs.length,
+          isDuplicateStatement: true,
+          contentFingerprint: byFile.contentFingerprint,
+          message: 'Este extracto ya fue importado (mismo archivo).',
+        };
+        showToast?.(result.message, 'warning');
+        return result;
+      }
+    }
+
+    const prepared = await prepareBankImport(
+      txs,
+      existingLines,
+      existingStatements,
+      importBatchId
+    );
+
+    if (prepared.isDuplicateStatement || prepared.toImport.length === 0) {
+      showToast?.(prepared.message, 'warning');
+      return prepared as BankImportResult<BankTransaction>;
+    }
+
+    const txsWithAudit: BankTransaction[] = prepared.toImport.map((tx) => {
+      const source = tx as BankTransaction & { contentFingerprint: string; importBatchId?: string };
+      return {
+        ...withFiscalYearId({
+          ...source,
+          id: source.id || generateId(),
+          status: source.status || 'PENDING',
+          contentFingerprint: source.contentFingerprint,
+          importBatchId,
+        }),
+        createdBy: user?.$id,
+        createdByName: user?.name,
+        createdAt: new Date().toISOString(),
+      };
+    });
+
+    setters.setTransactions((prev) => [...prev, ...txsWithAudit]);
 
     if (data.settings.dataConfig?.type === 'APPWRITE') {
       try {
-        const saved = await Promise.all(txsWithAudit.map(tx => appwriteService.createTransaction(tx)));
-        setters.setTransactions(prev =>
-          prev.map(t => {
-            const s = saved.find(sv => sv.id === t.id);
+        const saved = await Promise.all(
+          txsWithAudit.map((tx) => appwriteService.createTransaction(tx))
+        );
+        setters.setTransactions((prev) =>
+          prev.map((t) => {
+            const s = saved.find((sv) => sv.id === t.id);
             return s || t;
           })
         );
+
+        await appwriteService.createBankStatementImport({
+          id: importBatchId,
+          fileSha256: meta?.fileSha256,
+          contentFingerprint: prepared.contentFingerprint,
+          fiscalYearId,
+          fileName: meta?.fileName,
+          transactionCount: txsWithAudit.length,
+          importedAt: new Date().toISOString(),
+        });
       } catch (error: unknown) {
-        const ids = txsWithAudit.map(t => t.id);
-        setters.setTransactions(prev => prev.filter(t => !ids.includes(t.id)));
+        const ids = txsWithAudit.map((t) => t.id);
+        setters.setTransactions((prev) => prev.filter((t) => !ids.includes(t.id)));
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         showError(`Error al guardar transacciones: ${errorMessage}`);
+        return {
+          ...prepared,
+          toImport: [],
+          message: `Error al guardar transacciones: ${errorMessage}`,
+        };
       }
+    } else {
+      // Local mode: still register fingerprint for subsequent dedup
+      await appwriteService.createBankStatementImport({
+        id: importBatchId,
+        fileSha256: meta?.fileSha256,
+        contentFingerprint: prepared.contentFingerprint,
+        fiscalYearId,
+        fileName: meta?.fileName,
+        transactionCount: txsWithAudit.length,
+        importedAt: new Date().toISOString(),
+      }).catch(() => undefined);
     }
-  }, [isReadOnly, showToast, withFiscalYearId, user, data.settings, setters, showError]);
+
+    showToast?.(prepared.message, prepared.skippedDuplicates > 0 ? 'info' : 'success');
+    showSuccess?.(prepared.message);
+    return {
+      ...prepared,
+      toImport: txsWithAudit.map((tx) => ({
+        ...tx,
+        contentFingerprint: tx.contentFingerprint as string,
+      })),
+      importBatchId,
+    };
+  }, [
+    isReadOnly,
+    showToast,
+    showSuccess,
+    withFiscalYearId,
+    user,
+    data.settings,
+    data.transactions,
+    setters,
+    showError,
+    activeFiscalYearId,
+  ]);
 
   const handleUpdateBankTransaction = useCallback(async (tx: BankTransaction, opts?: HandlerExecutionOptions) => {
     const throwOnError = opts?.throwOnError === true;

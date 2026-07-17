@@ -227,6 +227,15 @@ export interface BankTransaction {
   // AI matching (NEW)
   aiMatchSuggestion?: string; // JSON string of AIMatchSuggestion
 
+  /**
+   * SHA-256 hex of normalized date|amount|concept for O(1) dedup.
+   */
+  contentFingerprint?: string;
+  /**
+   * ID of the bank_statement_imports batch that created this movement.
+   */
+  importBatchId?: string;
+
   appwriteId?: string;
 
   // Audit fields
@@ -236,6 +245,21 @@ export interface BankTransaction {
 
   // Ejercicio contable
   fiscalYearId?: string; // ID del ejercicio al que pertenece esta transacción
+}
+
+/**
+ * Registry row for a successfully analyzed/imported bank statement.
+ * Enables O(1) duplicate checks by file SHA or content fingerprint.
+ */
+export interface BankStatementImport {
+  id: string;
+  fileSha256?: string;
+  contentFingerprint: string;
+  fiscalYearId?: string;
+  fileName?: string;
+  transactionCount: number;
+  importedAt: string; // ISO timestamp
+  appwriteId?: string;
 }
 
 // --- TAX INFO FOR PARTNERS ---
@@ -638,6 +662,15 @@ export interface QueueItem {
   mimeType: string;
   fileSize: number;
   uploadType: UploadType;
+
+  /**
+   * SHA-256 of file bytes (computed client-side before upload).
+   * Used for instant duplicate extract detection.
+   */
+  fileSha256?: string;
+
+  /** Ejercicio contable asociado al item de cola (extractos). */
+  fiscalYearId?: string;
   
   // Local file reference (solo en memoria, no se persiste)
   // undefined cuando se carga desde Appwrite
@@ -653,6 +686,9 @@ export interface QueueItem {
   
   // Error info
   error?: string;
+
+  /** True when the file/content was rejected as a duplicate extract. */
+  isDuplicate?: boolean;
   
   // Timestamps
   timestamp: number;

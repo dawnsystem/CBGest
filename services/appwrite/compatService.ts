@@ -15,6 +15,7 @@ import * as recurringExpenseSvc from './recurringExpenseService';
 import * as aiMatchSvc from './aiMatchService';
 import * as reservationSvc from './reservationService';
 import * as fiscalYearSvc from './fiscalYearService';
+import * as bankStatementImportSvc from './bankStatementImportService';
 import { storageService } from './storageService';
 import { initializeAppwrite } from './infrastructure';
 import { realtimeService } from './realtimeService';
@@ -31,6 +32,7 @@ import type {
   Reservation,
   FiscalYear,
   TouristTaxPeriod,
+  BankStatementImport,
 } from '../../types';
 
 export const databaseService = {
@@ -101,6 +103,11 @@ export const databaseService = {
   getFiscalYearDependencies: fiscalYearSvc.getFiscalYearDependencies,
   deleteFiscalYear: fiscalYearSvc.deleteFiscalYear,
   deleteFiscalYearCascade: fiscalYearSvc.deleteFiscalYearCascade,
+  // BANK STATEMENT IMPORTS (dedup)
+  createBankStatementImport: bankStatementImportSvc.createBankStatementImport,
+  getBankStatementImports: bankStatementImportSvc.getBankStatementImports,
+  findImportByFileSha256: bankStatementImportSvc.findImportByFileSha256,
+  findImportByContentFingerprint: bankStatementImportSvc.findImportByContentFingerprint,
 };
 
 export const createInvoice = async (invoice: Invoice): Promise<Invoice> => {
@@ -212,6 +219,17 @@ export const copyMasterDataToFiscalYear = (
   targetFiscalYearId: string,
   onProgress?: (phase: string, done: number, total: number) => void
 ) => databaseService.copyMasterDataToFiscalYear(sourceFiscalYearId, targetFiscalYearId, onProgress);
+
+export const createBankStatementImport = (record: BankStatementImport) =>
+  databaseService.createBankStatementImport(record);
+export const getBankStatementImports = (fiscalYearId?: string) =>
+  databaseService.getBankStatementImports(fiscalYearId);
+export const findImportByFileSha256 = (fileSha256: string, fiscalYearId?: string) =>
+  databaseService.findImportByFileSha256(fileSha256, fiscalYearId);
+export const findImportByContentFingerprint = (
+  contentFingerprint: string,
+  fiscalYearId?: string
+) => databaseService.findImportByContentFingerprint(contentFingerprint, fiscalYearId);
 
 const defaultAppwriteService = {
   initialize: initializeAppwrite,

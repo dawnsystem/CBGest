@@ -2,11 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier } from '../types';
 import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
-import { storageService } from '../services/appwriteService';
+import { storageService, findImportByFileSha256 } from '../services/appwriteService';
 import { useAuth } from './AuthContext';
+import { useFiscalYear } from './FiscalYearContext';
 import { generateId } from '../utils/defaults';
 import { uploadLogger } from '../services/logger';
 import { isAllowedGeminiMimeType, normalizeMimeType } from '../utils/mimeAllowlist';
+import { computeFileSha256 } from '../utils/bankStatementFingerprint';
 
 const UploadQueueContext = createContext<UploadQueueContextType | undefined>(undefined);
 
@@ -39,6 +41,7 @@ interface UploadQueueProviderProps {
 
 export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ children, suppliers = [] }) => {
   const { user } = useAuth();
+  const { activeFiscalYear } = useFiscalYear();
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -46,6 +49,13 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
   // Ref para tracking de uploads en progreso (para el pool de workers)
   const uploadingCountRef = useRef(0);
   const uploadQueueRef = useRef<QueueItem[]>([]);
+  const activeFiscalYearIdRef = useRef<string | undefined>(
+    activeFiscalYear?.appwriteId || activeFiscalYear?.id
+  );
+
+  useEffect(() => {
+    activeFiscalYearIdRef.current = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
+  }, [activeFiscalYear]);
 
   // ============================================================================
   // LOAD QUEUE FROM APPWRITE
@@ -98,20 +108,36 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
 
   const addToQueue = useCallback(async (files: File[], type: UploadType) => {
     uploadLogger.info(`[UploadQueue] Añadiendo ${files.length} archivos a la cola`);
-    
+    const fiscalYearId = activeFiscalYearIdRef.current;
+
     // Crear items locales inmediatamente (UI instantánea)
-    const newItems: QueueItem[] = files.map((file) => ({
-      id: generateId(),
-      localFile: file,
-      uploadType: type,
-      fileName: file.name,
-      mimeType: file.type || 'application/octet-stream',
-      fileSize: file.size,
-      status: 'PENDING_UPLOAD' as const,
-      progress: 0,
-      timestamp: Date.now(),
-      notificationDismissed: false
-    }));
+    const newItems: QueueItem[] = await Promise.all(
+      files.map(async (file) => {
+        let fileSha256: string | undefined;
+        if (type === 'BANK_STATEMENT') {
+          try {
+            fileSha256 = await computeFileSha256(file);
+          } catch (error) {
+            uploadLogger.warn(`[UploadQueue] No se pudo calcular SHA-256 de ${file.name}:`, error);
+          }
+        }
+
+        return {
+          id: generateId(),
+          localFile: file,
+          uploadType: type,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          fileSize: file.size,
+          fileSha256,
+          fiscalYearId,
+          status: 'PENDING_UPLOAD' as const,
+          progress: 0,
+          timestamp: Date.now(),
+          notificationDismissed: false,
+        };
+      })
+    );
 
     // Añadir a la cola local inmediatamente
     setQueue(prev => [...prev, ...newItems]);
@@ -156,6 +182,39 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({ childr
     }
 
     try {
+      // Fast-path: extracto duplicado por SHA-256 — no subir ni analizar
+      if (item.uploadType === 'BANK_STATEMENT' && item.fileSha256) {
+        const fiscalYearId = item.fiscalYearId || activeFiscalYearIdRef.current;
+        const existing = await findImportByFileSha256(item.fileSha256, fiscalYearId);
+        if (existing) {
+          const duplicateItem: QueueItem = {
+            ...item,
+            status: 'COMPLETED',
+            progress: 100,
+            isDuplicate: true,
+            error: 'Extracto duplicado (mismo archivo).',
+            localFile: undefined,
+            notificationDismissed: false,
+          };
+          setQueue((prev) => prev.map((i) => (i.id === item.id ? duplicateItem : i)));
+          uploadLogger.info(
+            `[UploadQueue] Extracto duplicado por SHA ${item.fileName} (import ${existing.id})`
+          );
+          try {
+            await protectedDatabase.createUploadItem({
+              ...duplicateItem,
+              localFile: undefined,
+            });
+          } catch (persistError) {
+            uploadLogger.warn(
+              '[UploadQueue] No se pudo persistir item duplicado en uploads:',
+              persistError
+            );
+          }
+          return;
+        }
+      }
+
       // Actualizar estado a UPLOADING
       setQueue(prev => prev.map(i => 
         i.id === item.id ? { ...i, status: 'UPLOADING' as const, progress: 5 } : i
