@@ -154,9 +154,9 @@ export async function statementContentFingerprint(
 }
 
 /**
- * SHA-256 of a File or binary buffer (exact file bytes).
+ * SHA-256 of a File/Blob or binary buffer (exact file bytes).
  *
- * @param source - Browser File or ArrayBuffer / TypedArray
+ * @param source - Browser File/Blob or ArrayBuffer / TypedArray
  * @returns Hex SHA-256 of file contents
  * @throws When reading the file fails or Web Crypto is unavailable
  * @example
@@ -164,7 +164,7 @@ export async function statementContentFingerprint(
  * await computeFileSha256(file);
  * ```
  */
-export async function computeFileSha256(source: File | ArrayBuffer | ArrayBufferView): Promise<string> {
+export async function computeFileSha256(source: Blob | ArrayBuffer | ArrayBufferView): Promise<string> {
   if (typeof Blob !== 'undefined' && source instanceof Blob) {
     // File extends Blob. Prefer native arrayBuffer; fall back for test envs (happy-dom).
     let buffer: ArrayBuffer;

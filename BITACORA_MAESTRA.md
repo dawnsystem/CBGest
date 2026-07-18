@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-17 23:10:00 UTC*
+*Última actualización: 2026-07-18 00:13:58 UTC*
 
 ---
 
@@ -11,6 +11,7 @@
 Estado actual: **Dedup facturas + extractos** en código. Pendiente aplicar schemas Cloud (`add-invoice-dedup-attributes.cjs` + `add-bank-statement-dedup-schema.cjs`) y verificación UAT del kit arrendamiento (Paso 10).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-18] - `BUG-DEDUP-001` - TypeError `reading 'digest'` en hash de facturas:** `invoiceDedup.computeFileSha256` llamaba `crypto.subtle.digest` sin comprobar SubtleCrypto (falla fuera de contexto seguro). Ahora delega en `bankStatementFingerprint.computeFileSha256` (guarda + mismo SHA-256 hex). Tests: hash estable + error controlado sin `subtle`.
 *   **[2026-07-17] - `DEDUP-001` - Deduplicación rápida de extractos bancarios:** SHA-256 del fichero en cola (rechazo antes de Storage/Gemini); fingerprint de contenido del extracto + por movimiento (`date|amount|concept` normalizado). Colección `bank_statement_imports`, attrs en `transactions`/`uploads`. Mapeo XLSX reutilizado; tras primer mapeo el camino feliz es casi instantáneo. Solapes (p.ej. últimos 90 días) importan solo líneas nuevas. Script `add-bank-statement-dedup-schema.cjs`. Fallback localStorage si falta schema Cloud.
 *   **[2026-07-17] - `FEAT-DEDUP-001` - Deduplicación rápida de facturas (hash + huella fiscal):** Capa 1: SHA-256 del archivo antes de Storage/Gemini (skip IA si match). Capa 2: huella fiscal `NIF|número|fecha|total(céntimos)` tras análisis Gemini. Índices Appwrite no-unique (`fileHash`, `contentFingerprint`). UX: banner ámbar + badge DUP en cola; `showConfirm` con override auditado en `history`. `forceReprocessItem` para reprocesar con IA. Módulo `utils/invoiceDedup.ts`. Validado: lint + type-check + 373 tests + build OK.
 *   **[2026-07-16] - `UAT-002` - Kit UAT → arrendamiento + IRPF verificable:** Maestro `empresa.json` pasa a `ALQUILER_EXENTO` / `vatObligation: false`. Guía, README y checklist actualizados (Paso 1 y Paso 10). Generador escribe `expected/irpf-2027.md` y `irpf-2028.md` (rendimiento CB + cuotas por comunero, tolerancia ±2 €). Facturas/PDF no regeneradas (importes idénticos; solo cambia interpretación fiscal).
@@ -107,6 +108,14 @@ Estado actual: **Dedup facturas + extractos** en código. Pendiente aplicar sche
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-18 00:13:58 UTC]
+*   **Directiva del Director:** Corregir `Cannot read properties of undefined (reading 'digest')` en dedup de facturas.
+*   **Log de Acciones:**
+    - `[00:13:00]` - **FIX:** `utils/invoiceDedup.ts` — `computeFileSha256` delega en `bankStatementFingerprint` (guarda SubtleCrypto).
+    - `[00:13:30]` - **TEST:** Casos feliz + fallo sin `crypto.subtle` en `invoiceDedup.test.ts`.
+    - `[00:13:58]` - **DOC:** Registro `BUG-DEDUP-001` en bitácora.
+*   **Resultado:** El TypeError opaco se sustituye por error controlado; mismo hash compartido con extractos.
+
 ### Sesión: [2026-07-17 23:10:00 UTC]
 *   **Directiva del Director:** Resolver conflictos de merge con `main` tras aterrizar `FEAT-DEDUP-001` (facturas) sobre la rama de dedup de extractos.
 *   **Log de Acciones:**
@@ -821,6 +830,7 @@ Estado actual: **Dedup facturas + extractos** en código. Pendiente aplicar sche
 
 ### 🟡 MEDIOS (17 hallazgos) — Inconsistencias, deuda técnica acumulada o mejoras de robustez
 
+* **BUG-DEDUP-001:** `utils/invoiceDedup.ts` — `computeFileSha256` leía `crypto.subtle.digest` sin guarda; si SubtleCrypto es `undefined` (HTTP no seguro, iframe, etc.) lanza `Cannot read properties of undefined (reading 'digest')`. Severidad: **MEDIO**. Estado: ✅ Resuelto (2026-07-18) — delegación a `bankStatementFingerprint.computeFileSha256`.
 * **SEC-011:** mimeType sin validación Gemini. Estado: ✅ Resuelto (PR-6).
 * **SEC-012:** No aplica. * **SEC-013:** No aplica.
 * **BUG-017:** `context/AuthContext.tsx:259-275` — Refresh de sesión solo se activa si `user && sessionReady` son truthy, pero sessionReady puede retrasarse. Sesión puede expirar antes del primer refresh. Estado: ✅ Resuelto (IMPL-002).
