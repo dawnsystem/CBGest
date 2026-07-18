@@ -270,6 +270,42 @@ export const Settings: React.FC<SettingsProps> = ({
                     <label htmlFor="settings-nif-input" className="block text-sm font-medium text-slate-700 mb-1">NIF Comunidad</label>
                     <input id="settings-nif-input" name="nif" type="text" value={formData.nif} onChange={(e) => handleInputChange('nif', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm font-mono bg-white text-slate-900" autoComplete="off" />
                     </div>
+                    <div>
+                    <label htmlFor="settings-address-input" className="block text-sm font-medium text-slate-700 mb-1">Domicilio fiscal (calle)</label>
+                    <input id="settings-address-input" type="text" value={formData.address || ''} onChange={(e) => handleInputChange('address', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
+                    </div>
+                    <div>
+                    <label htmlFor="settings-street-number-input" className="block text-sm font-medium text-slate-700 mb-1">Número</label>
+                    <input id="settings-street-number-input" type="text" value={formData.streetNumber || ''} onChange={(e) => handleInputChange('streetNumber', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
+                    </div>
+                    <div>
+                    <label htmlFor="settings-postal-code-input" className="block text-sm font-medium text-slate-700 mb-1">Código postal</label>
+                    <input id="settings-postal-code-input" type="text" value={formData.postalCode || ''} onChange={(e) => handleInputChange('postalCode', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
+                    </div>
+                    <div>
+                    <label htmlFor="settings-city-input" className="block text-sm font-medium text-slate-700 mb-1">Municipio</label>
+                    <input id="settings-city-input" type="text" value={formData.city || ''} onChange={(e) => handleInputChange('city', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
+                    </div>
+                    <div>
+                    <label htmlFor="settings-province-input" className="block text-sm font-medium text-slate-700 mb-1">Provincia</label>
+                    <input id="settings-province-input" type="text" value={formData.province || ''} onChange={(e) => handleInputChange('province', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
+                    </div>
+                    <div>
+                    <label htmlFor="settings-phone-input" className="block text-sm font-medium text-slate-700 mb-1">Teléfono contacto (Modelo 184)</label>
+                    <input id="settings-phone-input" type="text" value={formData.phone || ''} onChange={(e) => handleInputChange('phone', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
+                    </div>
+                    <div>
+                    <label htmlFor="settings-contact-person-input" className="block text-sm font-medium text-slate-700 mb-1">Persona de contacto</label>
+                    <input id="settings-contact-person-input" type="text" value={formData.contactPerson || ''} onChange={(e) => handleInputChange('contactPerson', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
+                    </div>
+                    <div>
+                    <label htmlFor="settings-representative-nif-input" className="block text-sm font-medium text-slate-700 mb-1">NIF representante</label>
+                    <input id="settings-representative-nif-input" type="text" value={formData.representativeNif || ''} onChange={(e) => handleInputChange('representativeNif', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm font-mono bg-white text-slate-900" />
+                    </div>
+                    <div>
+                    <label htmlFor="settings-representative-name-input" className="block text-sm font-medium text-slate-700 mb-1">Nombre representante</label>
+                    <input id="settings-representative-name-input" type="text" value={formData.representativeName || ''} onChange={(e) => handleInputChange('representativeName', e.target.value)} className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900" />
+                    </div>
                     <div className="col-span-1 md:col-span-2 bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <label className="block text-sm font-semibold text-blue-900 mb-2">Régimen Fiscal</label>
                     <div className="flex flex-col md:flex-row gap-4 md:gap-6">
@@ -304,13 +340,15 @@ export const Settings: React.FC<SettingsProps> = ({
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${index % 2 === 0 ? 'bg-indigo-500' : 'bg-purple-500'}`}>
                             {partner.name.charAt(0)}
                         </div>
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <input id={`settings-partner-${partner.id}-name-input`} name={`partner-${partner.id}-name`} type="text" placeholder="Nombre" value={partner.name} onChange={(e) => handlePartnerChange(partner.id, 'name', e.target.value)} className="w-full border-slate-200 rounded text-sm bg-white text-slate-900" autoComplete="name" />
                             <input id={`settings-partner-${partner.id}-nif-input`} name={`partner-${partner.id}-nif`} type="text" placeholder="NIF" value={partner.nif} onChange={(e) => handlePartnerChange(partner.id, 'nif', e.target.value)} className="w-full border-slate-200 rounded text-sm font-mono bg-white text-slate-900" autoComplete="off" />
                             <div className="relative">
                                 <input id={`settings-partner-${partner.id}-participation-input`} name={`partner-${partner.id}-participation`} type="number" value={partner.participation} onChange={(e) => handlePartnerChange(partner.id, 'participation', parseFloat(e.target.value))} className="w-full border-slate-200 rounded text-sm pr-8 bg-white text-slate-900" autoComplete="off" />
                                 <span className="absolute right-3 top-2 text-xs text-slate-500">%</span>
                             </div>
+                            <input type="text" placeholder="Cód. provincia (ej. 08)" value={partner.provinceCode || ''} onChange={(e) => handlePartnerChange(partner.id, 'provinceCode', e.target.value)} className="w-full border-slate-200 rounded text-sm font-mono bg-white text-slate-900" />
+                            <input type="text" placeholder="Domicilio fiscal (Modelo 184)" value={partner.fiscalAddress || ''} onChange={(e) => handlePartnerChange(partner.id, 'fiscalAddress', e.target.value)} className="md:col-span-2 w-full border-slate-200 rounded text-sm bg-white text-slate-900" />
                         </div>
                         {partners.length > 1 && (
                             <button type="button" onClick={() => removePartner(partner.id)} className="self-end md:self-center p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>

@@ -1,13 +1,17 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { FileText, Download, AlertCircle, Loader2, Users, Receipt } from 'lucide-react';
+import { FileText, Download, AlertCircle, Loader2, FileCode, Save } from 'lucide-react';
 import { Invoice, AppSettings, Reservation, Apartment } from '../types';
+import { saveTaxReport } from '../services/appwrite/taxReportService';
 import {
-  generatePDF184,
-  generatePartnerCertificate,
-  downloadPDF,
-  calculateTaxData
-} from '../services/pdfService';
+  buildModelo184Draft,
+  exportModelo184File,
+  exportModelo184Pdf,
+  getModelo184FileName,
+  getModelo184PdfFileName,
+  hasBlockingIssues,
+} from '../services/modelo184';
+import { downloadPDF } from '../services/pdfService';
 import { TouristTaxPanel } from './TouristTaxPanel';
 import { useToast } from './Toast';
 import { useFiscalYear } from '../context/FiscalYearContext';
@@ -20,106 +24,118 @@ interface TaxModelsProps {
   onUpdateReservation?: (id: string, data: Partial<Reservation>) => void;
 }
 
-export const TaxModels: React.FC<TaxModelsProps> = ({ 
-  invoices, 
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+export const TaxModels: React.FC<TaxModelsProps> = ({
+  invoices,
   settings,
   reservations = [],
   apartments = [],
   onUpdateReservation
 }) => {
-  const [generating184, setGenerating184] = useState(false);
-  const [generatingCerts, setGeneratingCerts] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingTxt, setExportingTxt] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [activeTab, setActiveTab] = useState<'MODELS' | 'IEET'>('MODELS');
   const { showToast } = useToast();
   const { activeFiscalYear } = useFiscalYear();
 
   const selectedFiscalYearId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
   const selectedYear = activeFiscalYear?.year;
-  const selectedPeriod = selectedYear
-    ? {
-        startDate: `${selectedYear}-01-01`,
-        endDate: `${selectedYear}-12-31`
-      }
-    : undefined;
 
-  // Usar servicio centralizado para cálculos
-  const taxData = selectedFiscalYearId && selectedPeriod
-    ? calculateTaxData(invoices, settings, {
-        fiscalYearId: selectedFiscalYearId,
-        period: selectedPeriod
-      })
-    : { totalIngresos: 0, totalGastos: 0, rendimientoNeto: 0 };
-  const { totalIngresos, totalGastos, rendimientoNeto } = taxData;
+  const draft = useMemo(() => {
+    if (!selectedFiscalYearId || !selectedYear) return null;
+    return buildModelo184Draft({
+      settings,
+      invoices,
+      reservations,
+      apartments,
+      fiscalYearId: selectedFiscalYearId,
+      ejercicio: selectedYear,
+    });
+  }, [settings, invoices, reservations, apartments, selectedFiscalYearId, selectedYear]);
 
-  const currentYear = selectedYear;
-
-  // SAFE GUARD: Ensure partners exists - memoized to prevent re-renders
   const partners = useMemo(() => settings.partners || [], [settings.partners]);
+  const blockingIssues = draft ? hasBlockingIssues(draft) : true;
 
-  // Handler para generar PDF del Modelo 184
-  const handleGenerate184 = useCallback(() => {
-    if (!currentYear) {
-      showToast('Selecciona un ejercicio fiscal activo para generar el Modelo 184.', 'warning');
+  const handleExportPdf = useCallback(() => {
+    if (!draft) {
+      showToast('Selecciona un ejercicio fiscal activo.', 'warning');
+      return;
+    }
+    if (blockingIssues) {
+      showToast('Corrige los errores del borrador antes de exportar.', 'error');
       return;
     }
 
-    setGenerating184(true);
+    setExportingPdf(true);
     try {
-      const blob = generatePDF184({
-        year: currentYear,
-        rendimientoNeto,
-        totalIngresos,
-        totalGastos,
-        settings
-      });
-      downloadPDF(blob, `Modelo184_${currentYear}.pdf`);
+      const blob = exportModelo184Pdf(draft);
+      downloadPDF(blob, getModelo184PdfFileName(draft));
+      showToast('PDF del Modelo 184 generado.', 'success');
     } catch (error) {
       console.error('Error generating PDF 184:', error);
-      showToast('Error al generar el PDF. Por favor, inténtelo de nuevo.', 'error');
+      showToast('Error al generar el PDF.', 'error');
     } finally {
-      setGenerating184(false);
+      setExportingPdf(false);
     }
-  }, [currentYear, rendimientoNeto, totalIngresos, totalGastos, settings, showToast]);
+  }, [draft, blockingIssues, showToast]);
 
-  // Handler para generar certificados de los partícipes
-  const handleGenerateCertificates = useCallback(() => {
-    if (!currentYear) {
-      showToast('Selecciona un ejercicio fiscal activo para generar certificados.', 'warning');
+  const handleExportTxt = useCallback(() => {
+    if (!draft) {
+      showToast('Selecciona un ejercicio fiscal activo.', 'warning');
+      return;
+    }
+    if (blockingIssues) {
+      showToast('Corrige los errores del borrador antes de exportar.', 'error');
       return;
     }
 
-    setGeneratingCerts(true);
-    const errors: string[] = [];
+    setExportingTxt(true);
+    try {
+      const blob = exportModelo184File(draft);
+      downloadBlob(blob, getModelo184FileName(draft));
+      showToast('Fichero telemático AEAT generado.', 'success');
+    } catch (error) {
+      console.error('Error generating TXT 184:', error);
+      showToast('Error al generar el fichero.', 'error');
+    } finally {
+      setExportingTxt(false);
+    }
+  }, [draft, blockingIssues, showToast]);
 
-    partners.forEach((partner, index) => {
-      try {
-        const blob = generatePartnerCertificate(partner, settings, rendimientoNeto, currentYear);
-        // Small delay between downloads to prevent browser blocking
-        // DEBT-014: each download wrapped individually to surface per-partner errors
-        setTimeout(() => {
-          try {
-            downloadPDF(blob, `Certificado_${partner.name.replace(/\s+/g, '_')}_${currentYear}.pdf`);
-          } catch (err) {
-            console.error(`Error descargando certificado de ${partner.name}:`, err);
-            errors.push(partner.name);
-            if (errors.length === 1) {
-              showToast(`Error al descargar el certificado de ${partner.name}.`, 'error');
-            }
-          }
-        }, index * 300);
-      } catch (error) {
-        console.error(`Error generando certificado de ${partner.name}:`, error);
-        showToast(`Error al generar el certificado de ${partner.name}.`, 'error');
-      }
-    });
+  const handleSaveDraft = useCallback(async () => {
+    if (!draft) {
+      showToast('Selecciona un ejercicio fiscal activo.', 'warning');
+      return;
+    }
 
-    setTimeout(() => setGeneratingCerts(false), partners.length * 300 + 500);
-  }, [partners, settings, rendimientoNeto, currentYear, showToast]);
+    setSavingDraft(true);
+    try {
+      await saveTaxReport(draft, 'DRAFT');
+      showToast('Borrador guardado en la nube.', 'success');
+    } catch (error) {
+      console.error('Error saving tax report:', error);
+      showToast('No se pudo guardar el borrador (¿colección tax_reports configurada?).', 'warning');
+    } finally {
+      setSavingDraft(false);
+    }
+  }, [draft, showToast]);
 
-  // Check if tourist tax is enabled
-  const showIEET = settings.fiscalRegime === 'ALQUILER_EXENTO' && 
+  const showIEET = settings.fiscalRegime === 'ALQUILER_EXENTO' &&
                    (settings.touristTaxConfig?.enabled ?? true) &&
                    apartments.some(a => a.apartmentType === 'TOURIST');
+
+  const rendimientoNeto = draft?.resumen.rendimientoNeto ?? 0;
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in pb-24 md:pb-8 overflow-x-hidden">
@@ -132,8 +148,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
               : 'Régimen General'}
           </p>
         </div>
-        
-        {/* Tabs for IEET */}
+
         {showIEET && (
           <div className="flex rounded-lg border border-slate-200 overflow-hidden">
             <button
@@ -155,14 +170,12 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
                   : 'bg-white text-slate-600 hover:bg-slate-50'
               }`}
             >
-              <Receipt className="w-4 h-4" />
               Tasa Turística (IEET)
             </button>
           </div>
         )}
       </div>
 
-      {/* IEET Tab Content */}
       {showIEET && activeTab === 'IEET' && onUpdateReservation && (
         <TouristTaxPanel
           reservations={reservations}
@@ -172,7 +185,6 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
         />
       )}
 
-      {/* Models Tab Content */}
       {activeTab === 'MODELS' && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-slate-50 rounded-xl border border-slate-200 border-dashed p-6 flex flex-col items-center justify-center text-center opacity-75">
@@ -181,27 +193,32 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
             </div>
             <h3 className="font-semibold text-slate-700 mb-1">Modelo 303 (IVA) No Aplicable</h3>
             <p className="text-sm text-slate-500">
-                En régimen IRPF de CBGest solo se generan Modelo 184 y certificados de socios.
+                En régimen IRPF de CBGest solo se generan Modelo 184 y hojas de socios.
             </p>
         </div>
 
-        {/* Modelo 184 - Entidades en atribución de rentas */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden border-l-4 border-l-emerald-500">
           <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
              <div className="flex items-center gap-3">
               <div className="bg-emerald-600 text-white text-xs font-bold px-2 py-1 rounded">MOD 184</div>
               <h3 className="font-semibold text-slate-800">Declaración Informativa CB</h3>
             </div>
-            <span className="text-xs font-medium text-slate-500">Anual {currentYear || '—'}</span>
+            <span className="text-xs font-medium text-slate-500">Anual {selectedYear || '—'}</span>
           </div>
 
           <div className="p-6">
+             <div className="mb-4 flex flex-wrap gap-2 text-xs">
+               <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded">Clave C</span>
+               <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded">Subclave 01</span>
+               <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded">Ingresos: reservas</span>
+             </div>
+
              <div className="mb-6">
                 <div className="flex justify-between items-end mb-4">
                     <p className="text-sm text-slate-600">Rendimiento Neto Atribuible:</p>
                     <p className="text-xl font-bold text-slate-900">{rendimientoNeto.toFixed(2)}€</p>
                 </div>
-                
+
                 <div className="space-y-3">
                   {partners.map((partner, index) => (
                     <div key={partner.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
@@ -221,35 +238,62 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
                   ))}
                 </div>
              </div>
-             
+
+             {draft && draft.issues.length > 0 && (
+               <div className="mb-4 space-y-2">
+                 {draft.issues.map((issue) => (
+                   <div
+                     key={`${issue.code}-${issue.message}`}
+                     className={`rounded-lg p-3 flex gap-2 items-start text-xs ${
+                       issue.severity === 'error' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-800'
+                     }`}
+                   >
+                     <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                     <p>{issue.message}</p>
+                   </div>
+                 ))}
+               </div>
+             )}
+
              <div className="bg-emerald-50 rounded-lg p-3 mb-4 flex gap-2 items-start">
                 <AlertCircle className="w-4 h-4 text-emerald-700 mt-0.5" />
                 <p className="text-xs text-emerald-800">
-                    Este cálculo simula el &ldquo;Rendimiento del Capital Inmobiliario&rdquo; neto a imputar en la Renta (IRPF) de cada socio.
+                    Borrador alineado al formulario oficial AEAT (clave C). Los ingresos se calculan desde reservas confirmadas.
                 </p>
              </div>
 
-             <div className="flex gap-3">
+             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                <button
-                 onClick={handleGenerate184}
-                 disabled={generating184}
-                 className="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                 onClick={handleExportPdf}
+                 disabled={exportingPdf || !draft}
+                 className="bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                >
-                 {generating184 ? (
-                   <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
+                 {exportingPdf ? (
+                   <><Loader2 className="w-4 h-4 animate-spin" /> PDF...</>
                  ) : (
-                   <><Download className="w-4 h-4" /> Modelo 184</>
+                   <><Download className="w-4 h-4" /> PDF Oficial</>
                  )}
                </button>
                <button
-                 onClick={handleGenerateCertificates}
-                 disabled={generatingCerts || partners.length === 0}
-                 className="flex-1 bg-white border border-slate-300 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                 onClick={handleExportTxt}
+                 disabled={exportingTxt || !draft}
+                 className="bg-white border border-slate-300 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                >
-                 {generatingCerts ? (
-                   <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
+                 {exportingTxt ? (
+                   <><Loader2 className="w-4 h-4 animate-spin" /> TXT...</>
                  ) : (
-                   <><Users className="w-4 h-4" /> Certificados</>
+                   <><FileCode className="w-4 h-4" /> Fichero AEAT</>
+                 )}
+               </button>
+               <button
+                 onClick={handleSaveDraft}
+                 disabled={savingDraft || !draft}
+                 className="bg-white border border-slate-300 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+               >
+                 {savingDraft ? (
+                   <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
+                 ) : (
+                   <><Save className="w-4 h-4" /> Guardar</>
                  )}
                </button>
              </div>

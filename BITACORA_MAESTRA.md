@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-18 00:40:00 UTC*
+*Última actualización: 2026-07-18 22:30:00 UTC*
 
 ---
 
@@ -11,6 +11,7 @@
 Estado actual: **Dedup facturas + extractos** en código. Pendiente aplicar schemas Cloud (`add-invoice-dedup-attributes.cjs` + `add-bank-statement-dedup-schema.cjs`) y verificación UAT del kit arrendamiento (Paso 10).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-18] - `FEAT-M184-001` - Modelo 184 oficial (clave C) + exportación AEAT:** Rama `dev` creada como integración. Nuevo módulo `services/modelo184/` (`buildModelo184Draft`, export PDF layout oficial, fichero telemático ISO-8859-1 registros 500 chars). Ingresos desde **reservas confirmadas**; gastos deducibles desde facturas con reparto proporcional. UI `#/taxes`: PDF oficial, fichero `.txt`, guardar borrador (`tax_reports`). Settings: domicilio fiscal CB, representante, domicilio socios (persistidos en Appwrite). Colección `tax_reports` + attrs fiscales `settings` + `isDeductible` en `invoices` en `setup-all-collections.cjs`. Guía despliegue: `docs/DEPLOY_MODELO_184_APPWRITE.md`. PR #174 contra `dev`. Validado: type-check + test:ci + lint OK.
 *   **[2026-07-18] - `BUG-DEDUP-002` - Hash usable sin SubtleCrypto:** El error controlado de BUG-DEDUP-001 seguía rompiendo subidas (HTTP Tailscale / contexto no seguro). Nuevo `utils/sha256-fallback.ts` (SHA-256 JS puro); `sha256Hex` usa SubtleCrypto o fallback con el mismo digest. `infrastructure.hashMasterDataCopyKey` reutiliza `sha256Hex`. try/catch en cola de facturas y `useInvoiceReview`. Tests: vectores NIST + igualdad SubtleCrypto/fallback.
 *   **[2026-07-18] - `BUG-DEDUP-001` - TypeError `reading 'digest'` en hash de facturas:** `invoiceDedup.computeFileSha256` llamaba `crypto.subtle.digest` sin comprobar SubtleCrypto (falla fuera de contexto seguro). Ahora delega en `bankStatementFingerprint.computeFileSha256` (guarda + mismo SHA-256 hex). Tests: hash estable + error controlado sin `subtle`.
 *   **[2026-07-17] - `DEDUP-001` - Deduplicación rápida de extractos bancarios:** SHA-256 del fichero en cola (rechazo antes de Storage/Gemini); fingerprint de contenido del extracto + por movimiento (`date|amount|concept` normalizado). Colección `bank_statement_imports`, attrs en `transactions`/`uploads`. Mapeo XLSX reutilizado; tras primer mapeo el camino feliz es casi instantáneo. Solapes (p.ej. últimos 90 días) importan solo líneas nuevas. Script `add-bank-statement-dedup-schema.cjs`. Fallback localStorage si falta schema Cloud.

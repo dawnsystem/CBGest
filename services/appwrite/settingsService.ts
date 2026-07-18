@@ -78,6 +78,15 @@ export function mapSettingsDocument(
     fiscalRegime: doc.fiscalRegime === 'ALQUILER_EXENTO' ? 'ALQUILER_EXENTO' : 'GENERAL',
     vatObligation: Boolean(doc.vatObligation),
     partners: parsePartners(doc.partners),
+    address: typeof doc.address === 'string' ? doc.address : undefined,
+    streetNumber: typeof doc.streetNumber === 'string' ? doc.streetNumber : undefined,
+    postalCode: typeof doc.postalCode === 'string' ? doc.postalCode : undefined,
+    city: typeof doc.city === 'string' ? doc.city : undefined,
+    province: typeof doc.province === 'string' ? doc.province : undefined,
+    phone: typeof doc.phone === 'string' ? doc.phone : undefined,
+    contactPerson: typeof doc.contactPerson === 'string' ? doc.contactPerson : undefined,
+    representativeNif: typeof doc.representativeNif === 'string' ? doc.representativeNif : undefined,
+    representativeName: typeof doc.representativeName === 'string' ? doc.representativeName : undefined,
   };
 
   const taxConfig = parseTouristTaxConfig(doc.touristTaxConfig);
@@ -103,6 +112,15 @@ export function buildSettingsPayload(settings: AppSettings): Record<string, unkn
     fiscalRegime: settings.fiscalRegime,
     vatObligation: settings.vatObligation,
     partners: JSON.stringify(settings.partners || []),
+    address: settings.address || '',
+    streetNumber: settings.streetNumber || '',
+    postalCode: settings.postalCode || '',
+    city: settings.city || '',
+    province: settings.province || '',
+    phone: settings.phone || '',
+    contactPerson: settings.contactPerson || '',
+    representativeNif: settings.representativeNif || '',
+    representativeName: settings.representativeName || '',
   };
   if (settings.touristTaxConfig) {
     payload.touristTaxConfig = JSON.stringify(settings.touristTaxConfig);

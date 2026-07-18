@@ -41,6 +41,26 @@ describe('settingsService (BUG-027 / BUG-028)', () => {
     expect(mapped).not.toHaveProperty('$createdAt');
   });
 
+  it('mapSettingsDocument includes Modelo 184 fiscal fields', () => {
+    const mapped = mapSettingsDocument({
+      cbName: 'CB Test',
+      nif: 'E56452543',
+      fiscalRegime: 'ALQUILER_EXENTO',
+      vatObligation: false,
+      partners: '[]',
+      address: 'C/ Example 1',
+      postalCode: '08012',
+      city: 'Barcelona',
+      province: 'Barcelona',
+      representativeNif: '12345678Z',
+      representativeName: 'Representante Legal',
+    } as never);
+
+    expect(mapped.address).toBe('C/ Example 1');
+    expect(mapped.postalCode).toBe('08012');
+    expect(mapped.representativeNif).toBe('12345678Z');
+  });
+
   it('buildSettingsPayload only includes business fields (no metadata, no dataConfig)', () => {
     const settings: AppSettings = {
       appwriteId: 'app_settings',
@@ -61,6 +81,15 @@ describe('settingsService (BUG-027 / BUG-028)', () => {
       vatObligation: true,
       partners: JSON.stringify(settings.partners),
       touristTaxConfig: JSON.stringify(settings.touristTaxConfig),
+      address: '',
+      streetNumber: '',
+      postalCode: '',
+      city: '',
+      province: '',
+      phone: '',
+      contactPerson: '',
+      representativeNif: '',
+      representativeName: '',
     });
     expect(payload).not.toHaveProperty('appwriteId');
     expect(payload).not.toHaveProperty('dataConfig');
