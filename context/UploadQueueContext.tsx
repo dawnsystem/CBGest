@@ -236,38 +236,47 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
       // Capa 1 facturas: hash de archivo antes de subir (evita Storage + Gemini)
       if (item.uploadType === 'INVOICE' && !item.forceProcess) {
         if (!fileHash) {
-          fileHash = await computeFileSha256(file);
+          try {
+            fileHash = await computeFileSha256(file);
+          } catch (error) {
+            uploadLogger.warn(
+              `[UploadQueue] No se pudo calcular SHA-256 de factura ${file.name}:`,
+              error
+            );
+          }
         }
 
-        const fiscalYearId = resolveFiscalYearId(activeFiscalYearRef.current);
-        const existingByHash = await resolveExistingByFileHash(
-          invoicesRef.current,
-          fileHash,
-          fiscalYearId
-        );
-
-        if (existingByHash) {
-          const duplicateMatch = toDuplicateMatch(existingByHash, 'FILE');
-          const completedItem: QueueItem = {
-            ...item,
+        if (fileHash) {
+          const fiscalYearId = resolveFiscalYearId(activeFiscalYearRef.current);
+          const existingByHash = await resolveExistingByFileHash(
+            invoicesRef.current,
             fileHash,
-            localFile: file,
-            status: 'COMPLETED',
-            progress: 100,
-            result: cloneInvoicePreviewFromExisting(existingByHash, fileHash),
-            duplicateMatch,
-            notificationDismissed: false,
-          };
-
-          setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
-          uploadLogger.info(
-            `[UploadQueue] Duplicado de archivo detectado para ${item.fileName}, IA omitida`
+            fiscalYearId
           );
-          return;
-        }
 
-        workingItem = { ...item, fileHash };
-        setQueue(prev => prev.map(i => i.id === item.id ? workingItem : i));
+          if (existingByHash) {
+            const duplicateMatch = toDuplicateMatch(existingByHash, 'FILE');
+            const completedItem: QueueItem = {
+              ...item,
+              fileHash,
+              localFile: file,
+              status: 'COMPLETED',
+              progress: 100,
+              result: cloneInvoicePreviewFromExisting(existingByHash, fileHash),
+              duplicateMatch,
+              notificationDismissed: false,
+            };
+
+            setQueue(prev => prev.map(i => i.id === item.id ? completedItem : i));
+            uploadLogger.info(
+              `[UploadQueue] Duplicado de archivo detectado para ${item.fileName}, IA omitida`
+            );
+            return;
+          }
+
+          workingItem = { ...item, fileHash };
+          setQueue(prev => prev.map(i => i.id === item.id ? workingItem : i));
+        }
       }
 
       // Actualizar estado a UPLOADING

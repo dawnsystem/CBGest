@@ -214,7 +214,14 @@ export function useInvoiceReview({
 
       let fileHash = reviewItem.fileHash || preview.fileHash;
       if (!fileHash && reviewItem.localFile) {
-        fileHash = await computeFileSha256(reviewItem.localFile);
+        try {
+          fileHash = await computeFileSha256(reviewItem.localFile);
+        } catch (error) {
+          invoiceReviewLogger.warn(
+            `No se pudo calcular SHA-256 de ${reviewItem.fileName}:`,
+            error
+          );
+        }
       }
 
       const contentFingerprint = buildContentFingerprint({

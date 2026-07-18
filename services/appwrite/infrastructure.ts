@@ -9,6 +9,7 @@ import { Query } from 'appwrite';
 import { account, databases, config } from '../../lib/appwrite/client';
 import { authService } from '../authService';
 import { dataLogger } from '../logger';
+import { sha256Hex } from '../../utils/bankStatementFingerprint';
 
 export interface AppwriteMetadata {
   $id?: string;
@@ -72,14 +73,13 @@ export const MASTER_DATA_COPY_BATCH_SIZE = 100;
 /** Tamaño de página para listados Appwrite con cursor (CTB-003). */
 export const APPWRITE_LIST_PAGE_SIZE = 1000;
 
-const hashMasterDataCopyKey = async (value: string): Promise<string> => {
-  if (typeof crypto === 'undefined' || !crypto.subtle) {
-    throw new Error('Web Crypto API is required to generate deterministic master-data copy IDs.');
-  }
-
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-};
+/**
+ * SHA-256 hex of a master-data copy key (SubtleCrypto or pure-JS fallback).
+ *
+ * @param value - Canonical key string
+ * @returns Lowercase hex digest (64 chars)
+ */
+const hashMasterDataCopyKey = async (value: string): Promise<string> => sha256Hex(value);
 
 export type MasterDataCopyCollection = 'suppliers' | 'apartments' | 'recurringExpenses';
 

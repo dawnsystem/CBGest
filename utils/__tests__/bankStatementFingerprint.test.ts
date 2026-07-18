@@ -97,6 +97,24 @@ describe('bankStatementFingerprint', () => {
       // Same content must be stable across repeated File hashes
       expect(await computeFileSha256(file)).toBe(fromFile);
     });
+
+    it('falls back to pure JS when SubtleCrypto is missing', async () => {
+      const expected = await sha256Hex('cbgest');
+      const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis.crypto, 'subtle');
+      Object.defineProperty(globalThis.crypto, 'subtle', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+
+      try {
+        expect(await sha256Hex('cbgest')).toBe(expected);
+      } finally {
+        if (originalDescriptor) {
+          Object.defineProperty(globalThis.crypto, 'subtle', originalDescriptor);
+        }
+      }
+    });
   });
 
   describe('enrichTransactionsWithFingerprints', () => {

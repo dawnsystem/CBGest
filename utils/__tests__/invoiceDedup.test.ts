@@ -33,7 +33,10 @@ describe('computeFileSha256', () => {
     expect(await computeFileSha256(blob)).toBe(hash);
   });
 
-  it('throws a controlled error when SubtleCrypto is unavailable', async () => {
+  it('hashes via pure-JS fallback when SubtleCrypto is unavailable', async () => {
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'application/pdf' });
+    const withSubtle = await computeFileSha256(blob);
+
     const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis.crypto, 'subtle');
     Object.defineProperty(globalThis.crypto, 'subtle', {
       value: undefined,
@@ -42,10 +45,9 @@ describe('computeFileSha256', () => {
     });
 
     try {
-      const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'application/pdf' });
-      await expect(computeFileSha256(blob)).rejects.toThrow(
-        'Web Crypto SubtleCrypto no está disponible en este entorno'
-      );
+      const withoutSubtle = await computeFileSha256(blob);
+      expect(withoutSubtle).toHaveLength(64);
+      expect(withoutSubtle).toBe(withSubtle);
     } finally {
       if (originalDescriptor) {
         Object.defineProperty(globalThis.crypto, 'subtle', originalDescriptor);
