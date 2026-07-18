@@ -27,6 +27,8 @@ export const APPWRITE_CONFIG = {
     fiscalYears: 'fiscal_years',
     // Registro de extractos importados (dedup por SHA / fingerprint)
     bankStatementImports: 'bank_statement_imports',
+    // Borradores Modelo 184 persistidos
+    taxReports: 'tax_reports',
   },
 
   // Appwrite Function IDs

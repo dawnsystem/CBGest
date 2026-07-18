@@ -136,6 +136,9 @@ export interface Invoice {
   // Ejercicio contable
   fiscalYearId?: string; // ID del ejercicio al que pertenece esta factura
 
+  /** Si false, el gasto no se incluye en Modelo 184 / IRPF (por defecto deducible). */
+  isDeductible?: boolean;
+
   // Deduplicación
   fileHash?: string; // SHA-256 del archivo adjunto
   contentFingerprint?: string; // Huella fiscal canónica (NIF+número+fecha+total)
@@ -331,6 +334,19 @@ export interface Partner {
   nif: string;
   participation: number; // Percentage 0-100
   taxInfo?: PartnerTaxInfo; // Optional tax details for simulation
+  /** Domicilio fiscal (línea única o calle) para Modelo 184 hoja S */
+  address?: string;
+  postalCode?: string;
+  city?: string;
+  province?: string;
+  /** Código provincial INE de 2 dígitos (ej. 08 Barcelona) */
+  provinceCode?: string;
+  /** Dirección fiscal formateada para exportación AEAT */
+  fiscalAddress?: string;
+  /** Miembro de la entidad a 31 de diciembre */
+  memberAtYearEnd?: boolean;
+  /** Días del ejercicio como miembro (por defecto 365) */
+  memberDays?: number;
 }
 
 // --- SUPPLIER/PROVIDER TYPES ---
@@ -624,6 +640,17 @@ export interface AppSettings {
   vatObligation: boolean;
   partners: Partner[];
   dataConfig?: DataSourceConfig; // New field for data management
+
+  /** Domicilio fiscal CB — Modelo 184 */
+  address?: string;
+  streetNumber?: string;
+  postalCode?: string;
+  city?: string;
+  province?: string;
+  phone?: string;
+  contactPerson?: string;
+  representativeNif?: string;
+  representativeName?: string;
   
   // Tourist Tax Configuration (IEET - Cataluña)
   touristTaxConfig?: TouristTaxConfig;

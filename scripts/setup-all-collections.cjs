@@ -1190,6 +1190,54 @@ async function setupBankStatementImportsCollection() {
 }
 
 /**
+ * TAX_REPORTS — borradores Modelo 184 persistidos.
+ */
+async function setupTaxReportsCollection() {
+  console.log('\n=== Setting up TAX_REPORTS collection ===\n');
+  const collectionId = 'tax_reports';
+
+  await createCollection(collectionId, 'Tax Reports');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
+    { type: 'integer', key: 'year', required: true, min: 2000, max: 2100 },
+    { type: 'string', key: 'status', size: 20, required: true },
+    { type: 'string', key: 'draft', size: 65535, required: true },
+    { type: 'string', key: 'exportedAt', size: 40, required: false },
+    { type: 'string', key: 'fileHash', size: 128, required: false },
+    { type: 'string', key: 'presentationReference', size: 64, required: false },
+    { type: 'string', key: 'createdAt', size: 40, required: false },
+    { type: 'string', key: 'updatedAt', size: 40, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
+    { key: 'year_index', type: 'key', attributes: ['year'], orders: ['DESC'] },
+    { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Tax Reports collection setup complete!\n');
+}
+
+/**
  * Pase defensivo: garantiza fiscalYearId + índice en colecciones ya existentes.
  * Evita el fallo real visto en Cloud (recurring_expenses sin atributo mientras
  * el resto sí lo tenía), que rompía filtros y «Migrar datos sin ejercicio».
@@ -1305,6 +1353,7 @@ async function main() {
     await setupReservationsCollection();
     await setupFiscalYearsCollection();
     await setupBankStatementImportsCollection();
+    await setupTaxReportsCollection();
 
     // Defensive pass: attribute may be missing on older Cloud installs
     await ensureFiscalYearIdSchema();
@@ -1327,6 +1376,7 @@ async function main() {
     console.log('  ✅ reservations (+ tourist tax and deposit fields, + fiscalYearId)');
     console.log('  ✅ fiscal_years (year, status, openedAt, closedAt, notes, touristTaxPeriods)');
     console.log('  ✅ bank_statement_imports (fileSha256, contentFingerprint, fiscalYearId)');
+    console.log('  ✅ tax_reports (draft Modelo 184, fiscalYearId, status)');
     console.log('');
     console.log('Next steps:');
     console.log('  1. Verify: node scripts/verify-appwrite-setup.cjs');
