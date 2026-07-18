@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { QueueItem, UploadQueueContextType, Invoice, UploadType, BankTransaction, Supplier } from '../types';
-import { analyzeInvoiceImage, analyzeBankStatement } from '../services/geminiService';
+import {
+  analyzeInvoiceImageDetailed,
+  analyzeBankStatementDetailed,
+} from '../services/geminiService';
+import { DEFAULT_AI_CONFIG, type AiConfig, AI_PROVIDER_LABELS, type AiProviderId } from '../services/ai';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
 import { storageService, findImportByFileSha256 } from '../services/appwriteService';
 import { useAuth } from './AuthContext';
@@ -44,12 +48,15 @@ interface UploadQueueProviderProps {
   children: ReactNode;
   suppliers?: Supplier[];
   invoices?: Invoice[];
+  /** Preferencia de proveedor IA (failover). */
+  aiConfig?: AiConfig;
 }
 
 export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
   children,
   suppliers = [],
   invoices = [],
+  aiConfig = DEFAULT_AI_CONFIG,
 }) => {
   const { user } = useAuth();
   const { activeFiscalYear } = useFiscalYear();
@@ -62,6 +69,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
   const uploadQueueRef = useRef<QueueItem[]>([]);
   const invoicesRef = useRef(invoices);
   const activeFiscalYearRef = useRef(activeFiscalYear);
+  const aiConfigRef = useRef<AiConfig>({ ...DEFAULT_AI_CONFIG, ...aiConfig });
 
   useEffect(() => {
     invoicesRef.current = invoices;
@@ -70,6 +78,10 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
   useEffect(() => {
     activeFiscalYearRef.current = activeFiscalYear;
   }, [activeFiscalYear]);
+
+  useEffect(() => {
+    aiConfigRef.current = { ...DEFAULT_AI_CONFIG, ...aiConfig };
+  }, [aiConfig]);
 
   // ============================================================================
   // LOAD QUEUE FROM APPWRITE
@@ -592,7 +604,14 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
       }
 
       if (item.uploadType === 'INVOICE') {
-        const data = await analyzeInvoiceImage(base64ForApi, safeMime, suppliers);
+        const { data, meta } = await analyzeInvoiceImageDetailed(
+          base64ForApi,
+          safeMime,
+          suppliers,
+          aiConfigRef.current
+        );
+        const providerLabel =
+          AI_PROVIDER_LABELS[meta.usedProvider as AiProviderId] ?? meta.usedProvider;
 
         // Buscar proveedor si la IA lo sugirió
         let matchedSupplierId: string | undefined = undefined;
@@ -618,7 +637,11 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
             date: data.date,
             totalAmount: data.totalAmount,
           }),
-          history: [{ date: new Date().toISOString(), action: 'Analyzed via Gemini', user: 'System' }]
+          history: [{
+            date: new Date().toISOString(),
+            action: `Analyzed via ${providerLabel}`,
+            user: 'System',
+          }]
         };
 
         const fiscalYearId = resolveFiscalYearId(activeFiscalYearRef.current);
@@ -639,6 +662,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
           progress: 100,
           result: resultInvoice,
           duplicateMatch,
+          aiProviderUsed: meta.usedProvider,
           notificationDismissed: false
         };
 
@@ -652,12 +676,18 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
           });
         }
         
-        uploadLogger.info(`[UploadQueue] Factura ${item.fileName} procesada`);
+        uploadLogger.info(
+          `[UploadQueue] Factura ${item.fileName} procesada con ${meta.usedProvider}`
+        );
 
       } else if (item.uploadType === 'BANK_STATEMENT') {
         // PDF/imagen de extracto bancario - procesar con IA
         // (Los XLSX ya fueron manejados arriba y retornaron)
-        const transactions = await analyzeBankStatement(base64ForApi, safeMime);
+        const { data: transactions, meta } = await analyzeBankStatementDetailed(
+          base64ForApi,
+          safeMime,
+          aiConfigRef.current
+        );
 
         const enrichedTransactions: BankTransaction[] = transactions.map(t => ({
           id: generateId(),
@@ -672,6 +702,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
           status: 'COMPLETED',
           progress: 100,
           bankResult: enrichedTransactions,
+          aiProviderUsed: meta.usedProvider,
           notificationDismissed: false
         };
         
@@ -685,12 +716,14 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
           });
         }
         
-        uploadLogger.info(`[UploadQueue] PDF ${item.fileName} procesado: ${enrichedTransactions.length} transacciones`);
+        uploadLogger.info(
+          `[UploadQueue] PDF ${item.fileName} procesado con ${meta.usedProvider}: ${enrichedTransactions.length} transacciones`
+        );
       }
 
     } catch (err: unknown) {
       clearInterval(progressInterval);
-      uploadLogger.error('[UploadQueue] Error procesando con Gemini:', err);
+      uploadLogger.error('[UploadQueue] Error procesando con IA:', err);
 
       const errorMessage = err instanceof Error ? err.message : 'Error en análisis IA.';
       const errorItem: QueueItem = {

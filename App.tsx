@@ -853,7 +853,11 @@ const MainLayout: React.FC = () => {
   })();
 
   return (
-    <UploadQueueProvider suppliers={suppliers} invoices={invoices}>
+    <UploadQueueProvider
+      suppliers={suppliers}
+      invoices={invoices}
+      aiConfig={settings.aiConfig}
+    >
       <HashRouter>
         <div className="min-h-screen bg-slate-50 flex font-sans">
           <Sidebar

@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-18 22:30:00 UTC*
+*Última actualización: 2026-07-18 23:35:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Dedup facturas + extractos** en código. Pendiente aplicar schemas Cloud (`add-invoice-dedup-attributes.cjs` + `add-bank-statement-dedup-schema.cjs`) y verificación UAT del kit arrendamiento (Paso 10).
+Estado actual: **Failover multi-IA** listo en código. Ops Cloud: añadir atributo `aiConfig` (string JSON) en colección `settings` si aún no existe (`setup-all-collections.cjs` ya lo declara). Dedup: pendiente schemas Cloud + UAT Paso 10.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-18] - `FEAT-AI-FAILOVER-001` - Router multi-IA (Gemini + Groq + OpenRouter) con failover:** Nueva capa `services/ai/` (providers, prompts, `aiRouter`, PDF→PNG vía pdfjs para vision no-nativa). Preferencia en Settings (`aiConfig.preferredProvider` + `failoverEnabled`). Env: `VITE_GEMINI_API_KEY`, `VITE_GROQ_API_KEY`, `VITE_OPENROUTER_API_KEY` (+ modelo opcional). Cola anota `aiProviderUsed`; errores listan providers intentados. Persistencia `aiConfig` con fallback si el atributo Cloud falta. Validado: lint + type-check + **422** tests + build OK.
 *   **[2026-07-18] - `FEAT-M184-001` - Modelo 184 oficial (clave C) + exportación AEAT:** Rama `dev` creada como integración. Nuevo módulo `services/modelo184/` (`buildModelo184Draft`, export PDF layout oficial, fichero telemático ISO-8859-1 registros 500 chars). Ingresos desde **reservas confirmadas**; gastos deducibles desde facturas con reparto proporcional. UI `#/taxes`: PDF oficial, fichero `.txt`, guardar borrador (`tax_reports`). Settings: domicilio fiscal CB, representante, domicilio socios (persistidos en Appwrite). Colección `tax_reports` + attrs fiscales `settings` + `isDeductible` en `invoices` en `setup-all-collections.cjs`. Guía despliegue: `docs/DEPLOY_MODELO_184_APPWRITE.md`. PR #174 contra `dev`. Validado: type-check + test:ci + lint OK.
 *   **[2026-07-18] - `BUG-DEDUP-002` - Hash usable sin SubtleCrypto:** El error controlado de BUG-DEDUP-001 seguía rompiendo subidas (HTTP Tailscale / contexto no seguro). Nuevo `utils/sha256-fallback.ts` (SHA-256 JS puro); `sha256Hex` usa SubtleCrypto o fallback con el mismo digest. `infrastructure.hashMasterDataCopyKey` reutiliza `sha256Hex`. try/catch en cola de facturas y `useInvoiceReview`. Tests: vectores NIST + igualdad SubtleCrypto/fallback.
 *   **[2026-07-18] - `BUG-DEDUP-001` - TypeError `reading 'digest'` en hash de facturas:** `invoiceDedup.computeFileSha256` llamaba `crypto.subtle.digest` sin comprobar SubtleCrypto (falla fuera de contexto seguro). Ahora delega en `bankStatementFingerprint.computeFileSha256` (guarda + mismo SHA-256 hex). Tests: hash estable + error controlado sin `subtle`.
@@ -110,6 +111,18 @@ Estado actual: **Dedup facturas + extractos** en código. Pendiente aplicar sche
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-18 23:35:00 UTC]
+*   **Directiva del Director:** Agotar cuota Gemini al subir facturas → integrar IAs gratis seleccionables y cambio automático ante cuota/error de lectura.
+*   **Plan de Acción:** Abstracción multi-proveedor (Gemini/Groq/OpenRouter free) + router con failover + UI Settings + env Vite.
+*   **Log de Acciones:**
+    - `[23:26:00]` - **CREATE:** `services/ai/` — types, errors, prompts, pdfToImages, openaiCompatible, providers (gemini/groq/openrouter), `aiRouter`.
+    - `[23:28:00]` - **MOD:** `geminiService.ts` facade; `UploadQueueContext` usa detailed + `aiConfig`; badge proveedor en `InvoiceUploader`.
+    - `[23:30:00]` - **MOD:** `AppSettings.aiConfig`, Settings UI, `settingsService` (+ retry sin atributo Cloud), `vite.config`/`vite-env`, README, `setup-all-collections` attr `aiConfig`.
+    - `[23:32:00]` - **TEST:** Suite `services/ai/__tests__` (router failover, classify errors, OpenAI-compatible fetch mock).
+    - `[23:35:00]` - **VALIDATE:** `lint` + `type-check` + `test:ci` (422 PASS) + `build` OK.
+*   **Resultado:** Lectura documental deja de depender solo de Gemini; rota a Groq/OpenRouter si hay keys y falla cuota/lectura.
+*   **Arquitectura:** Keys siguen en cliente (SEC-001 aceptado). PDF nativo solo Gemini; resto convierte páginas a PNG. Failover: QUOTA/RATE_LIMIT/AUTH/PARSE/TRANSIENT/MODEL_NOT_FOUND.
+
 ### Sesión: [2026-07-18 00:40:00 UTC]
 *   **Directiva del Director:** Error `Web Crypto SubtleCrypto no está disponible en este entorno` al hashear (dedup) fuera de contexto seguro.
 *   **Log de Acciones:**
@@ -797,7 +810,7 @@ Estado actual: **Dedup facturas + extractos** en código. Pendiente aplicar sche
 
 ### 🔴 CRÍTICOS (14 hallazgos) — Impacto directo en seguridad, datos financieros o integridad
 
-* **SEC-001:** API key de Gemini embebida en el bundle del cliente. `vite.config.ts:14-16` reemplaza `process.env.API_KEY` con la cadena literal de la clave en el JS compilado. Estado: **Aceptado conscientemente** (repo privado en VPS propio).
+* **SEC-001:** API keys de IA (Gemini/Groq/OpenRouter) embebidas en el bundle del cliente vía `vite.config.ts` `define` (`VITE_*_API_KEY`). Estado: **Aceptado conscientemente** (repo privado en VPS propio). Mitigación parcial: failover multi-proveedor reduce dependencia de una sola key.
 * **SEC-002:** `geminiService.ts:12` — GoogleGenAI se inicializa a nivel de módulo con `process.env.API_KEY || ''`, creando instancia con clave vacía si la variable falta. Estado: ✅ Resuelto (IMPL-007). Inicialización movida a función `getAiClient()` (lazy init).
 * **SEC-003:** `validators.ts:80` — Comparación con `==` en lugar de `===` en validación de CIF. Estado: ✅ Resuelto (IMPL-007).
 * **SEC-004:** `security.yml:50` — CI/CD permite hasta 3 vulnerabilidades HIGH en `npm audit`. Demasiado permisivo para una app financiera. Estado: ✅ Resuelto (IMPL-006).

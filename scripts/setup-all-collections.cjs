@@ -660,6 +660,8 @@ async function setupSettingsCollection() {
     { type: 'string', key: 'partners', size: 50000, required: false },
     // Tourist tax config stored as JSON string
     { type: 'string', key: 'touristTaxConfig', size: 1000, required: false },
+    // Multi-IA preference (preferredProvider + failoverEnabled) as JSON string
+    { type: 'string', key: 'aiConfig', size: 500, required: false },
     // Domicilio fiscal CB y representante — Modelo 184
     ...SETTINGS_FISCAL_ATTRIBUTES,
   ];

@@ -496,6 +496,14 @@ export const InvoiceUploader: React.FC<InvoiceUploaderProps> = ({ onInvoiceAdded
                                 DUP
                               </span>
                             )}
+                            {item.aiProviderUsed && item.status === 'COMPLETED' && (
+                              <span
+                                className="text-[10px] px-1.5 rounded border border-slate-200 bg-slate-50 text-slate-600 uppercase"
+                                title={`Analizado con ${item.aiProviderUsed}`}
+                              >
+                                {item.aiProviderUsed}
+                              </span>
+                            )}
                             <p className="font-medium text-slate-900 truncate">{item.fileName}</p>
                         </div>
                         <p className="text-xs text-slate-500">
