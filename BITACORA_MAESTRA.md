@@ -118,6 +118,7 @@ Estado actual: **Dedup facturas + extractos** en código. Pendiente aplicar sche
     - `[00:37:00]` - **FIX:** try/catch hash facturas en `UploadQueueContext` + `useInvoiceReview`.
     - `[00:38:00]` - **TEST:** NIST + igualdad SubtleCrypto/fallback; tests dedup actualizados.
     - `[00:40:00]` - **DOC:** Registro `BUG-DEDUP-002` en bitácora.
+    - `[00:45:00]` - **VALIDATE:** `lint` + `type-check` + `test:ci` (393 PASS) + `build` OK.
 *   **Resultado:** Dedup por SHA-256 funciona sin SubtleCrypto (p. ej. HTTP en host Tailscale).
 
 ### Sesión: [2026-07-18 00:13:58 UTC]
