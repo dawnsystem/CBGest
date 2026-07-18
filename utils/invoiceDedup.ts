@@ -8,11 +8,11 @@ import { computeFileSha256 as computeFileSha256FromFingerprint } from './bankSta
 
 /**
  * Calcula SHA-256 hex de un archivo/blob en el navegador.
- * Delega en la utilidad compartida de fingerprint (con guarda SubtleCrypto).
+ * Delega en la utilidad compartida de fingerprint (SubtleCrypto o fallback JS).
  *
  * @param file - Archivo o blob a hashear
  * @returns Hash hexadecimal en minúsculas (64 caracteres)
- * @throws When Web Crypto SubtleCrypto is unavailable in the current environment
+ * @throws When reading the file fails
  * @example
  * const hash = await computeFileSha256(pdfFile);
  */

@@ -1,7 +1,9 @@
 /**
  * Fingerprints for bank statement deduplication.
- * Uses Web Crypto SHA-256 for file and content identity checks.
+ * Uses Web Crypto SHA-256 when available, with a pure-JS fallback otherwise.
  */
+
+import { sha256HexFallback } from './sha256-fallback';
 
 /** Minimal movement shape used for content fingerprints. */
 export interface FingerprintableTransaction {
@@ -28,20 +30,17 @@ export function bufferToHex(buffer: ArrayBuffer): string {
 
 /**
  * Computes SHA-256 of a string or binary buffer and returns hex.
+ * Prefers `crypto.subtle`; falls back to pure JS when SubtleCrypto is missing
+ * (insecure HTTP, Tailscale hosts, sandboxed iframes, etc.).
  *
  * @param input - UTF-8 string or ArrayBuffer / TypedArray
  * @returns Lowercase hex SHA-256 digest (64 chars)
- * @throws When Web Crypto is unavailable
  * @example
  * ```ts
  * await sha256Hex('hello');
  * ```
  */
 export async function sha256Hex(input: string | ArrayBuffer | ArrayBufferView): Promise<string> {
-  if (typeof crypto === 'undefined' || !crypto.subtle) {
-    throw new Error('Web Crypto SubtleCrypto no está disponible en este entorno');
-  }
-
   let data: Uint8Array;
   if (typeof input === 'string') {
     data = new TextEncoder().encode(input);
@@ -52,8 +51,12 @@ export async function sha256Hex(input: string | ArrayBuffer | ArrayBufferView): 
     data = new Uint8Array(input);
   }
 
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return bufferToHex(digest);
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return bufferToHex(digest);
+  }
+
+  return sha256HexFallback(data);
 }
 
 /**
@@ -158,7 +161,7 @@ export async function statementContentFingerprint(
  *
  * @param source - Browser File/Blob or ArrayBuffer / TypedArray
  * @returns Hex SHA-256 of file contents
- * @throws When reading the file fails or Web Crypto is unavailable
+ * @throws When reading the file fails
  * @example
  * ```ts
  * await computeFileSha256(file);
