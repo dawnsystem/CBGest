@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   amountToCents,
   buildContentFingerprint,
+  computeFileSha256,
   findDuplicateByContentFingerprint,
   findDuplicateByFileHash,
   normalizeInvoiceNumber,
@@ -22,6 +23,35 @@ const makeInvoice = (overrides: Partial<Invoice> = {}): Invoice => ({
   status: 'PENDING',
   history: [],
   ...overrides,
+});
+
+describe('computeFileSha256', () => {
+  it('hashes a Blob deterministically', async () => {
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'application/pdf' });
+    const hash = await computeFileSha256(blob);
+    expect(hash).toHaveLength(64);
+    expect(await computeFileSha256(blob)).toBe(hash);
+  });
+
+  it('throws a controlled error when SubtleCrypto is unavailable', async () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis.crypto, 'subtle');
+    Object.defineProperty(globalThis.crypto, 'subtle', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'application/pdf' });
+      await expect(computeFileSha256(blob)).rejects.toThrow(
+        'Web Crypto SubtleCrypto no está disponible en este entorno'
+      );
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(globalThis.crypto, 'subtle', originalDescriptor);
+      }
+    }
+  });
 });
 
 describe('normalizeInvoiceNumber', () => {

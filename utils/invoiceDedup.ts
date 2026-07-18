@@ -4,21 +4,20 @@
 
 import { normalizeNif } from './validators';
 import type { DuplicateMatch, Invoice, InvoiceDuplicateSummary } from '../types';
+import { computeFileSha256 as computeFileSha256FromFingerprint } from './bankStatementFingerprint';
 
 /**
  * Calcula SHA-256 hex de un archivo/blob en el navegador.
+ * Delega en la utilidad compartida de fingerprint (con guarda SubtleCrypto).
  *
  * @param file - Archivo o blob a hashear
  * @returns Hash hexadecimal en minúsculas (64 caracteres)
+ * @throws When Web Crypto SubtleCrypto is unavailable in the current environment
  * @example
  * const hash = await computeFileSha256(pdfFile);
  */
 export async function computeFileSha256(file: Blob): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const digest = await crypto.subtle.digest('SHA-256', buffer);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  return computeFileSha256FromFingerprint(file);
 }
 
 /**
