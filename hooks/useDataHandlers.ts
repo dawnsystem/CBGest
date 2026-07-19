@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
+import { redactSettingsForLocalStorage } from '../utils/settingsLocalStorage';
 import { buildEntryFromInvoice } from '../utils/invoiceUtils';
 import { buildEntryFromUnmatchedTransaction, buildInvoiceSettlementEntry } from '../utils/reconciliationUtils';
 import {
@@ -22,6 +23,11 @@ import {
   type BankImportMeta,
   type BankImportResult,
 } from '../utils/bankStatementDedup';
+import {
+  detectFiscalYearDateMismatch,
+  detectFirstFiscalYearMismatch,
+  formatFiscalYearMismatchMessage,
+} from '../utils/fiscalYearValidation';
 
 // ============================================================================
 // DEBT-006: Generic optimistic-CRUD factory
@@ -118,11 +124,16 @@ interface UseDataHandlersOptions {
   showSuccess?: (message: string) => void;
   isReadOnly?: boolean;
   showToast?: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+  showConfirm?: (message: string) => Promise<boolean>;
   activeFiscalYearId?: string;
+  activeFiscalYearYear?: number;
 }
 
 export function useDataHandlers(options: UseDataHandlersOptions) {
-  const { data, setters, showError, showSuccess, isReadOnly = false, showToast, activeFiscalYearId } = options;
+  const {
+    data, setters, showError, showSuccess, isReadOnly = false, showToast,
+    showConfirm, activeFiscalYearId, activeFiscalYearYear,
+  } = options;
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const MAX_IMPORT_ERRORS_DISPLAYED = 3;
@@ -138,6 +149,20 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       ? item
       : { ...item, fiscalYearId: activeFiscalYearId },
   [activeFiscalYearId]);
+
+  /**
+   * Pide confirmación si la fecha del documento no coincide con el ejercicio activo.
+   * @returns true si se puede continuar, false si el usuario cancela
+   */
+  const confirmFiscalYearDateMismatch = useCallback(async (
+    dateStr: string,
+    entityLabel: string
+  ): Promise<boolean> => {
+    const mismatch = detectFiscalYearDateMismatch(dateStr, activeFiscalYearYear, entityLabel);
+    if (!mismatch) return true;
+    if (!showConfirm) return true;
+    return showConfirm(formatFiscalYearMismatchMessage(mismatch));
+  }, [activeFiscalYearYear, showConfirm]);
 
   // ============ ENTRY HANDLERS ============
   const handleAddEntry = useCallback(async (entry: AccountingEntry, opts?: HandlerExecutionOptions) => {
@@ -287,6 +312,13 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       showToast?.('Ejercicio cerrado — no se pueden añadir facturas', 'error');
       return;
     }
+    if (!activeFiscalYearYear) {
+      showToast?.('Selecciona un ejercicio fiscal antes de añadir facturas', 'error');
+      return;
+    }
+    if (!(await confirmFiscalYearDateMismatch(invoice.date, 'factura'))) {
+      return;
+    }
     const originalStatus = invoice.status;
     const invoiceWithAudit: Invoice = {
       ...withFiscalYearId(invoice),
@@ -371,7 +403,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     if (originalStatus === 'PROCESSED' || originalStatus === 'PAID') {
       createEntryFromInvoice(persistedInvoice);
     }
-  }, [isReadOnly, showToast, withFiscalYearId, user, data.settings, data.suppliers, setters, showError, addNotification, handleAddSupplier, createEntryFromInvoice]);
+  }, [isReadOnly, showToast, activeFiscalYearYear, confirmFiscalYearDateMismatch, withFiscalYearId, user, data.settings, data.suppliers, setters, showError, addNotification, handleAddSupplier, createEntryFromInvoice]);
 
   const handleUpdateInvoice = useCallback(async (invoice: Invoice) => {
     if (isReadOnly) {
@@ -379,6 +411,11 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       return;
     }
     const oldInvoice = data.invoices.find(i => i.id === invoice.id);
+    if (oldInvoice?.date !== invoice.date) {
+      if (!(await confirmFiscalYearDateMismatch(invoice.date, 'factura'))) {
+        return;
+      }
+    }
     setters.setInvoices(prev => prev.map(i => i.id === invoice.id ? invoice : i));
 
     if (data.settings.dataConfig?.type === 'APPWRITE') {
@@ -399,7 +436,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         createEntryFromInvoice(invoice);
       }
     }
-  }, [isReadOnly, showToast, data.invoices, data.entries, data.settings, setters, showError, createEntryFromInvoice]);
+  }, [isReadOnly, showToast, confirmFiscalYearDateMismatch, data.invoices, data.entries, data.settings, setters, showError, createEntryFromInvoice]);
 
   const handleDeleteInvoice = useCallback(async (id: string) => {
     if (isReadOnly) {
@@ -448,6 +485,34 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
         contentFingerprint: '',
         message: 'Ejercicio cerrado — no se pueden añadir transacciones',
       };
+    }
+    if (!activeFiscalYearYear) {
+      showToast?.('Selecciona un ejercicio fiscal antes de importar movimientos', 'error');
+      return {
+        toImport: [],
+        skippedDuplicates: txs.length,
+        isDuplicateStatement: true,
+        contentFingerprint: '',
+        message: 'Selecciona un ejercicio fiscal',
+      };
+    }
+
+    const dateMismatch = detectFirstFiscalYearMismatch(
+      txs.map((tx) => tx.date),
+      activeFiscalYearYear,
+      'transacción bancaria'
+    );
+    if (dateMismatch && showConfirm) {
+      const proceed = await showConfirm(formatFiscalYearMismatchMessage(dateMismatch));
+      if (!proceed) {
+        return {
+          toImport: [],
+          skippedDuplicates: txs.length,
+          isDuplicateStatement: false,
+          contentFingerprint: '',
+          message: 'Importación cancelada por el usuario',
+        };
+      }
     }
 
     const fiscalYearId = activeFiscalYearId;
@@ -569,6 +634,8 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
     isReadOnly,
     showToast,
     showSuccess,
+    showConfirm,
+    activeFiscalYearYear,
     withFiscalYearId,
     user,
     data.settings,
@@ -686,6 +753,20 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       showToast?.('Ejercicio cerrado — no se pueden añadir reservas', 'error');
       return;
     }
+    if (!activeFiscalYearYear) {
+      showToast?.('Selecciona un ejercicio fiscal antes de añadir reservas', 'error');
+      return;
+    }
+
+    const dateMismatch = detectFirstFiscalYearMismatch(
+      newReservations.map((r) => r.checkIn),
+      activeFiscalYearYear,
+      'reserva'
+    );
+    if (dateMismatch && showConfirm) {
+      const proceed = await showConfirm(formatFiscalYearMismatchMessage(dateMismatch));
+      if (!proceed) return;
+    }
     const existingByNumber = new Map<string, Reservation>();
     data.reservations.forEach(r => {
       if (r.reservationNumber) existingByNumber.set(r.reservationNumber, r);
@@ -778,7 +859,7 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
       if (toUpdate.length > 0) parts.push(`${toUpdate.length} actualizadas`);
       if (parts.length > 0) showSuccess?.(`Importación completada: ${parts.join(', ')}`);
     }
-  }, [isReadOnly, showToast, data.reservations, withFiscalYearId, data.settings, setters, showError, showSuccess]);
+  }, [isReadOnly, showToast, showConfirm, activeFiscalYearYear, data.reservations, withFiscalYearId, data.settings, setters, showError, showSuccess]);
 
   const handleUpdateReservation = useCallback(async (id: string, updates: Partial<Reservation>) => {
     if (isReadOnly) {
@@ -928,11 +1009,20 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   // ============ SETTINGS HANDLER ============
   const handleUpdateSettings = useCallback(async (newSettings: AppSettings) => {
     setters.setSettings(newSettings);
-    localStorage.setItem('gestcb_settings', JSON.stringify(newSettings));
+    localStorage.setItem(
+      'gestcb_settings',
+      JSON.stringify(redactSettingsForLocalStorage(newSettings))
+    );
 
     if (newSettings.dataConfig?.type === 'APPWRITE') {
       try {
-        await appwriteService.saveSettings(newSettings);
+        const saved = await appwriteService.saveSettings(newSettings);
+        setters.setSettings({
+          ...saved,
+          dataConfig: newSettings.dataConfig,
+          partners: saved.partners?.length ? saved.partners : newSettings.partners,
+          aiConfig: saved.aiConfig ?? newSettings.aiConfig,
+        });
       } catch (error) {
         console.error('Error syncing settings:', error);
       }

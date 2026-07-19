@@ -1,12 +1,12 @@
 /**
- * @fileoverview Tipos para respuestas del servicio Gemini AI
- * @description Define interfaces para las respuestas estructuradas de análisis de documentos
+ * @fileoverview Tipos para respuestas del análisis documental por IA
+ * @description Define interfaces para las respuestas estructuradas (contrato histórico Gemini)
  */
 
 import type { NifType } from '../types';
 
 /**
- * Tipo de NIF para respuestas de Gemini
+ * Tipo de NIF para respuestas de IA documental
  * Es equivalente a NifType del sistema principal
  */
 export type GeminiNifType = NifType;
@@ -52,6 +52,11 @@ export interface GeminiInvoiceResponse {
   type: InvoiceType;
   /** Código cuenta contable PGC sugerido (ej: "628") */
   suggestedAccountCode: string;
+  /**
+   * Concepto breve del documento (alquiler, luz, comisión Booking…).
+   * Opcional por compatibilidad con respuestas antiguas / modelos free.
+   */
+  concept?: string | null;
 }
 
 /**
@@ -100,3 +105,9 @@ export type GeminiInvoiceResult =
 export type GeminiBankResult =
   | { success: true; data: GeminiBankTransaction[] }
   | { success: false; error: GeminiError };
+
+/** Alias multi-proveedor del contrato de factura. */
+export type InvoiceAiResponse = GeminiInvoiceResponse;
+
+/** Alias multi-proveedor del contrato de movimiento bancario. */
+export type BankTransactionAiResponse = GeminiBankTransaction;

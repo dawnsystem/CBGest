@@ -71,6 +71,7 @@ describe('settingsService (BUG-027 / BUG-028)', () => {
       partners: [{ id: '1', name: 'Socio', nif: '1', participation: 100 }],
       dataConfig: { type: 'APPWRITE', autoBackup: false },
       touristTaxConfig: { rate: 1, maxNights: 7, minAge: 17, enabled: true },
+      aiConfig: { preferredProvider: 'groq', failoverEnabled: true },
     };
 
     const payload = buildSettingsPayload(settings);
@@ -81,6 +82,7 @@ describe('settingsService (BUG-027 / BUG-028)', () => {
       vatObligation: true,
       partners: JSON.stringify(settings.partners),
       touristTaxConfig: JSON.stringify(settings.touristTaxConfig),
+      aiConfig: JSON.stringify(settings.aiConfig),
       address: '',
       streetNumber: '',
       postalCode: '',
@@ -94,5 +96,21 @@ describe('settingsService (BUG-027 / BUG-028)', () => {
     expect(payload).not.toHaveProperty('appwriteId');
     expect(payload).not.toHaveProperty('dataConfig');
     expect(payload).not.toHaveProperty('$id');
+  });
+
+  it('mapSettingsDocument parses aiConfig JSON string', () => {
+    const mapped = mapSettingsDocument({
+      cbName: 'CB',
+      nif: 'X',
+      fiscalRegime: 'GENERAL',
+      vatObligation: false,
+      partners: '[]',
+      aiConfig: JSON.stringify({ preferredProvider: 'openrouter', failoverEnabled: false }),
+    } as never);
+
+    expect(mapped.aiConfig).toEqual({
+      preferredProvider: 'openrouter',
+      failoverEnabled: false,
+    });
   });
 });

@@ -44,7 +44,15 @@ const EXPECTED_COLLECTIONS = {
   },
   settings: {
     name: 'App Settings',
-    attributes: ['cbName', 'nif', 'fiscalRegime', 'vatObligation', 'partners'],
+    attributes: [
+      'cbName',
+      'nif',
+      'fiscalRegime',
+      'vatObligation',
+      'partners',
+      'touristTaxConfig',
+      'aiConfig',
+    ],
     indexes: [],
   },
   suppliers: {

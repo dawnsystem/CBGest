@@ -12,6 +12,7 @@ import {
   getErrorCode,
 } from './infrastructure';
 import type { AppSettings, TouristTaxConfig } from '../../types';
+import { DEFAULT_AI_CONFIG, type AiConfig } from '../ai/types';
 
 /**
  * ID fijo del documento singleton de settings (BUG-028).
@@ -23,6 +24,7 @@ type SettingsDocument = AppwriteEntity<AppSettings> & {
   $id?: string;
   partners?: string | AppSettings['partners'];
   touristTaxConfig?: string | TouristTaxConfig;
+  aiConfig?: string | AiConfig;
 };
 
 const parsePartners = (partners: SettingsDocument['partners']): AppSettings['partners'] => {
@@ -55,6 +57,39 @@ const parseTouristTaxConfig = (
     }
   }
   return value;
+};
+
+/**
+ * Parsea aiConfig si viene como JSON string desde Appwrite.
+ *
+ * @param value - Config o string serializado
+ * @returns AiConfig o undefined
+ */
+const parseAiConfig = (value: SettingsDocument['aiConfig']): AiConfig | undefined => {
+  if (value == null) return undefined;
+  let parsed: unknown = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return undefined;
+    }
+  }
+  if (!parsed || typeof parsed !== 'object') return undefined;
+  const obj = parsed as Partial<AiConfig>;
+  const preferred = obj.preferredProvider;
+  const validPreferred =
+    preferred === 'auto' ||
+    preferred === 'gemini' ||
+    preferred === 'groq' ||
+    preferred === 'openrouter';
+  return {
+    preferredProvider: validPreferred ? preferred : DEFAULT_AI_CONFIG.preferredProvider,
+    failoverEnabled:
+      typeof obj.failoverEnabled === 'boolean'
+        ? obj.failoverEnabled
+        : DEFAULT_AI_CONFIG.failoverEnabled,
+  };
 };
 
 /**
@@ -93,6 +128,10 @@ export function mapSettingsDocument(
   if (taxConfig) {
     mapped.touristTaxConfig = taxConfig;
   }
+  const aiConfig = parseAiConfig(doc.aiConfig);
+  if (aiConfig) {
+    mapped.aiConfig = aiConfig;
+  }
   if (dataConfig !== undefined) {
     mapped.dataConfig = dataConfig;
   }
@@ -125,12 +164,85 @@ export function buildSettingsPayload(settings: AppSettings): Record<string, unkn
   if (settings.touristTaxConfig) {
     payload.touristTaxConfig = JSON.stringify(settings.touristTaxConfig);
   }
+  if (settings.aiConfig) {
+    payload.aiConfig = JSON.stringify(settings.aiConfig);
+  }
   return payload;
+}
+
+/**
+ * Detecta errores de atributo desconocido en Appwrite (schema Cloud incompleto).
+ *
+ * @param error - Error crudo
+ * @returns true si parece atributo inválido/desconocido
+ */
+function isUnknownAttributeError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /unknown attribute|Invalid document structure|aiConfig/i.test(message);
+}
+
+/**
+ * Persiste el payload (update → create → update-on-409).
+ *
+ * @param payload - Payload de negocio
+ * @param targetId - ID documento
+ * @returns Documento guardado
+ */
+async function persistSettingsDocument(
+  payload: Record<string, unknown>,
+  targetId: string
+): Promise<SettingsDocument> {
+  try {
+    return (await withRetry(
+      () =>
+        databases.updateDocument(
+          config.databaseId,
+          config.collections.settings,
+          targetId,
+          payload
+        ),
+      'updateSettings'
+    )) as SettingsDocument;
+  } catch (updateError: unknown) {
+    const code = getErrorCode(updateError);
+    if (code !== 404) {
+      throw updateError;
+    }
+
+    try {
+      return (await withRetry(
+        () =>
+          databases.createDocument(
+            config.databaseId,
+            config.collections.settings,
+            SETTINGS_DOCUMENT_ID,
+            payload
+          ),
+        'createSettings'
+      )) as SettingsDocument;
+    } catch (createError: unknown) {
+      if (getErrorCode(createError) === 409) {
+        return (await withRetry(
+          () =>
+            databases.updateDocument(
+              config.databaseId,
+              config.collections.settings,
+              SETTINGS_DOCUMENT_ID,
+              payload
+            ),
+          'updateSettingsAfterConflict'
+        )) as SettingsDocument;
+      }
+      throw createError;
+    }
+  }
 }
 
 /**
  * Guarda settings con ID fijo / appwriteId conocido (BUG-028).
  * Si create choca (409), hace update del documento existente.
+ * Si `aiConfig` aún no existe en el schema Cloud, reintenta sin ese campo
+ * y conserva la preferencia local en el valor retornado.
  *
  * @param settings - Configuración a persistir
  * @returns Settings mapeados tras guardar
@@ -143,54 +255,28 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
     let doc: SettingsDocument;
 
     try {
-      doc = (await withRetry(
-        () =>
-          databases.updateDocument(
-            config.databaseId,
-            config.collections.settings,
-            targetId,
-            settingsToSave
-          ),
-        'updateSettings'
-      )) as SettingsDocument;
-    } catch (updateError: unknown) {
-      const code = getErrorCode(updateError);
-      if (code !== 404) {
-        throw updateError;
+      doc = await persistSettingsDocument(settingsToSave, targetId);
+    } catch (error: unknown) {
+      if (settingsToSave.aiConfig && isUnknownAttributeError(error)) {
+        console.warn(
+          '[settingsService] Atributo aiConfig ausente en Appwrite; persistiendo resto y conservando aiConfig en cliente.'
+        );
+        const withoutAi = { ...settingsToSave };
+        delete withoutAi.aiConfig;
+        doc = await persistSettingsDocument(withoutAi, targetId);
+        const mapped = mapSettingsDocument(doc, settings.dataConfig);
+        return { ...mapped, aiConfig: settings.aiConfig };
       }
-
-      try {
-        doc = (await withRetry(
-          () =>
-            databases.createDocument(
-              config.databaseId,
-              config.collections.settings,
-              SETTINGS_DOCUMENT_ID,
-              settingsToSave
-            ),
-          'createSettings'
-        )) as SettingsDocument;
-      } catch (createError: unknown) {
-        // Otro cliente creó el documento entre medias (TOCTOU) → update
-        if (getErrorCode(createError) === 409) {
-          doc = (await withRetry(
-            () =>
-              databases.updateDocument(
-                config.databaseId,
-                config.collections.settings,
-                SETTINGS_DOCUMENT_ID,
-                settingsToSave
-              ),
-            'updateSettingsAfterConflict'
-          )) as SettingsDocument;
-        } else {
-          throw createError;
-        }
-      }
+      throw error;
     }
 
     setConnectionHealth(true);
-    return mapSettingsDocument(doc, settings.dataConfig);
+    const mapped = mapSettingsDocument(doc, settings.dataConfig);
+    // Preservar aiConfig local si Cloud aún no lo devuelve
+    if (settings.aiConfig && !mapped.aiConfig) {
+      return { ...mapped, aiConfig: settings.aiConfig };
+    }
+    return mapped;
   } catch (error: unknown) {
     notifyError(error instanceof Error ? error.message : String(error), 'saveSettings');
     setConnectionHealth(false);
