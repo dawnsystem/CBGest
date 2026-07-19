@@ -249,11 +249,35 @@ export const FiscalYearManager: React.FC = () => {
 
     setCreating(true);
     try {
-      const { copiedSuppliers, copiedApartments, copiedRecurringExpenses } = await createFiscalYear(newYear, newNotes);
+      const { fiscalYear: created, copiedSuppliers, copiedApartments, copiedRecurringExpenses } =
+        await createFiscalYear(newYear, newNotes);
       setCreateResult({ copiedSuppliers, copiedApartments, copiedRecurringExpenses });
-      showToast(`Ejercicio ${newYear} creado correctamente`, 'success');
       setShowCreateModal(false);
       setNewNotes('');
+
+      const isCurrentlyActive =
+        activeFiscalYear?.year === newYear ||
+        activeFiscalYear?.id === created.id ||
+        activeFiscalYear?.appwriteId === created.appwriteId;
+
+      if (isCurrentlyActive) {
+        showToast(`Ejercicio ${newYear} creado y activado`, 'success');
+      } else {
+        const switchNow = await showConfirm(
+          `Ejercicio ${newYear} creado correctamente.\n\n` +
+          `Sigues trabajando en el Ejercicio ${activeFiscalYear?.year ?? 'anterior'}.\n\n` +
+          `¿Quieres cambiar al Ejercicio ${newYear} ahora?`
+        );
+        if (switchNow) {
+          selectFiscalYear(created.appwriteId || created.id);
+          showToast(`Cambiado al Ejercicio ${newYear}`, 'success');
+        } else {
+          showToast(
+            `Ejercicio ${newYear} creado. Sigues en el Ejercicio ${activeFiscalYear?.year ?? 'anterior'}.`,
+            'info'
+          );
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
       showToast(`Error al crear ejercicio: ${msg}`, 'error');
