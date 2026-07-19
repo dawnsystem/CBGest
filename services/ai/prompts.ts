@@ -4,16 +4,55 @@
 
 import { ACCOUNT_PLAN } from '../../utils/accountingPlan';
 import type { Supplier } from '../../types';
+import type { CbIssuerContext } from './cbIssuerContext';
+
+/**
+ * Bloque de identidad CB inyectado desde Settings (dinámico).
+ *
+ * @param cbIssuer - Identidad de la CB o null
+ * @returns Texto para el prompt
+ */
+function buildCbIdentityBlock(cbIssuer: CbIssuerContext | null | undefined): string {
+  if (!cbIssuer || (!cbIssuer.cbName && !cbIssuer.nif)) {
+    return `
+      **IDENTIDAD DE LA EMPRESA (Settings):**
+      - No hay razón social/NIF configurados en Settings.
+      - Sin esos datos no puedes afirmar con certeza que el emisor eres tú.
+    `;
+  }
+
+  const address = cbIssuer.addressLine
+    ? `\n      - Domicilio fiscal: ${cbIssuer.addressLine}`
+    : '';
+
+  return `
+      **IDENTIDAD DE LA EMPRESA QUE USA LA APP (TU CB — datos vivos de Settings):**
+      - Razón social / denominación: ${cbIssuer.cbName}
+      - NIF/CIF: ${cbIssuer.nif || '(no informado)'}${address}
+
+      **REGLA DE EMISOR PROPIO (CRÍTICA):**
+      - Compara el EMISOR del documento con la razón social y el NIF de arriba (ignora espacios, guiones, "C.B.", "ES").
+      - Si el EMISOR coincide → la CB está EMITIENDO la factura (cobro a inquilino/cliente)
+        → type = "INCOME", suggestedAccountCode = "705", matchedSupplierId = null.
+      - Si el EMISOR es OTRA entidad (Endesa, fontanero, Booking, gestoría…) → la CB es quien PAGA
+        → type = "EXPENSE", cuenta del Grupo 6, y busca matchedSupplierId en proveedores.
+      - No inventes coincidencia: si el NIF del emisor no es el de Settings, NO es factura propia.
+    `;
+}
 
 /**
  * Construye el prompt de extracción de factura (contable ES + PGC).
  *
  * @param existingSuppliers - Proveedores registrados para matching
+ * @param cbIssuer - Identidad CB desde Settings (dinámica)
  * @returns Prompt en español
  * @example
- * const prompt = buildInvoicePrompt(suppliers);
+ * const prompt = buildInvoicePrompt(suppliers, cbIssuerFromSettings(settings));
  */
-export function buildInvoicePrompt(existingSuppliers: Supplier[] = []): string {
+export function buildInvoicePrompt(
+  existingSuppliers: Supplier[] = [],
+  cbIssuer: CbIssuerContext | null = null
+): string {
   const accountsList = ACCOUNT_PLAN.map((acc) => `${acc.code} - ${acc.name}`).join('\n      ');
   const suppliersList =
     existingSuppliers.length > 0
@@ -22,7 +61,22 @@ export function buildInvoicePrompt(existingSuppliers: Supplier[] = []): string {
 
   return `
       Analiza este documento (factura o ticket).
-      Eres un contable experto en normativa española (Plan General Contable) y europea.
+      Eres un contable experto en normativa española (Plan General Contable) y europea,
+      especializado en Comunidades de Bienes de alquiler turístico/residencial.
+
+      **CONTEXTO DE NEGOCIO (OBLIGATORIO):**
+      - La app contabiliza la CB que ALQUILA inmuebles (es el arrendador).
+      - Factura EMITIDA al inquilino/huésped por renta, estancia, alojamiento o noches
+        → type = "INCOME", suggestedAccountCode = "705" (Prestaciones de servicios).
+      - Factura/ticket que la CB PAGA (luz, agua, limpieza, seguro, gestoría, IBI, comisión Booking/Airbnb)
+        → type = "EXPENSE", cuenta del Grupo 6.
+      - NUNCA clasifiques un ingreso de inquilino como 621, 628, 629 u otra cuenta de gasto.
+      - 621 "Arrendamientos" solo si la CB PAGA un alquiler (somos arrendatarios), no si cobramos renta.
+      - 628 = Suministros (luz/agua/gas/internet que PAGAMOS).
+      - 629 = Otros servicios / comisiones de plataformas que PAGAMOS (Booking, Airbnb, etc.).
+      - 705 = Ingresos por alquiler / estancia / prestaciones al inquilino.
+
+      ${buildCbIdentityBlock(cbIssuer)}
 
       **PROVEEDORES EXISTENTES EN LA BASE DE DATOS:**
       ${suppliersList}
@@ -33,6 +87,11 @@ export function buildInvoicePrompt(existingSuppliers: Supplier[] = []): string {
       - Si encuentras una coincidencia, devuelve el campo "matchedSupplierId" con el nombre exacto del proveedor que coincide.
       - Si NO encuentras coincidencia, devuelve "matchedSupplierId" como null.
       - En cualquier caso, extrae los datos del emisor como "issuerName" e "issuerNif".
+      - Si el emisor es la propia CB (bloque IDENTIDAD arriba) cobrando a un inquilino,
+        matchedSupplierId = null y type = INCOME, suggestedAccountCode = "705".
+      - Si el documento es factura EMITIDA por la CB (arrendador) al cliente/inquilino/huésped
+        → type = "INCOME", suggestedAccountCode = "705", aunque el concepto diga "alquiler"
+        (alquiler cobrado ≠ 621; 621 solo si PAGAMOS nosotros un alquiler).
 
       Instrucciones CRÍTICAS de Limpieza de Datos:
       1. **NIF/CIF/VAT**: Extrae el identificador fiscal del emisor.
@@ -41,6 +100,9 @@ export function buildInvoicePrompt(existingSuppliers: Supplier[] = []): string {
          - Estandariza a mayúsculas.
       2. **Tipo de Documento**: Identifica si es un NIF (Persona física ES), CIF (Empresa ES), VAT (Intracomunitario), PASAPORTE o OTRO.
       3. **Cuenta Contable**: DEBES seleccionar el código de cuenta más apropiado del Plan General Contable español.
+      4. **Coherencia type ↔ cuenta**:
+         - type "INCOME" ⇒ cuenta Grupo 7 (700-799), casi siempre 705 para alquiler.
+         - type "EXPENSE" ⇒ cuenta Grupo 6 (600-699).
 
       **PLAN CONTABLE DISPONIBLE** (selecciona el código más apropiado según el concepto de la factura):
       ${accountsList}
@@ -49,21 +111,21 @@ export function buildInvoicePrompt(existingSuppliers: Supplier[] = []): string {
       - Si es una factura de GASTO (EXPENSE), usa cuentas del Grupo 6 (600-699).
       - Si es una factura de INGRESO (INCOME), usa cuentas del Grupo 7 (700-799).
       - Analiza el concepto del documento para elegir la cuenta más específica:
-        * Facturas de alquiler pagado → 621
+        * Ingresos por alquiler / estancia / inquilino / huésped → 705 (INCOME)
+        * Facturas de alquiler que PAGAMOS nosotros → 621 (EXPENSE)
         * Reparaciones/mantenimiento → 622
         * Gestoría/abogados → 623
         * Seguros → 625
         * Comisiones bancarias → 626
-        * Luz/agua/gas/internet → 628
-        * Comisiones Booking/Airbnb → 629
+        * Luz/agua/gas/internet (suministros que pagamos) → 628
+        * Comisiones Booking/Airbnb u otros servicios → 629
         * IBI/basuras → 631
-        * Ingresos por alquiler → 705
       - El código debe ser EXACTAMENTE uno de los listados arriba.
 
       Instrucciones Generales:
       1. Extrae los datos fiscales.
       2. Valida que la fecha tenga sentido.
-      3. IMPORTANTE: Devuelve SOLO el código de cuenta (ej: "628"), NO incluyas el nombre.
+      3. IMPORTANTE: Devuelve SOLO el código de cuenta (ej: "705"), NO incluyas el nombre.
       4. Responde ÚNICAMENTE con un objeto JSON válido (sin markdown ni texto extra).
 
       Campos a extraer (JSON object):
@@ -82,7 +144,10 @@ export function buildInvoicePrompt(existingSuppliers: Supplier[] = []): string {
       - vatAmount (number)
       - totalAmount (number)
       - type ('EXPENSE' | 'INCOME')
-      - suggestedAccountCode (string) - SOLO EL CÓDIGO (ej: "628")
+      - suggestedAccountCode (string) - SOLO EL CÓDIGO (ej: "705")
+      - concept (string) - Concepto breve del documento en español
+        (ej: "Alquiler marzo inquilino", "Factura luz Endesa", "Comisión Booking").
+        Obligatorio: resume QUÉ se factura para poder asignar la cuenta.
     `;
 }
 

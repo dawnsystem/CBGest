@@ -4,7 +4,7 @@ import {
   analyzeInvoiceImageDetailed,
   analyzeBankStatementDetailed,
 } from '../services/geminiService';
-import { DEFAULT_AI_CONFIG, type AiConfig, AI_PROVIDER_LABELS, type AiProviderId } from '../services/ai';
+import { DEFAULT_AI_CONFIG, type AiConfig, type CbIssuerContext, AI_PROVIDER_LABELS, type AiProviderId } from '../services/ai';
 import { protectedDatabase } from '../lib/appwrite/protectedDatabase';
 import { storageService, findImportByFileSha256 } from '../services/appwriteService';
 import { useAuth } from './AuthContext';
@@ -50,6 +50,8 @@ interface UploadQueueProviderProps {
   invoices?: Invoice[];
   /** Preferencia de proveedor IA (failover). */
   aiConfig?: AiConfig;
+  /** Identidad CB (Settings) para reconocer facturas emitidas por nosotros. */
+  cbIssuer?: CbIssuerContext | null;
 }
 
 export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
@@ -57,6 +59,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
   suppliers = [],
   invoices = [],
   aiConfig = DEFAULT_AI_CONFIG,
+  cbIssuer = null,
 }) => {
   const { user } = useAuth();
   const { activeFiscalYear } = useFiscalYear();
@@ -70,6 +73,7 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
   const invoicesRef = useRef(invoices);
   const activeFiscalYearRef = useRef(activeFiscalYear);
   const aiConfigRef = useRef<AiConfig>({ ...DEFAULT_AI_CONFIG, ...aiConfig });
+  const cbIssuerRef = useRef<CbIssuerContext | null>(cbIssuer);
 
   useEffect(() => {
     invoicesRef.current = invoices;
@@ -82,6 +86,10 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
   useEffect(() => {
     aiConfigRef.current = { ...DEFAULT_AI_CONFIG, ...aiConfig };
   }, [aiConfig]);
+
+  useEffect(() => {
+    cbIssuerRef.current = cbIssuer ?? null;
+  }, [cbIssuer]);
 
   // ============================================================================
   // LOAD QUEUE FROM APPWRITE
@@ -608,7 +616,8 @@ export const UploadQueueProvider: React.FC<UploadQueueProviderProps> = ({
           base64ForApi,
           safeMime,
           suppliers,
-          aiConfigRef.current
+          aiConfigRef.current,
+          cbIssuerRef.current
         );
         const providerLabel =
           AI_PROVIDER_LABELS[meta.usedProvider as AiProviderId] ?? meta.usedProvider;

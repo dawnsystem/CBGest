@@ -52,6 +52,11 @@ export interface GeminiInvoiceResponse {
   type: InvoiceType;
   /** Código cuenta contable PGC sugerido (ej: "628") */
   suggestedAccountCode: string;
+  /**
+   * Concepto breve del documento (alquiler, luz, comisión Booking…).
+   * Opcional por compatibilidad con respuestas antiguas / modelos free.
+   */
+  concept?: string | null;
 }
 
 /**

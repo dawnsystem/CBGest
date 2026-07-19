@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-18 23:35:00 UTC*
+*Última actualización: 2026-07-19 08:45:00 UTC*
 
 ---
 
@@ -8,9 +8,11 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Failover multi-IA listo** (código + `settings.aiConfig` + `uploads.aiProviderUsed` en Appwrite Cloud). **Para que rote a Groq/OpenRouter** hace falta que esas `VITE_*` estén en el build que sirve la app (Secrets Cursor / `.env` del VPS) y reiniciar Vite/redeploy. Rotar API keys expuestas en chat. Dedup: schemas Cloud + UAT Paso 10.
+Estado actual: **BUG-AI-002** + identidad CB dinámica en PR #178 — prompt/post-proceso usan `settings.cbName`/`nif` para reconocer emisor propio. Pendiente merge + redeploy. Mantener razón social y NIF correctos en Settings.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-19] - `FEAT-AI-CB-ID-001` - Identidad CB dinámica en lectura IA:** La cola inyecta `cbIssuerFromSettings(settings)` (razón social, NIF, domicilio) en el prompt y en `normalizeInvoiceAiResponse`. Si el emisor del documento coincide con la CB → INCOME + 705 (sin matchedSupplier). Actualizar Settings basta; no hay hardcode. Tests 8 nuevos (444 total).
+*   **[2026-07-19] - `BUG-AI-002` - Cuenta contable errónea en facturas de ingreso (inquilino → 629):** OpenRouter/Gemini free a veces marcaban renta de inquilino como EXPENSE + 628/629. Prompt reforzado (CB = arrendador; 705 vs 621/628/629). Nuevo `services/ai/normalizeInvoiceResponse.ts` post-IA: coherencia type↔cuenta, heurística alquiler/inquilino → INCOME+705, comisiones plataforma → gasto, gastos claros CB no se fuerzan a ingreso. Campo opcional `concept` en respuesta. Tests 13 nuevos. Validado: lint + type-check + **436** tests + build OK.
 *   **[2026-07-18] - `FEAT-AI-FAILOVER-001` - Router multi-IA (Gemini + Groq + OpenRouter) con failover:** Nueva capa `services/ai/` (providers, prompts, `aiRouter`, PDF→PNG vía pdfjs para vision no-nativa). Preferencia en Settings (`aiConfig.preferredProvider` + `failoverEnabled`). Env: `VITE_GEMINI_API_KEY`, `VITE_GROQ_API_KEY`, `VITE_OPENROUTER_API_KEY` (+ modelo opcional). Cola anota `aiProviderUsed`; errores listan providers intentados. Persistencia `aiConfig` con fallback si el atributo Cloud falta. Validado: lint + type-check + **422** tests + build OK.
 *   **[2026-07-18] - `FEAT-M184-001` - Modelo 184 oficial (clave C) + exportación AEAT:** Rama `dev` creada como integración. Nuevo módulo `services/modelo184/` (`buildModelo184Draft`, export PDF layout oficial, fichero telemático ISO-8859-1 registros 500 chars). Ingresos desde **reservas confirmadas**; gastos deducibles desde facturas con reparto proporcional. UI `#/taxes`: PDF oficial, fichero `.txt`, guardar borrador (`tax_reports`). Settings: domicilio fiscal CB, representante, domicilio socios (persistidos en Appwrite). Colección `tax_reports` + attrs fiscales `settings` + `isDeductible` en `invoices` en `setup-all-collections.cjs`. Guía despliegue: `docs/DEPLOY_MODELO_184_APPWRITE.md`. PR #174 contra `dev`. Validado: type-check + test:ci + lint OK.
 *   **[2026-07-18] - `BUG-DEDUP-002` - Hash usable sin SubtleCrypto:** El error controlado de BUG-DEDUP-001 seguía rompiendo subidas (HTTP Tailscale / contexto no seguro). Nuevo `utils/sha256-fallback.ts` (SHA-256 JS puro); `sha256Hex` usa SubtleCrypto o fallback con el mismo digest. `infrastructure.hashMasterDataCopyKey` reutiliza `sha256Hex`. try/catch en cola de facturas y `useInvoiceReview`. Tests: vectores NIST + igualdad SubtleCrypto/fallback.
@@ -111,6 +113,16 @@ Estado actual: **Failover multi-IA listo** (código + `settings.aiConfig` + `upl
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-19 08:30:00 UTC]
+*   **Directiva del Director:** OpenRouter ya lee facturas, pero clasifica mal cuentas (ingreso inquilino → 629/suministros).
+*   **Plan de Acción:** Reforzar prompt (CB arrendador) + normalización post-IA type↔cuenta + tests.
+*   **Log de Acciones:**
+    - `[08:22:00]` - **CREATE:** `services/ai/normalizeInvoiceResponse.ts` (heurísticas alquiler/comisión/gasto CB + coherencia 6xx/7xx).
+    - `[08:23:00]` - **MOD:** `prompts.ts`, `geminiProvider` schema `concept`, `aiRouter` aplica normalize, `types/gemini.ts`.
+    - `[08:24:00]` - **TEST:** 13 casos unitarios normalize; suite completa 436 PASS; lint/type-check/build OK.
+    - `[08:30:00]` - **DOCS:** Bitácora BUG-AI-002; rama `cursor/fix-cuentas-contables-ia-32ad`.
+*   **Resultado:** Post-proceso fuerza INCOME+705 ante señales de renta/inquilino; INCOME+629 → 705 siempre. Revisión manual en UI sigue recomendada.
+
 ### Sesión: [2026-07-19 07:40:00 UTC]
 *   **Directiva del Director:** Revisar qué falta en Appwrite/app para que el failover multi-IA funcione bien.
 *   **Hallazgos:** Faltaba script ops `aiConfig`, verify incompleto, sync frágil, SETUP_LOCAL con nombre de env obsoleto (`GEMINI_API_KEY` sin `VITE_`).
@@ -837,6 +849,7 @@ Estado actual: **Failover multi-IA listo** (código + `settings.aiConfig` + `upl
 
 ### 🟠 ALTOS (23 hallazgos) — Bugs funcionales, riesgos de seguridad moderados o degradación significativa
 
+* **BUG-AI-002:** Modelos VL free (OpenRouter/Gemini) clasificaban facturas de **ingreso de inquilino/alquiler** como EXPENSE con cuentas 628/629 (suministros/otros servicios) u otras del grupo 6. Causa: prompt genérico + ausencia de post-proceso type↔cuenta. Severidad: **ALTO** (asiento/cuenta fiscal incorrectos). Estado: ✅ Resuelto (prompt CB arrendador + `normalizeInvoiceAiResponse` + campo `concept`; rama `cursor/fix-cuentas-contables-ia-32ad`).
 * **BUG-021:** `App.tsx:359-389` — **Race condition en `fetchForYear` effect.** Al crear el ejercicio 2027, `setActiveFiscalYear(2027)` dispara un fetch asíncrono para 2027. Si el usuario cambia inmediatamente a 2026, se lanza un segundo fetch para 2026. Si el fetch de 2027 termina DESPUÉS del de 2026, sobreescribe el estado con datos de 2027 mientras la UI muestra 2026 — haciendo parecer que el selector no funciona y que los alojamientos de 2026 "desaparecen". Estado: ✅ Resuelto (FIX-043).
 * **BUG-023:** `App.tsx:195-196` — **Race condition en arranque: datos del ejercicio equivocado visibles al cargar la app.** `setIsDataLayerInitialized(true)` se llamaba síncronamente ANTES de que `initDataLayer()` completara su fetch inicial sin filtrar. El efecto `fetchForYear` (que filtra por ejercicio activo) podía dispararse concurrentemente con el fetch sin filtrar. Si el fetch sin filtrar resolvía el último, sobreescribía el estado con datos de todos los ejercicios (ej. 2025+2026) mientras el usuario tenía seleccionado 2026. Al cambiar de ejercicio y volver, se corregía porque entonces solo corría `fetchForYear`. Estado: ✅ Resuelto (FIX-049).
 * **BUG-FY-004:** Tras filtros duros `Query.equal('fiscalYearId', …)` + `.catch(() => [])` en `App.tsx`, un ejercicio (p.ej. 2026) puede parecer vacío aunque Appwrite responda: (a) docs con `fiscalYearId` null/legacy, (b) FY recreado con otro `$id`, o (c) error de query (índice) silenciado como `[]`. Severidad: **ALTO**. Estado: ✅ Mitigado (diagnóstico + surfacing de errores + banner; migración legacy sigue siendo la remediación de datos null).

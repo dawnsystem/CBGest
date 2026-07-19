@@ -6,6 +6,7 @@ import { MobileNavigation } from './components/MobileNavigation';
 import { Header } from './components/Header';
 import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
+import { cbIssuerFromSettings } from './services/ai';
 import { FiscalYearProvider, useFiscalYear } from './context/FiscalYearContext';
 import { FiscalYearManager } from './components/FiscalYearManager';
 import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment, RecurringExpense, Reservation } from './types';
@@ -867,6 +868,7 @@ const MainLayout: React.FC = () => {
       suppliers={suppliers}
       invoices={invoices}
       aiConfig={settings.aiConfig}
+      cbIssuer={cbIssuerFromSettings(settings)}
     >
       <HashRouter>
         <div className="min-h-screen bg-slate-50 flex font-sans">
