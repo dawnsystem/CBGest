@@ -9,6 +9,7 @@ import { geminiProvider } from './providers/geminiProvider';
 import { groqProvider } from './providers/groqProvider';
 import { openrouterProvider } from './providers/openrouterProvider';
 import { resolveProviderOrder } from './resolveProviderOrder';
+import { normalizeInvoiceAiResponse } from './normalizeInvoiceResponse';
 import type {
   AiConfig,
   AiProviderId,
@@ -68,11 +69,15 @@ export async function analyzeInvoiceWithRouter(
   existingSuppliers: Supplier[] = [],
   aiConfig: AiConfig = DEFAULT_AI_CONFIG
 ): Promise<InvoiceAnalysisResult> {
-  return runWithFailover(
+  const result = await runWithFailover(
     aiConfig,
     (provider) => provider.analyzeInvoice(base64Data, mimeType, existingSuppliers),
     'factura'
   );
+  return {
+    ...result,
+    data: normalizeInvoiceAiResponse(result.data),
+  };
 }
 
 /**

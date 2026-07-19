@@ -101,7 +101,13 @@ export const geminiProvider: AiDocumentProvider = {
               type: { type: Type.STRING, enum: ['EXPENSE', 'INCOME'] },
               suggestedAccountCode: {
                 type: Type.STRING,
-                description: 'Código cuenta contable PGC sugerido (ej: 628)',
+                description: 'Código cuenta contable PGC sugerido (ej: 705)',
+              },
+              concept: {
+                type: Type.STRING,
+                nullable: true,
+                description:
+                  'Concepto breve (alquiler inquilino, luz, comisión Booking, etc.)',
               },
             },
           },
