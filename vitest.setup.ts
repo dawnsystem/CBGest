@@ -11,6 +11,12 @@ afterEach(() => {
 // Mock environment variables
 vi.stubEnv('VITE_GEMINI_API_KEY', 'test-gemini-key');
 vi.stubEnv('API_KEY', 'test-api-key'); // For geminiService.ts (uses process.env.API_KEY)
+vi.stubEnv('GEMINI_API_KEY', 'test-api-key');
+// Groq/OpenRouter sin key por defecto → tests usan solo Gemini mockeado
+process.env.API_KEY = 'test-api-key';
+process.env.GEMINI_API_KEY = 'test-api-key';
+process.env.GROQ_API_KEY = '';
+process.env.OPENROUTER_API_KEY = '';
 
 // Mock localStorage
 const localStorageMock = (() => {

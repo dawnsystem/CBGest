@@ -31,6 +31,18 @@ node scripts/verify-appwrite-setup.cjs
 
 Campos: `invoices.fileHash`, `invoices.contentFingerprint` (+ índices); `uploads.fileHash`, `uploads.duplicateMatch`, `uploads.forceProcess`.
 
+## add-aiconfig-attribute.cjs (FEAT-AI-FAILOVER-001)
+
+Añade `settings.aiConfig` (string JSON con preferencia de proveedor IA + failover):
+
+```bash
+export APPWRITE_API_KEY="tu-api-key"
+node scripts/add-aiconfig-attribute.cjs
+node scripts/verify-appwrite-setup.cjs
+```
+
+Sin este atributo la app sigue funcionando (preferencia solo en cliente), pero no se sincroniza entre dispositivos.
+
 ## setup-all-collections.cjs
 
 Crea/actualiza **todas** las colecciones CBGest. Incluye `fiscalYearId` (size 36) en las

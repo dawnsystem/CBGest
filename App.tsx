@@ -13,6 +13,7 @@ import { Eye, Trash, AlertTriangle, RefreshCw, XCircle, Check, Lock } from 'luci
 import { encryptData } from './utils/crypto';
 import { loadPersistedState } from './utils/stateStorage';
 import { settleListFetch, collectFetchErrors } from './utils/settleListFetch';
+import { redactSettingsForLocalStorage } from './utils/settingsLocalStorage';
 import * as appwriteService from './services/appwriteService';
 import type { FiscalYearVisibilityReport } from './types';
 import { useAppSettings, useDataHandlers } from './hooks';
@@ -305,11 +306,20 @@ const MainLayout: React.FC = () => {
                         ...remoteSettings,
                         // Use ref to access default partners, avoiding dependency issues
                         partners: remoteSettings.partners || defaultSettingsRef.current.partners,
-                        dataConfig: freshSettings.dataConfig // Keep local dataConfig
+                        dataConfig: freshSettings.dataConfig, // Keep local dataConfig
+                        aiConfig:
+                          remoteSettings.aiConfig ??
+                          freshSettings.aiConfig ??
+                          defaultSettingsRef.current.aiConfig,
+                        touristTaxConfig:
+                          remoteSettings.touristTaxConfig ?? freshSettings.touristTaxConfig,
                     };
                     setSettings(mergedSettings);
-                    // Also update localStorage with merged settings
-                    localStorage.setItem('gestcb_settings', JSON.stringify(mergedSettings));
+                    // Also update localStorage with merged settings (redact NIFs)
+                    localStorage.setItem(
+                      'gestcb_settings',
+                      JSON.stringify(redactSettingsForLocalStorage(mergedSettings))
+                    );
                 }
 
                 // Load all data in parallel for better performance
@@ -853,7 +863,11 @@ const MainLayout: React.FC = () => {
   })();
 
   return (
-    <UploadQueueProvider suppliers={suppliers} invoices={invoices}>
+    <UploadQueueProvider
+      suppliers={suppliers}
+      invoices={invoices}
+      aiConfig={settings.aiConfig}
+    >
       <HashRouter>
         <div className="min-h-screen bg-slate-50 flex font-sans">
           <Sidebar

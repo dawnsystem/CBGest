@@ -4,6 +4,17 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    // Prefer VITE_* (Vite/client); fallback a nombres sin prefijo (secrets Cloud legacy).
+    const geminiKey =
+      env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || env.API_KEY || '';
+    const groqKey = env.VITE_GROQ_API_KEY || env.GROQ_API_KEY || '';
+    const openrouterKey =
+      env.VITE_OPENROUTER_API_KEY || env.OPENROUTER_API_KEY || '';
+    const openrouterModel =
+      env.VITE_OPENROUTER_MODEL ||
+      env.OPENROUTER_MODEL ||
+      'qwen/qwen2.5-vl-72b-instruct:free';
+
     return {
       server: {
         port: 3000,
@@ -24,8 +35,11 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        'process.env.API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY)
+        'process.env.API_KEY': JSON.stringify(geminiKey),
+        'process.env.GEMINI_API_KEY': JSON.stringify(geminiKey),
+        'process.env.GROQ_API_KEY': JSON.stringify(groqKey),
+        'process.env.OPENROUTER_API_KEY': JSON.stringify(openrouterKey),
+        'process.env.OPENROUTER_MODEL': JSON.stringify(openrouterModel),
       },
       resolve: {
         alias: {

@@ -654,6 +654,15 @@ export interface AppSettings {
   
   // Tourist Tax Configuration (IEET - Cataluña)
   touristTaxConfig?: TouristTaxConfig;
+
+  /**
+   * Preferencia de proveedor IA para lectura de facturas/extractos.
+   * Las API keys viven solo en variables de entorno (no se persisten aquí).
+   */
+  aiConfig?: {
+    preferredProvider: 'auto' | 'gemini' | 'groq' | 'openrouter';
+    failoverEnabled: boolean;
+  };
 }
 
 export interface DashboardMetrics {
@@ -747,6 +756,9 @@ export interface QueueItem {
   fileHash?: string;
   duplicateMatch?: DuplicateMatch;
   forceProcess?: boolean; // Saltar capa 1 (hash) y reprocesar con IA
+
+  /** Proveedor IA que completó el análisis (gemini | groq | openrouter). */
+  aiProviderUsed?: string;
 }
 
 export interface UploadQueueContextType {

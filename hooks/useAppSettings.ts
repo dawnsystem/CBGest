@@ -88,6 +88,7 @@ export function useAppSettings(
           ...saved,
           dataConfig: newSettings.dataConfig,
           partners: saved.partners?.length ? saved.partners : newSettings.partners,
+          aiConfig: saved.aiConfig ?? newSettings.aiConfig,
         };
         setSettings(merged);
         localStorage.setItem('gestcb_settings', JSON.stringify(merged));

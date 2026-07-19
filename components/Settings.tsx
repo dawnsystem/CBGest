@@ -1,10 +1,16 @@
 
 import React, { useState } from 'react';
-import { Save, Users, Building, Plus, Trash2, Database, Cloud, HardDrive, CheckCircle, AlertTriangle, Receipt, Euro, UserCog } from 'lucide-react';
+import { Save, Users, Building, Plus, Trash2, Database, Cloud, HardDrive, CheckCircle, AlertTriangle, Receipt, Euro, UserCog, Sparkles } from 'lucide-react';
 import { AppSettings, Partner } from '../types';
 import { APPWRITE_CONFIG } from '../config/appwrite';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
 import { createDefaultDataSourceConfig, generateId } from '../utils/defaults';
+import {
+  AI_PROVIDER_LABELS,
+  DEFAULT_AI_CONFIG,
+  getAiProviderAvailability,
+  type AiPreferredProvider,
+} from '../services/ai';
 import { useToast } from './Toast';
 import { TouristTaxPeriodsManager } from './TouristTaxPeriodsManager';
 import { UserManagement } from './UserManagement';
@@ -38,10 +44,15 @@ export const Settings: React.FC<SettingsProps> = ({
   const getInitialFormData = (): AppSettings => ({
     ...settings,
     partners: settings.partners || [],
-    dataConfig: settings.dataConfig || createDefaultDataSourceConfig()
+    dataConfig: settings.dataConfig || createDefaultDataSourceConfig(),
+    aiConfig: settings.aiConfig || { ...DEFAULT_AI_CONFIG },
   });
 
   const [formData, setFormData] = useState<AppSettings>(getInitialFormData);
+  const [isSaved, setIsSaved] = useState(false);
+
+  const aiAvailability = getAiProviderAvailability();
+  const aiConfig = formData.aiConfig || { ...DEFAULT_AI_CONFIG };
 
   // Track settings reference to detect external changes
   const settingsRef = React.useRef(settings);
@@ -54,12 +65,11 @@ export const Settings: React.FC<SettingsProps> = ({
       setFormData({
         ...settings,
         partners: settings.partners || [],
-        dataConfig: settings.dataConfig || createDefaultDataSourceConfig()
+        dataConfig: settings.dataConfig || createDefaultDataSourceConfig(),
+        aiConfig: settings.aiConfig || { ...DEFAULT_AI_CONFIG },
       });
     }
   }, [settings]);
-
-  const [isSaved, setIsSaved] = useState(false);
 
   // Password Modal State
   const [showPasswordModal, setShowPasswordModal] = useState<'NONE' | 'CREATE' | 'OPEN'>('NONE');
@@ -69,6 +79,20 @@ export const Settings: React.FC<SettingsProps> = ({
   // Handlers
   const handleInputChange = <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => {
     setFormData({ ...formData, [field]: value });
+    setIsSaved(false);
+  };
+
+  const handleAiConfigChange = <K extends keyof typeof DEFAULT_AI_CONFIG>(
+    field: K,
+    value: (typeof DEFAULT_AI_CONFIG)[K]
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      aiConfig: {
+        ...(prev.aiConfig || { ...DEFAULT_AI_CONFIG }),
+        [field]: value,
+      },
+    }));
     setIsSaved(false);
   };
 
@@ -318,6 +342,73 @@ export const Settings: React.FC<SettingsProps> = ({
                         <span className="text-sm text-slate-700 font-medium">Arrendamiento Inmuebles (Exento IVA)</span>
                         </label>
                     </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-2 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="w-4 h-4 text-slate-700" />
+                        <label htmlFor="settings-ai-provider-select" className="block text-sm font-semibold text-slate-900">
+                          Lectura de facturas (IA)
+                        </label>
+                      </div>
+                      <p className="text-xs text-slate-500 mb-4">
+                        Elige el proveedor preferido. Con failover activo, si se agota la cuota o falla la lectura se prueba automáticamente el siguiente con API key configurada.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="settings-ai-provider-select" className="block text-xs font-bold text-slate-500 mb-1">
+                            Proveedor preferido
+                          </label>
+                          <select
+                            id="settings-ai-provider-select"
+                            value={aiConfig.preferredProvider}
+                            onChange={(e) =>
+                              handleAiConfigChange(
+                                'preferredProvider',
+                                e.target.value as AiPreferredProvider
+                              )
+                            }
+                            className="w-full border-slate-200 rounded-lg text-sm bg-white text-slate-900"
+                          >
+                            <option value="auto">Automático (orden por defecto)</option>
+                            <option value="gemini">{AI_PROVIDER_LABELS.gemini}</option>
+                            <option value="groq">{AI_PROVIDER_LABELS.groq}</option>
+                            <option value="openrouter">{AI_PROVIDER_LABELS.openrouter}</option>
+                          </select>
+                        </div>
+                        <label htmlFor="settings-ai-failover-checkbox" className="flex items-start gap-2 cursor-pointer mt-1 md:mt-6">
+                          <input
+                            id="settings-ai-failover-checkbox"
+                            type="checkbox"
+                            checked={aiConfig.failoverEnabled}
+                            onChange={(e) => handleAiConfigChange('failoverEnabled', e.target.checked)}
+                            className="mt-0.5 text-blue-600 focus:ring-blue-500 bg-white"
+                          />
+                          <span className="text-sm text-slate-700">
+                            Cambiar automáticamente si hay cuota agotada o error de lectura
+                          </span>
+                        </label>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {(Object.keys(AI_PROVIDER_LABELS) as Array<keyof typeof AI_PROVIDER_LABELS>).map((id) => (
+                          <span
+                            key={id}
+                            className={`text-[11px] px-2 py-1 rounded border ${
+                              aiAvailability[id]
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                : 'border-amber-200 bg-amber-50 text-amber-800'
+                            }`}
+                          >
+                            {AI_PROVIDER_LABELS[id]}:{' '}
+                            {aiAvailability[id] ? 'API key OK' : 'falta API key'}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="mt-3 text-[11px] text-slate-400">
+                        Keys en <code className="font-mono">.env</code>: <code className="font-mono">VITE_GEMINI_API_KEY</code>,{' '}
+                        <code className="font-mono">VITE_GROQ_API_KEY</code>,{' '}
+                        <code className="font-mono">VITE_OPENROUTER_API_KEY</code>. No se muestran aquí.
+                      </p>
                     </div>
                 </div>
             </div>

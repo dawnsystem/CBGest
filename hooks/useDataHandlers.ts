@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { detectNifType } from '../utils/validators';
 import { generateId } from '../utils/defaults';
+import { redactSettingsForLocalStorage } from '../utils/settingsLocalStorage';
 import { buildEntryFromInvoice } from '../utils/invoiceUtils';
 import { buildEntryFromUnmatchedTransaction, buildInvoiceSettlementEntry } from '../utils/reconciliationUtils';
 import {
@@ -928,11 +929,20 @@ export function useDataHandlers(options: UseDataHandlersOptions) {
   // ============ SETTINGS HANDLER ============
   const handleUpdateSettings = useCallback(async (newSettings: AppSettings) => {
     setters.setSettings(newSettings);
-    localStorage.setItem('gestcb_settings', JSON.stringify(newSettings));
+    localStorage.setItem(
+      'gestcb_settings',
+      JSON.stringify(redactSettingsForLocalStorage(newSettings))
+    );
 
     if (newSettings.dataConfig?.type === 'APPWRITE') {
       try {
-        await appwriteService.saveSettings(newSettings);
+        const saved = await appwriteService.saveSettings(newSettings);
+        setters.setSettings({
+          ...saved,
+          dataConfig: newSettings.dataConfig,
+          partners: saved.partners?.length ? saved.partners : newSettings.partners,
+          aiConfig: saved.aiConfig ?? newSettings.aiConfig,
+        });
       } catch (error) {
         console.error('Error syncing settings:', error);
       }
