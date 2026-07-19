@@ -107,4 +107,36 @@ describe('openaiCompatible', () => {
       )
     ).rejects.toMatchObject({ code: 'QUOTA', providerId: 'groq' });
   });
+
+  it('completeVisionJsonWithModelFallback tries next model on 404', async () => {
+    const { completeVisionJsonWithModelFallback } = await import('../openaiCompatible');
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        text: async () => '{"error":{"message":"model does not exist","code":"model_not_found"}}',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: '{"ok":true}' } }],
+        }),
+      });
+
+    const data = await completeVisionJsonWithModelFallback<{ ok: boolean }>(
+      {
+        providerId: 'openrouter',
+        apiKey: 'test',
+        endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      },
+      ['dead/model:free', 'good/model:free'],
+      'prompt',
+      'base64',
+      'image/png',
+      1
+    );
+
+    expect(data.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

@@ -9,7 +9,7 @@ describe('resolveProviderOrder', () => {
   it('returns default order for auto', () => {
     expect(
       resolveProviderOrder({ preferredProvider: 'auto', failoverEnabled: true })
-    ).toEqual(['gemini', 'groq', 'openrouter']);
+    ).toEqual(['gemini', 'openrouter', 'groq']);
   });
 
   it('puts preferred provider first', () => {
