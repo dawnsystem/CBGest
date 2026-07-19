@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-19 08:45:00 UTC*
+*Última actualización: 2026-07-19 09:00:00 UTC*
 
 ---
 
@@ -11,6 +11,7 @@
 Estado actual: **Dedup facturas + extractos** en código. Pendiente aplicar schemas Cloud (`add-invoice-dedup-attributes.cjs` + `add-bank-statement-dedup-schema.cjs`) y verificación UAT del kit arrendamiento (Paso 10).
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-19] - `FY-MIG-001` - Herramienta de corrección de datos mal ubicados:** Ampliada sección de migración en `FiscalYearManager` (2 herramientas: sin ejercicio + fecha↔ejercicio). Nuevos `diagnoseFiscalYearDateMismatches` y `correctFiscalYearDateMismatches` en `fiscalYearService.ts`; lógica pura en `utils/fiscalYearDateMigration.ts`. Detecta facturas/asientos/transacciones/reservas cuya fecha no coincide con el ejercicio asignado y los reasigna al ejercicio del año calendario. UI con análisis previo, desglose por ruta (ej. 2028→2027) y corrección batch. 7 tests nuevos. Complementa `FY-CTX-001`.
 *   **[2026-07-19] - `FY-CTX-001` - Contexto de ejercicio: último usado + guardarraíles anti-errores:** Corregido auto-selección del ejercicio más reciente al entrar (causa raíz de facturas 2027 guardadas en 2028). Nuevo patrón workspace context: persistencia por usuario `gestcb_active_fy_<userId>` con `{id, year, lastUsedAt}` (sobrevive logout); sin preferencia → modal bloqueante `FiscalYearSelectionModal`; crear ejercicio ya no cambia el activo (confirm opcional en `FiscalYearManager`). Banner azul persistente «Trabajando en Ejercicio X». Validación fecha↔ejercicio en facturas, extractos y reservas (`utils/fiscalYearValidation.ts` + `showConfirm`). `App.tsx` no carga datos sin ejercicio seleccionado. 12 tests nuevos. Validado: lint + type-check + test:ci + build OK.
 *   **[2026-07-18] - `BUG-DEDUP-002` - Hash usable sin SubtleCrypto:** El error controlado de BUG-DEDUP-001 seguía rompiendo subidas (HTTP Tailscale / contexto no seguro). Nuevo `utils/sha256-fallback.ts` (SHA-256 JS puro); `sha256Hex` usa SubtleCrypto o fallback con el mismo digest. `infrastructure.hashMasterDataCopyKey` reutiliza `sha256Hex`. try/catch en cola de facturas y `useInvoiceReview`. Tests: vectores NIST + igualdad SubtleCrypto/fallback.
 *   **[2026-07-18] - `BUG-DEDUP-001` - TypeError `reading 'digest'` en hash de facturas:** `invoiceDedup.computeFileSha256` llamaba `crypto.subtle.digest` sin comprobar SubtleCrypto (falla fuera de contexto seguro). Ahora delega en `bankStatementFingerprint.computeFileSha256` (guarda + mismo SHA-256 hex). Tests: hash estable + error controlado sin `subtle`.

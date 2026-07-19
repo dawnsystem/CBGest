@@ -12,6 +12,8 @@ import {
 import { useFiscalYear } from '../context/FiscalYearContext';
 import { useToast } from './Toast';
 import { FiscalYear, FiscalYearDependencies, FiscalYearVisibilityReport } from '../types';
+import type { FiscalYearDateMismatchReport } from '../utils/fiscalYearDateMigration';
+import { groupMismatchesByRoute } from '../utils/fiscalYearDateMigration';
 import * as appwriteService from '../services/appwriteService';
 
 // ============================================================================
@@ -179,6 +181,11 @@ export const FiscalYearManager: React.FC = () => {
   // Estado migración legacy
   const [migrating, setMigrating] = useState(false);
   const [migrateProgress, setMigrateProgress] = useState('');
+  const [dateMismatchReport, setDateMismatchReport] = useState<FiscalYearDateMismatchReport | null>(null);
+  const [dateMismatchScanning, setDateMismatchScanning] = useState(false);
+  const [dateMismatchCorrecting, setDateMismatchCorrecting] = useState(false);
+  const [dateMismatchProgress, setDateMismatchProgress] = useState('');
+  const [scanAllExercises, setScanAllExercises] = useState(false);
   const [visibilityReport, setVisibilityReport] = useState<FiscalYearVisibilityReport | null>(null);
   const [diagnosing, setDiagnosing] = useState(false);
 
@@ -199,7 +206,8 @@ export const FiscalYearManager: React.FC = () => {
   const yearsExisting = new Set(fiscalYears.map(y => y.year));
 
   /** true mientras cualquier operación pesada está en curso */
-  const isBusy = creating || migrating || deleteDeleting || diagnosing;
+  const isBusy = creating || migrating || deleteDeleting || diagnosing
+    || dateMismatchScanning || dateMismatchCorrecting;
 
   const runVisibilityDiagnosis = useCallback(async () => {
     const fyId = activeFiscalYear?.appwriteId || activeFiscalYear?.id;
@@ -427,6 +435,101 @@ export const FiscalYearManager: React.FC = () => {
   };
 
   // ------------------------------------------------------------------
+  // CORRECCIÓN DE DATOS MAL UBICADOS (fecha ↔ ejercicio)
+  // ------------------------------------------------------------------
+  const handleDiagnoseDateMismatches = async () => {
+    if (!scanAllExercises && !activeFiscalYear) {
+      showToast('Selecciona un ejercicio o marca «Analizar todos»', 'error');
+      return;
+    }
+
+    setDateMismatchScanning(true);
+    setDateMismatchProgress('Analizando documentos...');
+    setDateMismatchReport(null);
+
+    try {
+      const report = await appwriteService.diagnoseFiscalYearDateMismatches(
+        fiscalYears,
+        scanAllExercises
+          ? undefined
+          : { sourceFiscalYearId: activeFiscalYear!.appwriteId || activeFiscalYear!.id }
+      );
+      setDateMismatchReport(report);
+
+      if (report.summary.total === 0) {
+        showToast(
+          report.unmappable.length > 0
+            ? `No hay desajustes corregibles (${report.unmappable.length} sin ejercicio destino)`
+            : 'No se detectaron documentos mal ubicados',
+          report.unmappable.length > 0 ? 'warning' : 'success'
+        );
+      } else {
+        showToast(
+          `Detectados ${report.summary.total} documentos en ejercicio incorrecto`,
+          'warning'
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      showToast(`Error al analizar: ${msg}`, 'error');
+    } finally {
+      setDateMismatchScanning(false);
+      setDateMismatchProgress('');
+    }
+  };
+
+  const handleCorrectDateMismatches = async () => {
+    if (!dateMismatchReport || dateMismatchReport.summary.total === 0) return;
+
+    const routes = groupMismatchesByRoute(dateMismatchReport.mismatches);
+    const routeSummary = routes
+      .map((r) => `• ${r.count} docs: Ej. ${r.sourceYear} → Ej. ${r.targetYear}`)
+      .join('\n');
+
+    const confirmed = await showConfirm(
+      `¿Reasignar ${dateMismatchReport.summary.total} documentos al ejercicio que corresponde según su fecha?\n\n` +
+      `${routeSummary}\n\n` +
+      `Desglose: ${dateMismatchReport.summary.invoices} facturas, ` +
+      `${dateMismatchReport.summary.entries} asientos, ` +
+      `${dateMismatchReport.summary.transactions} transacciones, ` +
+      `${dateMismatchReport.summary.reservations} reservas.\n\n` +
+      `Esta operación no se puede deshacer automáticamente.`
+    );
+    if (!confirmed) return;
+
+    setDateMismatchCorrecting(true);
+    setDateMismatchProgress('Corrigiendo...');
+
+    try {
+      const result = await appwriteService.correctFiscalYearDateMismatches(
+        dateMismatchReport.mismatches,
+        (done, total) => setDateMismatchProgress(`Corregidos: ${done}/${total}`)
+      );
+
+      if (result.failed.length > 0) {
+        showToast(
+          `Corregidos ${result.corrected} documentos; ${result.failed.length} errores`,
+          'warning'
+        );
+      } else {
+        showToast(
+          `${result.corrected} documentos reasignados correctamente`,
+          'success'
+        );
+      }
+
+      setDateMismatchReport(null);
+      await runVisibilityDiagnosis();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      showToast(`Error al corregir: ${msg}`, 'error');
+    } finally {
+      setDateMismatchCorrecting(false);
+      setDateMismatchProgress('');
+    }
+  };
+
+  // ------------------------------------------------------------------
   // RENDER
   // ------------------------------------------------------------------
   const deleteConfirmOk =
@@ -603,33 +706,151 @@ export const FiscalYearManager: React.FC = () => {
         )}
       </div>
 
-      {/* Herramienta de migración de datos legacy */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-        <div className="flex items-start gap-3 mb-4">
-          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <h3 className="text-sm font-bold text-slate-800">Migración de datos sin ejercicio</h3>
-            <p className="text-xs text-slate-600 mt-1">
-              Si tienes datos en Appwrite que fueron introducidos antes de activar los ejercicios contables,
-              puedes asignarlos todos al ejercicio activo actualmente.
-              Esta operación afecta a facturas, asientos, transacciones, reservas, proveedores y apartamentos
-              que no tengan ningún ejercicio asignado.
-            </p>
+      {/* Herramientas de migración */}
+      <div className="space-y-4">
+        {/* A) Datos sin ejercicio (legacy) */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+          <div className="flex items-start gap-3 mb-4">
+            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">1. Datos sin ejercicio asignado</h3>
+              <p className="text-xs text-slate-600 mt-1">
+                Asigna al ejercicio activo los documentos que aún no tienen{' '}
+                <code className="text-[10px] bg-slate-200 px-1 rounded">fiscalYearId</code>{' '}
+                (datos anteriores a la activación de ejercicios contables).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={handleMigrateLegacy}
+              disabled={isBusy || !activeFiscalYear}
+              className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {migrating
+                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Migrando...</>
+                : <><ArrowRight className="w-4 h-4" /> Migrar al Ejercicio {activeFiscalYear?.year ?? '—'}</>
+              }
+            </button>
+            {migrateProgress && (
+              <span className="text-xs text-slate-500">{migrateProgress}</span>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={handleMigrateLegacy}
-            disabled={isBusy || !activeFiscalYear}
-            className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {migrating
-              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Migrando...</>
-              : <><ArrowRight className="w-4 h-4" /> Migrar al Ejercicio {activeFiscalYear?.year ?? '—'}</>
-            }
-          </button>
-          {migrateProgress && (
-            <span className="text-xs text-slate-500">{migrateProgress}</span>
+
+        {/* B) Datos mal ubicados (fecha ≠ ejercicio) */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+          <div className="flex items-start gap-3 mb-4">
+            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">2. Datos en ejercicio incorrecto</h3>
+              <p className="text-xs text-slate-600 mt-1">
+                Detecta facturas, asientos, transacciones y reservas cuya{' '}
+                <strong>fecha no coincide</strong> con el ejercicio asignado
+                (p. ej. facturas de 2027 guardadas en el Ejercicio 2028) y las reasigna
+                automáticamente al ejercicio del año de su fecha.
+              </p>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs text-slate-700 mb-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={scanAllExercises}
+              onChange={(e) => setScanAllExercises(e.target.checked)}
+              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            Analizar todos los ejercicios (no solo el activo)
+          </label>
+
+          <div className="flex items-center gap-3 flex-wrap mb-4">
+            <button
+              onClick={handleDiagnoseDateMismatches}
+              disabled={isBusy || (!scanAllExercises && !activeFiscalYear)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {dateMismatchScanning
+                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Analizando...</>
+                : <><RefreshCw className="w-4 h-4" /> Detectar desajustes</>
+              }
+            </button>
+
+            {dateMismatchReport && dateMismatchReport.summary.total > 0 && (
+              <button
+                onClick={handleCorrectDateMismatches}
+                disabled={isBusy}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {dateMismatchCorrecting
+                  ? <><RefreshCw className="w-4 h-4 animate-spin" /> Corrigiendo...</>
+                  : <><CheckCircle className="w-4 h-4" /> Corregir {dateMismatchReport.summary.total} documentos</>
+                }
+              </button>
+            )}
+
+            {dateMismatchProgress && (
+              <span className="text-xs text-slate-500">{dateMismatchProgress}</span>
+            )}
+          </div>
+
+          {dateMismatchReport && (
+            <div className="bg-white border border-blue-100 rounded-lg p-4 text-xs space-y-3">
+              {dateMismatchReport.summary.total === 0 ? (
+                <p className="text-emerald-700 font-medium">
+                  No se encontraron documentos mal ubicados
+                  {dateMismatchReport.unmappable.length > 0 &&
+                    ` (${dateMismatchReport.unmappable.length} sin ejercicio destino)`
+                  }.
+                </p>
+              ) : (
+                <>
+                  <p className="font-semibold text-slate-800">
+                    {dateMismatchReport.summary.total} documentos a corregir:
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {([
+                      ['Facturas', dateMismatchReport.summary.invoices],
+                      ['Asientos', dateMismatchReport.summary.entries],
+                      ['Transacciones', dateMismatchReport.summary.transactions],
+                      ['Reservas', dateMismatchReport.summary.reservations],
+                    ] as const).map(([label, count]) => (
+                      <div key={label} className="bg-slate-50 rounded px-2 py-1.5 text-center">
+                        <span className="block font-bold text-slate-900">{count}</span>
+                        <span className="text-slate-500">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t border-slate-100 pt-2 space-y-1">
+                    {groupMismatchesByRoute(dateMismatchReport.mismatches).map((route) => (
+                      <div key={`${route.sourceYear}-${route.targetYear}`} className="flex justify-between">
+                        <span>
+                          Ejercicio {route.sourceYear} → Ejercicio {route.targetYear}
+                        </span>
+                        <span className="font-mono font-semibold">{route.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {dateMismatchReport.unmappable.length > 0 && (
+                <div className="border-t border-amber-100 pt-2">
+                  <p className="text-amber-800 font-medium mb-1">
+                    {dateMismatchReport.unmappable.length} sin ejercicio destino:
+                  </p>
+                  <ul className="text-amber-700 space-y-0.5 max-h-24 overflow-y-auto">
+                    {dateMismatchReport.unmappable.slice(0, 5).map((item) => (
+                      <li key={`${item.collection}-${item.documentId}`}>
+                        {item.collection}: {item.label} ({item.documentDate}) — {item.reason}
+                      </li>
+                    ))}
+                    {dateMismatchReport.unmappable.length > 5 && (
+                      <li>…y {dateMismatchReport.unmappable.length - 5} más</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
