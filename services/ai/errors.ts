@@ -73,6 +73,7 @@ export function isFailoverableError(error: unknown): boolean {
 
 /**
  * Extrae status HTTP y mensaje de un error desconocido.
+ * También parsea JSON embebido (p.ej. respuestas Gemini: `{"error":{"code":503,...}}`).
  *
  * @param error - Error crudo
  * @returns status y message opcionales
@@ -86,19 +87,47 @@ export function getErrorDetails(error: unknown): { message?: string; status?: nu
     message?: unknown;
     status?: unknown;
     statusCode?: unknown;
+    code?: unknown;
   };
 
-  const status =
+  let status =
     typeof maybeError.status === 'number'
       ? maybeError.status
       : typeof maybeError.statusCode === 'number'
         ? maybeError.statusCode
-        : undefined;
+        : typeof maybeError.code === 'number'
+          ? maybeError.code
+          : undefined;
 
-  return {
-    message: typeof maybeError.message === 'string' ? maybeError.message : undefined,
-    status,
-  };
+  const message =
+    typeof maybeError.message === 'string' ? maybeError.message : undefined;
+
+  if (message) {
+    const nested = extractNestedHttpStatus(message);
+    if (nested !== undefined && status === undefined) {
+      status = nested;
+    }
+  }
+
+  return { message, status };
+}
+
+/**
+ * Busca un código HTTP en un mensaje JSON (Gemini/OpenAI suelen serializar el body).
+ *
+ * @param message - Texto del error
+ * @returns Código HTTP o undefined
+ */
+function extractNestedHttpStatus(message: string): number | undefined {
+  const codeMatch = message.match(/"code"\s*:\s*(\d{3})/);
+  if (codeMatch) {
+    return Number(codeMatch[1]);
+  }
+  const statusMatch = message.match(/\b(status|StatusCode)\D{0,12}(\d{3})\b/i);
+  if (statusMatch) {
+    return Number(statusMatch[2]);
+  }
+  return undefined;
 }
 
 /**
@@ -133,16 +162,26 @@ export function classifyHttpError(error: unknown, status?: number): AiErrorCode 
     return 'RATE_LIMIT';
   }
 
+  if (
+    httpStatus === 503 ||
+    httpStatus === 502 ||
+    httpStatus === 504 ||
+    lower.includes('unavailable') ||
+    lower.includes('high demand') ||
+    lower.includes('temporarily') ||
+    lower.includes('overloaded') ||
+    lower.includes('try again later')
+  ) {
+    return 'TRANSIENT';
+  }
+
   if (httpStatus === 404 || lower.includes('not found') || lower.includes('model')) {
     if (lower.includes('model') || lower.includes('not found')) {
       return 'MODEL_NOT_FOUND';
     }
   }
 
-  if (
-    httpStatus !== undefined &&
-    httpStatus >= 500
-  ) {
+  if (httpStatus !== undefined && httpStatus >= 500) {
     return 'TRANSIENT';
   }
 

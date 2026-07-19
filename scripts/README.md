@@ -43,6 +43,18 @@ node scripts/verify-appwrite-setup.cjs
 
 Sin este atributo la app sigue funcionando (preferencia solo en cliente), pero no se sincroniza entre dispositivos.
 
+## add-aiproviderused-attribute.cjs (FEAT-AI-FAILOVER-001)
+
+Añade `uploads.aiProviderUsed` (string: gemini | groq | openrouter):
+
+```bash
+export APPWRITE_API_KEY="tu-api-key"
+node scripts/add-aiproviderused-attribute.cjs
+node scripts/verify-appwrite-setup.cjs
+```
+
+Sin este atributo, el update de cola hace fallback omitiendo el campo (no rompe la subida).
+
 ## setup-all-collections.cjs
 
 Crea/actualiza **todas** las colecciones CBGest. Incluye `fiscalYearId` (size 36) en las

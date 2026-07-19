@@ -158,8 +158,13 @@ async function runWithFailover<T>(
     .map((f) => `${AI_PROVIDER_LABELS[f.providerId]}: ${f.message}`)
     .join(' | ');
 
+  const onlyOneHint =
+    configured.length === 1
+      ? ' Solo hay un proveedor con API key en este build; añade VITE_GROQ_API_KEY y/o VITE_OPENROUTER_API_KEY (Secrets Cursor o .env.local) y reinicia Vite/redeploy.'
+      : '';
+
   throw new Error(
-    `No se pudo analizar el ${documentLabel} con ninguna IA disponible. Intentados: ${attemptedProviders.join(', ')}. ${detail}`
+    `No se pudo analizar el ${documentLabel} con ninguna IA disponible. Intentados: ${attemptedProviders.join(', ')}. ${detail}.${onlyOneHint}`
   );
 }
 
