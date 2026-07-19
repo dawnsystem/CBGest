@@ -12,12 +12,13 @@ import {
   DEFAULT_AI_CONFIG,
   type AiConfig,
   type BankStatementAnalysisResult,
+  type CbIssuerContext,
   type InvoiceAnalysisResult,
 } from './ai';
 
 // Re-export types for consumers
 export type { GeminiInvoiceResponse, GeminiBankTransaction } from '../types/gemini';
-export type { AiConfig, InvoiceAnalysisResult, BankStatementAnalysisResult };
+export type { AiConfig, CbIssuerContext, InvoiceAnalysisResult, BankStatementAnalysisResult };
 
 /**
  * Analiza una factura con el router multi-IA (resultado plano, compatibilidad).
@@ -26,6 +27,7 @@ export type { AiConfig, InvoiceAnalysisResult, BankStatementAnalysisResult };
  * @param mimeType - MIME
  * @param existingSuppliers - Proveedores
  * @param aiConfig - Preferencia / failover
+ * @param cbIssuer - Identidad CB desde Settings
  * @returns Datos fiscales
  * @throws Error si todos los proveedores fallan
  * @example
@@ -35,13 +37,15 @@ export const analyzeInvoiceImage = async (
   base64Data: string,
   mimeType: string,
   existingSuppliers: Supplier[] = [],
-  aiConfig: AiConfig = DEFAULT_AI_CONFIG
+  aiConfig: AiConfig = DEFAULT_AI_CONFIG,
+  cbIssuer: CbIssuerContext | null = null
 ): Promise<GeminiInvoiceResponse> => {
   const { data } = await analyzeInvoiceWithRouter(
     base64Data,
     mimeType,
     existingSuppliers,
-    aiConfig
+    aiConfig,
+    cbIssuer
   );
   return data;
 };
@@ -53,15 +57,23 @@ export const analyzeInvoiceImage = async (
  * @param mimeType - MIME
  * @param existingSuppliers - Proveedores
  * @param aiConfig - Config IA
+ * @param cbIssuer - Identidad CB desde Settings
  * @returns data + meta
  */
 export const analyzeInvoiceImageDetailed = async (
   base64Data: string,
   mimeType: string,
   existingSuppliers: Supplier[] = [],
-  aiConfig: AiConfig = DEFAULT_AI_CONFIG
+  aiConfig: AiConfig = DEFAULT_AI_CONFIG,
+  cbIssuer: CbIssuerContext | null = null
 ): Promise<InvoiceAnalysisResult> => {
-  return analyzeInvoiceWithRouter(base64Data, mimeType, existingSuppliers, aiConfig);
+  return analyzeInvoiceWithRouter(
+    base64Data,
+    mimeType,
+    existingSuppliers,
+    aiConfig,
+    cbIssuer
+  );
 };
 
 /**

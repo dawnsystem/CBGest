@@ -3,6 +3,7 @@
  */
 
 import type { Supplier } from '../../types';
+import type { CbIssuerContext } from './cbIssuerContext';
 import type {
   AiProviderId,
   BankTransactionAiResponse,
@@ -31,13 +32,15 @@ export interface AiDocumentProvider {
    * @param base64Data - Contenido en base64 (sin prefijo data:)
    * @param mimeType - MIME normalizado
    * @param existingSuppliers - Proveedores para matching
+   * @param cbIssuer - Identidad CB desde Settings (emisor propio)
    * @returns Datos fiscales estructurados
    * @throws AiProviderError
    */
   analyzeInvoice(
     base64Data: string,
     mimeType: string,
-    existingSuppliers?: Supplier[]
+    existingSuppliers?: Supplier[],
+    cbIssuer?: CbIssuerContext | null
   ): Promise<InvoiceAiResponse>;
   /**
    * Analiza un extracto bancario PDF/imagen.

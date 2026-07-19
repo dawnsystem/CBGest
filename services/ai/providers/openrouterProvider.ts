@@ -8,6 +8,7 @@ import { getOpenRouterApiKey } from '../envKeys';
 import { completeVisionJson } from '../openaiCompatible';
 import { buildBankStatementPrompt, buildInvoicePrompt } from '../prompts';
 import type { AiDocumentProvider } from '../provider';
+import type { CbIssuerContext } from '../cbIssuerContext';
 import type { BankTransactionAiResponse, InvoiceAiResponse } from '../types';
 import { AI_PROVIDER_LABELS } from '../types';
 import { unwrapBankTransactions } from '../unwrapBankTransactions';
@@ -45,7 +46,8 @@ export const openrouterProvider: AiDocumentProvider = {
   async analyzeInvoice(
     base64Data: string,
     mimeType: string,
-    existingSuppliers: Supplier[] = []
+    existingSuppliers: Supplier[] = [],
+    cbIssuer: CbIssuerContext | null = null
   ): Promise<InvoiceAiResponse> {
     const apiKey = getOpenRouterApiKey();
     if (!apiKey) {
@@ -67,7 +69,7 @@ export const openrouterProvider: AiDocumentProvider = {
           'X-Title': 'CBGest',
         },
       },
-      buildInvoicePrompt(existingSuppliers),
+      buildInvoicePrompt(existingSuppliers, cbIssuer),
       base64Data,
       mimeType,
       INVOICE_PDF_PAGES

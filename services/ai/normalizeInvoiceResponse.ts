@@ -8,6 +8,7 @@ import {
   isExpenseAccount,
   isIncomeAccount,
 } from '../../utils/accountingPlan';
+import { isIssuerOwnCb, type CbIssuerContext } from './cbIssuerContext';
 import type { InvoiceAiResponse } from './types';
 
 /** Cuenta por defecto para ingresos por alquiler / prestaciones (CB). */
@@ -100,29 +101,41 @@ function buildTextBlob(raw: InvoiceAiResponse): string {
  * Normaliza `type` + `suggestedAccountCode` tras la respuesta del modelo.
  *
  * Reglas:
+ * 0. Si el emisor coincide con la CB de Settings → INCOME + 705 (factura propia).
  * 1. Comisión de plataforma → EXPENSE (629 si la cuenta no es de gasto válida).
  * 2. Señal de alquiler/inquilino (y no gasto CB claro) → INCOME + 705.
  * 3. INCOME exige cuenta grupo 7; EXPENSE exige grupo 6.
  * 4. Si la cuenta no existe en el plan → remap según type.
  *
  * @param raw - Respuesta cruda del modelo
+ * @param cbIssuer - Identidad CB desde Settings (opcional)
  * @returns Respuesta con cuenta/tipo coherentes
  * @example
  * normalizeInvoiceAiResponse({ type: 'EXPENSE', suggestedAccountCode: '629', concept: 'Alquiler marzo', ... })
  * // → type INCOME, suggestedAccountCode '705'
  */
-export function normalizeInvoiceAiResponse(raw: InvoiceAiResponse): InvoiceAiResponse {
+export function normalizeInvoiceAiResponse(
+  raw: InvoiceAiResponse,
+  cbIssuer: CbIssuerContext | null = null
+): InvoiceAiResponse {
   const blob = buildTextBlob(raw);
 
   let type: InvoiceAiResponse['type'] = raw.type === 'INCOME' ? 'INCOME' : 'EXPENSE';
   let code = String(raw.suggestedAccountCode || '').trim();
+  let matchedSupplierId = raw.matchedSupplierId;
 
+  const ownIssuer = isIssuerOwnCb(raw.issuerName, raw.issuerNif, cbIssuer);
   const platformFee = looksLikePlatformCommission(blob);
   const rentalIncome =
     looksLikeRentalIncome(blob) && !platformFee && !looksLikeClearCbExpense(blob);
 
-  // Comisiones Booking/Airbnb → gasto (nunca 705)
-  if (platformFee) {
+  // Emisor = CB de Settings → factura emitida por nosotros (ingreso)
+  if (ownIssuer) {
+    type = 'INCOME';
+    code = DEFAULT_RENTAL_INCOME_ACCOUNT;
+    matchedSupplierId = null;
+  } else if (platformFee) {
+    // Comisiones Booking/Airbnb → gasto (nunca 705)
     type = 'EXPENSE';
     if (!isExpenseAccount(code) || !getAccountByCode(code)) {
       code = DEFAULT_EXPENSE_ACCOUNT;
@@ -157,6 +170,7 @@ export function normalizeInvoiceAiResponse(raw: InvoiceAiResponse): InvoiceAiRes
   return {
     ...raw,
     concept,
+    matchedSupplierId,
     type,
     suggestedAccountCode: code,
   };

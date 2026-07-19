@@ -9,6 +9,7 @@ import { getGeminiApiKey } from '../envKeys';
 import { parseModelJson } from '../parseJson';
 import { buildBankStatementPrompt, buildInvoicePrompt } from '../prompts';
 import type { AiDocumentProvider } from '../provider';
+import type { CbIssuerContext } from '../cbIssuerContext';
 import type { BankTransactionAiResponse, InvoiceAiResponse } from '../types';
 import { AI_PROVIDER_LABELS } from '../types';
 
@@ -47,10 +48,11 @@ export const geminiProvider: AiDocumentProvider = {
   async analyzeInvoice(
     base64Data: string,
     mimeType: string,
-    existingSuppliers: Supplier[] = []
+    existingSuppliers: Supplier[] = [],
+    cbIssuer: CbIssuerContext | null = null
   ): Promise<InvoiceAiResponse> {
     try {
-      const prompt = buildInvoicePrompt(existingSuppliers);
+      const prompt = buildInvoicePrompt(existingSuppliers, cbIssuer);
       const response = await getAiClient().models.generateContent({
         model: MODEL_NAME,
         contents: {

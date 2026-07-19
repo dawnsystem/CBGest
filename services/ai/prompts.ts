@@ -4,16 +4,55 @@
 
 import { ACCOUNT_PLAN } from '../../utils/accountingPlan';
 import type { Supplier } from '../../types';
+import type { CbIssuerContext } from './cbIssuerContext';
+
+/**
+ * Bloque de identidad CB inyectado desde Settings (dinámico).
+ *
+ * @param cbIssuer - Identidad de la CB o null
+ * @returns Texto para el prompt
+ */
+function buildCbIdentityBlock(cbIssuer: CbIssuerContext | null | undefined): string {
+  if (!cbIssuer || (!cbIssuer.cbName && !cbIssuer.nif)) {
+    return `
+      **IDENTIDAD DE LA EMPRESA (Settings):**
+      - No hay razón social/NIF configurados en Settings.
+      - Sin esos datos no puedes afirmar con certeza que el emisor eres tú.
+    `;
+  }
+
+  const address = cbIssuer.addressLine
+    ? `\n      - Domicilio fiscal: ${cbIssuer.addressLine}`
+    : '';
+
+  return `
+      **IDENTIDAD DE LA EMPRESA QUE USA LA APP (TU CB — datos vivos de Settings):**
+      - Razón social / denominación: ${cbIssuer.cbName}
+      - NIF/CIF: ${cbIssuer.nif || '(no informado)'}${address}
+
+      **REGLA DE EMISOR PROPIO (CRÍTICA):**
+      - Compara el EMISOR del documento con la razón social y el NIF de arriba (ignora espacios, guiones, "C.B.", "ES").
+      - Si el EMISOR coincide → la CB está EMITIENDO la factura (cobro a inquilino/cliente)
+        → type = "INCOME", suggestedAccountCode = "705", matchedSupplierId = null.
+      - Si el EMISOR es OTRA entidad (Endesa, fontanero, Booking, gestoría…) → la CB es quien PAGA
+        → type = "EXPENSE", cuenta del Grupo 6, y busca matchedSupplierId en proveedores.
+      - No inventes coincidencia: si el NIF del emisor no es el de Settings, NO es factura propia.
+    `;
+}
 
 /**
  * Construye el prompt de extracción de factura (contable ES + PGC).
  *
  * @param existingSuppliers - Proveedores registrados para matching
+ * @param cbIssuer - Identidad CB desde Settings (dinámica)
  * @returns Prompt en español
  * @example
- * const prompt = buildInvoicePrompt(suppliers);
+ * const prompt = buildInvoicePrompt(suppliers, cbIssuerFromSettings(settings));
  */
-export function buildInvoicePrompt(existingSuppliers: Supplier[] = []): string {
+export function buildInvoicePrompt(
+  existingSuppliers: Supplier[] = [],
+  cbIssuer: CbIssuerContext | null = null
+): string {
   const accountsList = ACCOUNT_PLAN.map((acc) => `${acc.code} - ${acc.name}`).join('\n      ');
   const suppliersList =
     existingSuppliers.length > 0
@@ -37,6 +76,8 @@ export function buildInvoicePrompt(existingSuppliers: Supplier[] = []): string {
       - 629 = Otros servicios / comisiones de plataformas que PAGAMOS (Booking, Airbnb, etc.).
       - 705 = Ingresos por alquiler / estancia / prestaciones al inquilino.
 
+      ${buildCbIdentityBlock(cbIssuer)}
+
       **PROVEEDORES EXISTENTES EN LA BASE DE DATOS:**
       ${suppliersList}
 
@@ -46,7 +87,8 @@ export function buildInvoicePrompt(existingSuppliers: Supplier[] = []): string {
       - Si encuentras una coincidencia, devuelve el campo "matchedSupplierId" con el nombre exacto del proveedor que coincide.
       - Si NO encuentras coincidencia, devuelve "matchedSupplierId" como null.
       - En cualquier caso, extrae los datos del emisor como "issuerName" e "issuerNif".
-      - Si el emisor es la propia CB cobrando a un inquilino, matchedSupplierId = null y type = INCOME.
+      - Si el emisor es la propia CB (bloque IDENTIDAD arriba) cobrando a un inquilino,
+        matchedSupplierId = null y type = INCOME, suggestedAccountCode = "705".
       - Si el documento es factura EMITIDA por la CB (arrendador) al cliente/inquilino/huésped
         → type = "INCOME", suggestedAccountCode = "705", aunque el concepto diga "alquiler"
         (alquiler cobrado ≠ 621; 621 solo si PAGAMOS nosotros un alquiler).

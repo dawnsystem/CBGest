@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-19 08:30:00 UTC*
+*Última actualización: 2026-07-19 08:45:00 UTC*
 
 ---
 
@@ -8,9 +8,10 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **BUG-AI-002** (cuentas contables IA) en PR — prompt CB arrendador + post-proceso `normalizeInvoiceAiResponse` (ingreso inquilino → 705, no 629/628). Pendiente merge + redeploy. OpenRouter free VL: rama/PR modelos vivos aún por mergear si no está en `dev`. Rotar keys expuestas en chat.
+Estado actual: **BUG-AI-002** + identidad CB dinámica en PR #178 — prompt/post-proceso usan `settings.cbName`/`nif` para reconocer emisor propio. Pendiente merge + redeploy. Mantener razón social y NIF correctos en Settings.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-19] - `FEAT-AI-CB-ID-001` - Identidad CB dinámica en lectura IA:** La cola inyecta `cbIssuerFromSettings(settings)` (razón social, NIF, domicilio) en el prompt y en `normalizeInvoiceAiResponse`. Si el emisor del documento coincide con la CB → INCOME + 705 (sin matchedSupplier). Actualizar Settings basta; no hay hardcode. Tests 8 nuevos (444 total).
 *   **[2026-07-19] - `BUG-AI-002` - Cuenta contable errónea en facturas de ingreso (inquilino → 629):** OpenRouter/Gemini free a veces marcaban renta de inquilino como EXPENSE + 628/629. Prompt reforzado (CB = arrendador; 705 vs 621/628/629). Nuevo `services/ai/normalizeInvoiceResponse.ts` post-IA: coherencia type↔cuenta, heurística alquiler/inquilino → INCOME+705, comisiones plataforma → gasto, gastos claros CB no se fuerzan a ingreso. Campo opcional `concept` en respuesta. Tests 13 nuevos. Validado: lint + type-check + **436** tests + build OK.
 *   **[2026-07-18] - `FEAT-AI-FAILOVER-001` - Router multi-IA (Gemini + Groq + OpenRouter) con failover:** Nueva capa `services/ai/` (providers, prompts, `aiRouter`, PDF→PNG vía pdfjs para vision no-nativa). Preferencia en Settings (`aiConfig.preferredProvider` + `failoverEnabled`). Env: `VITE_GEMINI_API_KEY`, `VITE_GROQ_API_KEY`, `VITE_OPENROUTER_API_KEY` (+ modelo opcional). Cola anota `aiProviderUsed`; errores listan providers intentados. Persistencia `aiConfig` con fallback si el atributo Cloud falta. Validado: lint + type-check + **422** tests + build OK.
 *   **[2026-07-18] - `FEAT-M184-001` - Modelo 184 oficial (clave C) + exportación AEAT:** Rama `dev` creada como integración. Nuevo módulo `services/modelo184/` (`buildModelo184Draft`, export PDF layout oficial, fichero telemático ISO-8859-1 registros 500 chars). Ingresos desde **reservas confirmadas**; gastos deducibles desde facturas con reparto proporcional. UI `#/taxes`: PDF oficial, fichero `.txt`, guardar borrador (`tax_reports`). Settings: domicilio fiscal CB, representante, domicilio socios (persistidos en Appwrite). Colección `tax_reports` + attrs fiscales `settings` + `isDeductible` en `invoices` en `setup-all-collections.cjs`. Guía despliegue: `docs/DEPLOY_MODELO_184_APPWRITE.md`. PR #174 contra `dev`. Validado: type-check + test:ci + lint OK.

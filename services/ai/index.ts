@@ -23,6 +23,14 @@ export {
   looksLikeRentalIncome,
   normalizeInvoiceAiResponse,
 } from './normalizeInvoiceResponse';
+export {
+  cbIssuerFromSettings,
+  isIssuerOwnCb,
+  namesLikelyMatch,
+  normalizeComparableName,
+  normalizeFiscalId,
+} from './cbIssuerContext';
+export type { CbIssuerContext } from './cbIssuerContext';
 export { resolveProviderOrder } from './resolveProviderOrder';
 export type {
   AiAnalysisMeta,
