@@ -17,6 +17,7 @@ import {
   getCopySourceDocumentId,
   listFiscalYearDocumentIds,
   omitFields,
+  listAllDocumentsPaginated,
 } from './infrastructure';
 import { getSuppliers } from './supplierService';
 import { getApartments } from './apartmentService';
@@ -32,6 +33,15 @@ import {
   parseTouristTaxPeriods,
   serializeTouristTaxPeriods,
 } from '../../utils/touristTaxUtils';
+import {
+  analyzeDocumentsForDateMismatch,
+  buildFiscalYearMaps,
+  summarizeDateMismatches,
+  type FiscalYearDateCorrectionResult,
+  type FiscalYearDateMismatchItem,
+  type FiscalYearDateMismatchReport,
+  type FiscalYearMismatchCollection,
+} from '../../utils/fiscalYearDateMigration';
 
 type FiscalYearDocument = AppwriteEntity<FiscalYear> & { $id: string };
 
@@ -762,4 +772,123 @@ export async function deleteFiscalYearCascade(
     setConnectionHealth(false);
     throw error;
   }
+}
+
+// ============================================================================
+// CORRECCIÓN DE DATOS MAL UBICADOS (fecha ↔ ejercicio)
+// ============================================================================
+
+const MISMATCH_COLLECTION_IDS: Record<FiscalYearMismatchCollection, string> = {
+  invoices: config.collections.invoices,
+  entries: config.collections.entries,
+  transactions: config.collections.transactions,
+  reservations: config.collections.reservations,
+};
+
+/**
+ * Detecta documentos asignados a un ejercicio cuya fecha pertenece a otro año.
+ *
+ * @param fiscalYears - lista completa de ejercicios
+ * @param options.sourceFiscalYearId - limitar análisis a un ejercicio (opcional)
+ * @returns Informe con desajustes y documentos sin ejercicio destino
+ * @example
+ * const report = await diagnoseFiscalYearDateMismatches(fiscalYears, {
+ *   sourceFiscalYearId: activeFy.appwriteId,
+ * });
+ */
+export async function diagnoseFiscalYearDateMismatches(
+  fiscalYears: FiscalYear[],
+  options?: { sourceFiscalYearId?: string }
+): Promise<FiscalYearDateMismatchReport> {
+  const { idToYear, yearToId } = buildFiscalYearMaps(fiscalYears);
+  const sourceIds = options?.sourceFiscalYearId
+    ? [options.sourceFiscalYearId]
+    : fiscalYears.map((fy) => fy.appwriteId || fy.id);
+
+  const allMismatches: FiscalYearDateMismatchItem[] = [];
+  const allUnmappable: FiscalYearDateMismatchReport['unmappable'] = [];
+
+  for (const sourceFiscalYearId of sourceIds) {
+    if (!idToYear.has(sourceFiscalYearId)) continue;
+
+    for (const [collection, collectionId] of Object.entries(MISMATCH_COLLECTION_IDS) as Array<
+      [FiscalYearMismatchCollection, string]
+    >) {
+      const documents = await listAllDocumentsPaginated(
+        collectionId,
+        [Query.equal('fiscalYearId', sourceFiscalYearId)],
+        `diagnoseDateMismatch_${collection}_${sourceFiscalYearId}`
+      );
+
+      const { mismatches, unmappable } = analyzeDocumentsForDateMismatch(
+        collection,
+        documents,
+        idToYear,
+        yearToId
+      );
+
+      allMismatches.push(...mismatches);
+      allUnmappable.push(...unmappable);
+    }
+  }
+
+  return {
+    mismatches: allMismatches,
+    unmappable: allUnmappable,
+    summary: summarizeDateMismatches(allMismatches),
+  };
+}
+
+/**
+ * Reasigna documentos al ejercicio que corresponde según su fecha.
+ *
+ * @param mismatches - desajustes a corregir (normalmente del informe de diagnóstico)
+ * @param onProgress - callback de progreso
+ * @returns Conteos de corrección y errores
+ */
+export async function correctFiscalYearDateMismatches(
+  mismatches: FiscalYearDateMismatchItem[],
+  onProgress?: (done: number, total: number) => void
+): Promise<FiscalYearDateCorrectionResult> {
+  const result: FiscalYearDateCorrectionResult = {
+    corrected: 0,
+    failed: [],
+    byCollection: { invoices: 0, entries: 0, transactions: 0, reservations: 0 },
+  };
+
+  const total = mismatches.length;
+
+  for (let i = 0; i < mismatches.length; i++) {
+    const item = mismatches[i];
+    const collectionId = MISMATCH_COLLECTION_IDS[item.collection];
+
+    try {
+      await withRetry(
+        () => databases.updateDocument(
+          config.databaseId,
+          collectionId,
+          item.documentId,
+          { fiscalYearId: item.targetFiscalYearId }
+        ),
+        `correctDateMismatch_${item.collection}_${item.documentId}`
+      );
+      result.corrected += 1;
+      result.byCollection[item.collection] += 1;
+    } catch (error: unknown) {
+      result.failed.push({
+        documentId: item.documentId,
+        collection: item.collection,
+        error: getErrorMessage(error),
+      });
+    }
+
+    onProgress?.(i + 1, total);
+  }
+
+  if (result.corrected > 0) {
+    notifySuccess(`${result.corrected} documentos reasignados al ejercicio correcto`);
+    setConnectionHealth(true);
+  }
+
+  return result;
 }

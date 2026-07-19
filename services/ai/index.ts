@@ -15,6 +15,22 @@ export {
   getOpenRouterApiKey,
   hasAnyAiApiKey,
 } from './envKeys';
+export {
+  DEFAULT_EXPENSE_ACCOUNT,
+  DEFAULT_RENTAL_INCOME_ACCOUNT,
+  looksLikeClearCbExpense,
+  looksLikePlatformCommission,
+  looksLikeRentalIncome,
+  normalizeInvoiceAiResponse,
+} from './normalizeInvoiceResponse';
+export {
+  cbIssuerFromSettings,
+  isIssuerOwnCb,
+  namesLikelyMatch,
+  normalizeComparableName,
+  normalizeFiscalId,
+} from './cbIssuerContext';
+export type { CbIssuerContext } from './cbIssuerContext';
 export { resolveProviderOrder } from './resolveProviderOrder';
 export type {
   AiAnalysisMeta,

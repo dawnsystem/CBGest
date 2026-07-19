@@ -9,6 +9,7 @@ import { getGeminiApiKey } from '../envKeys';
 import { parseModelJson } from '../parseJson';
 import { buildBankStatementPrompt, buildInvoicePrompt } from '../prompts';
 import type { AiDocumentProvider } from '../provider';
+import type { CbIssuerContext } from '../cbIssuerContext';
 import type { BankTransactionAiResponse, InvoiceAiResponse } from '../types';
 import { AI_PROVIDER_LABELS } from '../types';
 
@@ -47,10 +48,11 @@ export const geminiProvider: AiDocumentProvider = {
   async analyzeInvoice(
     base64Data: string,
     mimeType: string,
-    existingSuppliers: Supplier[] = []
+    existingSuppliers: Supplier[] = [],
+    cbIssuer: CbIssuerContext | null = null
   ): Promise<InvoiceAiResponse> {
     try {
-      const prompt = buildInvoicePrompt(existingSuppliers);
+      const prompt = buildInvoicePrompt(existingSuppliers, cbIssuer);
       const response = await getAiClient().models.generateContent({
         model: MODEL_NAME,
         contents: {
@@ -101,7 +103,13 @@ export const geminiProvider: AiDocumentProvider = {
               type: { type: Type.STRING, enum: ['EXPENSE', 'INCOME'] },
               suggestedAccountCode: {
                 type: Type.STRING,
-                description: 'Código cuenta contable PGC sugerido (ej: 628)',
+                description: 'Código cuenta contable PGC sugerido (ej: 705)',
+              },
+              concept: {
+                type: Type.STRING,
+                nullable: true,
+                description:
+                  'Concepto breve (alquiler inquilino, luz, comisión Booking, etc.)',
               },
             },
           },
