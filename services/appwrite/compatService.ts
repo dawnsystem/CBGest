@@ -154,7 +154,14 @@ export const syncSettings = async (localSettings: AppSettings): Promise<AppSetti
       await databaseService.saveSettings(localSettings);
       return localSettings;
     }
-    return { ...localSettings, ...remoteSettings, dataConfig: localSettings.dataConfig };
+    return {
+      ...localSettings,
+      ...remoteSettings,
+      dataConfig: localSettings.dataConfig,
+      // Preservar preferencia IA local si Cloud aún no tiene el atributo aiConfig
+      aiConfig: remoteSettings.aiConfig ?? localSettings.aiConfig,
+      touristTaxConfig: remoteSettings.touristTaxConfig ?? localSettings.touristTaxConfig,
+    };
   } catch (error) {
     console.error('Error syncing settings:', error);
     return null;

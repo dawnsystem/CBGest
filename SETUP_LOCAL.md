@@ -55,20 +55,26 @@ npm install
 
 Este comando descargará todas las librerías necesarias (React, Vite, TypeScript, etc.)
 
-### 3️⃣ Configurar la API Key de Gemini
+### 3️⃣ Configurar las API Keys de IA (lectura de facturas)
 
-1. Abre el archivo `.env.local` en la raíz del proyecto
-2. Pega tu API Key de Gemini después del signo `=`:
+1. Abre (o crea) el archivo `.env.local` en la raíz del proyecto
+2. Añade al menos una key (recomendado: varias para failover automático):
 
 ```env
-GEMINI_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXX
+VITE_GEMINI_API_KEY=tu-api-key-de-gemini
+VITE_GROQ_API_KEY=tu-api-key-de-groq
+VITE_OPENROUTER_API_KEY=tu-api-key-de-openrouter
+# Opcional:
+# VITE_OPENROUTER_MODEL=qwen/qwen2.5-vl-72b-instruct:free
 ```
 
 3. Guarda el archivo
 
 **⚠️ IMPORTANTE:**
+- Usa exactamente el prefijo `VITE_` (Vite solo expone esas vars al cliente)
+- En Cursor Cloud Agents: guarda las mismas vars en **Secrets** del entorno (Runtime Secret)
 - Nunca compartas este archivo públicamente
-- El archivo `.env.local` ya está en `.gitignore` para proteger tu clave
+- El archivo `.env.local` ya está en `.gitignore` para proteger tus claves
 
 ### 4️⃣ Iniciar el Servidor de Desarrollo
 

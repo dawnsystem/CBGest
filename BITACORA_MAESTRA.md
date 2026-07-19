@@ -8,7 +8,7 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Failover multi-IA** listo en código. Ops Cloud: añadir atributo `aiConfig` (string JSON) en colección `settings` si aún no existe (`setup-all-collections.cjs` ya lo declara). Dedup: pendiente schemas Cloud + UAT Paso 10.
+Estado actual: **Failover multi-IA** en código + scripts ops. **Pendiente en Cloud:** ejecutar `node scripts/add-aiconfig-attribute.cjs` (API Key schema) y guardar secrets `VITE_*` en Cursor Dashboard. Dedup: schemas Cloud + UAT Paso 10.
 
 ### ✅ Implementaciones Recientes
 *   **[2026-07-18] - `FEAT-AI-FAILOVER-001` - Router multi-IA (Gemini + Groq + OpenRouter) con failover:** Nueva capa `services/ai/` (providers, prompts, `aiRouter`, PDF→PNG vía pdfjs para vision no-nativa). Preferencia en Settings (`aiConfig.preferredProvider` + `failoverEnabled`). Env: `VITE_GEMINI_API_KEY`, `VITE_GROQ_API_KEY`, `VITE_OPENROUTER_API_KEY` (+ modelo opcional). Cola anota `aiProviderUsed`; errores listan providers intentados. Persistencia `aiConfig` con fallback si el atributo Cloud falta. Validado: lint + type-check + **422** tests + build OK.
@@ -111,6 +111,16 @@ Estado actual: **Failover multi-IA** listo en código. Ops Cloud: añadir atribu
 ---
 
 ## 🔬 Registro Forense de Sesiones
+### Sesión: [2026-07-19 07:40:00 UTC]
+*   **Directiva del Director:** Revisar qué falta en Appwrite/app para que el failover multi-IA funcione bien.
+*   **Hallazgos:** Faltaba script ops `aiConfig`, verify incompleto, sync frágil, SETUP_LOCAL con nombre de env obsoleto (`GEMINI_API_KEY` sin `VITE_`).
+*   **Log de Acciones:**
+    - `[07:35:00]` - **CREATE:** `scripts/add-aiconfig-attribute.cjs` (idempotente).
+    - `[07:36:00]` - **MOD:** `setup-all-collections` → `ensureSettingsAiConfigSchema`; verify-setup/fetch; scripts/README.
+    - `[07:37:00]` - **FIX:** `syncSettings` + merge `App.tsx` preservan `aiConfig`; `useDataHandlers` alinea save; `vite.config` fallback keys sin prefijo; `SETUP_LOCAL.md`.
+    - `[07:40:00]` - **OPS:** Pendiente ejecutar script en Cloud con `APPWRITE_API_KEY` (no disponible en este agent).
+*   **Resultado:** Código y scripts listos; Cloud requiere 1 comando schema + secrets `VITE_*` en Dashboard.
+
 ### Sesión: [2026-07-18 23:35:00 UTC]
 *   **Directiva del Director:** Agotar cuota Gemini al subir facturas → integrar IAs gratis seleccionables y cambio automático ante cuota/error de lectura.
 *   **Plan de Acción:** Abstracción multi-proveedor (Gemini/Groq/OpenRouter free) + router con failover + UI Settings + env Vite.

@@ -139,6 +139,7 @@ const EXPECTED_COLLECTIONS = {
       { key: 'vatObligation', type: 'boolean' },
       { key: 'partners', type: 'string' },
       { key: 'touristTaxConfig', type: 'string' },
+      { key: 'aiConfig', type: 'string' },
       { key: 'address', type: 'string' },
       { key: 'streetNumber', type: 'string' },
       { key: 'postalCode', type: 'string' },
