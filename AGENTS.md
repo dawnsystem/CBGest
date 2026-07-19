@@ -17,3 +17,14 @@ Si la petición es trivial (<20 líneas de código, explicar un error de consola
 3. **Revisión de código antes de commits, búsqueda de bugs complejos, SecOps o actualizar la bitácora al finalizar el día** → Invoca a `@revisor`
 
 Para OpenCode Go, todas las reglas de calidad, convenciones y arquitectura están en `PROJECT_RULES.md`.
+
+---
+
+## Ramas Git (obligatorio)
+
+| Rama | Uso |
+|------|-----|
+| **`dev`** | Integración continua — **todos los PRs y agentes deben apuntar aquí** |
+| **`main`** | Producción estable — solo merges desde `dev` tras validación |
+
+No abrir PRs contra `main` salvo hotfixes urgentes acordados con @dawnsystem.
