@@ -24,6 +24,9 @@ coverage
 # CBGest secure database files
 *.gestcb
 
+# PDF referencia AEAT con datos reales (solo local para calibrar plantilla)
+scripts/fixtures/*.pdf
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
