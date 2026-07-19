@@ -5,7 +5,7 @@
 import type { Supplier } from '../../../types';
 import { AiProviderError } from '../errors';
 import { getOpenRouterApiKey } from '../envKeys';
-import { completeVisionJson } from '../openaiCompatible';
+import { completeVisionJsonWithModelFallback } from '../openaiCompatible';
 import { buildBankStatementPrompt, buildInvoicePrompt } from '../prompts';
 import type { AiDocumentProvider } from '../provider';
 import type { CbIssuerContext } from '../cbIssuerContext';
@@ -14,21 +14,35 @@ import { AI_PROVIDER_LABELS } from '../types';
 import { unwrapBankTransactions } from '../unwrapBankTransactions';
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-/** Modelo free con visión; ajustable vía env VITE_OPENROUTER_MODEL. */
-const DEFAULT_OPENROUTER_MODEL = 'qwen/qwen2.5-vl-72b-instruct:free';
+
+/**
+ * Modelos free con visión verificados (orden de preferencia).
+ * El slug antiguo qwen2.5-vl:free dejó de estar en capa free.
+ */
+const OPENROUTER_FREE_VL_MODELS = [
+  'nvidia/nemotron-nano-12b-v2-vl:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-4-31b-it:free',
+  'openrouter/free',
+] as const;
+
 const INVOICE_PDF_PAGES = 3;
 const BANK_PDF_PAGES = 8;
 
 /**
- * Resuelve el modelo OpenRouter (env opcional).
+ * Resuelve la lista de modelos OpenRouter (env opcional como primero).
  *
- * @returns Model id
+ * @returns Model ids a probar
  */
-function getOpenRouterModel(): string {
+function getOpenRouterModels(): string[] {
   const fromEnv =
     process.env.OPENROUTER_MODEL ||
     (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_OPENROUTER_MODEL : undefined);
-  return (fromEnv || DEFAULT_OPENROUTER_MODEL).trim();
+  const preferred = (fromEnv || '').trim();
+  if (!preferred) {
+    return [...OPENROUTER_FREE_VL_MODELS];
+  }
+  return [preferred, ...OPENROUTER_FREE_VL_MODELS.filter((m) => m !== preferred)];
 }
 
 /**
@@ -58,17 +72,17 @@ export const openrouterProvider: AiDocumentProvider = {
       );
     }
 
-    return completeVisionJson<InvoiceAiResponse>(
+    return completeVisionJsonWithModelFallback<InvoiceAiResponse>(
       {
         providerId: 'openrouter',
         apiKey,
         endpoint: OPENROUTER_ENDPOINT,
-        model: getOpenRouterModel(),
         extraHeaders: {
           'HTTP-Referer': 'https://cbgest.local',
           'X-Title': 'CBGest',
         },
       },
+      getOpenRouterModels(),
       buildInvoicePrompt(existingSuppliers, cbIssuer),
       base64Data,
       mimeType,
@@ -95,17 +109,17 @@ IMPORTANTE: Si debes devolver un objeto (no un array raíz), usa la forma:
 { "transactions": [ ...movimientos... ] }
 `;
 
-    const parsed = await completeVisionJson<unknown>(
+    const parsed = await completeVisionJsonWithModelFallback<unknown>(
       {
         providerId: 'openrouter',
         apiKey,
         endpoint: OPENROUTER_ENDPOINT,
-        model: getOpenRouterModel(),
         extraHeaders: {
           'HTTP-Referer': 'https://cbgest.local',
           'X-Title': 'CBGest',
         },
       },
+      getOpenRouterModels(),
       prompt,
       base64Data,
       mimeType,

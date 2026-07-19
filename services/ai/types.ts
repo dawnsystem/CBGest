@@ -58,12 +58,14 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   failoverEnabled: true,
 };
 
-/** Orden por defecto cuando preferredProvider es `auto`. */
-export const DEFAULT_PROVIDER_ORDER: AiProviderId[] = ['gemini', 'groq', 'openrouter'];
+/** Orden por defecto cuando preferredProvider es `auto`.
+ * OpenRouter antes que Groq: en 2026-07 Groq free ya no lista modelos vision.
+ */
+export const DEFAULT_PROVIDER_ORDER: AiProviderId[] = ['gemini', 'openrouter', 'groq'];
 
 /** Etiquetas legibles para UI. */
 export const AI_PROVIDER_LABELS: Record<AiProviderId, string> = {
   gemini: 'Google Gemini',
   groq: 'Groq (Llama Vision)',
-  openrouter: 'OpenRouter (free)',
+  openrouter: 'OpenRouter (free VL)',
 };

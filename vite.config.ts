@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => {
     const openrouterModel =
       env.VITE_OPENROUTER_MODEL ||
       env.OPENROUTER_MODEL ||
-      'qwen/qwen2.5-vl-72b-instruct:free';
+      'nvidia/nemotron-nano-12b-v2-vl:free';
+    const groqModel = env.VITE_GROQ_MODEL || env.GROQ_MODEL || '';
 
     return {
       server: {
@@ -40,6 +41,7 @@ export default defineConfig(({ mode }) => {
         'process.env.GROQ_API_KEY': JSON.stringify(groqKey),
         'process.env.OPENROUTER_API_KEY': JSON.stringify(openrouterKey),
         'process.env.OPENROUTER_MODEL': JSON.stringify(openrouterModel),
+        'process.env.GROQ_MODEL': JSON.stringify(groqModel),
       },
       resolve: {
         alias: {
