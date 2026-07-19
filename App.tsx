@@ -8,7 +8,6 @@ import { GlobalUploadWidget } from './components/GlobalUploadWidget';
 import { UploadQueueProvider } from './context/UploadQueueContext';
 import { FiscalYearProvider, useFiscalYear } from './context/FiscalYearContext';
 import { FiscalYearManager } from './components/FiscalYearManager';
-import { FiscalYearSelectionModal } from './components/FiscalYearSelectionModal';
 import { Invoice, AppSettings, AccountingEntry, BankTransaction, Supplier, Apartment, RecurringExpense, Reservation } from './types';
 import { Eye, Trash, AlertTriangle, RefreshCw, XCircle, Check, Lock } from 'lucide-react';
 import { encryptData } from './utils/crypto';
@@ -93,7 +92,7 @@ const MainLayout: React.FC = () => {
   const { user, loading, mustChangePassword } = useAuth();
   const sessionReady = useSessionReady();
   const { showToast, showConfirm } = useToast();
-  const { activeFiscalYear, isReadOnly, needsSelection, fiscalYears, selectFiscalYear } = useFiscalYear();
+  const { activeFiscalYear, isReadOnly } = useFiscalYear();
   // --- STATE ---
 
   // Initialize with empty arrays - data will be loaded from Appwrite or localStorage in useEffect
@@ -483,17 +482,6 @@ const MainLayout: React.FC = () => {
   // render cycle can commit its results to state.
   useEffect(() => {
     if (!user || !sessionReady || !isDataLayerInitialized) return;
-    if (!activeFiscalYear) {
-      setInvoices([]);
-      setAccountingEntries([]);
-      setBankTransactions([]);
-      setSuppliers([]);
-      setApartments([]);
-      setRecurringExpenses([]);
-      setReservations([]);
-      setIsDataLoading(false);
-      return;
-    }
 
     let cancelled = false;
 
@@ -713,9 +701,7 @@ const MainLayout: React.FC = () => {
     showSuccess,
     isReadOnly,
     showToast,
-    activeFiscalYearId: activeFiscalYear?.appwriteId || activeFiscalYear?.id,
-    activeFiscalYearYear: activeFiscalYear?.year,
-    showConfirm,
+    activeFiscalYearId: activeFiscalYear?.appwriteId || activeFiscalYear?.id
   });
 
   // Legacy File Handlers
@@ -877,20 +863,6 @@ const MainLayout: React.FC = () => {
           />
           <div className="flex-1 ml-0 md:ml-64 transition-all duration-200">
             <Header isLocalFileMode={isLocalFileMode} />
-            {/* Contexto de ejercicio activo — guardarraíl visual */}
-            {activeFiscalYear && !isReadOnly && (
-              <div className="bg-blue-600 text-white px-4 py-1.5 text-center text-sm font-medium tracking-wide">
-                Trabajando en el <strong>Ejercicio {activeFiscalYear.year}</strong>
-                {' · '}
-                Las facturas y datos nuevos se guardarán en este ejercicio
-              </div>
-            )}
-            {needsSelection && fiscalYears.length > 1 && (
-              <FiscalYearSelectionModal
-                fiscalYears={fiscalYears}
-                onSelect={selectFiscalYear}
-              />
-            )}
             {/* Offline/Sync Status Banner */}
             <ConnectionBanner />
             {/* Connection Error Banner */}
