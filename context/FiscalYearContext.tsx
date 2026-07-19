@@ -28,10 +28,8 @@ import {
   serializeTouristTaxPeriods,
 } from '../utils/touristTaxUtils';
 import { DEFAULT_TAX_CONFIG } from '../config/defaultSettings';
-import {
-  resolveFiscalYearFromPreference,
-  saveStoredFiscalYearPreference,
-} from '../utils/fiscalYearPersistence';
+
+const LS_KEY = 'gestcb_active_fiscal_year_id';
 
 // ============================================================================
 // CONTEXT TYPES
@@ -46,18 +44,12 @@ interface FiscalYearContextType {
   isReadOnly: boolean;
   /** true mientras se cargan los ejercicios */
   isLoading: boolean;
-  /**
-   * true cuando hay varios ejercicios y el usuario debe elegir explícitamente
-   * (no hay preferencia guardada de uso previo).
-   */
-  needsSelection: boolean;
   /** Seleccionar el ejercicio activo (cambia los datos que se muestran) */
   selectFiscalYear: (id: string) => void;
   /** Crear un nuevo ejercicio. Si hay ejercicio previo, copia maestros automáticamente */
   createFiscalYear: (
     year: number,
-    notes?: string,
-    options?: { selectAfterCreate?: boolean }
+    notes?: string
   ) => Promise<{ fiscalYear: FiscalYear; copiedSuppliers: number; copiedApartments: number; copiedRecurringExpenses: number }>;
   /** Cerrar un ejercicio (no se podrán editar sus datos) */
   closeFiscalYear: (id: string) => Promise<void>;
@@ -115,7 +107,6 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
   const [activeFiscalYear, setActiveFiscalYear] = useState<FiscalYear | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [needsSelection, setNeedsSelection] = useState(false);
 
   // Derivado: readonly si el ejercicio activo está cerrado
   const isReadOnly = activeFiscalYear?.status === 'CLOSED';
@@ -123,62 +114,41 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   // ------------------------------------------------------------------
   // CARGA INICIAL
   // ------------------------------------------------------------------
-  const persistActiveFiscalYear = useCallback((fy: FiscalYear) => {
-    if (user?.$id) {
-      saveStoredFiscalYearPreference(user.$id, fy);
-    }
-  }, [user?.$id]);
-
-  const applyFiscalYearSelection = useCallback((fy: FiscalYear | null) => {
-    setActiveFiscalYear(fy);
-    setNeedsSelection(false);
-    if (fy) {
-      persistActiveFiscalYear(fy);
-      onFiscalYearChange?.(fy.id);
-    }
-  }, [persistActiveFiscalYear, onFiscalYearChange]);
-
-  const resolveInitialFiscalYear = useCallback((years: FiscalYear[]): FiscalYear | null => {
-    if (years.length === 0) return null;
-    if (years.length === 1) return years[0];
-
-    if (user?.$id) {
-      const fromPreference = resolveFiscalYearFromPreference(years, user.$id);
-      if (fromPreference) return fromPreference;
-    }
-
-    // Sin preferencia: no auto-seleccionar el más reciente (evita operar en el equivocado)
-    return null;
-  }, [user?.$id]);
-
   const refreshFiscalYears = useCallback(async () => {
     try {
       const years = await appwriteService.fetchFiscalYears();
       setFiscalYears(years);
 
-      const resolved = resolveInitialFiscalYear(years);
-      if (resolved) {
-        applyFiscalYearSelection(resolved);
-      } else if (years.length > 1) {
-        setActiveFiscalYear(null);
-        setNeedsSelection(true);
-      } else {
-        setActiveFiscalYear(null);
-        setNeedsSelection(false);
+      // Restaurar ejercicio activo desde localStorage
+      const storedId = localStorage.getItem(LS_KEY);
+      if (storedId) {
+        const found = years.find(y => y.id === storedId || y.appwriteId === storedId);
+        if (found) {
+          setActiveFiscalYear(found);
+          return;
+        }
+      }
+
+      // Si no hay uno guardado, seleccionar el más reciente ABIERTO, o el más reciente
+      const open = years.find(y => y.status === 'OPEN');
+      const defaultYear = open || years[0] || null;
+      setActiveFiscalYear(defaultYear);
+      if (defaultYear) {
+        localStorage.setItem(LS_KEY, defaultYear.id);
       }
     } catch (err) {
       console.error('[FiscalYearContext] Error cargando ejercicios:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [applyFiscalYearSelection, resolveInitialFiscalYear]);
+  }, []);
 
   useEffect(() => {
     if (!user) {
       setFiscalYears([]);
       setActiveFiscalYear(null);
-      setNeedsSelection(false);
       setIsLoading(false);
+      localStorage.removeItem(LS_KEY);
       return;
     }
 
@@ -196,18 +166,18 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
   const selectFiscalYear = useCallback((id: string) => {
     const found = fiscalYears.find(y => y.id === id || y.appwriteId === id);
     if (!found) return;
-    applyFiscalYearSelection(found);
-  }, [fiscalYears, applyFiscalYearSelection]);
+    setActiveFiscalYear(found);
+    localStorage.setItem(LS_KEY, found.id);
+    onFiscalYearChange?.(found.id);
+  }, [fiscalYears, onFiscalYearChange]);
 
   // ------------------------------------------------------------------
   // CREAR EJERCICIO
   // ------------------------------------------------------------------
   const createFiscalYear = useCallback(async (
     year: number,
-    notes?: string,
-    options?: { selectAfterCreate?: boolean }
+    notes?: string
   ): Promise<{ fiscalYear: FiscalYear; copiedSuppliers: number; copiedApartments: number; copiedRecurringExpenses: number }> => {
-    const selectAfterCreate = options?.selectAfterCreate === true;
     const now = new Date().toISOString();
 
     // Buscar ejercicio previo (el de año inmediatamente anterior)
@@ -282,15 +252,15 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
       }
     }
 
-    // Actualizar estado local — NO cambiar el ejercicio activo salvo petición explícita
+    // Actualizar estado local
     const updatedYears = [saved, ...fiscalYears];
     setFiscalYears(updatedYears);
-    if (selectAfterCreate) {
-      applyFiscalYearSelection(saved);
-    }
+    setActiveFiscalYear(saved);
+    localStorage.setItem(LS_KEY, saved.id);
+    onFiscalYearChange?.(saved.id);
 
     return { fiscalYear: saved, copiedSuppliers, copiedApartments, copiedRecurringExpenses };
-  }, [fiscalYears, applyFiscalYearSelection]);
+  }, [fiscalYears, onFiscalYearChange]);
 
   // ------------------------------------------------------------------
   // CERRAR EJERCICIO
@@ -370,25 +340,25 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
     const updatedYears = fiscalYears.filter(y => y.id !== id && y.appwriteId !== id);
     setFiscalYears(updatedYears);
 
-    // Si era el ejercicio activo, resolver siguiente (preferencia o selección explícita)
+    // Si era el ejercicio activo, seleccionar el siguiente disponible
     const wasActive = activeFiscalYear?.id === id || activeFiscalYear?.appwriteId === id;
     if (wasActive) {
-      const nextYear = resolveInitialFiscalYear(updatedYears);
+      // Seleccionar el ejercicio ABIERTO más reciente (mayor año final) o el primero disponible
+      const openYears = updatedYears.filter(y => y.status === 'OPEN');
+      const nextYear =
+        (openYears.length > 0
+          ? openYears.reduce((best, y) => (y.year > best.year ? y : best))
+          : updatedYears[0]) || null;
+      setActiveFiscalYear(nextYear);
       if (nextYear) {
-        applyFiscalYearSelection(nextYear);
-      } else if (updatedYears.length > 1) {
-        setActiveFiscalYear(null);
-        setNeedsSelection(true);
-        onFiscalYearChange?.(null);
-      } else if (updatedYears.length === 1) {
-        applyFiscalYearSelection(updatedYears[0]);
+        localStorage.setItem(LS_KEY, nextYear.id);
+        onFiscalYearChange?.(nextYear.id);
       } else {
-        setActiveFiscalYear(null);
-        setNeedsSelection(false);
+        localStorage.removeItem(LS_KEY);
         onFiscalYearChange?.(null);
       }
     }
-  }, [fiscalYears, activeFiscalYear, resolveInitialFiscalYear, applyFiscalYearSelection, onFiscalYearChange]);
+  }, [fiscalYears, activeFiscalYear, onFiscalYearChange]);
 
   // ------------------------------------------------------------------
   // ACTUALIZAR PERÍODOS DE TASA TURÍSTICA
@@ -423,7 +393,6 @@ export const FiscalYearProvider: React.FC<FiscalYearProviderProps> = ({
       activeFiscalYear,
       isReadOnly,
       isLoading,
-      needsSelection,
       selectFiscalYear,
       createFiscalYear,
       closeFiscalYear,

@@ -126,16 +126,6 @@ const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'
 /** Keys de localStorage que NO se deben borrar en logout (configuración de UI) */
 const PROTECTED_STORAGE_KEYS = ['gestcb_settings'];
 
-/**
- * Comprueba si una clave de localStorage debe conservarse tras logout.
- * Incluye preferencias de ejercicio fiscal por usuario (último usado).
- */
-function isProtectedStorageKey(key: string): boolean {
-  if (PROTECTED_STORAGE_KEYS.includes(key)) return true;
-  if (key.startsWith('gestcb_active_fy_')) return true;
-  return false;
-}
-
 // ============================================================================
 // PROVIDER
 // ============================================================================
@@ -366,7 +356,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && !isProtectedStorageKey(key)) {
+      if (key && !PROTECTED_STORAGE_KEYS.includes(key)) {
         // Eliminar keys de la app y dependencias (Appwrite, Statsig analytics)
         if (
           key.startsWith('gestcb_') ||
