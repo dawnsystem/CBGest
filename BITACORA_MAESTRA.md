@@ -1,6 +1,6 @@
 
 # 📝 Bitácora Maestra del Proyecto: CBGest - Contabilidad para Comunidades de Bienes
-*Última actualización: 2026-07-19 09:20:00 UTC*
+*Última actualización: 2026-07-19 14:30:00 UTC*
 
 ---
 
@@ -11,6 +11,7 @@
 Estado actual: **FY-CTX-001 / FY-MIG-001** integrados en `dev`. Rama de integración: **`dev`** (no `main`). PRs y agentes deben apuntar a `dev`.
 
 ### ✅ Implementaciones Recientes
+*   **[2026-07-19] - `FEAT-M184-002` - PDF Modelo 184 idéntico AEAT + certificados hoja S:** Plantilla oficial (`public/assets/modelo184/modelo184-blank.pdf`) generada desde justificante AEAT. Relleno por coordenadas con `pdf-lib` (hoja resumen, rentas clave C, socios). Certificado individual por socio (misma hoja S). UI: botón descarga certificado por partícipe. Script `build-modelo184-template.cjs`.
 *   **[2026-07-19] - `OPS-GIT-001` - Flujo de ramas: integración en `dev`:** PR #179 mergeado por error a `main` y revertido en #180. Commits FY-CTX-001 + FY-MIG-001 cherry-picked a `dev` (f3d3931, a4971d9). CI/security workflows actualizados para rama `dev`. Política documentada en `AGENTS.md`: PRs → `dev`, `main` solo producción.
 *   **[2026-07-19] - `FY-MIG-001` - Herramienta de corrección de datos mal ubicados:** Ampliada sección de migración en `FiscalYearManager` (2 herramientas: sin ejercicio + fecha↔ejercicio). Nuevos `diagnoseFiscalYearDateMismatches` y `correctFiscalYearDateMismatches` en `fiscalYearService.ts`; lógica pura en `utils/fiscalYearDateMigration.ts`. Detecta facturas/asientos/transacciones/reservas cuya fecha no coincide con el ejercicio asignado y los reasigna al ejercicio del año calendario. UI con análisis previo, desglose por ruta (ej. 2028→2027) y corrección batch. 7 tests nuevos. Complementa `FY-CTX-001`.
 *   **[2026-07-19] - `FY-CTX-001` - Contexto de ejercicio: último usado + guardarraíles anti-errores:** Corregido auto-selección del ejercicio más reciente al entrar (causa raíz de facturas 2027 guardadas en 2028). Nuevo patrón workspace context: persistencia por usuario `gestcb_active_fy_<userId>` con `{id, year, lastUsedAt}` (sobrevive logout); sin preferencia → modal bloqueante `FiscalYearSelectionModal`; crear ejercicio ya no cambia el activo (confirm opcional en `FiscalYearManager`). Banner azul persistente «Trabajando en Ejercicio X». Validación fecha↔ejercicio en facturas, extractos y reservas (`utils/fiscalYearValidation.ts` + `showConfirm`). `App.tsx` no carga datos sin ejercicio seleccionado. 12 tests nuevos. Validado: lint + type-check + test:ci + build OK.

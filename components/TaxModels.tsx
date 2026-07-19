@@ -7,8 +7,10 @@ import {
   buildModelo184Draft,
   exportModelo184File,
   exportModelo184Pdf,
+  exportPartnerCertificatePdf,
   getModelo184FileName,
   getModelo184PdfFileName,
+  getPartnerCertificateFileName,
   hasBlockingIssues,
 } from '../services/modelo184';
 import { downloadPDF } from '../services/pdfService';
@@ -44,6 +46,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
 }) => {
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingTxt, setExportingTxt] = useState(false);
+  const [exportingCertId, setExportingCertId] = useState<string | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [activeTab, setActiveTab] = useState<'MODELS' | 'IEET'>('MODELS');
   const { showToast } = useToast();
@@ -67,7 +70,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
   const partners = useMemo(() => settings.partners || [], [settings.partners]);
   const blockingIssues = draft ? hasBlockingIssues(draft) : true;
 
-  const handleExportPdf = useCallback(() => {
+  const handleExportPdf = useCallback(async () => {
     if (!draft) {
       showToast('Selecciona un ejercicio fiscal activo.', 'warning');
       return;
@@ -79,7 +82,7 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
 
     setExportingPdf(true);
     try {
-      const blob = exportModelo184Pdf(draft);
+      const blob = await exportModelo184Pdf(draft);
       downloadPDF(blob, getModelo184PdfFileName(draft));
       showToast('PDF del Modelo 184 generado.', 'success');
     } catch (error) {
@@ -87,6 +90,26 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
       showToast('Error al generar el PDF.', 'error');
     } finally {
       setExportingPdf(false);
+    }
+  }, [draft, blockingIssues, showToast]);
+
+  const handleExportPartnerCertificate = useCallback(async (partnerId: string, partnerNif: string) => {
+    if (!draft) return;
+    if (blockingIssues) {
+      showToast('Corrige los errores del borrador antes de exportar.', 'error');
+      return;
+    }
+
+    setExportingCertId(partnerId);
+    try {
+      const blob = await exportPartnerCertificatePdf(draft, partnerId);
+      downloadPDF(blob, getPartnerCertificateFileName(draft, partnerNif));
+      showToast('Certificado hoja S generado.', 'success');
+    } catch (error) {
+      console.error('Error generating partner certificate:', error);
+      showToast('Error al generar el certificado.', 'error');
+    } finally {
+      setExportingCertId(null);
     }
   }, [draft, blockingIssues, showToast]);
 
@@ -221,19 +244,34 @@ export const TaxModels: React.FC<TaxModelsProps> = ({
 
                 <div className="space-y-3">
                   {partners.map((partner, index) => (
-                    <div key={partner.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                        <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${index % 2 === 0 ? 'bg-indigo-500' : 'bg-purple-500'}`}>
+                    <div key={partner.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${index % 2 === 0 ? 'bg-indigo-500' : 'bg-purple-500'}`}>
                             {partner.name.charAt(0)}
                         </div>
-                        <div>
-                            <p className="text-sm font-medium text-slate-900">{partner.name} ({partner.participation}%)</p>
+                        <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{partner.name} ({partner.participation}%)</p>
                             <p className="text-xs text-slate-400">NIF: {partner.nif || 'Pendiente'}</p>
                         </div>
                         </div>
+                        <div className="flex items-center gap-2 shrink-0">
                         <span className="font-mono text-sm font-bold text-slate-700">
                             {(rendimientoNeto * (partner.participation / 100)).toFixed(2)}€
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => handleExportPartnerCertificate(partner.id, partner.nif || partner.id)}
+                          disabled={!draft || blockingIssues || exportingCertId === partner.id}
+                          title="Certificado hoja S (PDF oficial)"
+                          className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-50"
+                        >
+                          {exportingCertId === partner.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4" />
+                          )}
+                        </button>
+                        </div>
                     </div>
                   ))}
                 </div>

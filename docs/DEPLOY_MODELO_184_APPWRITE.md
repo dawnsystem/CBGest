@@ -29,6 +29,7 @@ export APPWRITE_API_KEY="tu-api-key-con-permisos-databases"
 ```
 
 3. Rama de código desplegada en frontend con el módulo `services/modelo184/` (PR contra `dev`).
+4. Plantilla PDF en `public/assets/modelo184/modelo184-blank.pdf` incluida en el build (formulario AEAT en blanco).
 
 ---
 
@@ -133,6 +134,17 @@ No es objetivo de este despliegue **igualar cifras** con la declaración present
 - Coherencia interna del borrador (sumas, atribución a socios, longitud registros AEAT).
 
 Cuando los datos estén completos, se podrá contrastar manualmente con el PDF oficial.
+
+### Regenerar plantilla PDF (desarrolladores)
+
+Si AEAT actualiza el diseño del formulario:
+
+```bash
+# Colocar justificante AEAT de referencia en scripts/fixtures/modelo184-reference.pdf
+node scripts/build-modelo184-template.cjs scripts/fixtures/modelo184-reference.pdf
+```
+
+Esto regenera `public/assets/modelo184/modelo184-blank.pdf` blanqueando las casillas de datos.
 
 ---
 
