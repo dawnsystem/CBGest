@@ -21,6 +21,15 @@ describe('ai/errors', () => {
     expect(classifyHttpError({ message: 'unauthorized', status: 403 })).toBe('AUTH');
   });
 
+  it('classifyHttpError detects Gemini 503 / high demand from JSON body', () => {
+    const gemini503 = {
+      message:
+        '{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}',
+    };
+    expect(classifyHttpError(gemini503)).toBe('TRANSIENT');
+    expect(classifyHttpError({ message: 'high demand, try again later' })).toBe('TRANSIENT');
+  });
+
   it('classifyHttpError detects transient and parse', () => {
     expect(classifyHttpError({ message: 'timeout', status: 504 })).toBe('TRANSIENT');
     expect(classifyHttpError({ message: 'Unexpected token in JSON' })).toBe('PARSE');
