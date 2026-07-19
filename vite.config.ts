@@ -18,9 +18,9 @@ export default defineConfig(({ mode }) => {
 
     return {
       server: {
-        port: 3000,
+        port: 5000,
         host: '0.0.0.0',
-        allowedHosts: ['.tail1c095e.ts.net'],
+        allowedHosts: true,
         // Prevent browser caching of all served files during development
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
