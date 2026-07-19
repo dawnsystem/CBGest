@@ -83,6 +83,7 @@ const UPLOADS_DEDUP_ATTRIBUTES = [
   { type: 'string', key: 'fileHash', size: 64, required: false },
   { type: 'string', key: 'duplicateMatch', size: 2000, required: false },
   { type: 'boolean', key: 'forceProcess', required: false, default: false },
+  { type: 'string', key: 'aiProviderUsed', size: 32, required: false },
 ];
 
 /** Preferencia multi-IA en `settings` (FEAT-AI-FAILOVER-001). */
@@ -841,6 +842,8 @@ async function setupUploadsCollection() {
     { type: 'string', key: 'fileHash', size: 64, required: false },
     { type: 'string', key: 'duplicateMatch', size: 2000, required: false },
     { type: 'boolean', key: 'forceProcess', required: false, default: false },
+    // Proveedor IA que completó el análisis (FEAT-AI-FAILOVER-001)
+    { type: 'string', key: 'aiProviderUsed', size: 32, required: false },
   ];
 
   for (const attr of attributes) {

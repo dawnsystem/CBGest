@@ -207,6 +207,7 @@ const EXPECTED_COLLECTIONS = {
       { key: 'fileHash', type: 'string' },
       { key: 'duplicateMatch', type: 'string' },
       { key: 'forceProcess', type: 'boolean' },
+      { key: 'aiProviderUsed', type: 'string' },
     ],
     indexes: ['timestamp_index', 'status_index', 'storageFileId_index'],
   },

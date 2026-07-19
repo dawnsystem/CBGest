@@ -8,7 +8,7 @@
 
 ### 🚧 Tarea en Progreso (WIP)
 
-Estado actual: **Failover multi-IA listo** (código + `settings.aiConfig` creado en Appwrite Cloud 2026-07-19). Pendiente: Secrets `VITE_*` en Cursor Dashboard + rotar API keys expuestas en chat. Dedup: schemas Cloud + UAT Paso 10.
+Estado actual: **Failover multi-IA listo** (código + `settings.aiConfig` + `uploads.aiProviderUsed` en Appwrite Cloud). **Para que rote a Groq/OpenRouter** hace falta que esas `VITE_*` estén en el build que sirve la app (Secrets Cursor / `.env` del VPS) y reiniciar Vite/redeploy. Rotar API keys expuestas en chat. Dedup: schemas Cloud + UAT Paso 10.
 
 ### ✅ Implementaciones Recientes
 *   **[2026-07-18] - `FEAT-AI-FAILOVER-001` - Router multi-IA (Gemini + Groq + OpenRouter) con failover:** Nueva capa `services/ai/` (providers, prompts, `aiRouter`, PDF→PNG vía pdfjs para vision no-nativa). Preferencia en Settings (`aiConfig.preferredProvider` + `failoverEnabled`). Env: `VITE_GEMINI_API_KEY`, `VITE_GROQ_API_KEY`, `VITE_OPENROUTER_API_KEY` (+ modelo opcional). Cola anota `aiProviderUsed`; errores listan providers intentados. Persistencia `aiConfig` con fallback si el atributo Cloud falta. Validado: lint + type-check + **422** tests + build OK.

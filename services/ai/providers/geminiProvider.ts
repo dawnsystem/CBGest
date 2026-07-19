@@ -171,6 +171,8 @@ function mapGeminiError(error: unknown, fallback: string): AiProviderError {
     return error;
   }
   const { message, status } = getErrorDetails(error);
+  const lower = (message ?? '').toLowerCase();
+
   if (message?.includes('API key')) {
     return new AiProviderError(
       'gemini',
@@ -179,11 +181,27 @@ function mapGeminiError(error: unknown, fallback: string): AiProviderError {
       error
     );
   }
-  if (status === 429 || message?.includes('quota')) {
+  if (status === 429 || lower.includes('quota')) {
     return new AiProviderError(
       'gemini',
       'QUOTA',
       'Cuota excedida: Has superado el límite de uso de la API de Gemini.',
+      error
+    );
+  }
+  if (
+    status === 503 ||
+    status === 502 ||
+    status === 504 ||
+    lower.includes('unavailable') ||
+    lower.includes('high demand') ||
+    lower.includes('overloaded') ||
+    lower.includes('try again later')
+  ) {
+    return new AiProviderError(
+      'gemini',
+      'TRANSIENT',
+      'Gemini no disponible temporalmente (alta demanda). Se intentará otro proveedor si está configurado.',
       error
     );
   }

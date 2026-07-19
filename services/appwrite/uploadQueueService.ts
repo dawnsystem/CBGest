@@ -27,19 +27,20 @@ function safeJsonParse<T>(raw: string, field: string): T | undefined {
   }
 }
 
-/** Optional dedup fields that may be absent on older Cloud schemas. */
-const DEDUP_UPLOAD_FIELDS = [
+/** Optional fields that may be absent on older Cloud schemas. */
+const OPTIONAL_UPLOAD_FIELDS = [
   'fileSha256',
   'isDuplicate',
   'fiscalYearId',
   'fileHash',
   'duplicateMatch',
   'forceProcess',
+  'aiProviderUsed',
 ] as const;
 
 function buildUploadPayload(
   item: QueueItem,
-  options: { includeDedupFields: boolean }
+  options: { includeOptionalFields: boolean }
 ): Record<string, unknown> {
   const { result, bankResult } = item;
   const omitList: Array<keyof QueueItem | 'appwriteId' | 'createdAt' | 'updatedAt' | keyof AppwriteEntity<QueueItem>> = [
@@ -55,8 +56,8 @@ function buildUploadPayload(
     '$collectionId',
     '$permissions',
   ];
-  if (!options.includeDedupFields) {
-    omitList.push(...DEDUP_UPLOAD_FIELDS);
+  if (!options.includeOptionalFields) {
+    omitList.push(...OPTIONAL_UPLOAD_FIELDS);
   }
   const itemData = omitFields(
     item as AppwriteEntity<QueueItem> & { localFile?: File },
@@ -71,10 +72,13 @@ function buildUploadPayload(
     bankResult: bankResult ? JSON.stringify(bankResult) : undefined,
   };
 
-  if (options.includeDedupFields) {
+  if (options.includeOptionalFields) {
     payload.duplicateMatch = item.duplicateMatch
       ? JSON.stringify(item.duplicateMatch)
       : undefined;
+    if (item.aiProviderUsed) {
+      payload.aiProviderUsed = item.aiProviderUsed;
+    }
   }
 
   return payload;
@@ -89,14 +93,15 @@ function isUnknownAttributeError(error: unknown): boolean {
     message.includes('isduplicate') ||
     message.includes('filehash') ||
     message.includes('duplicatematch') ||
-    message.includes('forceprocess')
+    message.includes('forceprocess') ||
+    message.includes('aiproviderused')
   );
 }
 
 export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
   try {
     const { result, bankResult, id } = item;
-    let dataToSave = buildUploadPayload(item, { includeDedupFields: true });
+    let dataToSave = buildUploadPayload(item, { includeOptionalFields: true });
 
     let doc;
     try {
@@ -113,9 +118,9 @@ export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
     } catch (error: unknown) {
       if (!isUnknownAttributeError(error)) throw error;
       dataLogger.warn(
-        '[createUploadItem] Schema sin campos dedup; reintentando sin attrs opcionales'
+        '[createUploadItem] Schema sin campos opcionales; reintentando sin attrs opcionales'
       );
-      dataToSave = buildUploadPayload(item, { includeDedupFields: false });
+      dataToSave = buildUploadPayload(item, { includeOptionalFields: false });
       doc = await withRetry(
         () =>
           databases.createDocument(
@@ -141,6 +146,7 @@ export async function createUploadItem(item: QueueItem): Promise<QueueItem> {
       fileHash: item.fileHash,
       forceProcess: item.forceProcess,
       duplicateMatch: item.duplicateMatch,
+      aiProviderUsed: item.aiProviderUsed,
     } as unknown as QueueItem;
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'createUploadItem');
@@ -190,6 +196,7 @@ export async function getUploadQueue(): Promise<QueueItem[]> {
           : uploadDoc.bankResult,
         fileHash: uploadDoc.fileHash,
         forceProcess: uploadDoc.forceProcess,
+        aiProviderUsed: uploadDoc.aiProviderUsed,
         duplicateMatch: uploadDoc.duplicateMatch && typeof uploadDoc.duplicateMatch === 'string'
           ? safeJsonParse<QueueItem['duplicateMatch']>(uploadDoc.duplicateMatch, 'duplicateMatch')
           : uploadDoc.duplicateMatch,
@@ -207,7 +214,7 @@ export async function updateUploadItem(item: QueueItem): Promise<QueueItem> {
   try {
     const { result, bankResult, id, appwriteId } = item;
     const docId = appwriteId || id;
-    let dataToSave = buildUploadPayload(item, { includeDedupFields: true });
+    let dataToSave = buildUploadPayload(item, { includeOptionalFields: true });
 
     let doc;
     try {
@@ -224,9 +231,9 @@ export async function updateUploadItem(item: QueueItem): Promise<QueueItem> {
     } catch (error: unknown) {
       if (!isUnknownAttributeError(error)) throw error;
       dataLogger.warn(
-        '[updateUploadItem] Schema sin campos dedup; reintentando sin attrs opcionales'
+        '[updateUploadItem] Schema sin campos opcionales; reintentando sin attrs opcionales'
       );
-      dataToSave = buildUploadPayload(item, { includeDedupFields: false });
+      dataToSave = buildUploadPayload(item, { includeOptionalFields: false });
       doc = await withRetry(
         () =>
           databases.updateDocument(
@@ -252,6 +259,7 @@ export async function updateUploadItem(item: QueueItem): Promise<QueueItem> {
       fileHash: item.fileHash,
       forceProcess: item.forceProcess,
       duplicateMatch: item.duplicateMatch,
+      aiProviderUsed: item.aiProviderUsed,
     } as unknown as QueueItem;
   } catch (error: unknown) {
     notifyError((error instanceof Error ? error.message : String(error)), 'updateUploadItem');
