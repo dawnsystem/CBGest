@@ -219,3 +219,70 @@ export async function completeVisionJson<T>(
   );
   return parseModelJson<T>(text, config.providerId);
 }
+
+/**
+ * Igual que `completeVisionJson`, pero rota modelos ante 404 / model_not_found.
+ *
+ * @param baseConfig - Config sin model (o con el primero)
+ * @param models - Lista de model ids a probar en orden
+ * @param prompt - Prompt
+ * @param base64Data - Documento
+ * @param mimeType - MIME
+ * @param maxPdfPages - Páginas PDF
+ * @returns Objeto tipado
+ * @throws AiProviderError del último intento si todos fallan
+ */
+export async function completeVisionJsonWithModelFallback<T>(
+  baseConfig: Omit<OpenAiCompatibleConfig, 'model'>,
+  models: string[],
+  prompt: string,
+  base64Data: string,
+  mimeType: string,
+  maxPdfPages: number
+): Promise<T> {
+  const uniqueModels = [...new Set(models.map((m) => m.trim()).filter(Boolean))];
+  if (uniqueModels.length === 0) {
+    throw new AiProviderError(
+      baseConfig.providerId,
+      'MODEL_NOT_FOUND',
+      `${baseConfig.providerId}: no hay modelos configurados.`
+    );
+  }
+
+  let lastError: unknown;
+  for (let i = 0; i < uniqueModels.length; i++) {
+    const model = uniqueModels[i];
+    try {
+      return await completeVisionJson<T>(
+        { ...baseConfig, model },
+        prompt,
+        base64Data,
+        mimeType,
+        maxPdfPages
+      );
+    } catch (error: unknown) {
+      lastError = error;
+      const canTryNext =
+        i < uniqueModels.length - 1 &&
+        error instanceof AiProviderError &&
+        (error.code === 'MODEL_NOT_FOUND' ||
+          /model_not_found|does not exist|unavailable for free|no longer available/i.test(
+            error.message
+          ));
+      if (!canTryNext) {
+        throw error;
+      }
+      console.warn(
+        `[${baseConfig.providerId}] Modelo ${model} no disponible; probando siguiente…`
+      );
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new AiProviderError(
+        baseConfig.providerId,
+        'MODEL_NOT_FOUND',
+        `${baseConfig.providerId}: ningún modelo de la lista está disponible.`
+      );
+}
