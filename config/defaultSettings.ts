@@ -23,4 +23,8 @@ export const createDefaultSettings = (): AppSettings => ({
     appwriteBucketId: APPWRITE_CONFIG.bucketId,
     appwriteEndpoint: APPWRITE_CONFIG.endpoint,
   },
+  aiConfig: {
+    preferredProvider: 'auto',
+    failoverEnabled: true,
+  },
 });

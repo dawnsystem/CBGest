@@ -83,7 +83,37 @@ const UPLOADS_DEDUP_ATTRIBUTES = [
   { type: 'string', key: 'fileHash', size: 64, required: false },
   { type: 'string', key: 'duplicateMatch', size: 2000, required: false },
   { type: 'boolean', key: 'forceProcess', required: false, default: false },
+  { type: 'string', key: 'aiProviderUsed', size: 32, required: false },
 ];
+
+/** Preferencia multi-IA en `settings` (FEAT-AI-FAILOVER-001). */
+const SETTINGS_AI_CONFIG_ATTRIBUTE = {
+  type: 'string',
+  key: 'aiConfig',
+  size: 500,
+  required: false,
+};
+
+/** Campos fiscales CB / Modelo 184 en `settings` (FEAT-M184-001). */
+const SETTINGS_FISCAL_ATTRIBUTES = [
+  { type: 'string', key: 'address', size: 500, required: false },
+  { type: 'string', key: 'streetNumber', size: 20, required: false },
+  { type: 'string', key: 'postalCode', size: 20, required: false },
+  { type: 'string', key: 'city', size: 200, required: false },
+  { type: 'string', key: 'province', size: 100, required: false },
+  { type: 'string', key: 'phone', size: 50, required: false },
+  { type: 'string', key: 'contactPerson', size: 200, required: false },
+  { type: 'string', key: 'representativeNif', size: 50, required: false },
+  { type: 'string', key: 'representativeName', size: 200, required: false },
+];
+
+/** Gasto deducible en facturas (Modelo 184 / IRPF). */
+const INVOICE_IS_DEDUCTIBLE_ATTRIBUTE = {
+  type: 'boolean',
+  key: 'isDeductible',
+  required: false,
+  default: true,
+};
 
 /**
  * Sleep helper
@@ -447,6 +477,9 @@ async function setupInvoicesCollection() {
     // Deduplicación
     { type: 'string', key: 'fileHash', size: 64, required: false },
     { type: 'string', key: 'contentFingerprint', size: 128, required: false },
+
+    // Modelo 184 / IRPF
+    { ...INVOICE_IS_DEDUCTIBLE_ATTRIBUTE },
   ];
 
   for (const attr of attributes) {
@@ -636,6 +669,10 @@ async function setupSettingsCollection() {
     { type: 'string', key: 'partners', size: 50000, required: false },
     // Tourist tax config stored as JSON string
     { type: 'string', key: 'touristTaxConfig', size: 1000, required: false },
+    // Multi-IA preference (preferredProvider + failoverEnabled) as JSON string
+    SETTINGS_AI_CONFIG_ATTRIBUTE,
+    // Domicilio fiscal CB y representante — Modelo 184
+    ...SETTINGS_FISCAL_ATTRIBUTES,
   ];
 
   for (const attr of attributes) {
@@ -805,6 +842,8 @@ async function setupUploadsCollection() {
     { type: 'string', key: 'fileHash', size: 64, required: false },
     { type: 'string', key: 'duplicateMatch', size: 2000, required: false },
     { type: 'boolean', key: 'forceProcess', required: false, default: false },
+    // Proveedor IA que completó el análisis (FEAT-AI-FAILOVER-001)
+    { type: 'string', key: 'aiProviderUsed', size: 32, required: false },
   ];
 
   for (const attr of attributes) {
@@ -1190,6 +1229,54 @@ async function setupBankStatementImportsCollection() {
 }
 
 /**
+ * TAX_REPORTS — borradores Modelo 184 persistidos.
+ */
+async function setupTaxReportsCollection() {
+  console.log('\n=== Setting up TAX_REPORTS collection ===\n');
+  const collectionId = 'tax_reports';
+
+  await createCollection(collectionId, 'Tax Reports');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('\n📋 Creating attributes...');
+
+  const attributes = [
+    { ...FISCAL_YEAR_ID_ATTRIBUTE },
+    { type: 'integer', key: 'year', required: true, min: 2000, max: 2100 },
+    { type: 'string', key: 'status', size: 20, required: true },
+    { type: 'string', key: 'draft', size: 65535, required: true },
+    { type: 'string', key: 'exportedAt', size: 40, required: false },
+    { type: 'string', key: 'fileHash', size: 128, required: false },
+    { type: 'string', key: 'presentationReference', size: 64, required: false },
+    { type: 'string', key: 'createdAt', size: 40, required: false },
+    { type: 'string', key: 'updatedAt', size: 40, required: false },
+  ];
+
+  for (const attr of attributes) {
+    await createAttribute(collectionId, attr);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n⏳ Waiting for attributes to be ready...');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log('\n📇 Creating indexes...');
+
+  const indexes = [
+    { key: 'fiscalYearId_index', type: 'key', attributes: ['fiscalYearId'], orders: ['ASC'] },
+    { key: 'year_index', type: 'key', attributes: ['year'], orders: ['DESC'] },
+    { key: 'status_index', type: 'key', attributes: ['status'], orders: ['ASC'] },
+  ];
+
+  for (const index of indexes) {
+    await createIndex(collectionId, index);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  console.log('\n✅ Tax Reports collection setup complete!\n');
+}
+
+/**
  * Pase defensivo: garantiza fiscalYearId + índice en colecciones ya existentes.
  * Evita el fallo real visto en Cloud (recurring_expenses sin atributo mientras
  * el resto sí lo tenía), que rompía filtros y «Migrar datos sin ejercicio».
@@ -1279,6 +1366,115 @@ async function ensureInvoiceDedupSchema() {
 }
 
 /**
+ * Pase defensivo: campos fiscales Modelo 184 en settings (instalaciones parciales).
+ */
+async function ensureSettingsFiscalSchema() {
+  console.log('\n=== Ensuring settings fiscal schema (FEAT-M184-001) ===\n');
+
+  const collectionId = 'settings';
+  try {
+    const existingAttrs = await listAllAttributes(collectionId);
+    for (const attrConfig of SETTINGS_FISCAL_ATTRIBUTES) {
+      const existing = existingAttrs.find((a) => a.key === attrConfig.key);
+      if (!existing) {
+        await createAttribute(collectionId, attrConfig);
+        const ready = await waitForAttributeAvailable(collectionId, attrConfig.key);
+        if (!ready) {
+          console.warn(`  ⚠️  ${attrConfig.key} creado pero aún no available en ${collectionId}`);
+        }
+      } else if (existing.status === 'available') {
+        console.log(`  ✓ ${attrConfig.key} already available`);
+      } else if (existing.status === 'processing') {
+        console.log(`  ⏳ ${attrConfig.key} processing…`);
+        await waitForAttributeAvailable(collectionId, attrConfig.key);
+      } else {
+        console.warn(`  ⚠️  ${attrConfig.key} status=${existing.status} error=${existing.error || ''}`);
+      }
+      await sleep(300);
+    }
+  } catch (error) {
+    if (error.code === 404) {
+      console.warn(`  ⚠️  Colección ${collectionId} no existe aún (se crea en el setup principal)`);
+      return;
+    }
+    throw error;
+  }
+
+  console.log('\n✅ Settings fiscal schema ensure complete!\n');
+}
+
+/**
+ * Pase defensivo: aiConfig en settings (FEAT-AI-FAILOVER-001).
+ */
+async function ensureSettingsAiConfigSchema() {
+  console.log('\n=== Ensuring settings.aiConfig schema (FEAT-AI-FAILOVER-001) ===\n');
+
+  const collectionId = 'settings';
+  try {
+    const existingAttrs = await listAllAttributes(collectionId);
+    const attrConfig = SETTINGS_AI_CONFIG_ATTRIBUTE;
+    const existing = existingAttrs.find((a) => a.key === attrConfig.key);
+    if (!existing) {
+      await createAttribute(collectionId, attrConfig);
+      const ready = await waitForAttributeAvailable(collectionId, attrConfig.key);
+      if (!ready) {
+        console.warn(`  ⚠️  ${attrConfig.key} creado pero aún no available en ${collectionId}`);
+      }
+    } else if (existing.status === 'available') {
+      console.log(`  ✓ ${attrConfig.key} already available`);
+    } else if (existing.status === 'processing') {
+      console.log(`  ⏳ ${attrConfig.key} processing…`);
+      await waitForAttributeAvailable(collectionId, attrConfig.key);
+    } else {
+      console.warn(`  ⚠️  ${attrConfig.key} status=${existing.status} error=${existing.error || ''}`);
+    }
+  } catch (error) {
+    if (error.code === 404) {
+      console.warn(`  ⚠️  Colección ${collectionId} no existe aún (se crea en el setup principal)`);
+      return;
+    }
+    throw error;
+  }
+
+  console.log('\n✅ Settings aiConfig schema ensure complete!\n');
+}
+
+/**
+ * Pase defensivo: isDeductible en facturas.
+ */
+async function ensureInvoiceIsDeductibleSchema() {
+  console.log('\n=== Ensuring invoice isDeductible schema (FEAT-M184-001) ===\n');
+
+  const collectionId = 'invoices';
+  try {
+    const existingAttrs = await listAllAttributes(collectionId);
+    const existing = existingAttrs.find((a) => a.key === INVOICE_IS_DEDUCTIBLE_ATTRIBUTE.key);
+    if (!existing) {
+      await createAttribute(collectionId, { ...INVOICE_IS_DEDUCTIBLE_ATTRIBUTE });
+      const ready = await waitForAttributeAvailable(collectionId, INVOICE_IS_DEDUCTIBLE_ATTRIBUTE.key);
+      if (!ready) {
+        console.warn(`  ⚠️  isDeductible creado pero aún no available en ${collectionId}`);
+      }
+    } else if (existing.status === 'available') {
+      console.log('  ✓ isDeductible already available');
+    } else if (existing.status === 'processing') {
+      console.log('  ⏳ isDeductible processing…');
+      await waitForAttributeAvailable(collectionId, INVOICE_IS_DEDUCTIBLE_ATTRIBUTE.key);
+    } else {
+      console.warn(`  ⚠️  isDeductible status=${existing.status} error=${existing.error || ''}`);
+    }
+  } catch (error) {
+    if (error.code === 404) {
+      console.warn(`  ⚠️  Colección ${collectionId} no existe aún (se crea en el setup principal)`);
+      return;
+    }
+    throw error;
+  }
+
+  console.log('\n✅ Invoice isDeductible schema ensure complete!\n');
+}
+
+/**
  * Main execution
  */
 async function main() {
@@ -1305,19 +1501,23 @@ async function main() {
     await setupReservationsCollection();
     await setupFiscalYearsCollection();
     await setupBankStatementImportsCollection();
+    await setupTaxReportsCollection();
 
     // Defensive pass: attribute may be missing on older Cloud installs
     await ensureFiscalYearIdSchema();
     await ensureInvoiceDedupSchema();
+    await ensureSettingsFiscalSchema();
+    await ensureSettingsAiConfigSchema();
+    await ensureInvoiceIsDeductibleSchema();
 
     console.log('');
     console.log('🎉 ALL collections have been set up successfully!');
     console.log('');
     console.log('Collections configured:');
-    console.log('  ✅ invoices (+ apartmentId, fiscalYearId, fileHash, contentFingerprint + indexes)');
+    console.log('  ✅ invoices (+ apartmentId, fiscalYearId, isDeductible, fileHash, contentFingerprint + indexes)');
     console.log('  ✅ entries (+ isDraft, fiscalYearId size=36 + index)');
     console.log('  ✅ transactions (+ contentFingerprint, importBatchId, fiscalYearId)');
-    console.log('  ✅ settings (+ touristTaxConfig field)');
+    console.log('  ✅ settings (+ touristTaxConfig, aiConfig, domicilio fiscal CB, representante)');
     console.log('  ✅ suppliers (+ fiscalYearId size=36 + index)');
     console.log('  ✅ notifications');
     console.log('  ✅ uploads (+ fileSha256/isDuplicate/fiscalYearId + fileHash/duplicateMatch/forceProcess)');
@@ -1327,6 +1527,7 @@ async function main() {
     console.log('  ✅ reservations (+ tourist tax and deposit fields, + fiscalYearId)');
     console.log('  ✅ fiscal_years (year, status, openedAt, closedAt, notes, touristTaxPeriods)');
     console.log('  ✅ bank_statement_imports (fileSha256, contentFingerprint, fiscalYearId)');
+    console.log('  ✅ tax_reports (draft Modelo 184, fiscalYearId, status)');
     console.log('');
     console.log('Next steps:');
     console.log('  1. Verify: node scripts/verify-appwrite-setup.cjs');

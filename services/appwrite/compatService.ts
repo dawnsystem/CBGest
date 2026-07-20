@@ -34,6 +34,7 @@ import type {
   TouristTaxPeriod,
   BankStatementImport,
 } from '../../types';
+import type { FiscalYearDateMismatchItem } from '../../utils/fiscalYearDateMigration';
 
 export const databaseService = {
   // INVOICES
@@ -100,6 +101,8 @@ export const databaseService = {
   updateFiscalYear: fiscalYearSvc.updateFiscalYear,
   updateFiscalYearTouristTax: fiscalYearSvc.updateFiscalYearTouristTax,
   migrateLegacyData: fiscalYearSvc.migrateLegacyData,
+  diagnoseFiscalYearDateMismatches: fiscalYearSvc.diagnoseFiscalYearDateMismatches,
+  correctFiscalYearDateMismatches: fiscalYearSvc.correctFiscalYearDateMismatches,
   copyMasterDataToFiscalYear: fiscalYearSvc.copyMasterDataToFiscalYear,
   diagnoseFiscalYearVisibility: fiscalYearSvc.diagnoseFiscalYearVisibility,
   getFiscalYearDependencies: fiscalYearSvc.getFiscalYearDependencies,
@@ -154,7 +157,14 @@ export const syncSettings = async (localSettings: AppSettings): Promise<AppSetti
       await databaseService.saveSettings(localSettings);
       return localSettings;
     }
-    return { ...localSettings, ...remoteSettings, dataConfig: localSettings.dataConfig };
+    return {
+      ...localSettings,
+      ...remoteSettings,
+      dataConfig: localSettings.dataConfig,
+      // Preservar preferencia IA local si Cloud aún no tiene el atributo aiConfig
+      aiConfig: remoteSettings.aiConfig ?? localSettings.aiConfig,
+      touristTaxConfig: remoteSettings.touristTaxConfig ?? localSettings.touristTaxConfig,
+    };
   } catch (error) {
     console.error('Error syncing settings:', error);
     return null;
@@ -214,6 +224,14 @@ export const deleteFiscalYearCascade = (
 ) => databaseService.deleteFiscalYearCascade(fiscalYearId, onProgress);
 export const migrateLegacyData = (fiscalYearId: string, onProgress?: (done: number, total: number) => void) =>
   databaseService.migrateLegacyData(fiscalYearId, onProgress);
+export const diagnoseFiscalYearDateMismatches = (
+  fiscalYears: FiscalYear[],
+  options?: { sourceFiscalYearId?: string }
+) => databaseService.diagnoseFiscalYearDateMismatches(fiscalYears, options);
+export const correctFiscalYearDateMismatches = (
+  mismatches: FiscalYearDateMismatchItem[],
+  onProgress?: (done: number, total: number) => void
+) => databaseService.correctFiscalYearDateMismatches(mismatches, onProgress);
 export const diagnoseFiscalYearVisibility = (fiscalYearId: string) =>
   databaseService.diagnoseFiscalYearVisibility(fiscalYearId);
 export const copyMasterDataToFiscalYear = (

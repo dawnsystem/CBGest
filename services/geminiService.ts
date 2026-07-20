@@ -1,251 +1,112 @@
+/**
+ * @fileoverview Facade de análisis documental.
+ * Delega en el router multi-IA (`services/ai`) y conserva parseo XLSX local.
+ */
 
-import { GoogleGenAI, Type } from "@google/genai";
 import readXlsxFile from 'read-excel-file';
-import { ACCOUNT_PLAN } from '../utils/accountingPlan';
 import { Supplier, BankTransaction } from '../types';
 import type { GeminiInvoiceResponse, GeminiBankTransaction } from '../types/gemini';
+import {
+  analyzeBankStatementWithRouter,
+  analyzeInvoiceWithRouter,
+  DEFAULT_AI_CONFIG,
+  type AiConfig,
+  type BankStatementAnalysisResult,
+  type CbIssuerContext,
+  type InvoiceAnalysisResult,
+} from './ai';
 
 // Re-export types for consumers
 export type { GeminiInvoiceResponse, GeminiBankTransaction } from '../types/gemini';
+export type { AiConfig, CbIssuerContext, InvoiceAnalysisResult, BankStatementAnalysisResult };
 
-// Initialize Gemini client lazily to avoid creating an instance with an empty key
-// at module load time (SEC-002).  A new client is created on each call so that
-// the key is always read from the environment at invocation time.
-function getAiClient(): GoogleGenAI {
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Missing Gemini API key: define API_KEY or GEMINI_API_KEY in your environment.');
-  }
-  return new GoogleGenAI({ apiKey });
-}
-
-const getErrorDetails = (error: unknown): { message?: string; status?: number } => {
-  if (!error || typeof error !== 'object') {
-    return {};
-  }
-
-  const maybeError = error as { message?: unknown; status?: unknown };
-  return {
-    message: typeof maybeError.message === 'string' ? maybeError.message : undefined,
-    status: typeof maybeError.status === 'number' ? maybeError.status : undefined,
-  };
-};
-
+/**
+ * Analiza una factura con el router multi-IA (resultado plano, compatibilidad).
+ *
+ * @param base64Data - Imagen/PDF en base64
+ * @param mimeType - MIME
+ * @param existingSuppliers - Proveedores
+ * @param aiConfig - Preferencia / failover
+ * @param cbIssuer - Identidad CB desde Settings
+ * @returns Datos fiscales
+ * @throws Error si todos los proveedores fallan
+ * @example
+ * const data = await analyzeInvoiceImage(b64, 'image/jpeg');
+ */
 export const analyzeInvoiceImage = async (
   base64Data: string,
   mimeType: string,
-  existingSuppliers: Supplier[] = []
+  existingSuppliers: Supplier[] = [],
+  aiConfig: AiConfig = DEFAULT_AI_CONFIG,
+  cbIssuer: CbIssuerContext | null = null
 ): Promise<GeminiInvoiceResponse> => {
-  try {
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error("Gemini Service: API Key is missing");
-      throw new Error("API Key de Gemini no configurada. Revisa tu archivo .env");
-    }
-
-    const modelName = 'gemini-2.5-flash';
-    console.warn(`Gemini Service: Starting analysis with model ${modelName}`);
-
-    // Crear lista de cuentas contables para el prompt
-    const accountsList = ACCOUNT_PLAN.map(acc => `${acc.code} - ${acc.name}`).join('\n      ');
-
-    // Crear lista de proveedores existentes para el prompt
-    const suppliersList = existingSuppliers.length > 0
-      ? existingSuppliers.map(s => `${s.name} (${s.nifType}: ${s.nif})`).join('\n      ')
-      : 'No hay proveedores registrados aún';
-
-    const prompt = `
-      Analiza este documento (factura o ticket).
-      Eres un contable experto en normativa española (Plan General Contable) y europea.
-
-      **PROVEEDORES EXISTENTES EN LA BASE DE DATOS:**
-      ${suppliersList}
-
-      **IMPORTANTE SOBRE PROVEEDORES:**
-      - Primero, verifica si el emisor de esta factura coincide con alguno de los proveedores listados arriba.
-      - Busca coincidencias por nombre O por NIF/CIF (ignorando espacios y guiones).
-      - Si encuentras una coincidencia, devuelve el campo "matchedSupplierId" con el nombre exacto del proveedor que coincide.
-      - Si NO encuentras coincidencia, devuelve "matchedSupplierId" como null.
-      - En cualquier caso, extrae los datos del emisor como "issuerName" e "issuerNif".
-
-      Instrucciones CRÍTICAS de Limpieza de Datos:
-      1. **NIF/CIF/VAT**: Extrae el identificador fiscal del emisor.
-         - ELIMINA cualquier carácter que no sea letra o número (guiones, espacios, puntos, barras).
-         - Ejemplo: "B-12345678" -> "B12345678". "ES B 12345678" -> "ESB12345678".
-         - Estandariza a mayúsculas.
-      2. **Tipo de Documento**: Identifica si es un NIF (Persona física ES), CIF (Empresa ES), VAT (Intracomunitario), PASAPORTE o OTRO.
-      3. **Cuenta Contable**: DEBES seleccionar el código de cuenta más apropiado del Plan General Contable español.
-
-      **PLAN CONTABLE DISPONIBLE** (selecciona el código más apropiado según el concepto de la factura):
-      ${accountsList}
-
-      **INSTRUCCIONES PARA ASIGNAR LA CUENTA CONTABLE:**
-      - Si es una factura de GASTO (EXPENSE), usa cuentas del Grupo 6 (600-699).
-      - Si es una factura de INGRESO (INCOME), usa cuentas del Grupo 7 (700-799).
-      - Analiza el concepto del documento para elegir la cuenta más específica:
-        * Facturas de alquiler pagado → 621
-        * Reparaciones/mantenimiento → 622
-        * Gestoría/abogados → 623
-        * Seguros → 625
-        * Comisiones bancarias → 626
-        * Luz/agua/gas/internet → 628
-        * Comisiones Booking/Airbnb → 629
-        * IBI/basuras → 631
-        * Ingresos por alquiler → 705
-      - El código debe ser EXACTAMENTE uno de los listados arriba.
-
-      Instrucciones Generales:
-      1. Extrae los datos fiscales.
-      2. Valida que la fecha tenga sentido.
-      3. IMPORTANTE: Devuelve SOLO el código de cuenta (ej: "628"), NO incluyas el nombre.
-
-      Campos a extraer:
-      - number (string)
-      - date (YYYY-MM-DD)
-      - issuerName (string) - Nombre o razón social del emisor
-      - issuerNif (string) - LIMPIO SIN SEPARADORES
-      - issuerNifType (string) - Enum: 'NIF', 'CIF', 'VAT', 'PASSPORT', 'OTHER'
-      - issuerAddress (string | null) - Domicilio fiscal completo del emisor (calle, número, piso, etc.). Extrae toda la dirección visible en el documento.
-      - issuerCity (string | null) - Ciudad/localidad del emisor
-      - issuerPostalCode (string | null) - Código postal del emisor
-      - issuerCountry (string | null) - País del emisor (si no es España, indica el país)
-      - matchedSupplierId (string | null) - Nombre del proveedor que coincide, o null
-      - baseAmount (number)
-      - vatRate (number, ej: 21)
-      - vatAmount (number)
-      - totalAmount (number)
-      - type ('EXPENSE' | 'INCOME')
-      - suggestedAccountCode (string) - SOLO EL CÓDIGO (ej: "628")
-    `;
-
-    const response = await getAiClient().models.generateContent({
-      model: modelName,
-      contents: {
-        parts: [
-          { inlineData: { mimeType: mimeType, data: base64Data } },
-          { text: prompt }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            number: { type: Type.STRING },
-            date: { type: Type.STRING },
-            issuerName: { type: Type.STRING },
-            issuerNif: { type: Type.STRING },
-            issuerNifType: { type: Type.STRING },
-            issuerAddress: { type: Type.STRING, nullable: true, description: "Domicilio fiscal del emisor" },
-            issuerCity: { type: Type.STRING, nullable: true, description: "Ciudad del emisor" },
-            issuerPostalCode: { type: Type.STRING, nullable: true, description: "Código postal del emisor" },
-            issuerCountry: { type: Type.STRING, nullable: true, description: "País del emisor" },
-            matchedSupplierId: { type: Type.STRING, nullable: true, description: "Nombre del proveedor existente que coincide, o null" },
-            baseAmount: { type: Type.NUMBER },
-            vatRate: { type: Type.NUMBER },
-            vatAmount: { type: Type.NUMBER },
-            totalAmount: { type: Type.NUMBER },
-            type: { type: Type.STRING, enum: ['EXPENSE', 'INCOME'] },
-            suggestedAccountCode: { type: Type.STRING, description: "Código cuenta contable PGC sugerido (ej: 628)" }
-          }
-        }
-      }
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
-    return JSON.parse(text);
-
-  } catch (error: unknown) {
-    console.error("Gemini Service Error (Invoice):", error);
-    const { message, status } = getErrorDetails(error);
-
-    // Mejorar el mensaje de error para el usuario
-    if (message?.includes('API key')) {
-      throw new Error("Error de autenticación: API Key inválida o no encontrada.");
-    }
-    if (status === 429 || message?.includes('quota')) {
-      throw new Error("Cuota excedida: Has superado el límite de uso de la API de Gemini.");
-    }
-    if (status === 404 || message?.includes('not found')) {
-      throw new Error(`Modelo no encontrado: Asegúrate de tener acceso al modelo gemini-2.5-flash.`);
-    }
-
-    throw error;
-  }
+  const { data } = await analyzeInvoiceWithRouter(
+    base64Data,
+    mimeType,
+    existingSuppliers,
+    aiConfig,
+    cbIssuer
+  );
+  return data;
 };
 
-// NEW: Bank Statement Parser
-export const analyzeBankStatement = async (base64Data: string, mimeType: string): Promise<GeminiBankTransaction[]> => {
-  try {
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("API Key de Gemini no configurada.");
-    }
+/**
+ * Analiza una factura y devuelve metadatos del proveedor usado.
+ *
+ * @param base64Data - Documento base64
+ * @param mimeType - MIME
+ * @param existingSuppliers - Proveedores
+ * @param aiConfig - Config IA
+ * @param cbIssuer - Identidad CB desde Settings
+ * @returns data + meta
+ */
+export const analyzeInvoiceImageDetailed = async (
+  base64Data: string,
+  mimeType: string,
+  existingSuppliers: Supplier[] = [],
+  aiConfig: AiConfig = DEFAULT_AI_CONFIG,
+  cbIssuer: CbIssuerContext | null = null
+): Promise<InvoiceAnalysisResult> => {
+  return analyzeInvoiceWithRouter(
+    base64Data,
+    mimeType,
+    existingSuppliers,
+    aiConfig,
+    cbIssuer
+  );
+};
 
-    const modelName = 'gemini-2.5-flash';
+/**
+ * Analiza un extracto bancario PDF/imagen (resultado plano).
+ *
+ * @param base64Data - Documento base64
+ * @param mimeType - MIME
+ * @param aiConfig - Config IA
+ * @returns Movimientos
+ */
+export const analyzeBankStatement = async (
+  base64Data: string,
+  mimeType: string,
+  aiConfig: AiConfig = DEFAULT_AI_CONFIG
+): Promise<GeminiBankTransaction[]> => {
+  const { data } = await analyzeBankStatementWithRouter(base64Data, mimeType, aiConfig);
+  return data;
+};
 
-    const prompt = `
-      Analiza este Extracto Bancario (PDF o Imagen), probablemente de BBVA Empresas o similar.
-      
-      Tu objetivo es extraer la lista de movimientos (transacciones) fila por fila.
-      Ignora cabeceras, pies de página y saldos iniciales/finales si no son movimientos.
-      
-      Devuelve un ARRAY de objetos JSON.
-      
-      Para cada fila detectada:
-      - date: La fecha de operación (YYYY-MM-DD).
-      - concept: La descripción o concepto del movimiento.
-      - amount: El importe. IMPORTANTE: Si es un cargo/pago, debe ser NEGATIVO. Si es un abono/ingreso, POSITIVO.
-      
-      Ejemplo de salida esperado:
-      [
-        { "date": "2024-01-15", "concept": "RECIBO LUZ", "amount": -150.50 },
-        { "date": "2024-01-16", "concept": "TRANSF. INQUILINO", "amount": 800.00 }
-      ]
-    `;
-
-    const response = await getAiClient().models.generateContent({
-      model: modelName,
-      contents: {
-        parts: [
-          { inlineData: { mimeType: mimeType, data: base64Data } },
-          { text: prompt }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              date: { type: Type.STRING },
-              concept: { type: Type.STRING },
-              amount: { type: Type.NUMBER }
-            }
-          }
-        }
-      }
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
-    return JSON.parse(text);
-
-  } catch (error: unknown) {
-    console.error("Gemini Service Error (Bank):", error);
-    const { message, status } = getErrorDetails(error);
-
-    if (message?.includes('API key')) {
-      throw new Error("Error de autenticación: API Key inválida o no encontrada.");
-    }
-    if (status === 429 || message?.includes('quota')) {
-      throw new Error("Cuota excedida: Has superado el límite de uso de la API de Gemini.");
-    }
-
-    throw error;
-  }
+/**
+ * Analiza un extracto y devuelve metadatos del proveedor usado.
+ *
+ * @param base64Data - Documento base64
+ * @param mimeType - MIME
+ * @param aiConfig - Config IA
+ * @returns data + meta
+ */
+export const analyzeBankStatementDetailed = async (
+  base64Data: string,
+  mimeType: string,
+  aiConfig: AiConfig = DEFAULT_AI_CONFIG
+): Promise<BankStatementAnalysisResult> => {
+  return analyzeBankStatementWithRouter(base64Data, mimeType, aiConfig);
 };
 
 // Helper function to parse dates from various formats
@@ -288,8 +149,16 @@ const parseDateValue = (value: unknown): string => {
   return '';
 };
 
-// NEW: Parse XLSX Bank Statement (without AI)
-export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<BankTransaction, 'id' | 'status'>[]> => {
+/**
+ * Parsea un extracto bancario XLSX sin IA (mapeo heurístico de columnas).
+ *
+ * @param base64Data - Archivo XLSX en base64
+ * @returns Transacciones sin id/status
+ * @throws Error si no hay columnas/filas válidas
+ */
+export const parseXlsxBankStatement = async (
+  base64Data: string
+): Promise<Omit<BankTransaction, 'id' | 'status'>[]> => {
   try {
     // Decode base64 to binary
     const binaryString = atob(base64Data);
@@ -300,7 +169,7 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
 
     // Create a Blob for read-excel-file
     const blob = new Blob([bytes.buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
 
     // read-excel-file returns rows as arrays of cell values
@@ -308,32 +177,56 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
     const rows = await readXlsxFile(blob);
 
     if (!rows || rows.length < 2) {
-      throw new Error("El archivo XLSX no contiene suficientes datos");
+      throw new Error('El archivo XLSX no contiene suficientes datos');
     }
 
     // PERF-008: Guard against excessively large files to keep the browser responsive.
     const MAX_ROWS = 5000;
     if (rows.length > MAX_ROWS) {
-      throw new Error(`El archivo XLSX supera el límite de ${MAX_ROWS} filas. Divídalo en partes más pequeñas.`);
+      throw new Error(
+        `El archivo XLSX supera el límite de ${MAX_ROWS} filas. Divídalo en partes más pequeñas.`
+      );
     }
 
     // Convert to our expected format
-    const rawData: unknown[][] = rows.map(row => [...row]);
+    const rawData: unknown[][] = rows.map((row) => [...row]);
 
     // Find header row (look for keywords in first 10 rows)
     let headerRowIndex = 0;
     const dateKeywords = ['fecha', 'date', 'f.valor', 'f. valor', 'f.operación', 'f. operación'];
-    const conceptKeywords = ['concepto', 'descripción', 'descripcion', 'concept', 'movimiento', 'detalle'];
-    const amountKeywords = ['importe', 'amount', 'cantidad', 'cargo', 'abono', 'débito', 'crédito', 'debito', 'credito', 'monto'];
+    const conceptKeywords = [
+      'concepto',
+      'descripción',
+      'descripcion',
+      'concept',
+      'movimiento',
+      'detalle',
+    ];
+    const amountKeywords = [
+      'importe',
+      'amount',
+      'cantidad',
+      'cargo',
+      'abono',
+      'débito',
+      'crédito',
+      'debito',
+      'credito',
+      'monto',
+    ];
 
     for (let i = 0; i < Math.min(10, rawData.length); i++) {
       const row = rawData[i];
       if (!row || !Array.isArray(row)) continue;
 
       const rowLower = row.map((cell: unknown) => String(cell || '').toLowerCase().trim());
-      const hasDate = rowLower.some((cell: string) => dateKeywords.some(k => cell.includes(k)));
-      const hasConcept = rowLower.some((cell: string) => conceptKeywords.some(k => cell.includes(k)));
-      const hasAmount = rowLower.some((cell: string) => amountKeywords.some(k => cell.includes(k)));
+      const hasDate = rowLower.some((cell: string) => dateKeywords.some((k) => cell.includes(k)));
+      const hasConcept = rowLower.some((cell: string) =>
+        conceptKeywords.some((k) => cell.includes(k))
+      );
+      const hasAmount = rowLower.some((cell: string) =>
+        amountKeywords.some((k) => cell.includes(k))
+      );
 
       if (hasDate && (hasConcept || hasAmount)) {
         headerRowIndex = i;
@@ -361,7 +254,7 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
     const creditCol = findColumnIndex(['abono', 'crédito', 'credito', 'haber']);
 
     if (dateCol === -1) {
-      throw new Error("No se encontró columna de fecha en el archivo XLSX");
+      throw new Error('No se encontró columna de fecha en el archivo XLSX');
     }
 
     // Parse data rows
@@ -387,12 +280,28 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       let amount = 0;
       if (amountCol !== -1 && row[amountCol] !== undefined && row[amountCol] !== '') {
         // Single amount column
-        const rawAmount = String(row[amountCol]).replace(/[^\d,.-]/g, '').replace(',', '.');
+        const rawAmount = String(row[amountCol])
+          .replace(/[^\d,.-]/g, '')
+          .replace(',', '.');
         amount = parseFloat(rawAmount) || 0;
       } else if (debitCol !== -1 || creditCol !== -1) {
         // Separate debit/credit columns
-        const debit = debitCol !== -1 ? parseFloat(String(row[debitCol] || 0).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0 : 0;
-        const credit = creditCol !== -1 ? parseFloat(String(row[creditCol] || 0).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0 : 0;
+        const debit =
+          debitCol !== -1
+            ? parseFloat(
+                String(row[debitCol] || 0)
+                  .replace(/[^\d,.-]/g, '')
+                  .replace(',', '.')
+              ) || 0
+            : 0;
+        const credit =
+          creditCol !== -1
+            ? parseFloat(
+                String(row[creditCol] || 0)
+                  .replace(/[^\d,.-]/g, '')
+                  .replace(',', '.')
+              ) || 0
+            : 0;
 
         // Debit is negative (expense), Credit is positive (income)
         if (debit > 0) {
@@ -408,18 +317,17 @@ export const parseXlsxBankStatement = async (base64Data: string): Promise<Omit<B
       transactions.push({
         date,
         concept: concept || 'Sin concepto',
-        amount
+        amount,
       });
     }
 
     if (transactions.length === 0) {
-      throw new Error("No se encontraron transacciones válidas en el archivo XLSX");
+      throw new Error('No se encontraron transacciones válidas en el archivo XLSX');
     }
 
     return transactions;
-
   } catch (error) {
-    console.error("Error parsing XLSX bank statement:", error);
+    console.error('Error parsing XLSX bank statement:', error);
     throw error;
   }
 };

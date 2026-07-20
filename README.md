@@ -183,11 +183,12 @@ npm install
 Crea un archivo `.env.local` en la raíz del proyecto:
 
 ```env
-# API Key de Google Gemini (obligatorio para análisis de facturas)
-API_KEY=tu-api-key-de-gemini
-
-# Alternativa para la API Key
-GEMINI_API_KEY=tu-api-key-de-gemini
+# Al menos una key de IA (recomendado: varias para failover automático)
+VITE_GEMINI_API_KEY=tu-api-key-de-gemini
+VITE_GROQ_API_KEY=tu-api-key-de-groq
+VITE_OPENROUTER_API_KEY=tu-api-key-de-openrouter
+# Opcional: modelo free de OpenRouter con visión
+# VITE_OPENROUTER_MODEL=nvidia/nemotron-nano-12b-v2-vl:free
 ```
 
 ### 4. Iniciar la aplicación
@@ -203,8 +204,12 @@ La aplicación estará disponible en `http://localhost:5173`
 
 | Variable | Descripción | Requerida |
 |----------|-------------|-----------|
-| `API_KEY` | API Key de Google Gemini para análisis IA | Sí |
-| `GEMINI_API_KEY` | Alternativa a API_KEY | No |
+| `VITE_GEMINI_API_KEY` | API Key de Google Gemini (visión + PDF nativo) | Recomendada |
+| `VITE_GROQ_API_KEY` | API Key de Groq (si hay modelos vision en la cuenta) | No |
+| `VITE_OPENROUTER_API_KEY` | API Key de OpenRouter (modelos `:free` con visión) | No |
+| `VITE_OPENROUTER_MODEL` | Modelo OpenRouter (default `nvidia/nemotron-nano-12b-v2-vl:free`) | No |
+
+Con varias keys configuradas, CBGest rota automáticamente si un proveedor agota cuota o falla al leer una factura (configurable en Ajustes → Lectura de facturas).
 
 ---
 

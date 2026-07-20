@@ -68,7 +68,7 @@ export function calculateTaxData(
     .reduce((acc, curr) => acc + amountOf(curr), 0);
 
   const totalGastos = validInvoices
-    .filter(i => i.type === 'EXPENSE')
+    .filter(i => i.type === 'EXPENSE' && i.isDeductible !== false)
     .reduce((acc, curr) => acc + amountOf(curr), 0);
 
   const rendimientoNeto = totalIngresos - totalGastos;
