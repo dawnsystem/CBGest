@@ -86,7 +86,7 @@ export const buildEntryFromInvoice = (inv: Invoice, author?: EntryAuthor): Accou
         ];
 
   return {
-    id: `AUTO-${inv.id}`,
+    id: inv.id,
     date: inv.date,
     concept: `Factura ${inv.number || 'S/N'} - ${inv.issuerName}`,
     lines,

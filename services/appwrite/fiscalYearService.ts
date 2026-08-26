@@ -669,6 +669,11 @@ export async function getFiscalYearDependencies(fiscalYearId: string): Promise<F
  */
 export async function deleteFiscalYear(id: string): Promise<void> {
   try {
+    const deps = await getFiscalYearDependencies(id);
+    if (deps.total > 0) {
+      throw new Error('El ejercicio contiene datos asociados. Vuelve a iniciar la eliminación para confirmar el borrado en cascada.');
+    }
+
     await withRetry(
       () => databases.deleteDocument(config.databaseId, config.collections.fiscalYears, id),
       'deleteFiscalYear'
