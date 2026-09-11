@@ -55,7 +55,7 @@
     "tailwindcss": "^4.1.17",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vitest": "^4.0.12",
+    "vitest": "^4.1.11",
     "write-excel-file": "^4.1.1"
   }
 }
